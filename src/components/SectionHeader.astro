@@ -1,0 +1,9 @@
+---
+/* Centred eyebrow + title (with optional blue highlight word) + subtitle. */
+const { eyebrow, sentence = false, title, blue, titleAfter = '', subtitle } = Astro.props;
+---
+<div class="value-prop__header">
+  <div class={'section-badge' + (sentence ? ' section-badge--sentence' : '')}>{eyebrow}</div>
+  <h2 class="section-title">{title}{blue && <span>{blue}</span>}{titleAfter}</h2>
+  {subtitle && <p class="section-subtitle">{subtitle}</p>}
+</div>

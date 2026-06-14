@@ -1,0 +1,58 @@
+---
+/**
+ * BaseLayout — the page shell shared by every route.
+ * Loads the design-system CSS, renders the SEO head, nav, footer, the enquiry
+ * modal and all client scripts; pages supply their content via the slot.
+ */
+import '../styles/styles.css';
+import '../styles/kit-extras.css';
+import '../styles/site.css';
+
+import { SITE } from '../data/site.mjs';
+import BaseHead from '../components/BaseHead.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import EnquireModal from '../components/EnquireModal.astro';
+import SiteScripts from '../components/SiteScripts.astro';
+
+const {
+  title,
+  description,
+  image,
+  ogTitle,
+  ogDescription,
+  keywords,
+  type = 'website',
+  noindex = false,
+  canonical,
+  jsonLd = [],
+  mainClass = '',
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <BaseHead
+      title={title}
+      description={description}
+      image={image}
+      ogTitle={ogTitle}
+      ogDescription={ogDescription}
+      keywords={keywords}
+      type={type}
+      noindex={noindex}
+      canonical={canonical}
+      jsonLd={jsonLd}
+    />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <Nav />
+    <main id="main" class={mainClass}>
+      <slot />
+    </main>
+    <Footer />
+    <EnquireModal />
+    <SiteScripts />
+  </body>
+</html>

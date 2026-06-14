@@ -1,0 +1,54 @@
+---
+/* Low-fi "branded checkout template" with fill-in-the-blanks placeholder slots. */
+import Icon from '../Icon.astro';
+import Chrome from './Chrome.astro';
+---
+<div class="mok bct">
+  <Chrome url="[your-company].com/pay" />
+  <div class="bct__body">
+    <div class="bct__brandbar">
+      <span class="bct__tag bct__tag--brand">Your branding</span>
+      <div class="bct__logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.16-5.16a2.25 2.25 0 013.18 0l5.16 5.16m-1.5-1.5l1.41-1.41a2.25 2.25 0 013.18 0l2.91 2.91M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.01v.01h-.01V8.25z" />
+        </svg>
+      </div>
+      <div class="bct__brandtext">
+        <span class="bct__company"><span class="bct__ph">[ Your Company ]</span></span>
+        <span class="bct__skel" style="width:70px"></span>
+      </div>
+    </div>
+    <div class="bct__headline">Pay<span class="bct__ph">[Your Company]</span></div>
+    <div class="bct__amount">£<span class="bct__ph">[amount]</span></div>
+    <div class="bct__label">Card details</div>
+    <div class="bct__cardbox">
+      <div class="bct__cardbox-row">
+        <span class="bct__card-glyph"><Icon name="card" sw={1.6} /></span>
+        <span class="bct__dots">
+          {[0, 1, 2, 3].map(() => (
+            <span class="bct__dot-grp">
+              {[0, 1, 2, 3].map(() => <span class="bct__dot"></span>)}
+            </span>
+          ))}
+        </span>
+      </div>
+      <div class="bct__cardbox-split">
+        <div>MM / YY</div>
+        <div>CVC</div>
+      </div>
+    </div>
+    <div class="bct__colourrow">
+      <span class="bct__label">Brand colour</span>
+      <span class="bct__swatches">
+        <span class="bct__swatch bct__swatch--sel" style="background:#3B82F6;color:#3B82F6"></span>
+        <span class="bct__swatch" style="background:#10B981"></span>
+        <span class="bct__swatch" style="background:#0F172A"></span>
+      </span>
+    </div>
+    <div class="bct__btn-wrap">
+      <span class="bct__tag bct__tag--colour">Your colours</span>
+      <button class="bct__btn" type="button" tabindex="-1" aria-hidden="true">Pay £<span class="bct__ph">[amount]</span></button>
+    </div>
+    <div class="bct__foot">[ Your secure-payment footer ]</div>
+  </div>
+</div>

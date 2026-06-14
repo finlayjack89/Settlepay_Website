@@ -1,0 +1,72 @@
+---
+import Icon from '../Icon.astro';
+import SectionHeader from '../SectionHeader.astro';
+
+const cases = [
+  {
+    cat: 'Fine Art & Antiquities',
+    title: 'Lockdales Auctioneers',
+    live: true,
+    challenge:
+      'A long-established Suffolk coin, medal and collectables auction house, reconciling large volumes of buyer payments against winning lots by hand after every sale.',
+    solutionPre: 'A bespoke, branded checkout processed by ',
+    solutionStrong: 'Stripe',
+    solutionPost: ', with each card payment matched back to its lot automatically.',
+    impact: [
+      'Branded payment page live on the Lockdales site',
+      'Card payments reconciled against lot records automatically',
+      'Funds settle straight to the Lockdales bank account',
+    ],
+  },
+  {
+    cat: 'Illustrative · Estate & Lettings',
+    title: 'Harbourside Lettings',
+    live: false,
+    challenge:
+      'An independent estate and lettings agency collecting holding deposits and first-month rent by bank transfer and the occasional cheque, then matching each payment to the right tenancy by hand.',
+    solutionPre: 'A branded pay-by-link checkout running through ',
+    solutionStrong: 'Checkout.com & GoCardless',
+    solutionPost: ", so tenants pay by card or Apple Pay the moment they're approved.",
+    impact: [
+      'Holding deposits paid on the spot via a branded link',
+      'Each payment matched to the right tenancy automatically',
+      "Funds settle straight to the agency's client account",
+    ],
+  },
+];
+---
+<section class="testimonials section-pad" id="testimonials" data-screen-label="Use cases">
+  <div class="container">
+    <SectionHeader
+      eyebrow="Who It's For"
+      title="Built for "
+      blue="Small UK Businesses"
+      subtitle="From estate agents and auction rooms to sole traders still taking cash — here's how a bespoke checkout removes the manual reconciliation."
+    />
+    <div class="testimonials__grid">
+      {cases.map((c) => (
+        <div class="testimonial-card">
+          <div class="use-case__head">
+            <div class="use-case__category">{c.cat}</div>
+            <span class={'use-case__tag ' + (c.live ? 'use-case__tag--live' : 'use-case__tag--demo')}>
+              {c.live ? 'Live client' : 'Illustrative example'}
+            </span>
+          </div>
+          <h3 class="use-case__title">{c.title}</h3>
+          <p class="use-case__challenge"><strong>The Challenge: </strong>{c.challenge}</p>
+          <div class="use-case__solution">
+            <strong>The Solution: </strong>{c.solutionPre}<strong>{c.solutionStrong}</strong>{c.solutionPost}
+          </div>
+          <ul class="use-case__impact">
+            {c.impact.map((x) => (
+              <li><Icon name="check" sw={2.5} />{x}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <p class="use-case__disclaimer">
+        Harbourside Lettings is an illustrative scenario showing a typical fit, not a current client.
+      </p>
+    </div>
+  </div>
+</section>

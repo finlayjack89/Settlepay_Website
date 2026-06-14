@@ -1,0 +1,46 @@
+---
+/* Low-fi reconciliation matcher: payments (left) auto-matched to invoices (right). */
+import Icon from '../Icon.astro';
+import Chrome from './Chrome.astro';
+const rows = [
+  { matched: true },
+  { matched: true },
+  { matched: false },
+];
+---
+<div class="mok rec">
+  <Chrome url="[your-company] · reconciliation" />
+  <div class="rec__body">
+    <div class="rec__heads">
+      <div class="rec__head"><Icon name="card" sw={1.6} />Payments</div>
+      <div></div>
+      <div class="rec__head"><Icon name="store" sw={1.6} />Invoices</div>
+    </div>
+    {rows.map((r) => (
+      <div class={'rec__row' + (r.matched ? '' : ' rec__row--pending')}>
+        <div class="rec__chip">
+          <div class="rec__chip-top">
+            <span class="rec__chip-amt">£</span>
+            <span class="bct__ph">amount</span>
+          </div>
+          <div class="bct__skel" style="width:55%"></div>
+        </div>
+        <div class="rec__link">
+          <span class="rec__tick"><Icon name={r.matched ? 'check' : 'arrow'} sw={2.4} /></span>
+        </div>
+        <div class="rec__chip">
+          <div class="rec__chip-top">
+            <span class="bct__ph">[invoice #]</span>
+            <div class="bct__skel" style="width:24px"></div>
+          </div>
+          <div class="bct__skel" style="width:70%"></div>
+        </div>
+      </div>
+    ))}
+    <div class="rec__statusbar">
+      <Icon name="refresh" sw={2} />
+      <span>Auto-matched in real time</span>
+      <span>[x] of [y] reconciled</span>
+    </div>
+  </div>
+</div>

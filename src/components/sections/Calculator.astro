@@ -1,0 +1,80 @@
+---
+import Icon from '../Icon.astro';
+import Button from '../Button.astro';
+import SectionHeader from '../SectionHeader.astro';
+
+// Initial values (JS keeps them live)
+const payments = 120;
+const mins = 12;
+const hours = Math.round((payments * mins) / 60);
+const pPct = ((payments - 10) / (600 - 10)) * 100;
+const mPct = ((mins - 2) / (30 - 2)) * 100;
+const fill = (pct) =>
+  `background: linear-gradient(to right, var(--color-primary-action) ${pct}%, rgba(15,23,42,.08) ${pct}%)`;
+---
+<section class="calculator section-pad" id="savings" data-screen-label="ROI calculator">
+  <div class="container">
+    <SectionHeader
+      eyebrow="See the impact"
+      sentence={true}
+      title="Admin Time "
+      blue="Saved"
+      subtitle="See how many hours you could reclaim each month by replacing manual bank transfers with automated card collection."
+    />
+    <div class="calculator__grid" data-calculator>
+      <div class="calculator__inputs">
+        <div class="calculator__input-group">
+          <label class="calculator__label" for="calc-payments">Payments collected per month</label>
+          <div class="calculator__slider-row">
+            <input
+              type="range" id="calc-payments" min="10" max="600" step="10" value={payments}
+              class="calculator__range" data-range="payments"
+              aria-label="Payments collected per month" style={fill(pPct)}
+            />
+            <span class="calculator__slider-value" data-val="payments">{payments}</span>
+          </div>
+        </div>
+        <div class="calculator__input-group">
+          <label class="calculator__label" for="calc-mins">Minutes spent reconciling each payment by hand</label>
+          <div class="calculator__slider-row">
+            <input
+              type="range" id="calc-mins" min="2" max="30" step="1" value={mins}
+              class="calculator__range" data-range="mins"
+              aria-label="Minutes spent reconciling each payment by hand" style={fill(mPct)}
+            />
+            <span class="calculator__slider-value" data-val="mins">{mins} min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="calculator__results">
+        <div class="calculator__result-card calculator__result-card--highlight">
+          <div class="calculator__result-icon calculator__result-icon--blue"><Icon name="clock" sw={1.5} /></div>
+          <div>
+            <div class="calculator__result-value" data-out="hours">{hours} hrs</div>
+            <div class="calculator__result-label">Admin hours saved per month</div>
+          </div>
+        </div>
+        <div class="calculator__result-card">
+          <div class="calculator__result-icon"><Icon name="refresh" sw={1.5} /></div>
+          <div>
+            <div class="calculator__result-value">Zero</div>
+            <div class="calculator__result-label">Manual reconciliation tasks</div>
+          </div>
+        </div>
+        <div class="calculator__result-card">
+          <div class="calculator__result-icon calculator__result-icon--green"><Icon name="shield" sw={1.5} /></div>
+          <div>
+            <div class="calculator__result-value" data-out="matched">{payments}</div>
+            <div class="calculator__result-label">Payments auto-matched to invoices</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="calculator__cta">
+      <Button variant="primary" icon="arrow" enquire>Book a Free Consultation</Button>
+      <p class="calculator__cta-note">Every project is a fixed written quote agreed before work begins — no retainers, no open-ended bills.</p>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,39 @@
+---
+/* Low-fi onboarding timeline: done / active / upcoming steps. */
+import Icon from '../Icon.astro';
+import Chrome from './Chrome.astro';
+const steps = [
+  { state: 'done', title: 'Kickoff & account setup', badge: 'Complete' },
+  { state: 'done', title: 'Branded checkout build', badge: 'Complete' },
+  { state: 'active', title: 'Testing & team walkthrough', badge: 'In progress' },
+  { state: 'todo', title: 'Go live', badge: null },
+];
+---
+<div class="mok onb">
+  <Chrome url="[your-company] · onboarding" />
+  <div class="onb__body">
+    <div class="onb__title">Onboarding for <span class="bct__ph">[Your Company]</span></div>
+    <div class="onb__steps">
+      {steps.map((s, i) => (
+        <div class={'onb__step onb__step--' + s.state}>
+          <div class="onb__rail">
+            <div class="onb__node">
+              {s.state === 'done' ? <Icon name="check" sw={2.6} /> : i + 1}
+            </div>
+            {i < steps.length - 1 && <div class="onb__line"></div>}
+          </div>
+          <div class="onb__content">
+            <div class="onb__step-title">{s.title}</div>
+            <div class="onb__skel" style={`width:${i % 2 ? '60%' : '78%'}`}></div>
+            {s.badge && (
+              <span class={'onb__badge onb__badge--' + (s.state === 'done' ? 'done' : 'active')}>
+                {s.state === 'active' && <Icon name="clock" sw={2} />}
+                {s.badge}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>

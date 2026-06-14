@@ -1,0 +1,1425 @@
+---
+/**
+ * Marsh & Vale Plumbing & Heating — pay-an-invoice demo.
+ * FLAGSHIP HYBRID: mock card flow by default; when the site is built with
+ * PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY set to a genuine TEST key (pk_test_…),
+ * the mock card fields are replaced at build time by a real Stripe Payment
+ * Element running in test mode (see docs/PORTFOLIO-DEMOS.md). With no key —
+ * the default — the rendered HTML and behaviour are identical to the
+ * original mock. Never reference a Stripe SECRET key anywhere in this repo.
+ *
+ * Fictional brand-world: deep green + copper, sturdy grotesque type, 4-8px
+ * corners — deliberately NOT SettlePay's pill/24px language or blue.
+ */
+import Chrome from '../../previews/Chrome.astro';
+import Icon from '../../Icon.astro';
+
+const cardMarks = [
+  { brand: 'visa', file: 'Visa.svg', label: 'Visa' },
+  { brand: 'mastercard', file: 'Mastercard.svg', label: 'Mastercard' },
+  { brand: 'amex', file: 'Amex.svg', label: 'American Express' },
+];
+
+// Real mode only with a genuine TEST publishable key (publishable keys are
+// safe client-side). Anything else — empty, placeholder, pk_live_… — falls
+// back to the mock.
+const rawStripeKey = (import.meta.env.PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY ?? '').trim();
+const stripeKey = rawStripeKey.startsWith('pk_test_') ? rawStripeKey : '';
+const stripeEndpoint = stripeKey
+  ? (import.meta.env.PUBLIC_STRIPE_DEMO_ENDPOINT ?? '').trim()
+  : '';
+---
+<div
+  class="mok mvp"
+  data-mv-demo
+  data-mv-stripe-key={stripeKey || undefined}
+  data-mv-stripe-endpoint={stripeEndpoint || undefined}
+>
+  <Chrome url="pay.marshandvale.co.uk/invoice/INV-2147" />
+  <div class="mvp__body">
+
+    <header class="mvp__masthead">
+      <span class="mvp__mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="40" height="40" role="img" aria-hidden="true">
+          <rect x="1" y="1" width="38" height="38" rx="7" fill="#B87333" />
+          <path
+            d="M9.5 28.5V12.5l10.5 13 10.5-13v16"
+            fill="none"
+            stroke="#F5F2EB"
+            stroke-width="2.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </span>
+      <span class="mvp__brand">
+        <span class="mvp__brand-name">Marsh &amp; Vale</span>
+        <span class="mvp__brand-trade">Plumbing &amp; Heating</span>
+      </span>
+      <span class="mvp__masthead-ref">Invoice INV-2147</span>
+    </header>
+
+    <section class="mvp__invoice" aria-label="Invoice summary">
+      <div class="mvp__invoice-top">
+        <div class="mvp__invoice-what">
+          <span class="mvp__eyebrow">Invoice INV-2147 · Issued Mon 8 June</span>
+          <h3 class="mvp__invoice-title">Boiler Service &amp; Thermostat Replacement</h3>
+          <p class="mvp__invoice-meta">14 Alder Row, Saxmundham · Job completed Fri 5 June</p>
+        </div>
+        <span class="mvp__chip mvp__chip--due" data-mv-chip-due>Due now</span>
+        <span class="mvp__chip mvp__chip--paid" data-mv-chip-paid hidden>Paid</span>
+      </div>
+      <dl class="mvp__lines">
+        <div class="mvp__line">
+          <dt>Labour — annual service &amp; thermostat fitting</dt>
+          <dd>£240.00</dd>
+        </div>
+        <div class="mvp__line">
+          <dt>Parts — programmable room thermostat</dt>
+          <dd>£82.00</dd>
+        </div>
+        <div class="mvp__line">
+          <dt>VAT (20%)</dt>
+          <dd>£64.40</dd>
+        </div>
+        <div class="mvp__line mvp__line--total">
+          <dt>Total due</dt>
+          <dd>£386.40</dd>
+        </div>
+      </dl>
+      <p class="mvp__invoice-note">
+        <Icon name="phone" sw={2} />
+        Any bother with the new thermostat, just give us a ring.
+      </p>
+    </section>
+
+    <div class="mvp__pay" data-mv-pay>
+      <div class="mvp__wallets">
+        <button type="button" class="mvp__wallet mvp__wallet--apple" data-mv-wallet>
+          <img src="/assets/payment/apple-logo.svg" alt="" class="mvp__wallet-apple" />
+          <span>Pay</span>
+          <span class="mvp__sr">Apple Pay</span>
+        </button>
+        <button type="button" class="mvp__wallet mvp__wallet--google" data-mv-wallet>
+          <img src="/assets/payment/google-g.svg" alt="" class="mvp__wallet-google" />
+          <span>Pay</span>
+          <span class="mvp__sr">Google Pay</span>
+        </button>
+      </div>
+      <p class="mvp__wallet-note" data-mv-wallet-note hidden>
+        Available on the live page — use the card form in this demo.
+      </p>
+
+      <div class="mvp__divider" role="separator" aria-label="Or pay by card">
+        <span>Or pay by card</span>
+      </div>
+
+      {stripeKey ? (
+        <p class="mvp__hint">
+          Stripe test mode — a real card form, no real charges. Demo cards: 4242 4242 4242 4242
+          succeeds, 4000 0027 6000 3184 asks for a 3D Secure check, 4000 0000 0000 0002 declines.
+          Use any future expiry and any CVC.
+        </p>
+      ) : (
+        <p class="mvp__hint">
+          Demo cards: 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 declines
+        </p>
+      )}
+
+      <form class="mvp__form" data-mv-form novalidate>
+        {stripeKey ? (
+          <div class="mvp__field" data-mv-field="stripe">
+            <p class="mvp__stripe-loading" data-mv-stripe-loading>
+              Loading the secure card form…
+            </p>
+            <div class="mvp__stripe-mount" data-mv-stripe-mount></div>
+            <p class="mvp__error" data-mv-error hidden>
+              <Icon name="close" sw={2.5} /><span data-mv-error-text></span>
+            </p>
+          </div>
+        ) : (
+        <>
+        <div class="mvp__field" data-mv-field="name">
+          <label class="mvp__label">
+            <span class="mvp__label-text">Name on card</span>
+            <input
+              class="mvp__input"
+              type="text"
+              name="cardholder"
+              autocomplete="cc-name"
+              spellcheck="false"
+              placeholder="E. Hartley"
+              data-mv-input="name"
+            />
+          </label>
+          <p class="mvp__error" data-mv-error hidden>
+            <Icon name="close" sw={2.5} /><span data-mv-error-text></span>
+          </p>
+        </div>
+
+        <div class="mvp__field" data-mv-field="number">
+          <label class="mvp__label">
+            <span class="mvp__label-text">Card number</span>
+            <span class="mvp__input-wrap">
+              <input
+                class="mvp__input"
+                type="text"
+                name="cardnumber"
+                autocomplete="cc-number"
+                inputmode="numeric"
+                spellcheck="false"
+                placeholder="1234 5678 9012 3456"
+                data-mv-input="number"
+              />
+              <span class="mvp__brands" data-mv-brands>
+                {cardMarks.map((m) => (
+                  <img
+                    src={`/assets/payment/${m.file}`}
+                    alt={m.label}
+                    data-mv-brand={m.brand}
+                    class="mvp__brand-mark"
+                  />
+                ))}
+              </span>
+            </span>
+          </label>
+          <p class="mvp__error" data-mv-error hidden>
+            <Icon name="close" sw={2.5} /><span data-mv-error-text></span>
+          </p>
+        </div>
+
+        <div class="mvp__field-row">
+          <div class="mvp__field" data-mv-field="expiry">
+            <label class="mvp__label">
+              <span class="mvp__label-text">Expiry</span>
+              <input
+                class="mvp__input"
+                type="text"
+                name="cc-exp"
+                autocomplete="cc-exp"
+                inputmode="numeric"
+                spellcheck="false"
+                placeholder="MM / YY"
+                data-mv-input="expiry"
+              />
+            </label>
+            <p class="mvp__error" data-mv-error hidden>
+              <Icon name="close" sw={2.5} /><span data-mv-error-text></span>
+            </p>
+          </div>
+          <div class="mvp__field" data-mv-field="cvc">
+            <label class="mvp__label">
+              <span class="mvp__label-text">Security code</span>
+              <input
+                class="mvp__input"
+                type="text"
+                name="cvc"
+                autocomplete="cc-csc"
+                inputmode="numeric"
+                spellcheck="false"
+                placeholder="CVC"
+                data-mv-input="cvc"
+              />
+            </label>
+            <p class="mvp__error" data-mv-error hidden>
+              <Icon name="close" sw={2.5} /><span data-mv-error-text></span>
+            </p>
+          </div>
+        </div>
+        </>
+        )}
+
+        <button type="submit" class="mvp__paybtn" data-mv-submit>
+          <span class="mvp__paybtn-label">Pay £386.40</span>
+          <span class="mvp__paybtn-busy" data-mv-busy hidden>
+            <span class="mvp__spinner" aria-hidden="true"></span>Processing…
+          </span>
+        </button>
+      </form>
+    </div>
+
+    <div class="mvp__panel mvp__panel--success" data-mv-success hidden>
+      <span class="mvp__panel-icon mvp__panel-icon--ok"><Icon name="check" sw={2.5} /></span>
+      <h3 class="mvp__panel-title" data-mv-success-title>Payment Received</h3>
+      <p class="mvp__panel-amount">£386.40</p>
+      <p class="mvp__panel-text">Invoice INV-2147 is settled. A receipt has been emailed to you.</p>
+      <p class="mvp__panel-fine">
+        Funds settle directly to Marsh &amp; Vale's own bank account.
+      </p>
+      {stripeKey && (
+        <p class="mvp__panel-validated" data-mv-validated hidden>
+          Validated by Stripe in test mode — confirmation endpoint not configured in this preview.
+        </p>
+      )}
+      <button type="button" class="mvp__ghostbtn" data-mv-reset>Restart Demo</button>
+    </div>
+
+    <div class="mvp__panel mvp__panel--declined" data-mv-declined hidden>
+      <span class="mvp__panel-icon mvp__panel-icon--err"><Icon name="close" sw={2.5} /></span>
+      <h3 class="mvp__panel-title">Your Card Was Declined</h3>
+      <p class="mvp__panel-text">
+        No charge has been made. Check the card details, or try a different card.
+      </p>
+      <button type="button" class="mvp__ghostbtn" data-mv-retry>Try Again</button>
+    </div>
+
+    <p class="mvp__sr" data-mv-status role="status" aria-live="polite"></p>
+
+    <footer class="mvp__foot">
+      <p class="mvp__foot-secure">
+        <Icon name="lock" sw={2} />
+        Secured by an FCA-regulated processor · Funds go straight to Marsh &amp; Vale's account
+      </p>
+      <p class="mvp__foot-demo">Illustrative demo — no real payments are taken.</p>
+    </footer>
+
+  </div>
+</div>
+
+<style>
+  /* Brand-world palette — Marsh & Vale only. 4-8px corner language throughout. */
+  .mvp {
+    --mv-green: #1e3a2f;
+    --mv-green-deep: #14291f;
+    --mv-copper: #b87333;
+    --mv-copper-dark: #9a5d26;
+    --mv-cream: #f5f2eb;
+    --mv-paper: #fffdf8;
+    --mv-ink: #1b2b22;
+    --mv-ink-soft: rgba(27, 43, 34, 0.62);
+    --mv-line: rgba(27, 43, 34, 0.14);
+    --mv-font: 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+    font-family: var(--mv-font);
+    color: var(--mv-ink);
+  }
+  /* classes below set display values that would otherwise beat the UA [hidden] rule */
+  .mvp [hidden] {
+    display: none !important;
+  }
+  .mvp__body {
+    background: var(--mv-cream);
+    padding: 0 0 0.25rem;
+  }
+  .mvp__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Masthead ------------------------------------------------------------- */
+  .mvp__masthead {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1rem 1.4rem;
+    background: var(--mv-green);
+    color: var(--mv-cream);
+  }
+  .mvp__mark svg {
+    display: block;
+    border-radius: 8px;
+  }
+  .mvp__brand {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .mvp__brand-name {
+    font-weight: 700;
+    font-size: 1.02rem;
+    letter-spacing: 0.01em;
+  }
+  .mvp__brand-trade {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #cdaa7d;
+  }
+  .mvp__masthead-ref {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: rgba(245, 242, 235, 0.72);
+    border: 1px solid rgba(245, 242, 235, 0.28);
+    border-radius: 4px;
+    padding: 0.3rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  /* Invoice summary ------------------------------------------------------ */
+  .mvp__invoice {
+    margin: 1.1rem 1.4rem 0;
+    background: var(--mv-paper);
+    border: 1px solid var(--mv-line);
+    border-radius: 6px;
+    padding: 1.05rem 1.15rem 0.9rem;
+  }
+  .mvp__invoice-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .mvp__invoice-what { min-width: 0; }
+  .mvp__eyebrow {
+    display: block;
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--mv-copper-dark);
+    margin-bottom: 0.3rem;
+  }
+  .mvp__invoice-title {
+    margin: 0;
+    font-family: var(--mv-font);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--mv-ink);
+  }
+  .mvp__invoice-meta {
+    margin: 0.25rem 0 0;
+    font-size: 0.74rem;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__chip {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.3rem 0.55rem;
+    border-radius: 4px;
+  }
+  .mvp__chip--due {
+    color: var(--mv-copper-dark);
+    background: rgba(184, 115, 51, 0.12);
+    border: 1px solid rgba(184, 115, 51, 0.3);
+  }
+  .mvp__chip--paid {
+    color: var(--mv-green);
+    background: rgba(30, 58, 47, 0.1);
+    border: 1px solid rgba(30, 58, 47, 0.3);
+  }
+  .mvp__lines {
+    margin: 0.9rem 0 0;
+    border-top: 1px solid var(--mv-line);
+  }
+  .mvp__line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed var(--mv-line);
+    font-size: 0.8rem;
+  }
+  .mvp__line dt { color: var(--mv-ink-soft); }
+  .mvp__line dd {
+    margin: 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .mvp__line--total {
+    border-bottom: none;
+    padding-top: 0.65rem;
+    font-size: 0.92rem;
+  }
+  .mvp__line--total dt {
+    color: var(--mv-ink);
+    font-weight: 700;
+  }
+  .mvp__line--total dd {
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  .mvp__invoice-note {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.55rem 0 0;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--mv-line);
+    font-size: 0.74rem;
+    font-style: italic;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__invoice-note :global(svg) {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    color: var(--mv-copper);
+  }
+
+  /* Wallets -------------------------------------------------------------- */
+  .mvp__pay { padding: 1.1rem 1.4rem 1.3rem; }
+  .mvp__wallets {
+    display: flex;
+    gap: 0.7rem;
+  }
+  .mvp__wallet {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 44px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font-family: var(--mv-font);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity var(--ease-snappy);
+  }
+  .mvp__wallet:hover { opacity: 0.88; }
+  .mvp__wallet:focus-visible {
+    outline: 2px solid var(--mv-copper);
+    outline-offset: 2px;
+  }
+  .mvp__wallet--apple {
+    background: #000;
+    color: #fff;
+  }
+  .mvp__wallet-apple {
+    width: 16px;
+    height: 20px;
+    margin-top: -2px;
+    filter: brightness(0) invert(1); /* white apple glyph on the black button */
+  }
+  .mvp__wallet--google {
+    background: #fff;
+    color: #3c4043;
+    border-color: #dadce0;
+  }
+  .mvp__wallet-google {
+    width: 20px;
+    height: 20px;
+  }
+  .mvp__wallet-note {
+    margin: 0.55rem 0 0;
+    font-size: 0.72rem;
+    text-align: center;
+    color: var(--mv-ink-soft);
+  }
+
+  /* Divider + hint ------------------------------------------------------- */
+  .mvp__divider {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 1rem 0 0.8rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__divider::before,
+  .mvp__divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--mv-line);
+  }
+  .mvp__hint {
+    margin: 0 0 0.9rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px dashed rgba(184, 115, 51, 0.45);
+    border-radius: 4px;
+    background: rgba(184, 115, 51, 0.07);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--mv-copper-dark);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Card form ------------------------------------------------------------ */
+  .mvp__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .mvp__field-row {
+    display: flex;
+    gap: 0.7rem;
+  }
+  .mvp__field-row .mvp__field { flex: 1; min-width: 0; }
+  .mvp__label { display: block; }
+  .mvp__label-text {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--mv-ink-soft);
+    margin-bottom: 0.32rem;
+  }
+  .mvp__input-wrap {
+    position: relative;
+    display: block;
+  }
+  .mvp__input {
+    display: block;
+    width: 100%;
+    height: 42px;
+    padding: 0 0.7rem;
+    border: 1px solid var(--mv-line);
+    border-radius: 6px;
+    background: var(--mv-paper);
+    font-family: var(--mv-font);
+    font-size: 0.88rem;
+    color: var(--mv-ink);
+    font-variant-numeric: tabular-nums;
+    transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy);
+    box-sizing: border-box;
+  }
+  .mvp__input::placeholder { color: rgba(27, 43, 34, 0.35); }
+  .mvp__input:focus {
+    outline: none;
+    border-color: var(--mv-copper);
+    box-shadow: 0 0 0 3px rgba(184, 115, 51, 0.18);
+  }
+  .mvp__input[aria-invalid='true'] {
+    border-color: var(--color-error);
+  }
+  .mvp__input[aria-invalid='true']:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+  }
+  .mvp__brands {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    pointer-events: none;
+  }
+  .mvp__brand-mark {
+    height: 15px;
+    width: auto;
+    transition: opacity var(--ease-snappy);
+  }
+  .mvp__brands[data-active] .mvp__brand-mark { opacity: 0.22; }
+  .mvp__brands[data-active] .mvp__brand-mark.is-match { opacity: 1; }
+  .mvp__field--number-padded .mvp__input { padding-right: 6.2rem; }
+
+  .mvp__error {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0.32rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-error);
+  }
+  .mvp__error :global(svg) {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Stripe Payment Element mount (real test mode only) -------------------- */
+  .mvp__stripe-loading {
+    margin: 0;
+    padding: 0.9rem 0.7rem;
+    border: 1px dashed var(--mv-line);
+    border-radius: 6px;
+    background: var(--mv-paper);
+    font-size: 0.78rem;
+    text-align: center;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__stripe-mount {
+    min-height: 0;
+    transition: min-height var(--ease-cinematic);
+  }
+  .mvp__stripe-mount.is-ready {
+    min-height: 90px;
+  }
+
+  /* Pay button ----------------------------------------------------------- */
+  .mvp__paybtn {
+    margin-top: 0.35rem;
+    height: 46px;
+    border: none;
+    border-radius: 6px;
+    background: var(--mv-copper);
+    color: #fff;
+    font-family: var(--mv-font);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .mvp__paybtn:hover:not(:disabled) { background: var(--mv-copper-dark); }
+  .mvp__paybtn:active:not(:disabled) { transform: scale(0.99); }
+  .mvp__paybtn:focus-visible {
+    outline: 2px solid var(--mv-green);
+    outline-offset: 2px;
+  }
+  .mvp__paybtn:disabled {
+    cursor: default;
+    opacity: 0.85;
+  }
+  .mvp__paybtn-busy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .mvp__paybtn-busy[hidden] { display: none; }
+  .mvp__spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    animation: mvp-spin 0.7s linear infinite;
+  }
+  @keyframes mvp-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Result panels --------------------------------------------------------- */
+  .mvp__panel {
+    margin: 1.1rem 1.4rem 1.3rem;
+    padding: 1.6rem 1.2rem 1.4rem;
+    background: var(--mv-paper);
+    border: 1px solid var(--mv-line);
+    border-radius: 6px;
+    text-align: center;
+  }
+  .mvp__panel-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    margin-bottom: 0.7rem;
+  }
+  .mvp__panel-icon :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+  .mvp__panel-icon--ok {
+    background: var(--mv-green);
+    color: var(--mv-cream);
+  }
+  .mvp__panel-icon--err {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--color-error);
+  }
+  .mvp__panel-title {
+    margin: 0;
+    font-family: var(--mv-font);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--mv-ink);
+  }
+  .mvp__panel-amount {
+    margin: 0.3rem 0 0;
+    font-size: 1.7rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--mv-green);
+  }
+  .mvp__panel-text {
+    margin: 0.5rem auto 0;
+    max-width: 34ch;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__panel-fine {
+    margin: 0.55rem auto 0;
+    max-width: 36ch;
+    font-size: 0.72rem;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__panel-validated {
+    margin: 0.7rem auto 0;
+    max-width: 42ch;
+    padding: 0.45rem 0.65rem;
+    border: 1px dashed rgba(184, 115, 51, 0.45);
+    border-radius: 4px;
+    background: rgba(184, 115, 51, 0.07);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--mv-copper-dark);
+  }
+  .mvp__ghostbtn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--mv-line);
+    border-radius: 6px;
+    background: transparent;
+    font-family: var(--mv-font);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--mv-ink);
+    cursor: pointer;
+    transition: border-color var(--ease-snappy), background var(--ease-snappy);
+  }
+  .mvp__ghostbtn:hover {
+    border-color: var(--mv-copper);
+    background: rgba(184, 115, 51, 0.07);
+  }
+  .mvp__ghostbtn:focus-visible {
+    outline: 2px solid var(--mv-copper);
+    outline-offset: 2px;
+  }
+
+  /* Footer ---------------------------------------------------------------- */
+  .mvp__foot {
+    padding: 0.85rem 1.4rem 1.1rem;
+    border-top: 1px solid var(--mv-line);
+    text-align: center;
+  }
+  .mvp__foot-secure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0.7rem;
+    color: var(--mv-ink-soft);
+  }
+  .mvp__foot-secure :global(svg) {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    color: var(--mv-green);
+  }
+  .mvp__foot-demo {
+    margin: 0.3rem 0 0;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--mv-ink-soft);
+  }
+
+  @media (max-width: 480px) {
+    .mvp__masthead,
+    .mvp__pay { padding-inline: 1rem; }
+    .mvp__invoice,
+    .mvp__panel { margin-inline: 1rem; }
+    .mvp__masthead-ref { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvp * {
+      transition: none !important;
+      animation: none !important;
+    }
+    .mvp__paybtn:active:not(:disabled) { transform: none; }
+  }
+</style>
+
+<script>
+  /* Marsh & Vale invoice demo — hybrid. The mock card flow runs by default;
+     when the root carries data-mv-stripe-key (set at build time from a
+     pk_test_… publishable key) the mock fields are gone from the markup and a
+     real Stripe Payment Element in test mode takes their place. Stripe.js is
+     lazy-loaded from js.stripe.com (Stripe requires loading from their domain)
+     on first interaction or when the demo nears the viewport. No secret key is
+     ever referenced client-side; confirmation goes through the optional
+     endpoint in data-mv-stripe-endpoint (see serverless/stripe-demo/). */
+
+  const SUCCESS_CARD = '4242424242424242';
+  const DECLINE_CARD = '4000000000000002';
+  const PROCESS_DELAY_MS = 900;
+  const AMOUNT_LABEL = '£386.40';
+  const INVOICE_REF = 'INV-2147';
+
+  /* Real test mode (Stripe) ------------------------------------------------ */
+  const AMOUNT_MINOR = 38640; // £386.40 in pence — the Worker enforces this server-side too
+  const CURRENCY = 'gbp';
+  const STRIPE_JS_SRC = 'https://js.stripe.com/v3/';
+  const GENERIC_PAYMENT_ERROR =
+    'Something went wrong processing the payment. No charge has been made — please try again.';
+
+  /* Appearance API — match the Marsh & Vale brand world (4-8px corners,
+     copper accent, cream paper), not SettlePay's UI. */
+  const STRIPE_APPEARANCE = {
+    theme: 'stripe',
+    variables: {
+      fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif",
+      colorPrimary: '#B87333',
+      colorBackground: '#FFFDF8',
+      colorText: '#1B2B22',
+      colorTextSecondary: 'rgba(27, 43, 34, 0.62)',
+      colorTextPlaceholder: 'rgba(27, 43, 34, 0.35)',
+      colorDanger: '#DC2626',
+      borderRadius: '6px',
+      fontSizeBase: '15px',
+      focusOutline: 'none',
+      focusBoxShadow: '0 0 0 3px rgba(184, 115, 51, 0.18)',
+    },
+    rules: {
+      '.Input': { border: '1px solid rgba(27, 43, 34, 0.14)' },
+      '.Input:focus': { borderColor: '#B87333' },
+      '.Label': {
+        textTransform: 'uppercase',
+        fontSize: '11px',
+        fontWeight: '700',
+        letterSpacing: '0.1em',
+        color: 'rgba(27, 43, 34, 0.62)',
+      },
+      '.Tab': { borderRadius: '6px' },
+      '.Tab--selected': { borderColor: '#B87333' },
+    },
+  };
+
+  let stripeJsPromise = null;
+
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve(window.Stripe);
+    if (!stripeJsPromise) {
+      stripeJsPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = STRIPE_JS_SRC;
+        script.async = true;
+        script.onload = () => resolve(window.Stripe);
+        script.onerror = () => {
+          stripeJsPromise = null;
+          script.remove();
+          reject(new Error('The secure card form could not be loaded. Check your connection and try again.'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return stripeJsPromise;
+  }
+
+  let uidCounter = 0;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function digitsOnly(value) {
+    return value.replace(/\D/g, '');
+  }
+
+  function detectBrand(digits) {
+    if (/^3/.test(digits)) return 'amex';
+    if (/^4/.test(digits)) return 'visa';
+    if (/^5/.test(digits)) return 'mastercard';
+    return null;
+  }
+
+  function maxDigitsFor(brand) {
+    return brand === 'amex' ? 15 : 16;
+  }
+
+  function groupCardDigits(digits, brand) {
+    const groups = brand === 'amex' ? [4, 6, 5] : [4, 4, 4, 4];
+    const parts = [];
+    let i = 0;
+    for (const size of groups) {
+      if (i >= digits.length) break;
+      parts.push(digits.slice(i, i + size));
+      i += size;
+    }
+    return parts.join(' ');
+  }
+
+  function formatExpiry(raw) {
+    let digits = digitsOnly(raw).slice(0, 4);
+    if (digits.length >= 1 && Number(digits[0]) > 1) digits = ('0' + digits).slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return digits.slice(0, 2) + ' / ' + digits.slice(2);
+  }
+
+  function expiryIsValid(raw) {
+    const digits = digitsOnly(raw);
+    if (digits.length !== 4) return false;
+    const month = Number(digits.slice(0, 2));
+    if (month < 1 || month > 12) return false;
+    const year = 2000 + Number(digits.slice(2));
+    const now = new Date();
+    return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1);
+  }
+
+  function restoreCaret(input, digitsBeforeCaret) {
+    let seen = 0;
+    let pos = input.value.length;
+    for (let i = 0; i < input.value.length; i += 1) {
+      if (seen === digitsBeforeCaret) { pos = i; break; }
+      if (/\d/.test(input.value[i])) seen += 1;
+    }
+    if (seen < digitsBeforeCaret) pos = input.value.length;
+    input.setSelectionRange(pos, pos);
+  }
+
+  function reformatInput(input, formatter) {
+    const caret = input.selectionStart ?? input.value.length;
+    const digitsBeforeCaret = digitsOnly(input.value.slice(0, caret)).length;
+    input.value = formatter(input.value);
+    restoreCaret(input, digitsBeforeCaret);
+  }
+
+  function setError(ctx, fieldName, message) {
+    const field = ctx.fields[fieldName];
+    field.input.setAttribute('aria-invalid', 'true');
+    field.errorText.textContent = message;
+    field.error.hidden = false;
+  }
+
+  function clearError(ctx, fieldName) {
+    const field = ctx.fields[fieldName];
+    field.input.removeAttribute('aria-invalid');
+    field.errorText.textContent = '';
+    field.error.hidden = true;
+  }
+
+  function validateName(ctx, value) {
+    if (value.trim().length < 2) return 'Enter the name on the card.';
+    return null;
+  }
+
+  function validateNumber(ctx, value) {
+    const digits = digitsOnly(value);
+    if (!digits) return 'Enter your card number.';
+    const brand = detectBrand(digits);
+    if (digits.length !== maxDigitsFor(brand)) return 'Enter a valid card number.';
+    return null;
+  }
+
+  function validateExpiry(ctx, value) {
+    const digits = digitsOnly(value);
+    if (!digits) return 'Enter the expiry date.';
+    if (digits.length !== 4 || Number(digits.slice(0, 2)) < 1 || Number(digits.slice(0, 2)) > 12) {
+      return 'Enter a valid date as MM / YY.';
+    }
+    if (!expiryIsValid(value)) return 'This card has expired.';
+    return null;
+  }
+
+  function validateCvc(ctx, value) {
+    const digits = digitsOnly(value);
+    if (digits.length < 3 || digits.length > 4) return 'Enter the 3 or 4 digit code.';
+    return null;
+  }
+
+  const VALIDATORS = {
+    name: validateName,
+    number: validateNumber,
+    expiry: validateExpiry,
+    cvc: validateCvc,
+  };
+
+  function validateField(ctx, fieldName) {
+    const message = VALIDATORS[fieldName](ctx, ctx.fields[fieldName].input.value);
+    if (message) setError(ctx, fieldName, message);
+    else clearError(ctx, fieldName);
+    return !message;
+  }
+
+  function validateAll(ctx) {
+    let firstInvalid = null;
+    for (const name of Object.keys(ctx.fields)) {
+      if (!validateField(ctx, name) && !firstInvalid) firstInvalid = ctx.fields[name].input;
+    }
+    if (firstInvalid) firstInvalid.focus();
+    return !firstInvalid;
+  }
+
+  function updateBrandMarks(ctx) {
+    const brand = detectBrand(digitsOnly(ctx.fields.number.input.value));
+    if (brand) ctx.brands.setAttribute('data-active', '');
+    else ctx.brands.removeAttribute('data-active');
+    for (const mark of ctx.brandMarks) {
+      mark.classList.toggle('is-match', mark.getAttribute('data-mv-brand') === brand);
+    }
+  }
+
+  function announce(ctx, message) {
+    ctx.status.textContent = message;
+  }
+
+  function setProcessing(ctx, processing) {
+    ctx.submit.disabled = processing;
+    ctx.submitLabel.hidden = processing;
+    ctx.submitBusy.hidden = !processing;
+  }
+
+  /* Seam for the Stripe layer: replace this with a real test-mode confirm call
+     that resolves to 'success' | 'declined'. */
+  function fakeProcessPayment(cardDigits) {
+    const outcome = cardDigits === DECLINE_CARD ? 'declined' : 'success';
+    const delay = reducedMotion.matches ? 0 : PROCESS_DELAY_MS;
+    return new Promise((resolve) => setTimeout(() => resolve(outcome), delay));
+  }
+
+  function showSuccess(ctx, opts) {
+    ctx.pay.hidden = true;
+    ctx.successPanel.hidden = false;
+    ctx.chipDue.hidden = true;
+    ctx.chipPaid.hidden = false;
+    if (ctx.validatedNote) ctx.validatedNote.hidden = !(opts && opts.validatedOnly);
+    if (ctx.successTitle) {
+      ctx.successTitle.textContent =
+        opts && opts.validatedOnly ? 'Card Details Validated' : 'Payment Received';
+    }
+    if (opts && opts.validatedOnly) {
+      announce(ctx, 'Card details validated by Stripe in test mode. The confirmation endpoint is not configured in this preview, so no test charge was made.');
+    } else {
+      announce(ctx, `Payment received. ${AMOUNT_LABEL} paid against invoice ${INVOICE_REF}. A receipt has been emailed to you.`);
+    }
+    ctx.resetBtn.focus();
+  }
+
+  function showDeclined(ctx, message) {
+    if (ctx.declinedText) {
+      ctx.declinedText.textContent = message || ctx.declinedDefaultText;
+    }
+    ctx.pay.hidden = true;
+    ctx.declinedPanel.hidden = false;
+    announce(ctx, message || 'Your card was declined. No charge has been made.');
+    ctx.retryBtn.focus();
+  }
+
+  function returnToForm(ctx) {
+    ctx.declinedPanel.hidden = true;
+    ctx.pay.hidden = false;
+    setProcessing(ctx, false);
+    if (ctx.realMode) ctx.submit.focus();
+    else ctx.fields.number.input.focus();
+  }
+
+  function resetDemo(ctx) {
+    ctx.form.reset();
+    if (ctx.realMode) {
+      clearStripeError(ctx);
+    } else {
+      for (const name of Object.keys(ctx.fields)) clearError(ctx, name);
+      updateBrandMarks(ctx);
+    }
+    setProcessing(ctx, false);
+    ctx.successPanel.hidden = true;
+    ctx.declinedPanel.hidden = true;
+    if (ctx.validatedNote) ctx.validatedNote.hidden = true;
+    ctx.walletNote.hidden = true;
+    ctx.chipPaid.hidden = true;
+    ctx.chipDue.hidden = false;
+    ctx.pay.hidden = false;
+    announce(ctx, 'Demo restarted.');
+    if (ctx.realMode) ctx.submit.focus();
+    else ctx.fields.name.input.focus();
+  }
+
+  async function handleSubmit(ctx, event) {
+    event.preventDefault();
+    if (ctx.submit.disabled) return;
+    if (ctx.realMode) {
+      await handleRealSubmit(ctx);
+      return;
+    }
+    if (!validateAll(ctx)) return;
+    setProcessing(ctx, true);
+    announce(ctx, 'Processing payment.');
+    const outcome = await fakeProcessPayment(digitsOnly(ctx.fields.number.input.value));
+    if (outcome === 'declined') showDeclined(ctx);
+    else showSuccess(ctx);
+  }
+
+  /* Real test-mode flow ----------------------------------------------------- */
+
+  function showStripeError(ctx, message) {
+    ctx.stripeField.errorText.textContent = message || GENERIC_PAYMENT_ERROR;
+    ctx.stripeField.error.hidden = false;
+    announce(ctx, message || GENERIC_PAYMENT_ERROR);
+  }
+
+  function clearStripeError(ctx) {
+    if (!ctx.stripeField) return;
+    ctx.stripeField.errorText.textContent = '';
+    ctx.stripeField.error.hidden = true;
+  }
+
+  function ensureStripe(ctx) {
+    if (!ctx.stripeReady) {
+      ctx.stripeReady = loadStripeJs()
+        .then((Stripe) => {
+          const stripe = Stripe(ctx.stripeKey);
+          const elements = stripe.elements({
+            mode: 'payment',
+            amount: AMOUNT_MINOR,
+            currency: CURRENCY,
+            appearance: STRIPE_APPEARANCE,
+          });
+          const payment = elements.create('payment', { layout: 'tabs' });
+          payment.on('ready', () => {
+            if (ctx.stripeLoadingNote) ctx.stripeLoadingNote.hidden = true;
+          });
+          payment.on('loaderror', (event) => {
+            const message = (event && event.error && event.error.message) || null;
+            if (ctx.stripeLoadingNote) {
+              ctx.stripeLoadingNote.textContent =
+                message || 'The secure card form could not be loaded. Check your connection and try again.';
+            }
+          });
+          ctx.stripeMount.classList.add('is-ready');
+          payment.mount(ctx.stripeMount);
+          return { stripe, elements };
+        })
+        .catch((err) => {
+          ctx.stripeReady = null;
+          throw err;
+        });
+    }
+    return ctx.stripeReady;
+  }
+
+  function armStripeLazyLoad(ctx) {
+    const start = () => {
+      ensureStripe(ctx).catch((err) => {
+        if (ctx.stripeLoadingNote) {
+          ctx.stripeLoadingNote.textContent = err.message || GENERIC_PAYMENT_ERROR;
+        }
+      });
+    };
+    ctx.root.addEventListener('pointerenter', start, { once: true });
+    ctx.root.addEventListener('focusin', start, { once: true });
+    ctx.root.addEventListener('touchstart', start, { once: true, passive: true });
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            observer.disconnect();
+            start();
+          }
+        },
+        { rootMargin: '200px' },
+      );
+      observer.observe(ctx.root);
+    } else {
+      start();
+    }
+  }
+
+  function buildReturnUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('paid', '1');
+    return url.toString();
+  }
+
+  function scrubReturnParams() {
+    const url = new URL(window.location.href);
+    for (const param of ['paid', 'redirect_status', 'payment_intent', 'payment_intent_client_secret']) {
+      url.searchParams.delete(param);
+    }
+    window.history.replaceState(null, '', url.toString());
+  }
+
+  /* Handles arriving back on the page after a redirect-based confirmation
+     (e.g. a 3D Secure flow that left the page) via return_url "?paid=1". */
+  function handleRedirectReturn(ctx) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paid') !== '1') return;
+    const failed = params.get('redirect_status') === 'failed';
+    scrubReturnParams();
+    if (failed) {
+      showDeclined(ctx, 'The payment was not completed. No charge has been made — you can try again.');
+    } else {
+      showSuccess(ctx);
+    }
+  }
+
+  async function createDemoPaymentIntent(ctx) {
+    const response = await fetch(ctx.stripeEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: AMOUNT_MINOR, currency: CURRENCY }),
+    });
+    if (!response.ok) throw new Error(GENERIC_PAYMENT_ERROR);
+    const data = await response.json();
+    if (!data || typeof data.clientSecret !== 'string') throw new Error(GENERIC_PAYMENT_ERROR);
+    return data.clientSecret;
+  }
+
+  async function handleRealSubmit(ctx) {
+    setProcessing(ctx, true);
+    clearStripeError(ctx);
+    announce(ctx, 'Processing payment.');
+    try {
+      const { stripe, elements } = await ensureStripe(ctx);
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        showStripeError(ctx, submitError.message);
+        setProcessing(ctx, false);
+        return;
+      }
+      if (!ctx.stripeEndpoint) {
+        showSuccess(ctx, { validatedOnly: true });
+        return;
+      }
+      const clientSecret = await createDemoPaymentIntent(ctx);
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: { return_url: buildReturnUrl() },
+        redirect: 'if_required',
+      });
+      if (error) {
+        if (error.type === 'card_error') {
+          showDeclined(ctx, error.message);
+        } else {
+          showStripeError(ctx, error.message);
+          setProcessing(ctx, false);
+        }
+        return;
+      }
+      const status = paymentIntent && paymentIntent.status;
+      if (status === 'succeeded' || status === 'processing' || status === 'requires_capture') {
+        showSuccess(ctx);
+      } else {
+        showStripeError(ctx, GENERIC_PAYMENT_ERROR);
+        setProcessing(ctx, false);
+      }
+    } catch (err) {
+      showStripeError(ctx, (err && err.message) || GENERIC_PAYMENT_ERROR);
+      setProcessing(ctx, false);
+    }
+  }
+
+  function collectStripeField(root, instanceId) {
+    const wrap = root.querySelector('[data-mv-field="stripe"]');
+    const error = wrap.querySelector('[data-mv-error]');
+    const errorText = wrap.querySelector('[data-mv-error-text]');
+    error.id = `mv-${instanceId}-stripe-error`;
+    return { error, errorText };
+  }
+
+  function initRealMode(ctx, instanceId) {
+    ctx.realMode = true;
+    ctx.stripeKey = ctx.root.dataset.mvStripeKey;
+    ctx.stripeEndpoint = ctx.root.dataset.mvStripeEndpoint || '';
+    ctx.stripeMount = ctx.root.querySelector('[data-mv-stripe-mount]');
+    ctx.stripeLoadingNote = ctx.root.querySelector('[data-mv-stripe-loading]');
+    ctx.stripeField = collectStripeField(ctx.root, instanceId);
+    ctx.stripeReady = null;
+    handleRedirectReturn(ctx);
+    armStripeLazyLoad(ctx);
+  }
+
+  function handleWalletClick(ctx) {
+    ctx.walletNote.hidden = false;
+    announce(ctx, 'Apple Pay and Google Pay are available on the live page. Use the card form in this demo.');
+    window.clearTimeout(ctx.walletTimer);
+    ctx.walletTimer = window.setTimeout(() => { ctx.walletNote.hidden = true; }, 4000);
+  }
+
+  function bindFormatting(ctx) {
+    const numberInput = ctx.fields.number.input;
+    numberInput.addEventListener('input', () => {
+      reformatInput(numberInput, (value) => {
+        const digits = digitsOnly(value);
+        const brand = detectBrand(digits);
+        return groupCardDigits(digits.slice(0, maxDigitsFor(brand)), brand);
+      });
+      updateBrandMarks(ctx);
+    });
+
+    const expiryInput = ctx.fields.expiry.input;
+    expiryInput.addEventListener('input', () => reformatInput(expiryInput, formatExpiry));
+
+    const cvcInput = ctx.fields.cvc.input;
+    cvcInput.addEventListener('input', () => {
+      reformatInput(cvcInput, (value) => digitsOnly(value).slice(0, 4));
+    });
+  }
+
+  function bindValidation(ctx) {
+    for (const name of Object.keys(ctx.fields)) {
+      const { input } = ctx.fields[name];
+      input.addEventListener('blur', () => {
+        if (input.value.trim() !== '') validateField(ctx, name);
+      });
+      input.addEventListener('input', () => {
+        if (input.getAttribute('aria-invalid') === 'true') validateField(ctx, name);
+      });
+    }
+  }
+
+  function collectField(root, name, instanceId) {
+    const wrap = root.querySelector(`[data-mv-field="${name}"]`);
+    const input = wrap.querySelector('[data-mv-input]');
+    const error = wrap.querySelector('[data-mv-error]');
+    const errorText = wrap.querySelector('[data-mv-error-text]');
+    const errorId = `mv-${instanceId}-${name}-error`;
+    error.id = errorId;
+    input.setAttribute('aria-describedby', errorId);
+    return { input, error, errorText };
+  }
+
+  function initDemo(root) {
+    if (root.dataset.mvBound) return;
+    root.dataset.mvBound = 'true';
+    const instanceId = ++uidCounter;
+
+    const ctx = {
+      root,
+      realMode: false,
+      pay: root.querySelector('[data-mv-pay]'),
+      form: root.querySelector('[data-mv-form]'),
+      submit: root.querySelector('[data-mv-submit]'),
+      submitLabel: root.querySelector('.mvp__paybtn-label'),
+      submitBusy: root.querySelector('[data-mv-busy]'),
+      successPanel: root.querySelector('[data-mv-success]'),
+      successTitle: root.querySelector('[data-mv-success-title]'),
+      declinedPanel: root.querySelector('[data-mv-declined]'),
+      resetBtn: root.querySelector('[data-mv-reset]'),
+      retryBtn: root.querySelector('[data-mv-retry]'),
+      status: root.querySelector('[data-mv-status]'),
+      walletNote: root.querySelector('[data-mv-wallet-note]'),
+      chipDue: root.querySelector('[data-mv-chip-due]'),
+      chipPaid: root.querySelector('[data-mv-chip-paid]'),
+      validatedNote: root.querySelector('[data-mv-validated]'),
+      walletTimer: 0,
+    };
+    ctx.declinedText = ctx.declinedPanel.querySelector('.mvp__panel-text');
+    ctx.declinedDefaultText = ctx.declinedText ? ctx.declinedText.textContent : '';
+
+    if (root.dataset.mvStripeKey) {
+      initRealMode(ctx, instanceId);
+    } else {
+      ctx.brands = root.querySelector('[data-mv-brands]');
+      ctx.brandMarks = Array.from(root.querySelectorAll('[data-mv-brand]'));
+      ctx.fields = {
+        name: collectField(root, 'name', instanceId),
+        number: collectField(root, 'number', instanceId),
+        expiry: collectField(root, 'expiry', instanceId),
+        cvc: collectField(root, 'cvc', instanceId),
+      };
+      root.querySelector('[data-mv-field="number"]').classList.add('mvp__field--number-padded');
+      bindFormatting(ctx);
+      bindValidation(ctx);
+    }
+
+    ctx.form.addEventListener('submit', (event) => handleSubmit(ctx, event));
+    ctx.resetBtn.addEventListener('click', () => resetDemo(ctx));
+    ctx.retryBtn.addEventListener('click', () => returnToForm(ctx));
+    for (const wallet of root.querySelectorAll('[data-mv-wallet]')) {
+      wallet.addEventListener('click', () => handleWalletClick(ctx));
+    }
+  }
+
+  function initMarshValeDemos() {
+    document.querySelectorAll('[data-mv-demo]').forEach(initDemo);
+  }
+
+  initMarshValeDemos();
+</script>

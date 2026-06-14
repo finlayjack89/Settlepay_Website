@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+---
+<BaseLayout
+  title="Page Not Found · SettlePay"
+  description="The page you were looking for could not be found."
+  noindex={true}
+>
+  <div class="notfound">
+    <div class="notfound__code">404</div>
+    <h1 class="notfound__title">We Couldn't Find That Page</h1>
+    <p class="notfound__text">
+      The page you were looking for may have moved or no longer exists. Let's get you back on track.
+    </p>
+    <div class="mini-cta__actions">
+      <Button variant="primary" icon="arrow" href="/">Back to Home</Button>
+      <Button variant="secondary" href="/faq/">Read the FAQ</Button>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,0 +1,958 @@
+---
+/**
+ * Harbourside Lettings — holding-deposit pay-by-link demo.
+ *
+ * Fictional coastal estate & lettings agency (see portfolio.mjs, slug
+ * harbourside-lettings). An approved applicant pays the £450 holding deposit
+ * for Flat 2, 18 Anchor Quay against tenancy reference HQ-2218 — replacing
+ * "transfer the deposit to this account and email us the receipt".
+ *
+ * Brand world: calm coastal trust — deep teal, sea-glass neutrals, light
+ * serif wordmark. Mockup radius language is 4–8px, deliberately distinct
+ * from SettlePay's pills and 24px cards. No real payments are taken.
+ */
+import Chrome from '../../previews/Chrome.astro';
+import Icon from '../../Icon.astro';
+---
+<div class="mok hbl" data-hbl-demo>
+  <Chrome url="pay.harbourside-lettings.co.uk/deposit/HQ-2218" />
+
+  <header class="hbl__masthead">
+    <svg class="hbl__monogram" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <circle cx="20" cy="20" r="18.25" stroke="currentColor" stroke-width="1.5" />
+      <circle cx="20" cy="13.2" r="2.3" stroke="currentColor" stroke-width="1.5" />
+      <path d="M9 22.4c3.7-3.4 7.3-3.4 11 0s7.3 3.4 11 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      <path d="M12 27.2c2.7-2.6 5.3-2.6 8 0s5.3 2.6 8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+    </svg>
+    <span class="hbl__wordmark">
+      <span class="hbl__wordmark-name">Harbourside</span>
+      <span class="hbl__wordmark-sub">Lettings</span>
+    </span>
+    <span class="hbl__masthead-tag">Deposit Request</span>
+  </header>
+
+  <div class="hbl__body">
+    <div data-view="form">
+      <section class="hbl__summary">
+        <div class="hbl__summary-top">
+          <div>
+            <p class="hbl__eyebrow">Holding Deposit</p>
+            <h3 class="hbl__property">Flat 2, 18 Anchor Quay</h3>
+            <p class="hbl__property-sub">Two-bedroom apartment, furnished</p>
+          </div>
+          <p class="hbl__amount">£450.00</p>
+        </div>
+        <dl class="hbl__meta">
+          <div class="hbl__meta-row">
+            <dt>Applicant</dt>
+            <dd>Eleanor Hartley</dd>
+          </div>
+          <div class="hbl__meta-row">
+            <dt>Tenancy Reference</dt>
+            <dd>HQ-2218</dd>
+          </div>
+        </dl>
+        <p class="hbl__validity">
+          <Icon name="clock" sw={2} />
+          This request is valid until Friday 19 June.
+        </p>
+      </section>
+
+      <div class="hbl__wallets">
+        <button type="button" class="hbl__wallet hbl__wallet--apple" data-wallet="apple">
+          <img src="/assets/payment/apple-logo.svg" alt="" />
+          <span>Pay</span>
+          <span class="hbl-sr">with Apple Pay</span>
+        </button>
+        <button type="button" class="hbl__wallet hbl__wallet--google" data-wallet="google">
+          <img src="/assets/payment/google-g.svg" alt="" />
+          <span>Pay</span>
+          <span class="hbl-sr">with Google Pay</span>
+        </button>
+      </div>
+      <p class="hbl__wallet-note" data-wallet-note hidden></p>
+
+      <div class="hbl__divider"><span>Or pay by card</span></div>
+
+      <p class="hbl__hint">
+        <strong>Demo cards:</strong> 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 declines
+      </p>
+
+      <form class="hbl__form" data-form novalidate>
+        <label class="hbl-field">
+          <span class="hbl-field__label">Card Number</span>
+          <span class="hbl-field__frame">
+            <input
+              class="hbl-field__input"
+              type="text"
+              data-field="number"
+              inputmode="numeric"
+              autocomplete="cc-number"
+              spellcheck="false"
+              placeholder="1234 5678 9012 3456"
+              maxlength="19"
+            />
+            <span class="hbl-field__marks" aria-hidden="true">
+              <img src="/assets/payment/Visa.svg" alt="" data-mark="visa" />
+              <img src="/assets/payment/Mastercard.svg" alt="" data-mark="mastercard" />
+            </span>
+          </span>
+        </label>
+        <p class="hbl-error" data-error="number" hidden>
+          <Icon name="close" sw={2.5} /><span></span>
+        </p>
+
+        <div class="hbl__form-row">
+          <div class="hbl__form-col">
+            <label class="hbl-field">
+              <span class="hbl-field__label">Expiry Date</span>
+              <span class="hbl-field__frame">
+                <input
+                  class="hbl-field__input"
+                  type="text"
+                  data-field="expiry"
+                  inputmode="numeric"
+                  autocomplete="cc-exp"
+                  spellcheck="false"
+                  placeholder="MM / YY"
+                  maxlength="7"
+                />
+              </span>
+            </label>
+            <p class="hbl-error" data-error="expiry" hidden>
+              <Icon name="close" sw={2.5} /><span></span>
+            </p>
+          </div>
+          <div class="hbl__form-col">
+            <label class="hbl-field">
+              <span class="hbl-field__label">Security Code</span>
+              <span class="hbl-field__frame">
+                <input
+                  class="hbl-field__input"
+                  type="text"
+                  data-field="cvc"
+                  inputmode="numeric"
+                  autocomplete="cc-csc"
+                  spellcheck="false"
+                  placeholder="CVC"
+                  maxlength="4"
+                />
+              </span>
+            </label>
+            <p class="hbl-error" data-error="cvc" hidden>
+              <Icon name="close" sw={2.5} /><span></span>
+            </p>
+          </div>
+        </div>
+
+        <label class="hbl-field">
+          <span class="hbl-field__label">Name on Card</span>
+          <span class="hbl-field__frame">
+            <input
+              class="hbl-field__input"
+              type="text"
+              data-field="name"
+              autocomplete="cc-name"
+              spellcheck="false"
+              placeholder="Name as it appears on the card"
+            />
+          </span>
+        </label>
+        <p class="hbl-error" data-error="name" hidden>
+          <Icon name="close" sw={2.5} /><span></span>
+        </p>
+
+        <button type="submit" class="hbl__pay" data-pay>
+          <span class="hbl__spinner" data-spinner hidden aria-hidden="true"></span>
+          <span data-pay-label>Pay £450.00 Deposit</span>
+        </button>
+        <p class="hbl__settle-note">
+          The deposit settles directly to Harbourside Lettings' own client account.
+        </p>
+      </form>
+    </div>
+
+    <div class="hbl__result" data-view="success" hidden>
+      <span class="hbl__result-badge hbl__result-badge--ok" aria-hidden="true">
+        <Icon name="check" sw={2.5} />
+      </span>
+      <h3 class="hbl__result-title" data-view-heading tabindex="-1">Deposit Paid</h3>
+      <p class="hbl__result-amount">£450.00</p>
+      <dl class="hbl__receipt">
+        <div><dt>Property</dt><dd>Flat 2, 18 Anchor Quay</dd></div>
+        <div><dt>Applicant</dt><dd>Eleanor Hartley</dd></div>
+        <div><dt>Tenancy Reference</dt><dd>HQ-2218</dd></div>
+      </dl>
+      <p class="hbl__result-line">A receipt has been emailed to the applicant.</p>
+      <p class="hbl__result-line">
+        Funds settle directly to Harbourside Lettings' own client account.
+      </p>
+      <button type="button" class="hbl__restart" data-restart>Restart Demo</button>
+    </div>
+
+    <div class="hbl__result" data-view="error" hidden>
+      <span class="hbl__result-badge hbl__result-badge--err" aria-hidden="true">
+        <Icon name="close" sw={2.5} />
+      </span>
+      <h3 class="hbl__result-title" data-view-heading tabindex="-1">Your Card Was Declined</h3>
+      <p class="hbl__result-line">
+        Your bank declined this payment and nothing has been taken. You can try the same card
+        again or use a different one.
+      </p>
+      <button type="button" class="hbl__try-again" data-try-again>Try Again</button>
+    </div>
+
+    <p class="hbl-sr" aria-live="polite" data-status></p>
+  </div>
+
+  <footer class="hbl__foot">
+    <p class="hbl__foot-demo">Illustrative demo — no real payments are taken.</p>
+    <p class="hbl__foot-secure">
+      <Icon name="lock" sw={2} />
+      Secured by an FCA-regulated processor
+    </p>
+  </footer>
+</div>
+
+<style>
+  .hbl {
+    --hbl-deep: #134e4a;
+    --hbl-deep-2: #0e403c;
+    --hbl-sea: #f2f7f5;
+    --hbl-foam: #b9d8cf;
+    --hbl-accent: #0f766e;
+    --hbl-accent-hover: #0c5f58;
+    --hbl-ink: #113b36;
+    --hbl-muted: rgba(17, 59, 54, 0.6);
+    --hbl-line: rgba(17, 59, 54, 0.14);
+    --hbl-hairline: rgba(17, 59, 54, 0.09);
+    --hbl-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    color: var(--hbl-ink);
+  }
+
+  /* Masthead -------------------------------------------------------------- */
+  .hbl__masthead {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.4rem;
+    background: linear-gradient(150deg, var(--hbl-deep) 0%, var(--hbl-deep-2) 100%);
+    color: var(--hbl-foam);
+  }
+  .hbl__monogram {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .hbl__wordmark {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .hbl__wordmark-name {
+    font-family: var(--hbl-serif);
+    font-size: 1.12rem;
+    font-weight: 500;
+    letter-spacing: 0.015em;
+    line-height: 1.15;
+    color: #f4faf8;
+  }
+  .hbl__wordmark-sub {
+    font-size: 0.56rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    color: var(--hbl-foam);
+  }
+  .hbl__masthead-tag {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--hbl-foam);
+    border: 1px solid rgba(185, 216, 207, 0.35);
+    border-radius: 4px;
+    padding: 0.3rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  /* Body ------------------------------------------------------------------ */
+  .hbl__body {
+    background: var(--hbl-sea);
+    padding: 1.4rem 1.4rem 1.5rem;
+  }
+
+  /* Summary card */
+  .hbl__summary {
+    background: #ffffff;
+    border: 1px solid var(--hbl-hairline);
+    border-radius: 8px;
+    padding: 1.05rem 1.15rem 1.1rem;
+    box-shadow: 0 1px 2px rgba(17, 59, 54, 0.05);
+  }
+  .hbl__summary-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .hbl__eyebrow {
+    margin: 0 0 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--hbl-accent);
+  }
+  .hbl__property {
+    margin: 0;
+    font-family: var(--hbl-serif);
+    font-size: 1.18rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--hbl-ink);
+  }
+  .hbl__property-sub {
+    margin: 0.2rem 0 0;
+    font-size: 0.74rem;
+    color: var(--hbl-muted);
+  }
+  .hbl__amount {
+    margin: 0;
+    font-family: var(--hbl-serif);
+    font-size: 1.65rem;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--hbl-ink);
+    white-space: nowrap;
+  }
+  .hbl__meta {
+    margin: 0.9rem 0 0;
+    border-top: 1px solid var(--hbl-hairline);
+  }
+  .hbl__meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--hbl-hairline);
+  }
+  .hbl__meta-row dt {
+    font-size: 0.74rem;
+    color: var(--hbl-muted);
+  }
+  .hbl__meta-row dd {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--hbl-ink);
+  }
+  .hbl__validity {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.8rem 0 0;
+    padding: 0.5rem 0.65rem;
+    background: rgba(15, 118, 110, 0.07);
+    border-radius: 6px;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--hbl-ink);
+  }
+  .hbl__validity :global(svg) {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--hbl-accent);
+  }
+
+  /* Wallets ----------------------------------------------------------------
+     Wallet marks rendered as supplied (apple-logo.svg forced white on the
+     black Apple button via filter, matching the hero precedent). */
+  .hbl__wallets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-top: 1.1rem;
+  }
+  .hbl__wallet {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 42px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .hbl__wallet:hover { opacity: 0.88; }
+  .hbl__wallet--apple {
+    background: #000;
+    color: #fff;
+  }
+  .hbl__wallet--apple img {
+    width: 15px;
+    height: 19px;
+    margin-top: -2px;
+    filter: brightness(0) invert(1);
+  }
+  .hbl__wallet--google {
+    background: #fff;
+    color: #3c4043;
+    border-color: #dadce0;
+  }
+  .hbl__wallet--google img {
+    width: 19px;
+    height: 19px;
+  }
+  .hbl__wallet-note {
+    margin: 0.55rem 0 0;
+    font-size: 0.72rem;
+    text-align: center;
+    color: var(--hbl-muted);
+  }
+
+  /* Divider + hint */
+  .hbl__divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.1rem 0 0.9rem;
+  }
+  .hbl__divider::before,
+  .hbl__divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--hbl-line);
+  }
+  .hbl__divider span {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--hbl-muted);
+  }
+  .hbl__hint {
+    margin: 0 0 0.9rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px dashed var(--hbl-line);
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 0.69rem;
+    line-height: 1.5;
+    color: var(--hbl-muted);
+  }
+  .hbl__hint strong {
+    font-weight: 700;
+    color: var(--hbl-ink);
+  }
+
+  /* Form -------------------------------------------------------------------*/
+  .hbl__form-row {
+    display: flex;
+    gap: 0.7rem;
+  }
+  .hbl__form-col { flex: 1; min-width: 0; }
+  .hbl-field {
+    display: block;
+    margin-top: 0.75rem;
+  }
+  .hbl-field__label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--hbl-ink);
+  }
+  .hbl-field__frame {
+    position: relative;
+    display: block;
+  }
+  .hbl-field__input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--hbl-line);
+    border-radius: 6px;
+    background: #ffffff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--hbl-ink);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .hbl-field__input::placeholder { color: rgba(17, 59, 54, 0.32); }
+  .hbl-field__input:focus {
+    outline: none;
+    border-color: var(--hbl-accent);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+  }
+  .hbl-field__input[aria-invalid='true'] {
+    border-color: var(--color-error);
+  }
+  .hbl-field__input[aria-invalid='true']:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+  }
+  .hbl-field__marks {
+    position: absolute;
+    top: 50%;
+    right: 0.6rem;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 0.3rem;
+  }
+  .hbl-field__marks img {
+    width: 30px;
+    height: auto;
+    border: 1px solid var(--hbl-hairline);
+    border-radius: 3px;
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+  }
+  .hbl-field__marks img.hbl__mark--on {
+    opacity: 1;
+    border-color: var(--hbl-line);
+  }
+  /* Errors: --color-error always paired with an icon and text */
+  .hbl-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.3rem;
+    margin: 0.3rem 0 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--color-error);
+  }
+  .hbl-error :global(svg) {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  /* display: flex above would defeat the UA's [hidden] rule */
+  .hbl-error[hidden] { display: none; }
+
+  /* Pay button — the single primary action in this brand world */
+  .hbl__pay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 1.1rem;
+    padding: 0.78rem 1rem;
+    border: none;
+    border-radius: 6px;
+    background: var(--hbl-accent);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .hbl__pay:hover:not(:disabled) { background: var(--hbl-accent-hover); }
+  .hbl__pay:disabled {
+    opacity: 0.75;
+    cursor: wait;
+  }
+  .hbl__spinner {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    animation: hbl-spin 0.7s linear infinite;
+  }
+  @keyframes hbl-spin {
+    to { transform: rotate(360deg); }
+  }
+  .hbl__settle-note {
+    margin: 0.65rem 0 0;
+    font-size: 0.69rem;
+    line-height: 1.5;
+    text-align: center;
+    color: var(--hbl-muted);
+  }
+
+  /* Result states ---------------------------------------------------------*/
+  .hbl__result {
+    text-align: center;
+    padding: 1.4rem 0.6rem 0.6rem;
+  }
+  .hbl__result-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+  }
+  .hbl__result-badge--ok {
+    background: rgba(15, 118, 110, 0.12);
+    color: var(--hbl-accent);
+  }
+  .hbl__result-badge--err {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--color-error);
+  }
+  .hbl__result-badge :global(svg) {
+    width: 24px;
+    height: 24px;
+  }
+  .hbl__result-title {
+    margin: 0.8rem 0 0;
+    font-family: var(--hbl-serif);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--hbl-ink);
+  }
+  .hbl__result-title:focus { outline: none; }
+  .hbl__result-amount {
+    margin: 0.25rem 0 0;
+    font-family: var(--hbl-serif);
+    font-size: 1.9rem;
+    font-weight: 600;
+    color: var(--hbl-ink);
+  }
+  .hbl__receipt {
+    margin: 1rem auto 0;
+    max-width: 320px;
+    text-align: left;
+    border-top: 1px solid var(--hbl-hairline);
+  }
+  .hbl__receipt > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--hbl-hairline);
+  }
+  .hbl__receipt dt {
+    font-size: 0.74rem;
+    color: var(--hbl-muted);
+  }
+  .hbl__receipt dd {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--hbl-ink);
+  }
+  .hbl__result-line {
+    margin: 0.7rem auto 0;
+    max-width: 36ch;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--hbl-muted);
+  }
+  .hbl__restart {
+    margin-top: 1rem;
+    padding: 0.3rem 0.2rem;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--hbl-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  .hbl__restart:hover { color: var(--hbl-accent-hover); }
+  .hbl__try-again {
+    margin-top: 1.1rem;
+    padding: 0.65rem 1.6rem;
+    border: none;
+    border-radius: 6px;
+    background: var(--hbl-accent);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .hbl__try-again:hover { background: var(--hbl-accent-hover); }
+
+  /* Footer ------------------------------------------------------------------*/
+  .hbl__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 1.4rem;
+    background: #ffffff;
+    border-top: 1px solid var(--hbl-hairline);
+  }
+  .hbl__foot-demo,
+  .hbl__foot-secure {
+    margin: 0;
+    font-size: 0.66rem;
+    color: var(--hbl-muted);
+  }
+  .hbl__foot-secure {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .hbl__foot-secure :global(svg) {
+    width: 11px;
+    height: 11px;
+    color: var(--hbl-accent);
+  }
+
+  /* Visible focus on every control */
+  .hbl__wallet:focus-visible,
+  .hbl__pay:focus-visible,
+  .hbl__restart:focus-visible,
+  .hbl__try-again:focus-visible {
+    outline: 2px solid var(--hbl-accent);
+    outline-offset: 2px;
+  }
+
+  /* Screen-reader-only utility (local) */
+  .hbl-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hbl :global(*) {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .hbl__masthead-tag { display: none; }
+    .hbl__body { padding: 1.1rem 1rem 1.2rem; }
+    .hbl__summary-top { flex-direction: column; gap: 0.5rem; }
+  }
+</style>
+
+<script>
+  const DECLINE_CARD = '4000000000000002';
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let uid = 0;
+
+  document.querySelectorAll('[data-hbl-demo]').forEach((root) => {
+    if (root.hasAttribute('data-hbl-bound')) return;
+    root.setAttribute('data-hbl-bound', '1');
+    const ns = 'hbl-' + uid++;
+
+    const form = root.querySelector('[data-form]');
+    const views = {
+      form: root.querySelector('[data-view="form"]'),
+      success: root.querySelector('[data-view="success"]'),
+      error: root.querySelector('[data-view="error"]'),
+    };
+    const statusEl = root.querySelector('[data-status]');
+    const payBtn = root.querySelector('[data-pay]');
+    const payLabel = root.querySelector('[data-pay-label]');
+    const spinner = root.querySelector('[data-spinner]');
+    const walletNote = root.querySelector('[data-wallet-note]');
+    const marks = root.querySelectorAll('[data-mark]');
+    const payText = payLabel.textContent;
+
+    const fields = {};
+    root.querySelectorAll('input[data-field]').forEach((input) => {
+      const key = input.getAttribute('data-field');
+      const error = root.querySelector('[data-error="' + key + '"]');
+      if (error) error.id = ns + '-err-' + key;
+      fields[key] = { input, error, text: error ? error.querySelector('span') : null };
+    });
+
+    const digits = (v) => v.replace(/\D/g, '');
+    const brandOf = (d) => {
+      if (d.startsWith('4')) return 'visa';
+      if (d.startsWith('5')) return 'mastercard';
+      if (d.startsWith('3')) return 'amex';
+      return null;
+    };
+
+    const setError = (key, msg) => {
+      const f = fields[key];
+      f.text.textContent = msg;
+      f.error.hidden = false;
+      f.input.setAttribute('aria-invalid', 'true');
+      f.input.setAttribute('aria-describedby', f.error.id);
+    };
+    const clearError = (key) => {
+      const f = fields[key];
+      f.error.hidden = true;
+      f.text.textContent = '';
+      f.input.removeAttribute('aria-invalid');
+      f.input.removeAttribute('aria-describedby');
+    };
+
+    const validators = {
+      number(v) {
+        const d = digits(v);
+        if (!d) return 'Enter your card number.';
+        const wanted = brandOf(d) === 'amex' ? 15 : 16;
+        if (d.length !== wanted) return 'Enter a valid card number.';
+        return '';
+      },
+      expiry(v) {
+        const d = digits(v);
+        if (d.length !== 4) return 'Enter a valid expiry date (MM / YY).';
+        const m = Number(d.slice(0, 2));
+        const y = 2000 + Number(d.slice(2));
+        if (m < 1 || m > 12) return 'Enter a valid expiry date (MM / YY).';
+        const now = new Date();
+        if (y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth() + 1)) {
+          return 'This card has expired.';
+        }
+        return '';
+      },
+      cvc(v) {
+        const d = digits(v);
+        if (d.length < 3 || d.length > 4) return 'Enter the 3 or 4 digit security code.';
+        return '';
+      },
+      name(v) {
+        if (v.trim().length < 2) return 'Enter the name on the card.';
+        return '';
+      },
+    };
+
+    fields.number.input.addEventListener('input', () => {
+      const el = fields.number.input;
+      const brand = brandOf(digits(el.value));
+      const d = digits(el.value).slice(0, brand === 'amex' ? 15 : 16);
+      el.value =
+        brand === 'amex'
+          ? [d.slice(0, 4), d.slice(4, 10), d.slice(10)].filter(Boolean).join(' ')
+          : (d.match(/.{1,4}/g) || []).join(' ');
+      marks.forEach((m) =>
+        m.classList.toggle('hbl__mark--on', m.getAttribute('data-mark') === brand)
+      );
+      clearError('number');
+    });
+
+    fields.expiry.input.addEventListener('input', () => {
+      const el = fields.expiry.input;
+      let d = digits(el.value).slice(0, 4);
+      if (d.length === 1 && Number(d) > 1) d = '0' + d;
+      el.value = d.length > 2 ? d.slice(0, 2) + ' / ' + d.slice(2) : d;
+      clearError('expiry');
+    });
+
+    fields.cvc.input.addEventListener('input', () => {
+      fields.cvc.input.value = digits(fields.cvc.input.value).slice(0, 4);
+      clearError('cvc');
+    });
+
+    fields.name.input.addEventListener('input', () => clearError('name'));
+
+    Object.keys(validators).forEach((key) => {
+      fields[key].input.addEventListener('blur', () => {
+        if (!fields[key].input.value) return;
+        const msg = validators[key](fields[key].input.value);
+        if (msg) setError(key, msg);
+        else clearError(key);
+      });
+    });
+
+    const showView = (name) => {
+      Object.keys(views).forEach((k) => {
+        views[k].hidden = k !== name;
+      });
+    };
+    const focusHeading = (view) => {
+      const h = view.querySelector('[data-view-heading]');
+      if (h) h.focus();
+    };
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (payBtn.disabled) return;
+      let firstBad = null;
+      Object.keys(validators).forEach((key) => {
+        const msg = validators[key](fields[key].input.value);
+        if (msg) {
+          setError(key, msg);
+          if (!firstBad) firstBad = fields[key].input;
+        } else {
+          clearError(key);
+        }
+      });
+      if (firstBad) {
+        firstBad.focus();
+        statusEl.textContent = 'Check the highlighted card details and try again.';
+        return;
+      }
+
+      payBtn.disabled = true;
+      spinner.hidden = false;
+      payLabel.textContent = 'Processing…';
+      statusEl.textContent = 'Processing your payment.';
+
+      const finish = () => {
+        payBtn.disabled = false;
+        spinner.hidden = true;
+        payLabel.textContent = payText;
+        if (digits(fields.number.input.value) === DECLINE_CARD) {
+          showView('error');
+          statusEl.textContent = 'Your card was declined. No payment has been taken.';
+          focusHeading(views.error);
+        } else {
+          showView('success');
+          statusEl.textContent =
+            'Payment complete. The £450 holding deposit for tenancy HQ-2218 has been paid.';
+          focusHeading(views.success);
+        }
+      };
+      if (reduceMotion.matches) finish();
+      else window.setTimeout(finish, 900);
+    });
+
+    root.querySelector('[data-try-again]').addEventListener('click', () => {
+      showView('form');
+      statusEl.textContent = 'Back to the card form. Your details have been kept.';
+      fields.number.input.focus();
+    });
+
+    root.querySelector('[data-restart]').addEventListener('click', () => {
+      form.reset();
+      Object.keys(fields).forEach(clearError);
+      marks.forEach((m) => m.classList.remove('hbl__mark--on'));
+      showView('form');
+      statusEl.textContent = 'Demo reset.';
+      fields.number.input.focus();
+    });
+
+    let walletTimer;
+    root.querySelectorAll('[data-wallet]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const label = btn.getAttribute('data-wallet') === 'apple' ? 'Apple Pay' : 'Google Pay';
+        walletNote.textContent =
+          label + ' is available on the live page — use the card form in this demo.';
+        walletNote.hidden = false;
+        statusEl.textContent = walletNote.textContent;
+        window.clearTimeout(walletTimer);
+        walletTimer = window.setTimeout(() => {
+          walletNote.hidden = true;
+        }, 4500);
+      });
+    });
+  });
+</script>

@@ -1,0 +1,27 @@
+---
+/* Modelled-outcome stat tiles + the methodology box that keeps them honest.
+   outcome: { stats: [{ value, label, sub }], basis: [string] } from
+   portfolio.mjs caseStudy.outcome. Figures are ILLUSTRATIVE by definition —
+   the disclaimer below is load-bearing and must always render with the tiles. */
+const { outcome } = Astro.props;
+---
+<div class="stat-grid">
+  {outcome.stats.map((s) => (
+    <div class="stat-tile">
+      <span class="stat-tile__value">{s.value}</span>
+      <span class="stat-tile__label">{s.label}</span>
+      <p class="stat-tile__sub">{s.sub}</p>
+    </div>
+  ))}
+</div>
+<div class="stat-basis">
+  <h3 class="stat-basis__title">How These Figures Are Modelled</h3>
+  <ul class="stat-basis__list">
+    {outcome.basis.map((b) => <li>{b}</li>)}
+  </ul>
+  <p class="stat-basis__disclaimer">
+    Like the business itself, these figures are illustrative: a scenario modelled on published UK
+    industry averages, not measured results from a real client. Your own numbers will depend on
+    your volumes and on how you get paid today.
+  </p>
+</div>

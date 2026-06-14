@@ -1,0 +1,828 @@
+---
+/**
+ * Whitmore & Co. Accountants — Direct Debit retainer mandate demo.
+ *
+ * Fictional brand (Professional Services). Two-step GoCardless-style mandate
+ * flow: bank details → confirmation with the Direct Debit Guarantee → success.
+ * Everything inside the Chrome frame is the fictional brand's world: warm
+ * charcoal + ochre, classic serif headings, 4–8px corners — deliberately
+ * distinct from SettlePay's own UI. No real payments are taken.
+ */
+import Chrome from '../../previews/Chrome.astro';
+import Icon from '../../Icon.astro';
+---
+<div class="mok wcd" data-wcd>
+  <Chrome url="pay.whitmoreaccountants.co.uk/mandate/WC-0412" />
+  <div class="wcd__body">
+
+    <header class="wcd__brand">
+      <svg class="wcd__seal" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <rect x="1.5" y="1.5" width="37" height="37" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <rect x="5.5" y="5.5" width="29" height="29" rx="1" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45" />
+        <text x="20" y="26.5" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="17" font-weight="700" fill="currentColor">W</text>
+      </svg>
+      <div class="wcd__brand-text">
+        <span class="wcd__brand-name">Whitmore &amp; Co.</span>
+        <span class="wcd__brand-sub">Accountants</span>
+      </div>
+      <span class="wcd__dd-badge">Direct Debit</span>
+    </header>
+
+    <div class="wcd__retainer">
+      <div class="wcd__retainer-copy">
+        <h3 class="wcd__title">Set Up Your Monthly Retainer</h3>
+        <p class="wcd__lede">
+          Authorise a Direct Debit for your accounting retainer. Your bank protects every
+          collection under the Direct Debit Guarantee, and you can cancel at any time.
+        </p>
+      </div>
+      <div class="wcd__amount-row">
+        <div class="wcd__amount-group">
+          <span class="wcd__amount">£120.00</span>
+          <span class="wcd__per">per month</span>
+        </div>
+        <span class="wcd__ref">Reference WC-0412</span>
+      </div>
+    </div>
+
+    <p class="wcd__hint">
+      Demo details: any name, a sort code such as 20-04-12 and any 8-digit account
+      number will work. No real mandate is created.
+    </p>
+
+    <ol class="wcd__steps">
+      <li class="wcd__step" data-step-dot="1" aria-current="step"><span class="wcd__step-num">1</span> Your Details</li>
+      <li class="wcd__step" data-step-dot="2"><span class="wcd__step-num">2</span> Confirm</li>
+    </ol>
+
+    <!-- Step 1 — bank details -->
+    <form class="wcd__form" data-step1 novalidate>
+      <h4 class="wcd__step-title" data-focus-1 tabindex="-1">Your Bank Details</h4>
+
+      <label class="wcd-field" data-field="name">
+        <span class="wcd-label">Account Holder Name</span>
+        <input
+          class="wcd-input"
+          type="text"
+          name="wcd-holder"
+          autocomplete="name"
+          spellcheck="false"
+          placeholder="Name as it appears on the account"
+        />
+        <span class="wcd-err" hidden>
+          <Icon name="close" sw={2} />
+          <span data-err-text>Enter the name on the account.</span>
+        </span>
+      </label>
+
+      <div class="wcd-field-row">
+        <label class="wcd-field" data-field="sort">
+          <span class="wcd-label">Sort Code</span>
+          <input
+            class="wcd-input"
+            type="text"
+            name="wcd-sort"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="8"
+            placeholder="00-00-00"
+          />
+          <span class="wcd-err" hidden>
+            <Icon name="close" sw={2} />
+            <span data-err-text>Enter a sort code in the format 00-00-00.</span>
+          </span>
+        </label>
+
+        <label class="wcd-field" data-field="account">
+          <span class="wcd-label">Account Number</span>
+          <input
+            class="wcd-input"
+            type="text"
+            name="wcd-account"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="8"
+            placeholder="8 digits"
+          />
+          <span class="wcd-err" hidden>
+            <Icon name="close" sw={2} />
+            <span data-err-text>Enter your 8-digit account number.</span>
+          </span>
+        </label>
+      </div>
+
+      <label class="wcd-field" data-field="email">
+        <span class="wcd-label">Email Address</span>
+        <input
+          class="wcd-input"
+          type="email"
+          name="wcd-email"
+          autocomplete="email"
+          spellcheck="false"
+          placeholder="For your mandate confirmation"
+        />
+        <span class="wcd-err" hidden>
+          <Icon name="close" sw={2} />
+          <span data-err-text>Enter a valid email address.</span>
+        </span>
+      </label>
+
+      <button class="wcd-btn" type="submit">Continue to Confirmation</button>
+    </form>
+
+    <!-- Step 2 — confirmation + Direct Debit Guarantee -->
+    <section class="wcd__confirm" data-step2 hidden>
+      <h4 class="wcd__step-title" data-focus-2 tabindex="-1">Confirm Your Mandate</h4>
+
+      <dl class="wcd__summary">
+        <div class="wcd__summary-row"><dt>Payee</dt><dd>Whitmore &amp; Co. Accountants</dd></div>
+        <div class="wcd__summary-row"><dt>Service</dt><dd>Monthly accounting retainer</dd></div>
+        <div class="wcd__summary-row"><dt>Amount</dt><dd>£120.00, collected monthly</dd></div>
+        <div class="wcd__summary-row"><dt>Reference</dt><dd>WC-0412</dd></div>
+        <div class="wcd__summary-row"><dt>First collection</dt><dd>Wed 1 July 2026, then the 1st of each month</dd></div>
+        <div class="wcd__summary-row"><dt>Account holder</dt><dd data-sum-name>—</dd></div>
+        <div class="wcd__summary-row"><dt>Sort code</dt><dd data-sum-sort>—</dd></div>
+        <div class="wcd__summary-row"><dt>Account number</dt><dd data-sum-account>—</dd></div>
+      </dl>
+
+      <div class="wcd__guarantee">
+        <h5 class="wcd__guarantee-title">The Direct Debit Guarantee</h5>
+        <ul class="wcd__guarantee-list">
+          <li>This Guarantee is offered by all banks and building societies that accept instructions to pay Direct Debits.</li>
+          <li>If there are any changes to the amount, date or frequency of your Direct Debit, Whitmore &amp; Co. Accountants will notify you, normally three working days in advance of your account being debited, or as otherwise agreed.</li>
+          <li>If an error is made in the payment of your Direct Debit by Whitmore &amp; Co. Accountants or your bank or building society, you are entitled to a full and immediate refund of the amount paid from your bank or building society.</li>
+          <li>You can cancel a Direct Debit at any time by simply contacting your bank or building society. Written confirmation may be required. Please also notify us.</li>
+        </ul>
+      </div>
+
+      <label class="wcd__authorise" data-field="authorise">
+        <input class="wcd__check" type="checkbox" name="wcd-authorise" />
+        <span>
+          I confirm I am the account holder and am the only person required to authorise
+          Direct Debits on this account.
+          <span class="wcd-err wcd-err--check" hidden>
+            <Icon name="close" sw={2} />
+            <span data-err-text>Please confirm you can authorise this Direct Debit.</span>
+          </span>
+        </span>
+      </label>
+
+      <div class="wcd__confirm-actions">
+        <button class="wcd-btn-quiet" type="button" data-back>Edit Details</button>
+        <button class="wcd-btn" type="button" data-confirm>
+          <span class="wcd-btn__spinner" aria-hidden="true" hidden></span>
+          <span data-confirm-label>Set Up Direct Debit</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Success -->
+    <section class="wcd__done" data-success hidden>
+      <div class="wcd__done-seal" data-focus-3 tabindex="-1">
+        <Icon name="check" sw={2.5} />
+      </div>
+      <h4 class="wcd__done-title">Your Direct Debit Is Set Up</h4>
+      <p class="wcd__done-line">
+        £120.00 will be collected monthly under reference <strong>WC-0412</strong>,
+        starting Wed 1 July 2026.
+      </p>
+      <p class="wcd__done-line" data-done-email>Your mandate confirmation has been emailed to you.</p>
+      <p class="wcd__done-settle">
+        Collections settle directly to the practice's own bank account.
+      </p>
+      <button class="wcd-btn-quiet" type="button" data-reset>Restart Demo</button>
+    </section>
+
+    <p class="wcd__cardline">
+      Paying a one-off fee invoice instead? Those are settled by a secure card link —
+      this page sets up your retainer only.
+    </p>
+
+    <p class="wcd__sr-status" aria-live="polite" data-status></p>
+
+    <footer class="wcd__foot">
+      <Icon name="lock" sw={2} />
+      <span>Illustrative demo — no real payments are taken. Direct Debit mandates run through an FCA-regulated provider.</span>
+    </footer>
+  </div>
+</div>
+
+<style>
+  /* Whitmore & Co. brand world — warm charcoal, ochre accent, classic serif.
+     Mockup radius language is 4–8px throughout (never SettlePay pills/24px). */
+  .wcd {
+    --wcd-ink: #332E28;
+    --wcd-paper: #F7F4EE;
+    --wcd-card: #FFFDF9;
+    --wcd-accent: #C9892B;
+    --wcd-accent-deep: #A06A1B;
+    --wcd-muted: #7A7264;
+    --wcd-line: rgba(51, 46, 40, 0.16);
+    --wcd-hairline: rgba(51, 46, 40, 0.09);
+    --wcd-serif: Georgia, 'Times New Roman', serif;
+    --wcd-error: #DC2626;
+    color: var(--wcd-ink);
+  }
+
+  .wcd__body {
+    background: var(--wcd-paper);
+    padding: 1.4rem 1.5rem 1.2rem;
+  }
+
+  /* Brand bar */
+  .wcd__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--wcd-accent);
+    margin-bottom: 1.15rem;
+  }
+  .wcd__seal {
+    width: 38px;
+    height: 38px;
+    color: var(--wcd-accent-deep);
+    flex-shrink: 0;
+  }
+  .wcd__brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+  .wcd__brand-name {
+    font-family: var(--wcd-serif);
+    font-size: 1.08rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .wcd__brand-sub {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--wcd-muted);
+  }
+  .wcd__dd-badge {
+    margin-left: auto;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--wcd-ink);
+    border: 1px solid var(--wcd-line);
+    background: var(--wcd-card);
+    border-radius: 4px;
+    padding: 0.3rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  /* Retainer summary */
+  .wcd__title {
+    font-family: var(--wcd-serif);
+    font-size: 1.28rem;
+    font-weight: 700;
+    letter-spacing: 0.005em;
+    margin-bottom: 0.4rem;
+  }
+  .wcd__lede {
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--wcd-muted);
+    max-width: 46ch;
+  }
+  .wcd__amount-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.9rem;
+    padding: 0.8rem 1rem;
+    background: var(--wcd-card);
+    border: 1px solid var(--wcd-hairline);
+    border-radius: 6px;
+  }
+  .wcd__amount-group { display: flex; align-items: baseline; gap: 0.45rem; }
+  .wcd__amount {
+    font-family: var(--wcd-serif);
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .wcd__per { font-size: 0.8rem; color: var(--wcd-muted); }
+  .wcd__ref {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wcd-muted);
+  }
+
+  /* Demo hint chip */
+  .wcd__hint {
+    margin-top: 0.8rem;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--wcd-accent-deep);
+    background: rgba(201, 137, 43, 0.1);
+    border: 1px dashed rgba(201, 137, 43, 0.45);
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+  }
+
+  /* Stepper */
+  .wcd__steps {
+    display: flex;
+    gap: 1.4rem;
+    margin: 1.15rem 0 0.9rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--wcd-hairline);
+  }
+  .wcd__step {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--wcd-muted);
+  }
+  .wcd__step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 4px;
+    border: 1px solid var(--wcd-line);
+    font-size: 0.68rem;
+    background: var(--wcd-card);
+  }
+  .wcd__step[aria-current='step'] { color: var(--wcd-ink); }
+  .wcd__step[aria-current='step'] .wcd__step-num {
+    background: var(--wcd-ink);
+    border-color: var(--wcd-ink);
+    color: var(--wcd-paper);
+  }
+  .wcd__step.is-done .wcd__step-num {
+    background: var(--wcd-accent);
+    border-color: var(--wcd-accent);
+    color: #fff;
+  }
+
+  .wcd__step-title {
+    font-family: var(--wcd-serif);
+    font-size: 1.02rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+  }
+  .wcd__step-title:focus { outline: none; }
+
+  /* Fields */
+  .wcd__form { display: flex; flex-direction: column; gap: 0.85rem; }
+  /* the flex rule above would otherwise beat the UA [hidden] rule */
+  .wcd__form[hidden] { display: none; }
+  .wcd-field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .wcd-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+  }
+  @media (max-width: 420px) {
+    .wcd-field-row { grid-template-columns: 1fr; }
+  }
+  .wcd-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--wcd-ink);
+  }
+  .wcd-input {
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--wcd-ink);
+    background: var(--wcd-card);
+    border: 1px solid var(--wcd-line);
+    border-radius: 6px;
+    padding: 0.6rem 0.7rem;
+    width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .wcd-input::placeholder { color: rgba(122, 114, 100, 0.65); }
+  .wcd-input:focus {
+    outline: 2px solid var(--wcd-accent);
+    outline-offset: 1px;
+    border-color: var(--wcd-accent);
+  }
+  .wcd-field.is-error .wcd-input,
+  .wcd-input[aria-invalid='true'] { border-color: var(--wcd-error); }
+
+  .wcd-err {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: var(--wcd-error);
+  }
+  .wcd-err[hidden] { display: none; }
+  .wcd-err svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .wcd-err--check { margin-top: 0.35rem; }
+
+  /* Buttons (brand world: 6px corners, charcoal primary) */
+  .wcd-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+    color: var(--wcd-paper);
+    background: var(--wcd-ink);
+    border: 1px solid var(--wcd-ink);
+    border-radius: 6px;
+    padding: 0.7rem 1.25rem;
+    cursor: pointer;
+    margin-top: 0.25rem;
+    transition: background 0.15s ease;
+  }
+  .wcd-btn:hover { background: #464037; }
+  .wcd-btn:focus-visible { outline: 2px solid var(--wcd-accent); outline-offset: 2px; }
+  .wcd-btn:disabled { opacity: 0.7; cursor: default; }
+  .wcd-btn-quiet {
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--wcd-ink);
+    background: transparent;
+    border: 1px solid var(--wcd-line);
+    border-radius: 6px;
+    padding: 0.7rem 1.1rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .wcd-btn-quiet:hover { border-color: var(--wcd-ink); }
+  .wcd-btn-quiet:focus-visible { outline: 2px solid var(--wcd-accent); outline-offset: 2px; }
+
+  .wcd-btn__spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(247, 244, 238, 0.35);
+    border-top-color: var(--wcd-paper);
+    border-radius: 50%;
+    animation: wcd-spin 0.7s linear infinite;
+  }
+  .wcd-btn__spinner[hidden] { display: none; }
+  @keyframes wcd-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .wcd-btn__spinner { animation: none; }
+    .wcd-input, .wcd-btn, .wcd-btn-quiet { transition: none; }
+  }
+
+  /* Step 2 — summary + guarantee */
+  .wcd__summary {
+    background: var(--wcd-card);
+    border: 1px solid var(--wcd-hairline);
+    border-radius: 6px;
+    padding: 0.25rem 1rem;
+    margin-bottom: 0.95rem;
+  }
+  .wcd__summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--wcd-hairline);
+  }
+  .wcd__summary-row:last-child { border-bottom: none; }
+  .wcd__summary-row dt {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--wcd-muted);
+    flex-shrink: 0;
+  }
+  .wcd__summary-row dd {
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .wcd__guarantee {
+    border: 1px solid var(--wcd-line);
+    border-left: 3px solid var(--wcd-accent);
+    border-radius: 6px;
+    background: var(--wcd-card);
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.95rem;
+  }
+  .wcd__guarantee-title {
+    font-family: var(--wcd-serif);
+    font-size: 0.92rem;
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+  }
+  .wcd__guarantee-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-left: 1rem;
+    list-style: disc;
+  }
+  .wcd__guarantee-list li {
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--wcd-muted);
+  }
+
+  .wcd__authorise {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    cursor: pointer;
+  }
+  .wcd__check {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 2px;
+    accent-color: var(--wcd-ink);
+    flex-shrink: 0;
+  }
+  .wcd__check:focus-visible { outline: 2px solid var(--wcd-accent); outline-offset: 1px; }
+
+  .wcd__confirm-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .wcd__confirm-actions .wcd-btn { flex: 1; margin-top: 0; }
+
+  /* Success */
+  .wcd__done { text-align: center; padding: 0.5rem 0 0.25rem; }
+  .wcd__done-seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    background: rgba(201, 137, 43, 0.14);
+    border: 1px solid rgba(201, 137, 43, 0.4);
+    color: var(--wcd-accent-deep);
+    margin-bottom: 0.8rem;
+  }
+  .wcd__done-seal:focus { outline: none; }
+  .wcd__done-seal svg { width: 26px; height: 26px; }
+  .wcd__done-title {
+    font-family: var(--wcd-serif);
+    font-size: 1.18rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .wcd__done-line {
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--wcd-muted);
+    max-width: 42ch;
+    margin: 0 auto 0.35rem;
+  }
+  .wcd__done-line strong { color: var(--wcd-ink); }
+  .wcd__done-settle {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--wcd-ink);
+    margin: 0.5rem auto 0.9rem;
+  }
+
+  /* Quiet card-link line + footer */
+  .wcd__cardline {
+    margin-top: 1.1rem;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--wcd-muted);
+    text-align: center;
+  }
+  .wcd__foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--wcd-hairline);
+    font-size: 0.68rem;
+    color: var(--wcd-muted);
+    text-align: center;
+  }
+  .wcd__foot svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+  /* Visually hidden live region */
+  .wcd__sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function fieldOf(root, key) {
+    return root.querySelector('[data-field="' + key + '"]');
+  }
+
+  function setError(field, show, message) {
+    if (!field) return;
+    const input = field.querySelector('input');
+    const err = field.querySelector('.wcd-err');
+    field.classList.toggle('is-error', show);
+    if (input && input.type !== 'checkbox') {
+      if (show) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    }
+    if (err) {
+      if (message) {
+        const text = err.querySelector('[data-err-text]');
+        if (text) text.textContent = message;
+      }
+      err.hidden = !show;
+    }
+  }
+
+  function bind(root) {
+    if (root.dataset.wcdBound) return;
+    root.dataset.wcdBound = 'true';
+
+    const step1 = root.querySelector('[data-step1]');
+    const step2 = root.querySelector('[data-step2]');
+    const success = root.querySelector('[data-success]');
+    const status = root.querySelector('[data-status]');
+    const dots = root.querySelectorAll('[data-step-dot]');
+
+    const nameField = fieldOf(root, 'name');
+    const sortField = fieldOf(root, 'sort');
+    const accountField = fieldOf(root, 'account');
+    const emailField = fieldOf(root, 'email');
+    const authoriseField = fieldOf(root, 'authorise');
+
+    const nameInput = nameField.querySelector('input');
+    const sortInput = sortField.querySelector('input');
+    const accountInput = accountField.querySelector('input');
+    const emailInput = emailField.querySelector('input');
+    const authoriseInput = authoriseField.querySelector('input');
+
+    const confirmBtn = root.querySelector('[data-confirm]');
+    const confirmLabel = root.querySelector('[data-confirm-label]');
+    const spinner = root.querySelector('.wcd-btn__spinner');
+    const backBtn = root.querySelector('[data-back]');
+    const resetBtn = root.querySelector('[data-reset]');
+
+    const say = (msg) => { if (status) status.textContent = msg; };
+
+    const setDots = (current) => {
+      dots.forEach((dot) => {
+        const n = Number(dot.dataset.stepDot);
+        dot.classList.toggle('is-done', n < current);
+        if (n === current) dot.setAttribute('aria-current', 'step');
+        else dot.removeAttribute('aria-current');
+      });
+    };
+
+    sortInput.addEventListener('input', () => {
+      const digits = sortInput.value.replace(/\D/g, '').slice(0, 6);
+      const parts = [];
+      for (let i = 0; i < digits.length; i += 2) parts.push(digits.slice(i, i + 2));
+      sortInput.value = parts.join('-');
+    });
+
+    accountInput.addEventListener('input', () => {
+      accountInput.value = accountInput.value.replace(/\D/g, '').slice(0, 8);
+    });
+
+    const validators = {
+      name: () => nameInput.value.trim().length >= 2,
+      sort: () => /^\d{2}-\d{2}-\d{2}$/.test(sortInput.value),
+      account: () => /^\d{8}$/.test(accountInput.value),
+      email: () => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailInput.value.trim()),
+    };
+
+    [
+      [nameField, nameInput, 'name'],
+      [sortField, sortInput, 'sort'],
+      [accountField, accountInput, 'account'],
+      [emailField, emailInput, 'email'],
+    ].forEach(([field, input, key]) => {
+      input.addEventListener('blur', () => {
+        if (input.value.trim() !== '') setError(field, !validators[key]());
+      });
+      input.addEventListener('input', () => {
+        if (field.classList.contains('is-error') && validators[key]()) setError(field, false);
+      });
+    });
+
+    step1.addEventListener('submit', (e) => {
+      e.preventDefault();
+      let firstBad = null;
+      [
+        [nameField, nameInput, 'name'],
+        [sortField, sortInput, 'sort'],
+        [accountField, accountInput, 'account'],
+        [emailField, emailInput, 'email'],
+      ].forEach(([field, input, key]) => {
+        const ok = validators[key]();
+        setError(field, !ok);
+        if (!ok && !firstBad) firstBad = input;
+      });
+      if (firstBad) {
+        firstBad.focus();
+        say('Please check the highlighted bank details.');
+        return;
+      }
+
+      root.querySelector('[data-sum-name]').textContent = nameInput.value.trim();
+      root.querySelector('[data-sum-sort]').textContent = sortInput.value;
+      root.querySelector('[data-sum-account]').textContent =
+        'Ending ' + accountInput.value.slice(-4);
+
+      step1.hidden = true;
+      step2.hidden = false;
+      setDots(2);
+      say('Step 2 of 2. Review your mandate and the Direct Debit Guarantee, then confirm.');
+      const h = root.querySelector('[data-focus-2]');
+      if (h) h.focus();
+    });
+
+    backBtn.addEventListener('click', () => {
+      step2.hidden = true;
+      step1.hidden = false;
+      setDots(1);
+      say('Step 1 of 2. Edit your bank details.');
+      const h = root.querySelector('[data-focus-1]');
+      if (h) h.focus();
+    });
+
+    confirmBtn.addEventListener('click', () => {
+      if (!authoriseInput.checked) {
+        setError(authoriseField, true);
+        authoriseInput.focus();
+        say('Please confirm you can authorise this Direct Debit.');
+        return;
+      }
+      setError(authoriseField, false);
+
+      confirmBtn.disabled = true;
+      backBtn.disabled = true;
+      if (spinner) spinner.hidden = reduceMotion.matches;
+      if (confirmLabel) confirmLabel.textContent = 'Setting Up Your Mandate';
+      say('Setting up your Direct Debit mandate.');
+
+      const finish = () => {
+        step2.hidden = true;
+        success.hidden = false;
+        setDots(3);
+        const emailLine = root.querySelector('[data-done-email]');
+        if (emailLine) {
+          emailLine.textContent =
+            'Your mandate confirmation has been emailed to ' + emailInput.value.trim() + '.';
+        }
+        say('Direct Debit set up. The first collection of £120.00 is on Wednesday 1 July 2026.');
+        const seal = root.querySelector('[data-focus-3]');
+        if (seal) seal.focus();
+        confirmBtn.disabled = false;
+        backBtn.disabled = false;
+        if (spinner) spinner.hidden = true;
+        if (confirmLabel) confirmLabel.textContent = 'Set Up Direct Debit';
+      };
+
+      if (reduceMotion.matches) finish();
+      else setTimeout(finish, 900);
+    });
+
+    resetBtn.addEventListener('click', () => {
+      step1.reset();
+      authoriseInput.checked = false;
+      [nameField, sortField, accountField, emailField, authoriseField].forEach((f) =>
+        setError(f, false)
+      );
+      success.hidden = true;
+      step1.hidden = false;
+      setDots(1);
+      say('Demo restarted. Step 1 of 2: your bank details.');
+      const h = root.querySelector('[data-focus-1]');
+      if (h) h.focus();
+    });
+  }
+
+  document.querySelectorAll('[data-wcd]').forEach(bind);
+</script>

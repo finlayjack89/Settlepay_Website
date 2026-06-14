@@ -1,0 +1,37 @@
+---
+/**
+ * Button — primary / secondary, optional trailing icon, link or button.
+ * - href           → renders an <a>
+ * - enquire        → renders a <button data-enquire> that opens the consultation modal
+ * - variant        → "primary" | "secondary"
+ * - size="large"   → larger primary
+ * - onDark         → secondary variant styled for dark backgrounds
+ * - icon           → trailing Heroicon name
+ */
+import Icon from './Icon.astro';
+
+const {
+  variant = 'primary',
+  size,
+  onDark = false,
+  icon,
+  iconSw = 2.5,
+  href,
+  enquire = false,
+  type = 'button',
+  class: extra = '',
+  ...rest
+} = Astro.props;
+
+const cls = [
+  variant === 'primary' ? 'btn-primary' : 'btn-secondary',
+  size === 'large' ? 'btn-primary--large' : '',
+  onDark && variant === 'secondary' ? 'btn-secondary--ondark' : '',
+  extra,
+].filter(Boolean).join(' ');
+---
+{href ? (
+  <a href={href} class={cls} {...rest}><slot />{icon && <Icon name={icon} sw={iconSw} />}</a>
+) : (
+  <button type={type} class={cls} {...(enquire ? { 'data-enquire': '' } : {})} {...rest}><slot />{icon && <Icon name={icon} sw={iconSw} />}</button>
+)}

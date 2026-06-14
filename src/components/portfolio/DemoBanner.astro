@@ -1,0 +1,16 @@
+---
+/**
+ * DemoBanner — slim disclosure strip rendered above every interactive
+ * portfolio demo. The wording is fixed (legal labelling of fictional brands);
+ * do not edit it. Styles live in src/styles/portfolio.css (.demo-banner),
+ * which the /work/ pages import.
+ */
+import Icon from '../Icon.astro';
+---
+<div class="demo-banner" role="note">
+  <Icon name="sparkles" sw={2} />
+  <p>
+    <strong>Illustrative Demo</strong> — This is a fictional business created to showcase what
+    SettlePay can build. It runs in test mode and no real payments are taken.
+  </p>
+</div>

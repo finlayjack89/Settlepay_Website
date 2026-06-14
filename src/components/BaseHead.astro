@@ -1,0 +1,78 @@
+---
+/**
+ * BaseHead — all <head> SEO/meta for a page: title, description, canonical,
+ * robots, Open Graph, Twitter cards, icons, fonts, theme colour and JSON-LD.
+ */
+import { SITE } from '../data/site.mjs';
+
+const {
+  title = SITE.defaultTitle,
+  description = SITE.defaultDescription,
+  image = SITE.ogImage,
+  ogTitle,
+  ogDescription,
+  keywords,
+  type = 'website',
+  noindex = false,
+  canonical,
+  jsonLd = [],
+} = Astro.props;
+
+const canonicalURL = canonical
+  ? new URL(canonical, SITE.url).href
+  : new URL(Astro.url.pathname, SITE.url).href;
+const imageURL = new URL(image, SITE.url).href;
+const robots = noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
+---
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+<title>{title}</title>
+<meta name="description" content={description} />
+{keywords && <meta name="keywords" content={keywords} />}
+<meta name="robots" content={robots} />
+<meta name="author" content={SITE.legalOwner} />
+<link rel="canonical" href={canonicalURL} />
+
+<!-- Open Graph -->
+<meta property="og:type" content={type} />
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:title" content={ogTitle || title} />
+<meta property="og:description" content={ogDescription || description} />
+<meta property="og:url" content={canonicalURL} />
+<meta property="og:image" content={imageURL} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="SettlePay — bespoke payment pages for UK businesses" />
+<meta property="og:locale" content={SITE.locale} />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={ogTitle || title} />
+<meta name="twitter:description" content={ogDescription || description} />
+<meta name="twitter:image" content={imageURL} />
+
+<!-- Icons & theme -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content={SITE.themeColor} />
+<meta name="color-scheme" content="light" />
+
+<!-- Fonts: Satoshi via Fontshare CDN -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap"
+/>
+
+<meta name="generator" content={Astro.generator} />
+
+<!-- Structured data -->
+{jsonLd.map((block) => (
+  <script type="application/ld+json" set:html={JSON.stringify(block)} />
+))}

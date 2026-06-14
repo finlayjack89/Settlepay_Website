@@ -1,0 +1,123 @@
+---
+import '../../styles/portfolio.css';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Button from '../../components/Button.astro';
+import SectionHeader from '../../components/SectionHeader.astro';
+import BrandStudio from '../../components/portfolio/BrandStudio.astro';
+import { PORTFOLIO } from '../../data/portfolio.mjs';
+import seoData from '../../data/content/seo.json';
+import { webPage, breadcrumbs, itemList } from '../../data/structuredData.mjs';
+
+const path = '/work/';
+const seo = seoData.find((p) => p.path === path) ?? {};
+const crumbs = [{ name: 'Home', path: '/' }, { name: 'Our Work', path }];
+
+const jsonLd = [
+  webPage({ path, title: 'Our Work', description: seo.description, type: 'CollectionPage' }),
+  breadcrumbs(crumbs),
+  itemList({
+    path,
+    name: 'SettlePay portfolio — case study and illustrative demos',
+    items: PORTFOLIO.map((e) => ({
+      name: e.live ? e.name : `${e.name} (illustrative demo)`,
+      path: `/work/${e.slug}/`,
+    })),
+  }),
+];
+
+const thumbStyle = (b) =>
+  `--pf-bg:${b.bg};--pf-surface:${b.surface};--pf-accent:${b.accent};--pf-ink:${b.ink}`;
+---
+<BaseLayout
+  title={seo.title}
+  description={seo.description}
+  keywords={seo.keywords}
+  ogTitle={seo.ogTitle}
+  ogDescription={seo.ogDescription}
+  canonical={path}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <div class="section-badge">Our Work</div>
+      <h1 class="page-header__title">Branded Payment Pages, <span>Pattern by Pattern</span></h1>
+      <p class="page-header__lead">
+        Six builds — one live client and five fictional demo brands — each replacing bank transfers,
+        cheques or card details read out over the phone with a payment page that looks like the
+        business it belongs to.
+      </p>
+    </div>
+  </header>
+
+  <section class="pf-gallery section-pad">
+    <div class="container">
+      <div class="pf-grid">
+        {PORTFOLIO.map((e) => (
+          <a class="pf-card" href={`/work/${e.slug}/`}>
+            <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
+              <div class="pf-thumb__chrome"><span></span><span></span><span></span></div>
+              <div class="pf-thumb__page">
+                <div class="pf-thumb__brandbar">
+                  <span class="pf-thumb__logo"></span>
+                  <span class="pf-thumb__brandline"></span>
+                </div>
+                <span class="pf-thumb__line"></span>
+                <span class="pf-thumb__line pf-thumb__line--short"></span>
+                <span class="pf-thumb__btn"></span>
+              </div>
+            </div>
+            <div class="pf-card__body">
+              <div class="pf-card__head">
+                <span class="pf-card__vertical">{e.vertical}</span>
+                <span class={'use-case__tag ' + (e.live ? 'use-case__tag--live' : 'use-case__tag--demo')}>
+                  {e.live ? 'Live client' : 'Illustrative demo'}
+                </span>
+              </div>
+              <h2 class="pf-card__title">{e.name}</h2>
+              <span class="pf-card__pattern">{e.pattern}</span>
+              <p class="pf-card__summary">{e.summary}</p>
+              <div class="pf-card__methods">
+                {e.methods.map((m) => <span class="pf-chip">{m}</span>)}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+      <p class="pf-disclaimer">
+        Apart from Lockdales Auctioneers, the businesses shown are fictional brands created to
+        demonstrate the range of what we build. Every demo runs in test mode and no real payments
+        are taken.
+      </p>
+    </div>
+  </section>
+
+  <section class="bs-section section-pad" id="design-your-own">
+    <div class="container">
+      <SectionHeader
+        eyebrow="See It in Your Name"
+        title="Design Your Own "
+        blue="Payment Page"
+        subtitle="Type your business name, pick your colour, choose what you collect — and watch a checkout take shape. It is a sketch, not the finished article, but it is a start."
+      />
+      <BrandStudio />
+    </div>
+  </section>
+
+  <section class="mini-cta">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">Ready to Stop Chasing Bank Transfers?</h2>
+        <p class="mini-cta__text">
+          Tell us how you get paid today and we'll show you what a branded page would look like in
+          your name — free consultation, no jargon, no pressure.
+        </p>
+        <div class="mini-cta__actions">
+          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+          <Button variant="secondary" href="/faq/">Read the FAQ</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

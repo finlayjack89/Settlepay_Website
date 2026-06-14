@@ -1,0 +1,46 @@
+---
+/* "Engine Room" dashboard mockup used in the How-It-Works section. */
+const rows = [
+  ['INV-2041', 'Just now'],
+  ['INV-1082', '2 hrs ago'],
+];
+---
+<div class="dashboard-mockup">
+  <div class="dashboard-mockup__sidebar">
+    {[0, 1, 2, 3].map((i) => (
+      <div class={'dashboard-mockup__sidebar-link' + (i === 0 ? ' dashboard-mockup__sidebar-link--active' : '')}></div>
+    ))}
+  </div>
+  <div class="dashboard-mockup__main">
+    <div class="dashboard-mockup__header">
+      <div class="dashboard-mockup__title">Revenue</div>
+      <div class="dashboard-mockup__chart">
+        <svg viewBox="0 0 400 120" fill="none" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.25" />
+              <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M0 100 C40 90, 80 100, 120 70 C160 40, 200 60, 240 30 C280 0, 320 20, 360 40 L400 10" stroke="#3B82F6" stroke-width="3" stroke-linecap="round" />
+          <path d="M0 100 C40 90, 80 100, 120 70 C160 40, 200 60, 240 30 C280 0, 320 20, 360 40 L400 10 L400 120 L0 120Z" fill="url(#dg)" />
+        </svg>
+      </div>
+    </div>
+    <div class="dashboard-mockup__list">
+      <div class="dashboard-mockup__list-title">Recent Transactions</div>
+      {rows.map(([lot, t]) => (
+        <div class="dashboard-mockup__row">
+          <div class="dashboard-mockup__row-info">
+            <span class="dashboard-mockup__lot">{lot}</span>
+            <span class="dashboard-mockup__time">{t}</span>
+          </div>
+          <div class="dashboard-mockup__badges">
+            <span class="dashboard-mockup__badge dashboard-mockup__badge--success">Succeeded</span>
+            <span class="dashboard-mockup__badge dashboard-mockup__badge--sync">Synced to Xero</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>

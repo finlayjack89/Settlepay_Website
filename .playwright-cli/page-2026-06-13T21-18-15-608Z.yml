@@ -1,0 +1,422 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - generic [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /#integration
+        - link "Our Work" [ref=e9] [cursor=pointer]:
+          - /url: /work/
+        - link "About" [ref=e10] [cursor=pointer]:
+          - /url: /about/
+        - link "Time Saved" [ref=e11] [cursor=pointer]:
+          - /url: /#savings
+        - link "FAQ" [ref=e12] [cursor=pointer]:
+          - /url: /faq/
+        - button "Enquire Now" [ref=e13] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e14]
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - navigation "Breadcrumb" [ref=e19]:
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Home" [ref=e22] [cursor=pointer]:
+              - /url: /
+            - img [ref=e23]
+          - listitem [ref=e25]:
+            - link "Our Work" [ref=e26] [cursor=pointer]:
+              - /url: /work/
+            - img [ref=e27]
+          - listitem [ref=e29]: Stillwater Weddings
+      - generic [ref=e30]:
+        - generic [ref=e31]: Photographers & Event Suppliers
+        - generic [ref=e32]: Illustrative demo
+      - heading "Stillwater Weddings" [level=1] [ref=e33]
+      - paragraph [ref=e34]: "A fictional wedding photographer with no systems at all — showing what an honest build looks like when there is nothing to integrate with: the payment layer becomes the system of record for money."
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: The Situation
+        - heading "Where the Time Was Going" [level=2] [ref=e39]
+        - paragraph [ref=e40]: A fictional business, drawn from a real and common shape — and the payment admin it was carrying.
+      - list [ref=e41]:
+        - listitem [ref=e42]:
+          - generic [ref=e43]: Team
+          - generic [ref=e44]: Sole trader
+        - listitem [ref=e45]:
+          - generic [ref=e46]: Volume
+          - generic [ref=e47]: ~25 weddings a year
+        - listitem [ref=e48]:
+          - generic [ref=e49]: Per booking
+          - generic [ref=e50]: £350 deposit + £1,400 balance
+        - listitem [ref=e51]:
+          - generic [ref=e52]: Paid by, before
+          - generic [ref=e53]: Bank transfer, chased by email
+      - generic [ref=e54]:
+        - paragraph [ref=e55]: "Stillwater Weddings is a fictional photographer whose entire business ran on an inbox, an enquiry spreadsheet and e-signed contracts — which is to say, like most creative sole traders. Every booking meant two payments to shepherd by hand: a deposit to confirm the date, then a balance chased by email about a month before the wedding, landing in the couple’s most stressful fortnight. Fifty hand-written payment conversations a season, each one a small withdrawal from the client relationship."
+        - list [ref=e56]:
+          - listitem [ref=e57]:
+            - img [ref=e59]
+            - generic [ref=e61]:
+              - text: Two payments per wedding × 25 weddings =
+              - strong [ref=e62]: ~50 hand-typed payment threads
+              - text: a season, each needing follow-up, checking and a thank-you
+          - listitem [ref=e63]:
+            - img [ref=e65]
+            - generic [ref=e67]:
+              - text: Balance chasing lands
+              - strong [ref=e68]: four weeks before the wedding
+              - text: — precisely when couples are most stretched and goodwill matters most
+          - listitem [ref=e69]:
+            - img [ref=e71]
+            - generic [ref=e73]:
+              - text: A late balance means
+              - strong [ref=e74]: shooting a wedding not yet paid for
+              - text: ", or an ultimatum to people whose day she is about to share"
+          - listitem [ref=e75]:
+            - img [ref=e77]
+            - generic [ref=e79]:
+              - text: "Like all UK small businesses: roughly"
+              - strong [ref=e80]: half of invoices are paid late
+              - text: (Xero), and affected businesses average
+              - strong [ref=e81]: 86 hours a year
+              - text: chasing (DBT, 2025)
+    - generic [ref=e83]:
+      - generic [ref=e84]:
+        - generic [ref=e85]: Systems & Access
+        - heading "What We Could Realistically Touch" [level=2] [ref=e86]
+        - paragraph [ref=e87]: An honest map of the existing setup — because what a third-party developer can and cannot access decides what should be promised.
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - heading "Already in Place" [level=3] [ref=e90]:
+            - img [ref=e91]
+            - text: Already in Place
+          - list [ref=e94]:
+            - listitem [ref=e95]: An inbox, an enquiry spreadsheet and e-signed contracts
+            - listitem [ref=e96]: A portfolio site and Instagram
+            - listitem [ref=e97]: No CRM, no booking system, no API — nothing to integrate with
+        - generic [ref=e98]:
+          - heading "What We Worked With" [level=3] [ref=e99]:
+            - img [ref=e100]
+            - text: What We Worked With
+          - list [ref=e102]:
+            - listitem [ref=e103]: "Honestly: nothing to plug into — and the build says so rather than pretending otherwise"
+            - listitem [ref=e104]: Her own processor account — settlement straight to her business account
+            - listitem [ref=e105]: Booking details typed once into a simple season sheet that generates everything else
+        - generic [ref=e106]:
+          - heading "What Stayed Untouched" [level=3] [ref=e107]:
+            - img [ref=e108]
+            - text: What Stayed Untouched
+          - list [ref=e110]:
+            - listitem [ref=e111]: Her contracts, her inbox and her way of working — the payment layer is the only new thing
+            - listitem [ref=e112]: No software to buy, migrate to or maintain
+      - paragraph [ref=e113]: "The smallest businesses often have no system at all — and the honest offer there is not a fantasy integration, it is a payment layer self-contained enough to BE the money system: every wedding, deposit and balance in one view, with a CSV her accountant can take at year end. When there is nothing to connect to, we say so, and build for that."
+    - generic [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]: The Build
+        - heading "From Payment Page to Payment System" [level=2] [ref=e118]
+        - paragraph [ref=e119]: The page is the visible part. The build is everything that stops payments needing to be chased, matched and remembered.
+      - list [ref=e120]:
+        - listitem [ref=e121]:
+          - img [ref=e122]
+          - text: The booking-confirmation page with the open payment schedule (the demo below)
+        - listitem [ref=e124]:
+          - img [ref=e125]
+          - text: Deposit charged at booking; the balance request sends itself four weeks before the date
+        - listitem [ref=e127]:
+          - img [ref=e128]
+          - text: Gentle automatic reminders if a balance sits unpaid — written once, in her voice
+        - listitem [ref=e130]:
+          - img [ref=e131]
+          - text: "A season view: every wedding, every deposit, every balance, at a glance"
+        - listitem [ref=e133]:
+          - img [ref=e134]
+          - text: Automatic receipts and thank-yous to every couple
+        - listitem [ref=e136]:
+          - img [ref=e137]
+          - text: CSV export for the accountant at year end
+      - generic [ref=e139]:
+        - generic [ref=e140]:
+          - region "The Couple's Phone (simulated)" [ref=e141]:
+            - generic [ref=e142]:
+              - generic [ref=e143]: The Couple's Phone
+              - generic [ref=e144]: Simulated
+            - generic [ref=e146]:
+              - generic [ref=e148]:
+                - text: SW-1106Eleanor & James
+                - generic [ref=e149]: Full Day Collection · Sat 19 Sep
+              - generic [ref=e150]: Booked
+          - region "SettlePay · Season View (simulated)" [ref=e151]:
+            - generic [ref=e152]:
+              - generic [ref=e153]: SettlePay · Season View
+              - generic [ref=e154]:
+                - img [ref=e155]
+                - text: Season log
+            - generic [ref=e158]:
+              - generic [ref=e160]:
+                - text: SW-1106Eleanor & James
+                - generic [ref=e161]: Deposit due now · balance scheduled
+              - generic [ref=e162]: New
+        - paragraph [ref=e163]: She types the couple, date and package into the season sheet once. SettlePay handles both payments from here.
+        - generic [ref=e164]:
+          - button "Play the Flow" [ref=e165] [cursor=pointer]:
+            - img [ref=e167]
+            - generic [ref=e169]: Play the Flow
+          - group "Steps" [ref=e170]:
+            - button "Previous step" [disabled] [ref=e171]:
+              - img [ref=e172]
+            - generic [ref=e174]:
+              - button "Start" [ref=e175] [cursor=pointer]
+              - button "Step 1" [ref=e176] [cursor=pointer]
+              - button "Step 2" [ref=e177] [cursor=pointer]
+              - button "Step 3" [ref=e178] [cursor=pointer]
+              - button "Step 4" [ref=e179] [cursor=pointer]
+            - button "Next step" [ref=e180] [cursor=pointer]:
+              - img [ref=e181]
+      - paragraph [ref=e183]: A simulated, user-controlled walkthrough — fictional data and simulated system connections. No real systems are involved and nothing plays until you press play.
+    - generic [ref=e185]:
+      - generic [ref=e186]:
+        - generic [ref=e187]: The Demo
+        - heading "Try the Interactive Demo" [level=2] [ref=e188]
+        - paragraph [ref=e189]: A working page in the Stillwater Weddings branding — a fictional brand, running in test mode only.
+      - generic [ref=e190]:
+        - note [ref=e191]:
+          - img [ref=e192]
+          - paragraph [ref=e194]:
+            - strong [ref=e195]: Illustrative Demo
+            - text: — This is a fictional business created to showcase what SettlePay can build. It runs in test mode and no real payments are taken.
+        - generic [ref=e197]:
+          - generic [ref=e203]: pay.stillwaterweddings.co.uk/booking/SW-1106
+          - generic [ref=e205]:
+            - generic [ref=e206]:
+              - img [ref=e207]
+              - paragraph [ref=e211]: Stillwater
+              - paragraph [ref=e212]: Wedding Photography
+            - generic [ref=e213]:
+              - generic [ref=e214]:
+                - paragraph [ref=e215]: Booking Confirmation — SW-1106
+                - heading "The Full Day Collection" [level=3] [ref=e216]
+                - paragraph [ref=e217]:
+                  - text: Eleanor & James · Saturday 19 September 2026
+                  - text: The Walled Garden, Pelham Green · preparations to first dance
+                - region "Payment schedule" [ref=e218]:
+                  - heading "Payment Schedule" [level=4] [ref=e219]:
+                    - generic [ref=e220]: Payment Schedule
+                  - generic [ref=e221]:
+                    - generic [ref=e222]:
+                      - generic [ref=e223]: Booking deposit
+                      - generic [ref=e224]: Due today — confirms your date
+                    - generic [ref=e225]:
+                      - generic [ref=e226]: £350.00
+                      - generic [ref=e227]: Charged Today
+                  - generic [ref=e228]:
+                    - generic [ref=e229]:
+                      - generic [ref=e230]: Remaining balance
+                      - generic [ref=e231]: Due Saturday 22 August 2026 — four weeks before your day
+                    - generic [ref=e232]:
+                      - generic [ref=e233]: £1,400.00
+                      - generic [ref=e234]: Scheduled — Not Charged Today
+                  - generic [ref=e235]:
+                    - generic [ref=e236]: Collection total
+                    - generic [ref=e237]: £1,750.00
+                - form "Pay your booking deposit by card" [ref=e238]:
+                  - generic [ref=e239]:
+                    - heading "Pay Your Deposit" [level=4] [ref=e240]:
+                      - generic [ref=e241]: Pay Your Deposit
+                    - generic [ref=e242]:
+                      - img "Visa" [ref=e243]
+                      - img "Mastercard" [ref=e244]
+                      - img "Amex" [ref=e245]
+                  - paragraph [ref=e246]: "Demo cards: 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 declines"
+                  - generic [ref=e247]:
+                    - generic [ref=e248]: Name on Card
+                    - textbox "Name on Card" [ref=e249]
+                  - generic [ref=e250]:
+                    - generic [ref=e251]: Card Number
+                    - textbox "Card Number" [ref=e252]:
+                      - /placeholder: 1234 1234 1234 1234
+                  - generic [ref=e253]:
+                    - generic [ref=e254]:
+                      - generic [ref=e255]: Expiry Date
+                      - textbox "Expiry Date" [ref=e256]:
+                        - /placeholder: MM / YY
+                    - generic [ref=e257]:
+                      - generic [ref=e258]: Security Code
+                      - textbox "Security Code" [ref=e259]:
+                        - /placeholder: CVC
+                  - button "Pay £350.00 Deposit" [ref=e260] [cursor=pointer]
+                  - paragraph [ref=e261]: Only the £350.00 deposit is charged today. The £1,400.00 balance is scheduled for Saturday 22 August 2026 and will not be charged today.
+              - status [ref=e262]
+            - generic [ref=e263]:
+              - paragraph [ref=e264]: Illustrative demo — no real payments are taken.
+              - paragraph [ref=e265]:
+                - img [ref=e266]
+                - text: Payments secured and processed by an FCA-regulated processor
+        - paragraph [ref=e268]: Stillwater Weddings is a fictional brand created for this demonstration — it is not a SettlePay client and no real payments are taken.
+    - generic [ref=e270]:
+      - generic [ref=e271]:
+        - generic [ref=e272]: Beyond the Page
+        - heading "The Part the Customer Never Sees" [level=2] [ref=e273]
+        - paragraph [ref=e274]: Every payment page comes with the management layer behind it — statuses, reminders and reconciliation that run themselves.
+      - generic [ref=e275]:
+        - generic [ref=e277]:
+          - generic [ref=e283]:
+            - img [ref=e284]
+            - text: app.settlepay.uk/stillwater
+          - generic [ref=e286]:
+            - generic [ref=e287]:
+              - generic [ref=e288]:
+                - generic [ref=e289]: Season View
+                - generic [ref=e290]: Stillwater Weddings · 2026 season
+              - generic [ref=e291]:
+                - img [ref=e292]
+                - text: Season log · CSV export
+            - list [ref=e294]:
+              - listitem [ref=e295]:
+                - generic [ref=e297]:
+                  - text: SW-1106 Eleanor & James — 19 Sep
+                  - generic [ref=e298]: Deposit paid · balance scheduled 22 Aug
+                - generic [ref=e299]: £350.00
+                - generic [ref=e300]: Deposit
+              - listitem [ref=e301]:
+                - generic [ref=e303]:
+                  - text: SW-1102 Priya & Tom — 11 Jul
+                  - generic [ref=e304]: Balance paid five days early
+                - generic [ref=e305]: £1,400.00
+                - generic [ref=e306]: Settled
+              - listitem [ref=e307]:
+                - generic [ref=e309]:
+                  - text: SW-1104 Megan & Chris — 8 Aug
+                  - generic [ref=e310]: Balance request sent 11 Jul, on schedule
+                - generic [ref=e311]: £1,400.00
+                - generic [ref=e312]: Requested
+              - listitem [ref=e313]:
+                - generic [ref=e315]:
+                  - text: SW-1099 Hannah & Will — 27 Jun
+                  - generic [ref=e316]: Gentle reminder sent · due Friday
+                - generic [ref=e317]: £1,400.00
+                - generic [ref=e318]: Nudged
+            - generic [ref=e319]:
+              - img [ref=e320]
+              - generic [ref=e322]: "This season: every balance so far paid before the wedding, none chased by hand."
+        - paragraph [ref=e323]: An illustrative view of the payment-management layer — fictional names and statuses, shown to demonstrate the workflow.
+    - generic [ref=e325]:
+      - generic [ref=e326]:
+        - generic [ref=e327]: The Modelled Outcome
+        - heading "What That Adds Up To, Honestly" [level=2] [ref=e328]
+        - paragraph [ref=e329]: Quantified from published UK industry figures — and labelled as the model it is, not passed off as a client result.
+      - generic [ref=e330]:
+        - generic [ref=e331]:
+          - generic [ref=e332]: ~50 → 0
+          - generic [ref=e333]: Hand-written payment chases a season
+          - paragraph [ref=e334]: Requests, reminders and receipts compose themselves — the conversations that strained client goodwill simply stop happening.
+        - generic [ref=e335]:
+          - generic [ref=e336]: On time, every time
+          - generic [ref=e337]: Balance requests never slip
+          - paragraph [ref=e338]: The four-weeks-out request sends itself even in peak season — late asks were the single biggest cause of late balances.
+        - generic [ref=e339]:
+          - generic [ref=e340]: ≈ 20 hrs a season
+          - generic [ref=e341]: Admin recovered
+          - paragraph [ref=e342]: Roughly 45 minutes of chasing, checking and matching removed per wedding — time that was coming out of editing evenings.
+      - generic [ref=e343]:
+        - heading "How These Figures Are Modelled" [level=3] [ref=e344]
+        - list [ref=e345]:
+          - listitem [ref=e346]: "No reliable published figures exist for wedding suppliers specifically, so this scenario leans only on cross-sector data: roughly half of UK small-business invoices are paid late (Xero), and businesses affected by late payment average 86 hours a year chasing it (DBT / Small Business Commissioner, 2025)."
+          - listitem [ref=e347]: 25 weddings a year, two payments each, ~45 minutes of combined chasing and reconciling per booking — our assumptions, stated so you can swap in your own numbers.
+        - paragraph [ref=e348]: "Like the business itself, these figures are illustrative: a scenario modelled on published UK industry averages, not measured results from a real client. Your own numbers will depend on your volumes and on how you get paid today."
+      - generic [ref=e349]:
+        - heading "Now Try It on Your Own Numbers" [level=3] [ref=e350]
+        - paragraph [ref=e351]: Drag the sliders to your business. The figures recompute live, costed against the same UK data.
+        - generic [ref=e352]:
+          - generic [ref=e353]:
+            - generic [ref=e354]:
+              - generic [ref=e355]: Weddings you book
+              - generic [ref=e356]:
+                - slider "Weddings you book" [ref=e357] [cursor=pointer]: "25"
+                - generic [ref=e358]: 25 / year
+            - generic [ref=e359]:
+              - generic [ref=e360]: Minutes chasing deposit + balance per booking
+              - generic [ref=e361]:
+                - slider "Minutes chasing deposit + balance per booking" [ref=e362] [cursor=pointer]: "45"
+                - generic [ref=e363]: 45 min
+            - generic [ref=e364]:
+              - generic [ref=e365]: What your hour is worth
+              - generic [ref=e366]:
+                - slider "What your hour is worth" [ref=e367] [cursor=pointer]: "18"
+                - generic [ref=e368]: £18
+          - generic [ref=e369]:
+            - generic [ref=e370]:
+              - img [ref=e372]
+              - generic [ref=e374]:
+                - generic [ref=e375]: 1.6 hrs
+                - generic [ref=e376]: Admin hours saved per month
+            - generic [ref=e377]:
+              - img [ref=e379]
+              - generic [ref=e381]:
+                - generic [ref=e382]: £340
+                - generic [ref=e383]: Staff time recovered per year
+            - generic [ref=e384]:
+              - img [ref=e386]
+              - paragraph [ref=e388]: And the balance request sends itself four weeks out — even in peak season — so the awkward money chase at the worst possible moment simply stops.
+          - paragraph [ref=e389]: "A model, not a measured result: what your hour is worth and time-per-item are yours to set, costed against published UK figures. Your own savings depend on your volumes and how you get paid today."
+    - generic [ref=e392]:
+      - img [ref=e394]
+      - generic [ref=e396]:
+        - heading "How It Connects" [level=2] [ref=e397]
+        - paragraph [ref=e398]: Behind the page, every payment carries its reference — an invoice number, tenancy, lot or mandate — so it is matched back to the business's records automatically, reminders go out on schedule instead of from someone's evening to-do list, and the books update themselves. Funds settle directly from the processor to the business's own bank account; SettlePay never holds funds. Payments are processed by FCA-regulated partners.
+    - generic [ref=e401]:
+      - heading "What Would This Look Like on Your Numbers?" [level=2] [ref=e402]
+      - paragraph [ref=e403]: Tell us how you get paid today — bank transfers, cheques, card numbers over the phone — and what systems you already run. We'll map what we could realistically automate for you, and what it would save.
+      - generic [ref=e404]:
+        - button "Enquire Now" [ref=e405] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e406]
+        - link "Back to Our Work" [ref=e408] [cursor=pointer]:
+          - /url: /work/
+  - contentinfo [ref=e409]:
+    - generic [ref=e410]:
+      - generic [ref=e411]:
+        - generic [ref=e412]:
+          - img "SettlePay" [ref=e413]
+          - paragraph [ref=e414]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e415]:
+            - link "About" [ref=e416] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e417] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e418] [cursor=pointer]:
+              - /url: /#integration
+            - link "Time Saved" [ref=e419] [cursor=pointer]:
+              - /url: /#savings
+            - link "FAQ" [ref=e420] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e421] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e422] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e423] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e424]:
+          - link "hello@settlepay.uk" [ref=e425] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e426] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e427]: London, United Kingdom
+      - paragraph [ref=e429]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.
+  - generic [ref=e432]:
+    - button "Menu" [ref=e433]:
+      - img [ref=e435]
+      - generic: Menu
+    - button "Inspect" [ref=e439]:
+      - img [ref=e441]
+      - generic: Inspect
+    - button "Audit" [ref=e443]:
+      - img [ref=e445]
+      - generic: Audit
+    - button "Settings" [ref=e448]:
+      - img [ref=e450]
+      - generic: Settings

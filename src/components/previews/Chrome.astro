@@ -1,0 +1,8 @@
+---
+import Icon from '../Icon.astro';
+const { url, dark = false } = Astro.props;
+---
+<div class={'mok__chrome' + (dark ? ' mok__chrome--dark' : '')}>
+  <div class="mok__dots"><span></span><span></span><span></span></div>
+  <div class="mok__url"><Icon name="lock" sw={2} />{url}</div>
+</div>

@@ -1,0 +1,351 @@
+---
+import '../../styles/portfolio.css';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Button from '../../components/Button.astro';
+import Icon from '../../components/Icon.astro';
+import SectionHeader from '../../components/SectionHeader.astro';
+import DemoBanner from '../../components/portfolio/DemoBanner.astro';
+import CaseFlow from '../../components/portfolio/CaseFlow.astro';
+import MarshValeFlow from '../../components/portfolio/MarshValeFlow.astro';
+import CaseTheatre from '../../components/portfolio/CaseTheatre.astro';
+import RoiCalculator from '../../components/portfolio/RoiCalculator.astro';
+import OpsPanel from '../../components/portfolio/OpsPanel.astro';
+import StatTiles from '../../components/portfolio/StatTiles.astro';
+import CheckoutTemplate from '../../components/previews/CheckoutTemplate.astro';
+import ReconcileTemplate from '../../components/previews/ReconcileTemplate.astro';
+import HarboursideCheckout from '../../components/portfolio/demos/HarboursideCheckout.astro';
+import MarshValeCheckout from '../../components/portfolio/demos/MarshValeCheckout.astro';
+import RowanCheckout from '../../components/portfolio/demos/RowanCheckout.astro';
+import StillwaterCheckout from '../../components/portfolio/demos/StillwaterCheckout.astro';
+import WhitmoreCheckout from '../../components/portfolio/demos/WhitmoreCheckout.astro';
+import { PORTFOLIO } from '../../data/portfolio.mjs';
+import seoData from '../../data/content/seo.json';
+import { webPage, breadcrumbs } from '../../data/structuredData.mjs';
+
+export function getStaticPaths() {
+  return PORTFOLIO.map((entry) => ({ params: { slug: entry.slug }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const path = `/work/${entry.slug}/`;
+const seo = seoData.find((p) => p.path === path) ?? {};
+const crumbs = [
+  { name: 'Home', path: '/' },
+  { name: 'Our Work', path: '/work/' },
+  { name: entry.name, path },
+];
+
+// Fixed contract: demoComponent names in portfolio.mjs resolve here.
+const demos = {
+  HarboursideCheckout,
+  MarshValeCheckout,
+  RowanCheckout,
+  StillwaterCheckout,
+  WhitmoreCheckout,
+};
+const Demo = entry.demoComponent ? demos[entry.demoComponent] : null;
+
+/* Mock brands carry a full modelled case study; the real client (Lockdales)
+   keeps the plain challenge/solution/impact narrative — no invented figures
+   or fabricated infrastructure detail are ever attached to a real client. */
+const cs = entry.caseStudy ?? null;
+
+// Interactive workflow theatre — currently Marsh & Vale only. The static
+// CaseFlow strip is replaced by the theatre where one exists.
+const flowDemos = { MarshValeFlow };
+const FlowDemo = cs?.flowDemo ? flowDemos[cs.flowDemo] : null;
+
+const jsonLd = [
+  webPage({ path, title: entry.name, description: seo.description }),
+  breadcrumbs(crumbs),
+];
+---
+<BaseLayout
+  title={seo.title}
+  description={seo.description}
+  keywords={seo.keywords}
+  ogTitle={seo.ogTitle}
+  ogDescription={seo.ogDescription}
+  canonical={path}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <div class="case-head">
+        <div class="section-badge">{entry.vertical}</div>
+        <span class={'use-case__tag ' + (entry.live ? 'use-case__tag--live' : 'use-case__tag--demo')}>
+          {entry.live ? 'Live client' : 'Illustrative demo'}
+        </span>
+      </div>
+      <h1 class="page-header__title">{entry.name}</h1>
+      <p class="page-header__lead">{entry.tagline}</p>
+    </div>
+  </header>
+
+  {cs ? (
+    <>
+      <section class="case-story section-pad">
+        <div class="container">
+          <SectionHeader
+            eyebrow="The Situation"
+            title="Where the "
+            blue="Time Was Going"
+            subtitle="A fictional business, drawn from a real and common shape — and the payment admin it was carrying."
+          />
+          <div class="case-profile" role="list">
+            {cs.profile.map((p) => (
+              <div class="case-profile__item" role="listitem">
+                <span class="case-profile__label">{p.label}</span>
+                <span class="case-profile__value">{p.value}</span>
+              </div>
+            ))}
+          </div>
+          <div class="case-situation">
+            <p class="case-situation__background">{cs.background}</p>
+            <ul class="case-pains">
+              {cs.painPoints.map((p) => (
+                <li class="case-pains__item">
+                  <span class="case-pains__icon"><Icon name="clock" sw={2} /></span>
+                  <span set:html={p} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="case-systems section-pad">
+        <div class="container">
+          <SectionHeader
+            eyebrow="Systems & Access"
+            title="What We Could "
+            blue="Realistically Touch"
+            subtitle="An honest map of the existing setup — because what a third-party developer can and cannot access decides what should be promised."
+          />
+          <div class="sys-grid">
+            <div class="sys-col">
+              <h3 class="sys-col__title"><Icon name="cog" sw={1.8} />Already in Place</h3>
+              <ul>{cs.setup.had.map((x) => <li>{x}</li>)}</ul>
+            </div>
+            <div class="sys-col sys-col--access">
+              <h3 class="sys-col__title"><Icon name="check" sw={2} />What We Worked With</h3>
+              <ul>{cs.setup.access.map((x) => <li>{x}</li>)}</ul>
+            </div>
+            <div class="sys-col sys-col--untouched">
+              <h3 class="sys-col__title"><Icon name="lock" sw={1.8} />What Stayed Untouched</h3>
+              <ul>{cs.setup.untouched.map((x) => <li>{x}</li>)}</ul>
+            </div>
+          </div>
+          <p class="sys-note">{cs.setup.note}</p>
+        </div>
+      </section>
+
+      <section class="case-build section-pad">
+        <div class="container">
+          <SectionHeader
+            eyebrow="The Build"
+            title="From Payment Page to "
+            blue="Payment System"
+            subtitle="The page is the visible part. The build is everything that stops payments needing to be chased, matched and remembered."
+          />
+          <ul class="case-delivered">
+            {cs.delivered.map((d) => (
+              <li><Icon name="check" sw={2.5} />{d}</li>
+            ))}
+          </ul>
+          {FlowDemo ? (
+            <>
+              <FlowDemo />
+              <p class="case-demo__caption">
+                A simulated, user-controlled walkthrough — fictional data and a simulated
+                accounting connection. No real systems are involved and nothing plays until
+                you press play.
+              </p>
+            </>
+          ) : cs.theatre ? (
+            <>
+              <CaseTheatre theatre={cs.theatre} accent={entry.brand.accent} />
+              <p class="case-demo__caption">
+                A simulated, user-controlled walkthrough — fictional data and simulated system
+                connections. No real systems are involved and nothing plays until you press play.
+              </p>
+            </>
+          ) : (
+            <CaseFlow steps={cs.flow} />
+          )}
+        </div>
+      </section>
+    </>
+  ) : (
+    <section class="case-story section-pad">
+      <div class="container">
+        <div class="case-story__grid">
+          <div class="case-story__block">
+            <h2 class="case-story__label">The Challenge</h2>
+            <p>{entry.story.challenge}</p>
+          </div>
+          <div class="case-story__block">
+            <h2 class="case-story__label">The Solution</h2>
+            <p>{entry.story.solution}</p>
+          </div>
+          <div class="case-story__block">
+            <h2 class="case-story__label">The Impact</h2>
+            <ul class="use-case__impact">
+              {entry.story.impact.map((x) => (
+                <li><Icon name="check" sw={2.5} />{x}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="case-demo section-pad">
+    <div class="container">
+      {Demo ? (
+        <>
+          <SectionHeader
+            eyebrow="The Demo"
+            title="Try the "
+            blue="Interactive Demo"
+            subtitle={`A working page in the ${entry.name} branding — a fictional brand, running in test mode only.`}
+          />
+          <div class="case-demo__stage">
+            <DemoBanner />
+            <div class="bezel-wrap">
+              <Demo />
+            </div>
+            <p class="case-demo__caption">
+              {entry.name} is a fictional brand created for this demonstration — it is not a
+              SettlePay client and no real payments are taken.
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <SectionHeader
+            eyebrow="The Build"
+            title="Inside the "
+            blue="Lockdales Build"
+            subtitle="The shape of the checkout and the reconciliation that sits behind it."
+          />
+          <div class="case-demo__pair">
+            <div class="bezel-wrap"><CheckoutTemplate /></div>
+            <div class="bezel-wrap"><ReconcileTemplate /></div>
+          </div>
+          <p class="case-demo__caption">
+            These are illustrative reconstructions of the kind of checkout and reconciliation flow
+            built for Lockdales — not screenshots of live client data.
+          </p>
+        </>
+      )}
+    </div>
+  </section>
+
+  {cs && (
+    <>
+      <section class="case-ops section-pad">
+        <div class="container">
+          <SectionHeader
+            eyebrow="Beyond the Page"
+            title="The Part the Customer "
+            blue="Never Sees"
+            subtitle="Every payment page comes with the management layer behind it — statuses, reminders and reconciliation that run themselves."
+          />
+          <div class="case-ops__stage">
+            <div class="bezel-wrap">
+              <OpsPanel ops={cs.ops} accent={entry.brand.accent} />
+            </div>
+            <p class="case-demo__caption">
+              An illustrative view of the payment-management layer — fictional names and
+              statuses, shown to demonstrate the workflow.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="case-outcome section-pad">
+        <div class="container">
+          <SectionHeader
+            eyebrow="The Modelled Outcome"
+            title="What That Adds Up To, "
+            blue="Honestly"
+            subtitle="Quantified from published UK industry figures — and labelled as the model it is, not passed off as a client result."
+          />
+          <StatTiles outcome={cs.outcome} />
+          {cs.roi && (
+            <div class="case-roi">
+              <h3 class="case-roi__title">Now Try It on Your Own Numbers</h3>
+              <p class="case-roi__lead">Drag the sliders to your business. The figures recompute live, costed against the same UK data.</p>
+              <RoiCalculator roi={cs.roi} accent={entry.brand.accent} />
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  )}
+
+  {!cs && (
+    <section class="case-capabilities section-pad">
+      <div class="container">
+        <SectionHeader
+          eyebrow="Capabilities"
+          title="What This "
+          blue="Demonstrates"
+          subtitle="The patterns in this build that carry over to any business getting paid the hard way today."
+        />
+        <div class="cap-grid">
+          {entry.capabilities.map((c, i) => (
+            <div class="cap-tile">
+              <div class={'cap-tile__icon' + (['', 'green', 'amber', 'purple'][i % 4] ? ' cap-tile__icon--' + ['', 'green', 'amber', 'purple'][i % 4] : '')}>
+                <Icon name={c.icon} sw={1.5} />
+              </div>
+              <div>
+                <h3 class="cap-tile__title">{c.title}</h3>
+                <p class="cap-tile__text">{c.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="case-connect">
+    <div class="container">
+      <div class="case-connect__inner">
+        <div class="case-connect__icon"><Icon name="refresh" sw={1.5} /></div>
+        <div>
+          <h2 class="case-connect__title">How It Connects</h2>
+          <p class="case-connect__text">
+            Behind the page, every payment carries its reference — an invoice number, tenancy, lot
+            or mandate — so it is matched back to the business's records automatically, reminders
+            go out on schedule instead of from someone's evening to-do list, and the books update
+            themselves. Funds settle directly from the processor to the business's own bank
+            account; SettlePay never holds funds. Payments are processed by FCA-regulated partners.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mini-cta">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">What Would This Look Like on Your Numbers?</h2>
+        <p class="mini-cta__text">
+          Tell us how you get paid today — bank transfers, cheques, card numbers over the phone —
+          and what systems you already run. We'll map what we could realistically automate for
+          you, and what it would save.
+        </p>
+        <div class="mini-cta__actions">
+          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+          <Button variant="secondary" href="/work/">Back to Our Work</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

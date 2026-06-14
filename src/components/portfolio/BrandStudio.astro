@@ -1,0 +1,544 @@
+---
+/* "See It in Your Name" — live brand customiser playground.
+   The visitor types a business name, picks an accent colour and a payment
+   scenario; a generic checkout re-skins instantly. State is mirrored into the
+   URL (?name=&colour=&plan=) so a prospect can be sent a demo already in their
+   own colours. Self-contained scoped script; no SiteScripts dependency.
+
+   This is mockup-world: the visitor's chosen accent drives the demo brand, so
+   any colour (including blue) is legitimate here — the SettlePay chrome around
+   it still uses the reserved-blue rules. Illustrative only; no real payments. */
+import Icon from '../Icon.astro';
+import Chrome from '../previews/Chrome.astro';
+
+const swatches = [
+  { id: 'teal', hex: '#0F766E' },
+  { id: 'indigo', hex: '#4F46E5' },
+  { id: 'plum', hex: '#9333EA' },
+  { id: 'rose', hex: '#E11D48' },
+  { id: 'amber', hex: '#B45309' },
+  { id: 'slate', hex: '#0F172A' },
+];
+const defaultHex = swatches[0].hex;
+---
+<div
+  class="bs"
+  data-bs
+  data-default-name="Your Business"
+  data-default-colour={defaultHex}
+  style={`--bs-accent:${defaultHex};--bs-on-accent:#ffffff`}
+>
+  <div class="bs__grid">
+    <!-- Controls (SettlePay UI) -->
+    <div class="bs__controls">
+      <div class="bs__field">
+        <label class="bs__label" for="bs-name">Your business name</label>
+        <input
+          class="bs__input"
+          id="bs-name"
+          type="text"
+          maxlength="32"
+          value="Your Business"
+          autocomplete="organization"
+          data-bs-name
+          aria-describedby="bs-name-hint"
+        />
+        <span class="bs__hint" id="bs-name-hint">Watch it appear on the page as you type.</span>
+      </div>
+
+      <div class="bs__field">
+        <span class="bs__label" id="bs-colour-label">Your brand colour</span>
+        <div class="bs__swatches" role="radiogroup" aria-labelledby="bs-colour-label">
+          {swatches.map((s, i) => (
+            <button
+              type="button"
+              class={'bs__swatch' + (i === 0 ? ' is-selected' : '')}
+              style={`--sw:${s.hex}`}
+              data-bs-swatch={s.hex}
+              role="radio"
+              aria-checked={i === 0 ? 'true' : 'false'}
+              aria-label={`Brand colour ${s.id}`}
+            ></button>
+          ))}
+          <label class="bs__custom" title="Pick a custom colour">
+            <input type="color" value={defaultHex} data-bs-custom aria-label="Custom brand colour" />
+            <Icon name="sparkles" sw={1.8} />
+          </label>
+        </div>
+      </div>
+
+      <div class="bs__field">
+        <span class="bs__label" id="bs-plan-label">What are you collecting?</span>
+        <div class="bs__seg" role="radiogroup" aria-labelledby="bs-plan-label">
+          <button type="button" class="bs__seg-btn is-selected" data-bs-plan="invoice" role="radio" aria-checked="true">An invoice</button>
+          <button type="button" class="bs__seg-btn" data-bs-plan="deposit" role="radio" aria-checked="false">A deposit</button>
+          <button type="button" class="bs__seg-btn" data-bs-plan="membership" role="radio" aria-checked="false">A membership</button>
+        </div>
+      </div>
+
+      <button type="button" class="bs__share" data-bs-share>
+        <Icon name="globe" sw={1.8} />
+        <span data-bs-share-label>Copy a Shareable Link</span>
+      </button>
+      <p class="bs__share-hint">Send a colleague — or a prospect — this page already in their name.</p>
+    </div>
+
+    <!-- Live preview (mockup-world) -->
+    <div class="bs__preview">
+      <div class="mok bs-checkout">
+        <Chrome url="pay.your-business.co.uk/checkout" />
+        <div class="bs-checkout__body">
+          <div class="bs-checkout__brand">
+            <span class="bs-checkout__mark" data-bs-mono>YB</span>
+            <span class="bs-checkout__name" data-bs-display>Your Business</span>
+          </div>
+          <div class="bs-checkout__headline" data-bs-headline>Pay Your Invoice</div>
+          <div class="bs-checkout__amount">£<span data-bs-amount>480.00</span></div>
+          <div class="bs-checkout__field">
+            <span class="bs-checkout__flabel">Card number</span>
+            <div class="bs-checkout__fauxinput">
+              <Icon name="card" sw={1.6} />
+              <span class="bs-checkout__dots">•••• •••• •••• 4242</span>
+            </div>
+          </div>
+          <div class="bs-checkout__split">
+            <div class="bs-checkout__field"><span class="bs-checkout__flabel">Expiry</span><div class="bs-checkout__fauxinput bs-checkout__fauxinput--sm">12 / 28</div></div>
+            <div class="bs-checkout__field"><span class="bs-checkout__flabel">CVC</span><div class="bs-checkout__fauxinput bs-checkout__fauxinput--sm">•••</div></div>
+          </div>
+          <button class="bs-checkout__pay" type="button" tabindex="-1" aria-hidden="true" data-bs-paylabel>Pay £480.00</button>
+          <div class="bs-checkout__foot">
+            <Icon name="lock" sw={1.8} />
+            Illustrative demo — no real payments are taken
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .bs {
+    max-width: 1080px;
+    margin-inline: auto;
+  }
+  .bs__grid {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 2.5rem;
+    align-items: center;
+  }
+
+  /* ---- controls ---- */
+  .bs__field {
+    margin-bottom: 1.6rem;
+  }
+  .bs__label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-brand);
+    margin-bottom: 0.7rem;
+  }
+  .bs__input {
+    width: 100%;
+    font: inherit;
+    font-size: 1.05rem;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-input);
+    padding: 0.8rem 1rem;
+  }
+  .bs__input:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 2px;
+    border-color: var(--color-primary-action);
+  }
+  .bs__hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: rgba(15, 23, 42, 0.5);
+  }
+  .bs__swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .bs__swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sw);
+    border: 0;
+    cursor: pointer;
+    box-shadow: 0 0 0 2px var(--color-pure-white), 0 0 0 2px rgba(15, 23, 42, 0.12);
+    transition: transform var(--ease-snappy), box-shadow var(--ease-snappy);
+  }
+  .bs__swatch:hover {
+    transform: scale(1.08);
+  }
+  .bs__swatch.is-selected {
+    box-shadow: 0 0 0 3px var(--color-pure-white), 0 0 0 6px var(--sw);
+  }
+  .bs__swatch:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 3px;
+  }
+  .bs__custom {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    background: var(--color-secondary-bg);
+    box-shadow: 0 0 0 2px var(--color-pure-white), 0 0 0 2px rgba(15, 23, 42, 0.12);
+  }
+  .bs__custom svg {
+    width: 18px;
+    height: 18px;
+    color: rgba(15, 23, 42, 0.55);
+    pointer-events: none;
+  }
+  .bs__custom input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .bs__seg {
+    display: inline-flex;
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: var(--radius-button);
+    padding: 4px;
+    gap: 2px;
+  }
+  .bs__seg-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.62);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-button);
+    padding: 0.5rem 0.95rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), color var(--ease-snappy);
+  }
+  .bs__seg-btn.is-selected {
+    background: var(--color-pure-white);
+    color: var(--color-primary-brand);
+    box-shadow: var(--shadow-sm);
+  }
+  .bs__seg-btn:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 2px;
+  }
+  .bs__share {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-button);
+    padding: 0.7rem 1.3rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .bs__share:hover {
+    background: var(--color-secondary-bg);
+  }
+  .bs__share:active {
+    transform: scale(0.98);
+  }
+  .bs__share svg {
+    width: 17px;
+    height: 17px;
+    color: var(--color-primary-action);
+  }
+  .bs__share-hint {
+    margin: 0.6rem 0 0;
+    font-size: 0.8rem;
+    color: rgba(15, 23, 42, 0.5);
+  }
+
+  /* ---- preview checkout (mockup-world, 4-8px radii) ---- */
+  .bs__preview {
+    display: flex;
+    justify-content: center;
+  }
+  .bs-checkout {
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+  }
+  .bs-checkout__body {
+    padding: 1.6rem 1.6rem 1.4rem;
+    background: var(--color-pure-white);
+  }
+  .bs-checkout__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1.3rem;
+  }
+  .bs-checkout__mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--bs-accent);
+    color: var(--bs-on-accent);
+    display: grid;
+    place-items: center;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  .bs-checkout__name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1b2330;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bs-checkout__headline {
+    font-size: 0.95rem;
+    color: rgba(15, 23, 42, 0.6);
+    margin-bottom: 0.2rem;
+  }
+  .bs-checkout__amount {
+    font-size: 2.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #1b2330;
+    margin-bottom: 1.3rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .bs-checkout__field {
+    margin-bottom: 0.9rem;
+  }
+  .bs-checkout__flabel {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.5);
+    margin-bottom: 0.35rem;
+  }
+  .bs-checkout__fauxinput {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 6px;
+    padding: 0.7rem 0.8rem;
+    color: rgba(15, 23, 42, 0.55);
+    font-size: 0.92rem;
+  }
+  .bs-checkout__fauxinput svg {
+    width: 18px;
+    height: 18px;
+    color: rgba(15, 23, 42, 0.4);
+  }
+  .bs-checkout__fauxinput--sm {
+    font-variant-numeric: tabular-nums;
+  }
+  .bs-checkout__split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+  }
+  .bs-checkout__dots {
+    letter-spacing: 0.08em;
+  }
+  .bs-checkout__pay {
+    width: 100%;
+    margin-top: 0.6rem;
+    border: 0;
+    border-radius: 8px;
+    background: var(--bs-accent);
+    color: var(--bs-on-accent);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.9rem;
+    cursor: default;
+    transition: background 0.25s var(--ease-snappy);
+  }
+  .bs-checkout__foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 1.1rem;
+    font-size: 0.74rem;
+    color: rgba(15, 23, 42, 0.45);
+  }
+  .bs-checkout__foot svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  @media (max-width: 860px) {
+    .bs__grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    .bs__controls {
+      order: 2;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bs__swatch,
+    .bs__share,
+    .bs-checkout__pay {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  const PLANS = {
+    invoice: { headline: "Pay Your Invoice", amount: "480.00", pay: (a) => "Pay £" + a, url: "pay.{slug}.co.uk/checkout" },
+    deposit: { headline: "Pay Your Deposit", amount: "150.00", pay: () => "Pay Deposit", url: "pay.{slug}.co.uk/deposit" },
+    membership: { headline: "Start Your Membership", amount: "29.00", pay: () => "Start Membership", url: "pay.{slug}.co.uk/join" },
+  };
+
+  function readable(hex) {
+    const c = hex.replace("#", "");
+    if (c.length !== 6) return "#ffffff";
+    const r = parseInt(c.slice(0, 2), 16) / 255;
+    const g = parseInt(c.slice(2, 4), 16) / 255;
+    const b = parseInt(c.slice(4, 6), 16) / 255;
+    const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    return L > 0.42 ? "#0f172a" : "#ffffff";
+  }
+
+  function initials(name) {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "YB";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function slugify(name) {
+    const s = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return s || "your-business";
+  }
+
+  document.querySelectorAll("[data-bs]").forEach((root) => {
+    if (root.dataset.bsBound) return;
+    root.dataset.bsBound = "1";
+
+    const defName = root.dataset.defaultName;
+    const defColour = root.dataset.defaultColour;
+    const nameInput = root.querySelector("[data-bs-name]");
+    const swatchEls = root.querySelectorAll("[data-bs-swatch]");
+    const customInput = root.querySelector("[data-bs-custom]");
+    const planBtns = root.querySelectorAll("[data-bs-plan]");
+    const shareBtn = root.querySelector("[data-bs-share]");
+    const shareLabel = root.querySelector("[data-bs-share-label]");
+
+    const elMono = root.querySelector("[data-bs-mono]");
+    const elDisplay = root.querySelector("[data-bs-display]");
+    const elHeadline = root.querySelector("[data-bs-headline]");
+    const elAmount = root.querySelector("[data-bs-amount]");
+    const elPay = root.querySelector("[data-bs-paylabel]");
+    const elUrl = root.querySelector(".mok__url");
+    const urlIcon = elUrl ? elUrl.querySelector("svg") : null;
+
+    const state = { name: defName, colour: defColour, plan: "invoice" };
+
+    function applyColour(hex) {
+      state.colour = hex;
+      root.style.setProperty("--bs-accent", hex);
+      root.style.setProperty("--bs-on-accent", readable(hex));
+      swatchEls.forEach((s) => {
+        const on = s.dataset.bsSwatch.toLowerCase() === hex.toLowerCase();
+        s.classList.toggle("is-selected", on);
+        s.setAttribute("aria-checked", on ? "true" : "false");
+      });
+      if (customInput && /^#[0-9a-fA-F]{6}$/.test(hex)) customInput.value = hex;
+    }
+
+    function render(pushUrl) {
+      const name = state.name.trim() || defName;
+      const plan = PLANS[state.plan];
+      elMono.textContent = initials(state.name);
+      elDisplay.textContent = name;
+      elHeadline.textContent = plan.headline;
+      elAmount.textContent = plan.amount;
+      elPay.textContent = plan.pay(plan.amount);
+      if (elUrl) {
+        elUrl.textContent = plan.url.replace("{slug}", slugify(state.name));
+        if (urlIcon) elUrl.prepend(urlIcon);
+      }
+      if (pushUrl) {
+        const q = new URLSearchParams();
+        if (name !== defName) q.set("name", name);
+        if (state.colour.toLowerCase() !== defColour.toLowerCase()) q.set("colour", state.colour);
+        if (state.plan !== "invoice") q.set("plan", state.plan);
+        const qs = q.toString();
+        history.replaceState(null, "", qs ? "?" + qs + location.hash : location.pathname + location.hash);
+      }
+    }
+
+    nameInput.addEventListener("input", () => { state.name = nameInput.value; render(true); });
+    swatchEls.forEach((s) =>
+      s.addEventListener("click", () => { applyColour(s.dataset.bsSwatch); render(true); })
+    );
+    if (customInput)
+      customInput.addEventListener("input", () => { applyColour(customInput.value); render(true); });
+    planBtns.forEach((b) =>
+      b.addEventListener("click", () => {
+        state.plan = b.dataset.bsPlan;
+        planBtns.forEach((x) => {
+          const on = x === b;
+          x.classList.toggle("is-selected", on);
+          x.setAttribute("aria-checked", on ? "true" : "false");
+        });
+        render(true);
+      })
+    );
+
+    if (shareBtn) {
+      shareBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(location.href);
+          shareLabel.textContent = "Link Copied";
+        } catch (e) {
+          shareLabel.textContent = "Copy the URL Above";
+        }
+        setTimeout(() => { shareLabel.textContent = "Copy a Shareable Link"; }, 2200);
+      });
+    }
+
+    // Hydrate from URL (shared links)
+    const params = new URLSearchParams(location.search);
+    if (params.get("name")) { state.name = params.get("name").slice(0, 32); nameInput.value = state.name; }
+    const c = params.get("colour");
+    if (c && /^#?[0-9a-fA-F]{6}$/.test(c)) applyColour(c.startsWith("#") ? c : "#" + c);
+    else applyColour(defColour);
+    const p = params.get("plan");
+    if (p && PLANS[p]) {
+      state.plan = p;
+      planBtns.forEach((x) => {
+        const on = x.dataset.bsPlan === p;
+        x.classList.toggle("is-selected", on);
+        x.setAttribute("aria-checked", on ? "true" : "false");
+      });
+    }
+    render(false);
+  });
+</script>

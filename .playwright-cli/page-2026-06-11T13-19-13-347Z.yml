@@ -1,0 +1,435 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - button "Open menu" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+  - main [ref=e10]:
+    - generic [ref=e12]:
+      - navigation "Breadcrumb" [ref=e13]:
+        - list [ref=e14]:
+          - listitem [ref=e15]:
+            - link "Home" [ref=e16] [cursor=pointer]:
+              - /url: /
+            - img [ref=e17]
+          - listitem [ref=e19]:
+            - link "Our Work" [ref=e20] [cursor=pointer]:
+              - /url: /work/
+            - img [ref=e21]
+          - listitem [ref=e23]: Marsh & Vale Plumbing & Heating
+      - generic [ref=e24]:
+        - generic [ref=e25]: Trades & Home Services
+        - generic [ref=e26]: Illustrative demo
+      - heading "Marsh & Vale Plumbing & Heating" [level=1] [ref=e27]
+      - paragraph [ref=e28]: "A fictional sole-trader heating engineer, showing the deep version of the build: Xero raises the invoice, the link sends itself, the payment marks its own invoice paid — and reminders go out so he never has to ask twice."
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: The Situation
+        - heading "Where the Time Was Going" [level=2] [ref=e33]
+        - paragraph [ref=e34]: A fictional business, drawn from a real and common shape — and the payment admin it was carrying.
+      - list [ref=e35]:
+        - listitem [ref=e36]:
+          - generic [ref=e37]: Team
+          - generic [ref=e38]: Sole trader
+        - listitem [ref=e39]:
+          - generic [ref=e40]: Volume
+          - generic [ref=e41]: ~30 invoices a month
+        - listitem [ref=e42]:
+          - generic [ref=e43]: Terms
+          - generic [ref=e44]: 14 days
+        - listitem [ref=e45]:
+          - generic [ref=e46]: Paid by, before
+          - generic [ref=e47]: Bank details by text, card numbers by phone
+      - generic [ref=e48]:
+        - paragraph [ref=e49]: "Marsh & Vale is a fictional one-man plumbing and heating business that already did the right things: invoices raised properly in Xero from the van, sent the same day. Getting paid was the broken half. Customers who wanted to \"sort it now\" read card numbers down the phone; everyone else got bank details by text and paid when they remembered. Evenings went on matching the bank feed by eye and writing chase messages that felt awkward to send to people he might work for again."
+        - list [ref=e50]:
+          - listitem [ref=e51]:
+            - img [ref=e53]
+            - generic [ref=e55]:
+              - text: About half of UK small-business invoices are paid late (Xero data) — for him that meant
+              - strong [ref=e56]: several evenings a month
+              - text: writing chase texts and matching the bank feed
+          - listitem [ref=e57]:
+            - img [ref=e59]
+            - generic [ref=e61]:
+              - text: UK businesses affected by late payment average
+              - strong [ref=e62]: 86 hours a year
+              - text: of staff time chasing it (DBT / Small Business Commissioner, 2025) — for a sole trader, those hours are unpaid overtime
+          - listitem [ref=e63]:
+            - img [ref=e65]
+            - generic [ref=e67]:
+              - text: "Card numbers over the phone are MOTO payments: the riskiest way to take a card — remote-purchase fraud cost the UK"
+              - strong [ref=e68]: nearly £400m in 2024
+              - text: (UK Finance) — and they pull his phone and notepad into PCI scope
+          - listitem [ref=e69]:
+            - img [ref=e71]
+            - generic [ref=e73]:
+              - text: Transfers arrived as
+              - strong [ref=e74]: "\"BOILER\""
+              - text: or nothing at all, matched to invoices by memory
+    - generic [ref=e76]:
+      - generic [ref=e77]:
+        - generic [ref=e78]: Systems & Access
+        - heading "What We Could Realistically Touch" [level=2] [ref=e79]
+        - paragraph [ref=e80]: An honest map of the existing setup — because what a third-party developer can and cannot access decides what should be promised.
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - heading "Already in Place" [level=3] [ref=e83]:
+            - img [ref=e84]
+            - text: Already in Place
+          - list [ref=e87]:
+            - listitem [ref=e88]: Xero — invoicing and the bank feed, used properly
+            - listitem [ref=e89]: A smartphone and a tablet in the van — customers reached by text and WhatsApp
+            - listitem [ref=e90]: His own business bank account; no website to speak of
+        - generic [ref=e91]:
+          - heading "What We Worked With" [level=3] [ref=e92]:
+            - img [ref=e93]
+            - text: What We Worked With
+          - list [ref=e95]:
+            - listitem [ref=e96]: Xero’s public API, authorised by him in one click with his own login — the owner-consented integration every major accounting platform supports
+            - listitem [ref=e97]: His own Stripe account — payments settle as Marsh & Vale, to his account
+            - listitem [ref=e98]: Customer mobile numbers already sitting on each Xero invoice
+        - generic [ref=e99]:
+          - heading "What Stayed Untouched" [level=3] [ref=e100]:
+            - img [ref=e101]
+            - text: What Stayed Untouched
+          - list [ref=e103]:
+            - listitem [ref=e104]: Card numbers — he never sees, hears or writes one again; the hosted page takes them
+            - listitem [ref=e105]: His banking — settlement lands in the same account it always did
+            - listitem [ref=e106]: His customer records — they stay in Xero; the payment layer carries references and amounts, not his books
+      - paragraph [ref=e107]: "A sole trader on Xero is, honestly, the best-served business in the country for this work: the API access is real, owner-authorised, and revocable by him at any time. That is what makes the deep version of the build a fair promise here — where a business runs closed or offline software instead, we say so and build the lighter version, like the other studies on this page."
+    - generic [ref=e109]:
+      - generic [ref=e110]:
+        - generic [ref=e111]: The Build
+        - heading "From Payment Page to Payment System" [level=2] [ref=e112]
+        - paragraph [ref=e113]: The page is the visible part. The build is everything that stops payments needing to be chased, matched and remembered.
+      - list [ref=e114]:
+        - listitem [ref=e115]:
+          - img [ref=e116]
+          - text: The branded invoice page (the demo below)
+        - listitem [ref=e118]:
+          - img [ref=e119]
+          - text: "Auto-send: approving an invoice in Xero texts the customer a payment link"
+        - listitem [ref=e121]:
+          - img [ref=e122]
+          - text: "Auto-reconcile: a payment marks its Xero invoice paid the moment it lands"
+        - listitem [ref=e124]:
+          - img [ref=e125]
+          - text: Polite automatic reminders at day 3, 7 and 14 — written once, sent forever
+        - listitem [ref=e127]:
+          - img [ref=e128]
+          - text: "A weekly summary: what’s paid, what’s due, what’s getting a reminder"
+        - listitem [ref=e130]:
+          - img [ref=e131]
+          - text: Apple Pay and Google Pay first, card form as the fallback
+      - generic [ref=e133]:
+        - generic [ref=e134]:
+          - region "Simulated accounting software view" [ref=e135]:
+            - generic [ref=e136]:
+              - generic [ref=e137]: His Accounting · Xero
+              - generic [ref=e138]: Simulated view
+            - generic [ref=e139]:
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - generic [ref=e142]: INV-2153
+                  - generic [ref=e143]: R. Whittaker — leaking valve
+                - generic [ref=e144]: £120.00
+                - generic [ref=e466]: Approved
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - generic [ref=e148]: INV-2148
+                  - generic [ref=e149]: L. Cooper — two radiators
+                - generic [ref=e150]: £410.00
+                - generic [ref=e151]: Sent
+              - generic [ref=e152]:
+                - generic [ref=e153]:
+                  - generic [ref=e154]: INV-2147
+                  - generic [ref=e155]: K. Patel — boiler service
+                - generic [ref=e156]: £386.40
+                - generic [ref=e157]: Paid
+          - region "Simulated customer phone view" [ref=e158]:
+            - generic [ref=e160]: R. Whittaker's Phone
+            - generic [ref=e162]:
+              - generic [ref=e163]:
+                - generic [ref=e164]: 18:10
+                - generic [ref=e165]: No new messages
+              - generic [ref=e166]:
+                - generic [ref=e167]:
+                  - paragraph [ref=e168]: "Marsh & Vale Plumbing: thanks for having us out today. Your invoice INV-2153 (£120.00) is ready — pay securely at pay.marshandvale.co.uk/i/2153"
+                  - generic [ref=e169]: 18:11
+                - generic [ref=e170]:
+                  - generic [ref=e171]:
+                    - generic [ref=e172]: M&V
+                    - generic [ref=e173]:
+                      - text: Marsh & Vale
+                      - text: Plumbing & Heating
+                  - generic [ref=e174]:
+                    - generic [ref=e175]: Invoice INV-2153 · leaking valve repair
+                    - generic [ref=e176]: £120.00
+          - region "Simulated SettlePay management view" [ref=e177]:
+            - generic [ref=e178]:
+              - generic [ref=e179]: SettlePay · Marsh & Vale
+              - generic [ref=e180]:
+                - img [ref=e181]
+                - text: Xero
+            - generic [ref=e183]:
+              - generic [ref=e184]:
+                - generic [ref=e185]:
+                  - generic [ref=e186]: INV-2153
+                  - generic [ref=e187]: Waiting for approval
+                - generic [ref=e188]: —
+              - generic [ref=e189]:
+                - generic [ref=e190]:
+                  - generic [ref=e191]: INV-2148
+                  - generic [ref=e192]: Due · day 3 tomorrow
+                - generic [ref=e193]: Due
+              - paragraph [ref=e194]:
+                - img [ref=e195]
+                - text: Nothing to match by hand — the reference did the work.
+        - paragraph [ref=e197]: He approves INV-2153 in Xero from the van — the only thing he does in this whole story.
+        - generic [ref=e198]:
+          - button "Play the Flow" [ref=e199] [cursor=pointer]:
+            - img [ref=e201]
+            - generic [ref=e203]: Play the Flow
+          - group "Steps" [ref=e204]:
+            - button "Previous step" [ref=e205] [cursor=pointer]:
+              - img [ref=e206]
+            - generic [ref=e208]:
+              - button "Start" [ref=e209]
+              - button "Step 1" [ref=e210]
+              - button "Step 2" [ref=e211]
+              - button "Step 3" [ref=e212]
+              - button "Step 4" [ref=e213]
+              - button "Step 5" [ref=e214]
+              - button "Step 6" [ref=e215]
+            - button "Next step" [active] [ref=e216] [cursor=pointer]:
+              - img [ref=e217]
+      - paragraph [ref=e219]: A simulated, user-controlled walkthrough — fictional data and a simulated accounting connection. No real systems are involved and nothing plays until you press play.
+    - generic [ref=e221]:
+      - generic [ref=e222]:
+        - generic [ref=e223]: The Demo
+        - heading "Try the Interactive Demo" [level=2] [ref=e224]
+        - paragraph [ref=e225]: A working page in the Marsh & Vale Plumbing & Heating branding — a fictional brand, running in test mode only.
+      - generic [ref=e226]:
+        - note [ref=e227]:
+          - img [ref=e228]
+          - paragraph [ref=e230]:
+            - strong [ref=e231]: Illustrative Demo
+            - text: — This is a fictional business created to showcase what SettlePay can build. It runs in test mode and no real payments are taken.
+        - generic [ref=e233]:
+          - generic [ref=e239]:
+            - img [ref=e240]
+            - text: pay.marshandvale.co.uk/invoice/INV-2147
+          - generic [ref=e242]:
+            - generic [ref=e243]:
+              - img [ref=e245]
+              - generic [ref=e248]:
+                - generic [ref=e249]: Marsh & Vale
+                - generic [ref=e250]: Plumbing & Heating
+            - region "Invoice summary" [ref=e251]:
+              - generic [ref=e252]:
+                - generic [ref=e253]:
+                  - generic [ref=e254]: Invoice INV-2147 · Issued Mon 8 June
+                  - heading "Boiler Service & Thermostat Replacement" [level=3] [ref=e255]
+                  - paragraph [ref=e256]: 14 Alder Row, Saxmundham · Job completed Fri 5 June
+                - generic [ref=e257]: Due now
+              - generic [ref=e258]:
+                - generic [ref=e259]:
+                  - term [ref=e260]: Labour — annual service & thermostat fitting
+                  - definition [ref=e261]: £240.00
+                - generic [ref=e262]:
+                  - term [ref=e263]: Parts — programmable room thermostat
+                  - definition [ref=e264]: £82.00
+                - generic [ref=e265]:
+                  - term [ref=e266]: VAT (20%)
+                  - definition [ref=e267]: £64.40
+                - generic [ref=e268]:
+                  - term [ref=e269]: Total due
+                  - definition [ref=e270]: £386.40
+              - paragraph [ref=e271]:
+                - img [ref=e272]
+                - text: Any bother with the new thermostat, just give us a ring.
+            - generic [ref=e274]:
+              - generic [ref=e275]:
+                - button "Pay Apple Pay" [ref=e276] [cursor=pointer]:
+                  - generic [ref=e277]: Pay
+                  - generic [ref=e278]: Apple Pay
+                - button "Pay Google Pay" [ref=e279] [cursor=pointer]:
+                  - generic [ref=e280]: Pay
+                  - generic [ref=e281]: Google Pay
+              - separator "Or pay by card" [ref=e282]:
+                - generic [ref=e283]: Or pay by card
+              - paragraph [ref=e284]: "Demo cards: 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 declines"
+              - generic [ref=e285]:
+                - generic [ref=e287]:
+                  - generic [ref=e288]: Name on card
+                  - textbox "Name on card" [ref=e289]:
+                    - /placeholder: E. Hartley
+                - generic [ref=e291]:
+                  - generic [ref=e292]: Card number
+                  - generic [ref=e293]:
+                    - textbox "Card number Visa Mastercard American Express" [ref=e294]:
+                      - /placeholder: 1234 5678 9012 3456
+                    - generic:
+                      - img "Visa"
+                      - img "Mastercard"
+                      - img "American Express"
+                - generic [ref=e295]:
+                  - generic [ref=e297]:
+                    - generic [ref=e298]: Expiry
+                    - textbox "Expiry" [ref=e299]:
+                      - /placeholder: MM / YY
+                  - generic [ref=e301]:
+                    - generic [ref=e302]: Security code
+                    - textbox "Security code" [ref=e303]:
+                      - /placeholder: CVC
+                - button "Pay £386.40" [ref=e304] [cursor=pointer]
+            - status [ref=e305]
+            - generic [ref=e306]:
+              - paragraph [ref=e307]:
+                - img [ref=e308]
+                - text: Secured by an FCA-regulated processor · Funds go straight to Marsh & Vale's account
+              - paragraph [ref=e310]: Illustrative demo — no real payments are taken.
+        - paragraph [ref=e311]: Marsh & Vale Plumbing & Heating is a fictional brand created for this demonstration — it is not a SettlePay client and no real payments are taken.
+    - generic [ref=e313]:
+      - generic [ref=e314]:
+        - generic [ref=e315]: Beyond the Page
+        - heading "The Part the Customer Never Sees" [level=2] [ref=e316]
+        - paragraph [ref=e317]: Every payment page comes with the management layer behind it — statuses, reminders and reconciliation that run themselves.
+      - generic [ref=e318]:
+        - generic [ref=e320]:
+          - generic [ref=e326]:
+            - img [ref=e327]
+            - text: app.settlepay.uk/marsh-vale
+          - generic [ref=e329]:
+            - generic [ref=e330]:
+              - generic [ref=e331]:
+                - generic [ref=e332]: Invoices
+                - generic [ref=e333]: Marsh & Vale · June
+              - generic [ref=e334]:
+                - img [ref=e335]
+                - text: Connected to Xero
+            - list [ref=e337]:
+              - listitem [ref=e338]:
+                - generic [ref=e340]:
+                  - text: INV-2147 K. Patel — boiler service
+                  - generic [ref=e341]: Paid 18:31 · marked paid in Xero
+                - generic [ref=e342]: £386.40
+                - generic [ref=e343]: Paid
+              - listitem [ref=e344]:
+                - generic [ref=e346]:
+                  - text: INV-2151 S. Bryce — bathroom tap
+                  - generic [ref=e347]: Paid in 4 minutes · Apple Pay
+                - generic [ref=e348]: £95.00
+                - generic [ref=e349]: Paid
+              - listitem [ref=e350]:
+                - generic [ref=e352]:
+                  - text: INV-2148 L. Cooper — two radiators
+                  - generic [ref=e353]: First reminder sent 09:00
+                - generic [ref=e354]: £410.00
+                - generic [ref=e355]: Day 3
+              - listitem [ref=e356]:
+                - generic [ref=e358]:
+                  - text: INV-2143 D. Hale — callout
+                  - generic [ref=e359]: Final reminder sent · flagged for a call
+                - generic [ref=e360]: £85.00
+                - generic [ref=e361]: Day 14
+              - listitem [ref=e362]:
+                - generic [ref=e364]:
+                  - text: INV-2152 M. Forsyth — annual service
+                  - generic [ref=e365]: Link texted today
+                - generic [ref=e366]: £120.00
+                - generic [ref=e367]: Sent
+            - generic [ref=e368]:
+              - img [ref=e369]
+              - generic [ref=e371]: "June so far: 24 of 27 invoices paid without a single manual chase."
+        - paragraph [ref=e372]: An illustrative view of the payment-management layer — fictional names and statuses, shown to demonstrate the workflow.
+    - generic [ref=e374]:
+      - generic [ref=e375]:
+        - generic [ref=e376]: The Modelled Outcome
+        - heading "What That Adds Up To, Honestly" [level=2] [ref=e377]
+        - paragraph [ref=e378]: Quantified from published UK industry figures — and labelled as the model it is, not passed off as a client result.
+      - generic [ref=e379]:
+        - generic [ref=e380]:
+          - generic [ref=e381]: ≈ 5 hrs a month
+          - generic [ref=e382]: Evenings of chasing recovered
+          - paragraph [ref=e383]: Reminders, matching and "did that transfer come in?" checks now run themselves — the 86-hours-a-year national average was coming out of his evenings.
+        - generic [ref=e384]:
+          - generic [ref=e385]: Up to 2× faster
+          - generic [ref=e386]: From invoice to money
+          - paragraph [ref=e387]: "Xero’s own data: invoices offering an online payment option are paid up to twice as fast as those without one."
+        - generic [ref=e388]:
+          - generic [ref=e389]: 0 card numbers
+          - generic [ref=e390]: Taken over the phone
+          - paragraph [ref=e391]: The hosted page removes him from the riskiest category of UK card fraud — and from the PCI burden that phone payments carry.
+      - generic [ref=e392]:
+        - heading "How These Figures Are Modelled" [level=3] [ref=e393]
+        - list [ref=e394]:
+          - listitem [ref=e395]: ~30 invoices a month on 14-day terms, with roughly a third previously needing at least one chase — consistent with Xero data that about half of UK small-business invoices are paid late.
+          - listitem [ref=e396]: UK businesses affected by late payment average 86 hours a year of staff time chasing it — DBT / Office of the Small Business Commissioner research, 2025.
+          - listitem [ref=e397]: "\"Paid up to twice as fast\" with online payment options — Xero platform data, cited as Xero’s."
+          - listitem [ref=e398]: "Remote purchase (card-not-present) fraud: just under £400 million lost in 2024, the largest category of UK card fraud — UK Finance Annual Fraud Report 2025. A hosted payment page also keeps card data away from the business entirely, with PCI DSS handled by the processor."
+        - paragraph [ref=e399]: "Like the business itself, these figures are illustrative: a scenario modelled on published UK industry averages, not measured results from a real client. Your own numbers will depend on your volumes and on how you get paid today."
+    - generic [ref=e402]:
+      - img [ref=e404]
+      - generic [ref=e406]:
+        - heading "How It Connects" [level=2] [ref=e407]
+        - paragraph [ref=e408]: Behind the page, every payment carries its reference — an invoice number, tenancy, lot or mandate — so it is matched back to the business's records automatically, reminders go out on schedule instead of from someone's evening to-do list, and the books update themselves. Funds settle directly from the processor to the business's own bank account; SettlePay never holds funds. Payments are processed by FCA-regulated partners.
+    - generic [ref=e411]:
+      - heading "What Would This Look Like on Your Numbers?" [level=2] [ref=e412]
+      - paragraph [ref=e413]: Tell us how you get paid today — bank transfers, cheques, card numbers over the phone — and what systems you already run. We'll map what we could realistically automate for you, and what it would save.
+      - generic [ref=e414]:
+        - button "Enquire Now" [ref=e415] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e416]
+        - link "Back to Our Work" [ref=e418] [cursor=pointer]:
+          - /url: /work/
+  - contentinfo [ref=e419]:
+    - generic [ref=e420]:
+      - generic [ref=e421]:
+        - generic [ref=e422]:
+          - img "SettlePay" [ref=e423]
+          - paragraph [ref=e424]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e425]:
+            - link "About" [ref=e426] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e427] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e428] [cursor=pointer]:
+              - /url: /#integration
+            - link "Time Saved" [ref=e429] [cursor=pointer]:
+              - /url: /#savings
+            - link "FAQ" [ref=e430] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e431] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e432] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e433] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e434]:
+          - link "hello@settlepay.uk" [ref=e435] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e436] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e437]: London, United Kingdom
+      - paragraph [ref=e439]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.
+  - generic [ref=e442]:
+    - button "Menu" [ref=e443]:
+      - img [ref=e445]
+      - generic: Menu
+    - button "Inspect" [ref=e449]:
+      - img [ref=e451]
+      - generic: Inspect
+    - button "Audit" [ref=e453]:
+      - generic [ref=e454]:
+        - img [ref=e455]
+        - img [ref=e467]
+      - generic: Audit
+    - button "Settings" [ref=e458]:
+      - img [ref=e460]
+      - generic: Settings

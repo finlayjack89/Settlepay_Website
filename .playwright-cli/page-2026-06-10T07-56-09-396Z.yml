@@ -1,0 +1,501 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - generic [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /#integration
+        - link "Our Work" [ref=e9] [cursor=pointer]:
+          - /url: /work/
+        - link "About" [ref=e10] [cursor=pointer]:
+          - /url: /about/
+        - link "Time Saved" [ref=e11] [cursor=pointer]:
+          - /url: /#savings
+        - link "FAQ" [ref=e12] [cursor=pointer]:
+          - /url: /faq/
+        - button "Enquire Now" [ref=e13] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e14]
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - img [ref=e21]
+          - text: For UK Small Businesses
+        - heading "Bespoke Payment Pages for UK Businesses" [level=1] [ref=e23]
+        - paragraph [ref=e24]: Still chasing bank transfers, cheques or card payments taken over the phone? We design and build a branded checkout page for your business and connect it to a trusted payment processor — so you get paid faster, look professional, and stop reconciling payments by hand.
+        - generic [ref=e25]:
+          - button "Enquire Now" [ref=e26] [cursor=pointer]:
+            - text: Enquire Now
+            - img [ref=e27]
+          - link "See How It Works" [ref=e29] [cursor=pointer]:
+            - /url: "#integration"
+        - paragraph [ref=e31]:
+          - text: Your checkout runs on FCA-regulated processors like
+          - strong [ref=e32]: Stripe
+          - text: ","
+          - strong [ref=e33]: Adyen
+          - text: and
+          - strong [ref=e34]: Checkout.com
+          - text: — trusted by millions of businesses globally
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - button "Apple Pay" [ref=e41] [cursor=pointer]:
+            - generic [ref=e42]: Pay
+          - button "Google Pay" [ref=e43] [cursor=pointer]:
+            - generic [ref=e44]: Pay
+        - generic [ref=e46]: OR
+        - generic [ref=e47]:
+          - heading "Payment" [level=3] [ref=e48]
+          - paragraph [ref=e49]: All transactions are secure and encrypted.
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - button "Credit card Visa Mastercard Amex +5" [expanded] [ref=e52] [cursor=pointer]:
+              - generic [ref=e54]: Credit card
+              - generic [ref=e55]:
+                - img "Visa" [ref=e56]
+                - img "Mastercard" [ref=e57]
+                - img "Amex" [ref=e58]
+                - generic [ref=e59]: "+5"
+            - generic [ref=e60]:
+              - generic [ref=e61]:
+                - textbox [ref=e62]:
+                  - /placeholder: " "
+                  - text: 4242 4242 4242 4242
+                - generic: Card number
+              - generic [ref=e63]:
+                - generic [ref=e64]:
+                  - textbox [ref=e65]:
+                    - /placeholder: " "
+                    - text: 04 / 28
+                  - generic: Expiry (MM / YY)
+                - generic [ref=e66]:
+                  - textbox [ref=e67]:
+                    - /placeholder: " "
+                  - generic: Security code
+              - generic [ref=e68]:
+                - textbox [ref=e69]:
+                  - /placeholder: " "
+                - generic: Name on card
+              - generic [ref=e70] [cursor=pointer]:
+                - checkbox "Use shipping address as billing address" [checked] [ref=e71]
+                - generic [ref=e72]: Use shipping address as billing address
+          - button "Klarna" [ref=e74] [cursor=pointer]:
+            - generic [ref=e76]: Klarna
+          - button "PayPal" [ref=e78] [cursor=pointer]:
+            - generic [ref=e80]: PayPal
+        - button "Check Out Now" [ref=e81] [cursor=pointer]
+    - generic [ref=e85]:
+      - generic [ref=e86]:
+        - img [ref=e88]
+        - generic [ref=e90]:
+          - generic [ref=e91]: Modern Processors
+          - generic [ref=e92]: "FCA-regulated: Stripe, Adyen & more"
+      - generic [ref=e93]:
+        - img [ref=e95]
+        - generic [ref=e97]:
+          - generic [ref=e98]: We Never Hold Funds
+          - generic [ref=e99]: They settle straight to your bank
+      - generic [ref=e100]:
+        - img [ref=e102]
+        - generic [ref=e104]:
+          - generic [ref=e105]: Security, Handled
+          - generic [ref=e106]: PCI DSS via your processor
+      - generic [ref=e107]:
+        - img [ref=e109]
+        - generic [ref=e111]:
+          - generic [ref=e112]: No Lock-In, Ever
+          - generic [ref=e113]: You own your account and page
+    - generic [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]: Why SettlePay
+        - heading "We Build the Bridge to Effortless Payments" [level=2] [ref=e118]
+        - paragraph [ref=e119]: We handle every step — from setting up your merchant account to building your branded checkout page — so you never chase a bank transfer again.
+      - generic [ref=e120]:
+        - generic [ref=e121]:
+          - generic [ref=e122]:
+            - img [ref=e124]
+            - heading "Guided Account Setup" [level=3] [ref=e127]
+            - paragraph [ref=e128]: We walk you step-by-step through opening your own merchant account with a modern processor — Stripe, Adyen, Checkout.com or whichever best fits your business — no technical jargon, no paperwork headaches.
+          - generic [ref=e130]:
+            - generic [ref=e136]:
+              - img [ref=e137]
+              - text: app.meridianstudio.com
+            - generic [ref=e139]:
+              - generic [ref=e140]: M
+              - generic [ref=e141]:
+                - generic [ref=e142]: Meridian
+                - generic [ref=e143]: Studio
+              - generic [ref=e144]: Live
+              - generic [ref=e145]: MS
+            - generic [ref=e146]:
+              - generic [ref=e147]:
+                - generic [ref=e148]:
+                  - generic [ref=e149]: Net volume
+                  - generic [ref=e150]: £48,210
+                  - generic [ref=e151]: ↑ +12.4%
+                - generic [ref=e152]:
+                  - generic [ref=e153]: Payments
+                  - generic [ref=e154]: 1,284
+                  - generic [ref=e155]: ↑ +6.1%
+                - generic [ref=e156]:
+                  - generic [ref=e157]: Avg. settle
+                  - generic [ref=e158]: 1.2 days
+                  - generic [ref=e159]: Steady
+              - generic [ref=e160]:
+                - generic [ref=e161]:
+                  - generic [ref=e162]: Net volume · last 7 days
+                  - generic [ref=e163]: £48,210↑ 12.4%
+                - img [ref=e165]
+                - generic [ref=e169]:
+                  - generic [ref=e170]: Mon
+                  - generic [ref=e171]: Tue
+                  - generic [ref=e172]: Wed
+                  - generic [ref=e173]: Thu
+                  - generic [ref=e174]: Fri
+                  - generic [ref=e175]: Sat
+                  - generic [ref=e176]: Sun
+        - generic [ref=e177]:
+          - generic [ref=e178]:
+            - img [ref=e180]
+            - heading "Branded Checkout Pages" [level=3] [ref=e182]
+            - paragraph [ref=e183]: We design and build bespoke payment pages that match your company's look and feel — professional, on-brand, and buyer-friendly.
+          - generic [ref=e185]:
+            - generic [ref=e191]:
+              - img [ref=e192]
+              - text: "[your-company].com/pay"
+            - generic [ref=e194]:
+              - generic [ref=e195]:
+                - generic [ref=e196]: Your branding
+                - img [ref=e198]
+                - generic [ref=e202]: "[ Your Company ]"
+              - generic [ref=e204]:
+                - text: Pay
+                - generic [ref=e205]: "[Your Company]"
+              - generic [ref=e206]:
+                - text: £
+                - generic [ref=e207]: "[amount]"
+              - generic [ref=e208]: Card details
+              - generic [ref=e209]:
+                - img [ref=e212]
+                - generic [ref=e235]:
+                  - generic [ref=e236]: MM / YY
+                  - generic [ref=e237]: CVC
+              - generic [ref=e239]: Brand colour
+              - generic [ref=e244]:
+                - generic [ref=e245]: Your colours
+                - button [ref=e246] [cursor=pointer]:
+                  - text: Pay £
+                  - generic [ref=e247]: "[amount]"
+              - generic [ref=e248]: "[ Your secure-payment footer ]"
+        - generic [ref=e249]:
+          - generic [ref=e250]:
+            - img [ref=e252]
+            - heading "Automated Reconciliation" [level=3] [ref=e254]
+            - paragraph [ref=e255]: Stop chasing bank transfers and matching payments manually. Every card payment is automatically reconciled against your invoices and records.
+          - generic [ref=e257]:
+            - generic [ref=e263]:
+              - img [ref=e264]
+              - text: "[your-company] · reconciliation"
+            - generic [ref=e266]:
+              - generic [ref=e267]:
+                - generic [ref=e268]:
+                  - img [ref=e269]
+                  - text: Payments
+                - generic [ref=e272]:
+                  - img [ref=e273]
+                  - text: Invoices
+              - generic [ref=e275]:
+                - generic [ref=e277]:
+                  - generic [ref=e278]: £
+                  - generic [ref=e279]: amount
+                - img [ref=e283]
+                - generic [ref=e287]: "[invoice #]"
+              - generic [ref=e290]:
+                - generic [ref=e292]:
+                  - generic [ref=e293]: £
+                  - generic [ref=e294]: amount
+                - img [ref=e298]
+                - generic [ref=e302]: "[invoice #]"
+              - generic [ref=e305]:
+                - generic [ref=e307]:
+                  - generic [ref=e308]: £
+                  - generic [ref=e309]: amount
+                - img [ref=e313]
+                - generic [ref=e317]: "[invoice #]"
+              - generic [ref=e320]:
+                - img [ref=e321]
+                - generic [ref=e323]: Auto-matched in real time
+                - generic [ref=e324]: "[x] of [y] reconciled"
+        - generic [ref=e325]:
+          - generic [ref=e326]:
+            - img [ref=e328]
+            - heading "Fully Managed Onboarding" [level=3] [ref=e330]
+            - paragraph [ref=e331]: We handle the entire setup and walk your team through how everything works — no technical know-how required on your side.
+          - generic [ref=e333]:
+            - generic [ref=e339]:
+              - img [ref=e340]
+              - text: "[your-company] · onboarding"
+            - generic [ref=e342]:
+              - generic [ref=e343]:
+                - text: Onboarding for
+                - generic [ref=e344]: "[Your Company]"
+              - generic [ref=e345]:
+                - generic [ref=e346]:
+                  - img [ref=e349]
+                  - generic [ref=e352]:
+                    - generic [ref=e353]: Kickoff & account setup
+                    - generic [ref=e355]: Complete
+                - generic [ref=e356]:
+                  - img [ref=e359]
+                  - generic [ref=e362]:
+                    - generic [ref=e363]: Branded checkout build
+                    - generic [ref=e365]: Complete
+                - generic [ref=e366]:
+                  - generic [ref=e368]: "3"
+                  - generic [ref=e370]:
+                    - generic [ref=e371]: Testing & team walkthrough
+                    - generic [ref=e373]:
+                      - img [ref=e374]
+                      - text: In progress
+                - generic [ref=e376]:
+                  - generic [ref=e378]: "4"
+                  - generic [ref=e380]: Go live
+    - generic [ref=e383]:
+      - generic [ref=e384]:
+        - generic [ref=e385]: Our Work
+        - heading "See What a Bespoke Page Actually Looks Like" [level=2] [ref=e386]
+        - paragraph [ref=e387]: One live client and five fictional demo brands — each replacing bank transfers, cheques or card numbers read out over the phone with a branded page customers trust.
+      - generic [ref=e388]:
+        - link "Fine Art & Antiquities Live client Lockdales Auctioneers Post-auction invoice settlement Large volumes of buyer payments after every sale, once reconciled by hand — now settled on a branded checkout and matched to winning lots automatically. Visa Mastercard Apple Pay" [ref=e389] [cursor=pointer]:
+          - /url: /work/lockdales-auctioneers/
+          - generic [ref=e402]:
+            - generic [ref=e403]:
+              - generic [ref=e404]: Fine Art & Antiquities
+              - generic [ref=e405]: Live client
+            - heading "Lockdales Auctioneers" [level=3] [ref=e406]
+            - generic [ref=e407]: Post-auction invoice settlement
+            - paragraph [ref=e408]: Large volumes of buyer payments after every sale, once reconciled by hand — now settled on a branded checkout and matched to winning lots automatically.
+            - generic [ref=e409]:
+              - generic [ref=e410]: Visa
+              - generic [ref=e411]: Mastercard
+              - generic [ref=e412]: Apple Pay
+        - link "Trades & Home Services Illustrative demo Marsh & Vale Plumbing & Heating Pay an invoice online An invoice link sent by text after the job — line items, VAT and wallet payments included — instead of reading card numbers down the phone. Visa Mastercard Apple Pay Google Pay" [ref=e413] [cursor=pointer]:
+          - /url: /work/marsh-vale-plumbing/
+          - generic [ref=e426]:
+            - generic [ref=e427]:
+              - generic [ref=e428]: Trades & Home Services
+              - generic [ref=e429]: Illustrative demo
+            - heading "Marsh & Vale Plumbing & Heating" [level=3] [ref=e430]
+            - generic [ref=e431]: Pay an invoice online
+            - paragraph [ref=e432]: An invoice link sent by text after the job — line items, VAT and wallet payments included — instead of reading card numbers down the phone.
+            - generic [ref=e433]:
+              - generic [ref=e434]: Visa
+              - generic [ref=e435]: Mastercard
+              - generic [ref=e436]: Apple Pay
+              - generic [ref=e437]: Google Pay
+        - link "Estate & Lettings Illustrative demo Harbourside Lettings Holding deposit by pay-by-link Replaces \"transfer the deposit to this account and email us the receipt\" with a branded pay-by-link page an approved applicant can settle in under a minute. Visa Mastercard Apple Pay Google Pay" [ref=e438] [cursor=pointer]:
+          - /url: /work/harbourside-lettings/
+          - generic [ref=e451]:
+            - generic [ref=e452]:
+              - generic [ref=e453]: Estate & Lettings
+              - generic [ref=e454]: Illustrative demo
+            - heading "Harbourside Lettings" [level=3] [ref=e455]
+            - generic [ref=e456]: Holding deposit by pay-by-link
+            - paragraph [ref=e457]: Replaces "transfer the deposit to this account and email us the receipt" with a branded pay-by-link page an approved applicant can settle in under a minute.
+            - generic [ref=e458]:
+              - generic [ref=e459]: Visa
+              - generic [ref=e460]: Mastercard
+              - generic [ref=e461]: Apple Pay
+              - generic [ref=e462]: Google Pay
+      - paragraph [ref=e463]: Apart from Lockdales Auctioneers, the businesses shown are fictional brands created to demonstrate the range of what we build.
+      - link "View All Our Work" [ref=e465] [cursor=pointer]:
+        - /url: /work/
+        - text: View All Our Work
+        - img [ref=e466]
+    - generic [ref=e469]:
+      - generic [ref=e470]:
+        - generic [ref=e471]: How It Works
+        - heading "The Plumbing, Explained" [level=2] [ref=e472]
+        - paragraph [ref=e473]: We never hold your money. We connect your business to FCA-regulated processors — and hand you the keys.
+      - generic [ref=e474]:
+        - generic [ref=e475]:
+          - generic [ref=e476]:
+            - generic [ref=e477]: "1"
+            - generic [ref=e478]:
+              - heading "The Payment Page" [level=3] [ref=e479]
+              - paragraph [ref=e480]: A secure checkout page that lives on your site, branded exactly how you want it — matched to your website's colours and identity, or styled differently if you prefer. Clients pay by card, Apple Pay or Google Pay, and traditional bank transfer stays on the table too. Not everything has to run on cards either — most processors also offer Pay by Bank, which carries a lower fee and still lands in the same dashboard.
+          - generic [ref=e481]:
+            - generic [ref=e482]: "2"
+            - generic [ref=e483]:
+              - heading "The Processor Dashboard" [level=3] [ref=e484]
+              - paragraph [ref=e485]: We wire your checkout directly to your chosen processor — a trusted, modern name such as Stripe, Adyen or Checkout.com. Every transaction is tracked in real time, and funds settle straight to your business bank account. Already on spreadsheets? That’s fine — your dashboard exports a clean spreadsheet of every payment, so your existing records carry on working.
+          - generic [ref=e486]:
+            - generic [ref=e487]: "3"
+            - generic [ref=e488]:
+              - heading "Automated Reconciliation" [level=3] [ref=e489]
+              - paragraph [ref=e490]: We build digital bridges directly into your accounting software (like Xero or QuickBooks). When a client pays, the system instantly marks that invoice as “Paid”.
+        - generic [ref=e499]:
+          - generic [ref=e500]:
+            - generic [ref=e501]: Revenue
+            - img [ref=e503]
+          - generic [ref=e506]:
+            - generic [ref=e507]: Recent Transactions
+            - generic [ref=e508]:
+              - generic [ref=e509]:
+                - generic [ref=e510]: INV-2041
+                - generic [ref=e511]: Just now
+              - generic [ref=e512]:
+                - generic [ref=e513]: Succeeded
+                - generic [ref=e514]: Synced to Xero
+            - generic [ref=e515]:
+              - generic [ref=e516]:
+                - generic [ref=e517]: INV-1082
+                - generic [ref=e518]: 2 hrs ago
+              - generic [ref=e519]:
+                - generic [ref=e520]: Succeeded
+                - generic [ref=e521]: Synced to Xero
+      - generic [ref=e522]:
+        - generic [ref=e523]:
+          - heading "As Hands-On as You Want It to Be" [level=3] [ref=e524]
+          - paragraph [ref=e525]: We can overhaul the entire way invoices go out — custom invoice designs and email templates included — so everything feels like one cohesive system. You decide how integrated it gets; we handle every step of the process.
+        - generic [ref=e526]:
+          - generic [ref=e527]:
+            - generic [ref=e528]: Manual
+            - heading "Enter the Amount, Then Pay" [level=4] [ref=e529]
+            - paragraph [ref=e530]: The customer opens the payment page, types in the amount they owe, and pays. Flexible and quick to stand up — ideal when totals vary or are agreed case by case.
+          - generic [ref=e531]:
+            - generic [ref=e532]: Automated
+            - heading "Pre-Filled Pay-by-Link" [level=4] [ref=e533]
+            - paragraph [ref=e534]: Each invoice goes out with its own link to a pre-configured payment page. The customer just enters their card details and pays — no amount or invoice number to type in. It's all auto-populated from their account.
+    - generic [ref=e536]:
+      - generic [ref=e537]:
+        - generic [ref=e538]: How fast
+        - heading "Live in Days, Not Weeks" [level=2] [ref=e539]
+        - paragraph [ref=e540]: Getting set up isn’t a drawn-out project that swallows your calendar. Once your merchant account exists, we do the heavy lifting — you just point us at how you’d like to get paid.
+      - generic [ref=e541]:
+        - generic [ref=e542]:
+          - img [ref=e543]
+          - text: No weeks-long project
+        - generic [ref=e545]:
+          - img [ref=e546]
+          - text: No standing meetings
+        - generic [ref=e548]:
+          - img [ref=e549]
+          - text: No disruption to your day-to-day
+      - generic [ref=e552]:
+        - generic [ref=e553]:
+          - img [ref=e555]
+          - generic [ref=e558]: Day 0
+          - heading "Your Merchant Account Is Created" [level=3] [ref=e559]
+          - paragraph [ref=e560]: You open your own account with the processor that fits — we guide you through it in a single sitting. That’s the starting gun; everything after is on us.
+        - generic [ref=e561]:
+          - img [ref=e563]
+          - generic [ref=e565]: As little as 2 days
+          - heading "Core Payment Page Goes Live" [level=3] [ref=e566]
+          - paragraph [ref=e567]: We design, build and connect your branded checkout. In as little as two working days from your account being created, you’re taking card payments.
+        - generic [ref=e568]:
+          - img [ref=e570]
+          - generic [ref=e572]: As little as 5 days
+          - heading "Invoicing & Reconciliation Go Live" [level=3] [ref=e573]
+          - paragraph [ref=e574]: Invoicing templates, automatic payment links, accounting bridges and reconciliation — the deeper work that ties it all together follows in as little as five working days.
+      - generic [ref=e575]:
+        - img [ref=e577]
+        - generic [ref=e579]:
+          - heading "Need It Sooner? We Run an Urgent Service." [level=3] [ref=e580]
+          - paragraph [ref=e581]: If you’re up against a deadline and need a payment product at short notice, tell us — we prioritise urgent builds and turn them around fast.
+        - button "Talk to Us" [ref=e582] [cursor=pointer]
+    - generic [ref=e584]:
+      - generic [ref=e585]:
+        - generic [ref=e586]: See the impact
+        - heading "Admin Time Saved" [level=2] [ref=e587]
+        - paragraph [ref=e588]: See how many hours you could reclaim each month by replacing manual bank transfers with automated card collection.
+      - generic [ref=e589]:
+        - generic [ref=e590]:
+          - generic [ref=e591]:
+            - generic [ref=e592]: Payments collected per month
+            - generic [ref=e593]:
+              - slider "Payments collected per month" [ref=e594] [cursor=pointer]: "120"
+              - generic [ref=e595]: "120"
+          - generic [ref=e596]:
+            - generic [ref=e597]: Minutes spent reconciling each payment by hand
+            - generic [ref=e598]:
+              - slider "Minutes spent reconciling each payment by hand" [ref=e599] [cursor=pointer]: "12"
+              - generic [ref=e600]: 12 min
+        - generic [ref=e601]:
+          - generic [ref=e602]:
+            - img [ref=e604]
+            - generic [ref=e606]:
+              - generic [ref=e607]: 24 hrs
+              - generic [ref=e608]: Admin hours saved per month
+          - generic [ref=e609]:
+            - img [ref=e611]
+            - generic [ref=e613]:
+              - generic [ref=e614]: Zero
+              - generic [ref=e615]: Manual reconciliation tasks
+          - generic [ref=e616]:
+            - img [ref=e618]
+            - generic [ref=e620]:
+              - generic [ref=e621]: "120"
+              - generic [ref=e622]: Payments auto-matched to invoices
+      - generic [ref=e623]:
+        - button "Book a Free Consultation" [ref=e624] [cursor=pointer]:
+          - text: Book a Free Consultation
+          - img [ref=e625]
+        - paragraph [ref=e627]: Every project is a fixed written quote agreed before work begins — no retainers, no open-ended bills.
+    - generic [ref=e630]:
+      - heading "Ready to Stop Chasing Bank Transfers?" [level=2] [ref=e631]
+      - paragraph [ref=e632]: Book a free, no-obligation consultation. We'll review your current payment workflow and show you exactly how a bespoke checkout page, with payments processed by an FCA-regulated processor, can eliminate the admin.
+      - generic [ref=e633]:
+        - button "Book a Free Consultation" [ref=e634] [cursor=pointer]:
+          - text: Book a Free Consultation
+          - img [ref=e635]
+        - link "See Our Work" [ref=e637] [cursor=pointer]:
+          - /url: /work/
+  - contentinfo [ref=e638]:
+    - generic [ref=e639]:
+      - generic [ref=e640]:
+        - generic [ref=e641]:
+          - img "SettlePay" [ref=e642]
+          - paragraph [ref=e643]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e644]:
+            - link "About" [ref=e645] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e646] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e647] [cursor=pointer]:
+              - /url: /#integration
+            - link "Time Saved" [ref=e648] [cursor=pointer]:
+              - /url: /#savings
+            - link "FAQ" [ref=e649] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e650] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e651] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e652] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e653]:
+          - link "hello@settlepay.uk" [ref=e654] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e655] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e656]: London, United Kingdom
+      - paragraph [ref=e658]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.
+  - generic [ref=e661]:
+    - button "Menu" [ref=e662]:
+      - img [ref=e664]
+      - generic: Menu
+    - button "Inspect" [ref=e668]:
+      - img [ref=e670]
+      - generic: Inspect
+    - button "Audit" [ref=e672]:
+      - img [ref=e674]
+      - generic: Audit
+    - button "Settings" [ref=e677]:
+      - img [ref=e679]
+      - generic: Settings

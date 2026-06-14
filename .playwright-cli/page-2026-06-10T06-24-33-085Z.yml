@@ -1,0 +1,181 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - button "Open menu" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+  - main [ref=e10]:
+    - generic [ref=e12]:
+      - navigation "Breadcrumb" [ref=e13]:
+        - list [ref=e14]:
+          - listitem [ref=e15]:
+            - link "Home" [ref=e16] [cursor=pointer]:
+              - /url: /
+            - img [ref=e17]
+          - listitem [ref=e19]: FAQ
+      - generic [ref=e20]: FAQ
+      - heading "Frequently Asked Questions" [level=1] [ref=e21]
+      - paragraph [ref=e22]:
+        - text: Straight answers about how SettlePay works, who holds your money, security and compliance, and what it costs. Can't find what you need?
+        - link "Email us" [ref=e23] [cursor=pointer]:
+          - /url: mailto:hello@settlepay.uk
+        - text: .
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - heading "Getting started" [level=2] [ref=e27]
+        - generic [ref=e28]:
+          - group [ref=e29]:
+            - generic "What exactly does SettlePay do?" [ref=e30] [cursor=pointer]:
+              - generic [ref=e31]: What exactly does SettlePay do?
+              - img [ref=e32]
+          - group [ref=e34]:
+            - generic "Do I need to be technical to use SettlePay?" [ref=e35] [cursor=pointer]:
+              - generic [ref=e36]: Do I need to be technical to use SettlePay?
+              - img [ref=e37]
+          - group [ref=e39]:
+            - generic "How do I get started?" [ref=e40] [cursor=pointer]:
+              - generic [ref=e41]: How do I get started?
+              - img [ref=e42]
+          - group [ref=e44]:
+            - generic "What kinds of businesses do you work with?" [ref=e45] [cursor=pointer]:
+              - generic [ref=e46]: What kinds of businesses do you work with?
+              - img [ref=e47]
+      - generic [ref=e49]:
+        - heading "How it works" [level=2] [ref=e50]
+        - generic [ref=e51]:
+          - group [ref=e52]:
+            - generic "How does the whole setup actually work, step by step?" [ref=e53] [cursor=pointer]:
+              - generic [ref=e54]: How does the whole setup actually work, step by step?
+              - img [ref=e55]
+          - group [ref=e57]:
+            - generic "Can the payment page match my branding?" [ref=e58] [cursor=pointer]:
+              - generic [ref=e59]: Can the payment page match my branding?
+              - img [ref=e60]
+          - group [ref=e62]:
+            - generic "How long does it take to go live?" [ref=e63] [cursor=pointer]:
+              - generic [ref=e64]: How long does it take to go live?
+              - img [ref=e65]
+          - group [ref=e67]:
+            - generic "Who owns the payment page and the merchant account?" [ref=e68] [cursor=pointer]:
+              - generic [ref=e69]: Who owns the payment page and the merchant account?
+              - img [ref=e70]
+      - generic [ref=e72]:
+        - heading "Payments & fees" [level=2] [ref=e73]
+        - generic [ref=e74]:
+          - group [ref=e75]:
+            - generic "Do you hold or touch my money?" [ref=e76] [cursor=pointer]:
+              - generic [ref=e77]: Do you hold or touch my money?
+              - img [ref=e78]
+          - group [ref=e80]:
+            - generic "Which payment processors do you use?" [ref=e81] [cursor=pointer]:
+              - generic [ref=e82]: Which payment processors do you use?
+              - img [ref=e83]
+          - group [ref=e85]:
+            - generic "How much does SettlePay cost?" [ref=e86] [cursor=pointer]:
+              - generic [ref=e87]: How much does SettlePay cost?
+              - img [ref=e88]
+          - group [ref=e90]:
+            - generic "Can my customers still pay by bank transfer?" [ref=e91] [cursor=pointer]:
+              - generic [ref=e92]: Can my customers still pay by bank transfer?
+              - img [ref=e93]
+      - generic [ref=e95]:
+        - heading "Security & compliance" [level=2] [ref=e96]
+        - generic [ref=e97]:
+          - group [ref=e98]:
+            - generic "Are you FCA regulated?" [ref=e99] [cursor=pointer]:
+              - generic [ref=e100]: Are you FCA regulated?
+              - img [ref=e101]
+          - group [ref=e103]:
+            - generic "What about PCI and card security?" [ref=e104] [cursor=pointer]:
+              - generic [ref=e105]: What about PCI and card security?
+              - img [ref=e106]
+          - group [ref=e108]:
+            - generic "Is my money protected by the FSCS?" [ref=e109] [cursor=pointer]:
+              - generic [ref=e110]: Is my money protected by the FSCS?
+              - img [ref=e111]
+          - group [ref=e113]:
+            - generic "How is my data handled?" [ref=e114] [cursor=pointer]:
+              - generic [ref=e115]: How is my data handled?
+              - img [ref=e116]
+      - generic [ref=e118]:
+        - heading "Accounting & reconciliation" [level=2] [ref=e119]
+        - generic [ref=e120]:
+          - group [ref=e121]:
+            - generic "Does it work with my accounting software?" [ref=e122] [cursor=pointer]:
+              - generic [ref=e123]: Does it work with my accounting software?
+              - img [ref=e124]
+          - group [ref=e126]:
+            - generic "What if I still use spreadsheets rather than accounting software?" [ref=e127] [cursor=pointer]:
+              - generic [ref=e128]: What if I still use spreadsheets rather than accounting software?
+              - img [ref=e129]
+      - generic [ref=e131]:
+        - heading "Working with SettlePay" [level=2] [ref=e132]
+        - generic [ref=e133]:
+          - group [ref=e134]:
+            - generic "Who is SettlePay, and is it a limited company?" [ref=e135] [cursor=pointer]:
+              - generic [ref=e136]: Who is SettlePay, and is it a limited company?
+              - img [ref=e137]
+          - group [ref=e139]:
+            - generic "What happens after the payment page goes live?" [ref=e140] [cursor=pointer]:
+              - generic [ref=e141]: What happens after the payment page goes live?
+              - img [ref=e142]
+          - group [ref=e144]:
+            - generic "How do I get in touch?" [ref=e145] [cursor=pointer]:
+              - generic [ref=e146]: How do I get in touch?
+              - img [ref=e147]
+    - generic [ref=e151]:
+      - heading "Still Have a Question?" [level=2] [ref=e152]
+      - paragraph [ref=e153]: Book a free, no-obligation consultation and we'll talk it through — no jargon, no pressure.
+      - generic [ref=e154]:
+        - button "Enquire Now" [ref=e155] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e156]
+        - link "About SettlePay" [ref=e158] [cursor=pointer]:
+          - /url: /about/
+  - contentinfo [ref=e159]:
+    - generic [ref=e160]:
+      - generic [ref=e161]:
+        - generic [ref=e162]:
+          - img "SettlePay" [ref=e163]
+          - paragraph [ref=e164]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e165]:
+            - link "About" [ref=e166] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e167] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e168] [cursor=pointer]:
+              - /url: /#integration
+            - link "Estimated Savings" [ref=e169] [cursor=pointer]:
+              - /url: /#pricing
+            - link "FAQ" [ref=e170] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e171] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e172] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e173] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e174]:
+          - link "hello@settlepay.uk" [ref=e175] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e176] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e177]: London, United Kingdom
+      - paragraph [ref=e179]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.
+  - generic [ref=e182]:
+    - button "Menu" [ref=e183]:
+      - img [ref=e185]
+      - generic: Menu
+    - button "Inspect" [ref=e189]:
+      - img [ref=e191]
+      - generic: Inspect
+    - button "Audit" [ref=e193]:
+      - img [ref=e195]
+      - generic: Audit
+    - button "Settings" [ref=e198]:
+      - img [ref=e200]
+      - generic: Settings

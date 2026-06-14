@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/sections/Hero.astro';
+import ValueProps from '../components/sections/ValueProps.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import FastStart from '../components/sections/FastStart.astro';
+import OurWork from '../components/sections/OurWork.astro';
+import TrustBar from '../components/sections/TrustBar.astro';
+import Calculator from '../components/sections/Calculator.astro';
+import CtaBand from '../components/sections/CtaBand.astro';
+
+import seoData from '../data/content/seo.json';
+import { siteGraph } from '../data/structuredData.mjs';
+
+const seo = seoData.find((p) => p.path === '/') ?? {};
+const jsonLd = [siteGraph()];
+---
+<BaseLayout
+  title={seo.title}
+  description={seo.description}
+  keywords={seo.keywords}
+  ogTitle={seo.ogTitle}
+  ogDescription={seo.ogDescription}
+  canonical="/"
+  jsonLd={jsonLd}
+>
+  <Hero />
+  <TrustBar />
+  <ValueProps />
+  <OurWork />
+  <HowItWorks />
+  <FastStart />
+  <Calculator />
+  <CtaBand />
+</BaseLayout>

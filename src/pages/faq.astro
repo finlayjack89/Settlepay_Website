@@ -1,0 +1,99 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Button from '../components/Button.astro';
+import Icon from '../components/Icon.astro';
+import faq from '../data/content/faq.json';
+import seoData from '../data/content/seo.json';
+import { webPage, breadcrumbs, faqPage } from '../data/structuredData.mjs';
+
+const seo = seoData.find((p) => p.path === '/faq/') ?? {};
+const path = '/faq/';
+const crumbs = [{ name: 'Home', path: '/' }, { name: 'FAQ', path }];
+
+// Group questions by category, preserving order.
+const cats = [];
+for (const item of faq) {
+  let g = cats.find((c) => c.name === item.category);
+  if (!g) { g = { name: item.category, items: [] }; cats.push(g); }
+  g.items.push(item);
+}
+
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function linkify(s) {
+  let t = esc(s);
+  t = t.replace(/\bhttps?:\/\/[^\s<]+/g, (m) => {
+    const trail = m.match(/[.,;:)]+$/);
+    const url = trail ? m.slice(0, -trail[0].length) : m;
+    return `<a href="${url}" target="_blank" rel="noopener">${url}</a>${trail ? trail[0] : ''}`;
+  });
+  t = t.replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, (e) => `<a href="mailto:${e}">${e}</a>`);
+  return t;
+}
+const toParas = (answer) => answer.split(/\n{2,}/).map((p) => linkify(p.trim())).filter(Boolean);
+
+const jsonLd = [
+  webPage({ path, title: 'Frequently Asked Questions', description: seo.description, type: 'FAQPage' }),
+  breadcrumbs(crumbs),
+  faqPage(faq.map((i) => ({ question: i.question, answer: i.answer.replace(/\s*\n+\s*/g, ' ') }))),
+];
+---
+<BaseLayout
+  title={seo.title}
+  description={seo.description}
+  keywords={seo.keywords}
+  ogTitle={seo.ogTitle}
+  ogDescription={seo.ogDescription}
+  canonical={path}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <div class="section-badge">FAQ</div>
+      <h1 class="page-header__title">Frequently Asked <span>Questions</span></h1>
+      <p class="page-header__lead">
+        Straight answers about how SettlePay works, who holds your money, security and compliance, and
+        what it costs. Can't find what you need? <a href={`mailto:hello@settlepay.uk`}>Email us</a>.
+      </p>
+    </div>
+  </header>
+
+  <section class="faq-section">
+    <div class="container">
+      {cats.map((cat) => (
+        <div class="faq-cat">
+          <h2 class="faq-cat__title">{cat.name}</h2>
+          <div class="faq-list">
+            {cat.items.map((item) => (
+              <details class="faq-item">
+                <summary class="faq-item__q">
+                  <span>{item.question}</span>
+                  <Icon name="chevron" sw={2.5} class="faq-chevron" />
+                </summary>
+                <div class="faq-item__a">
+                  {toParas(item.answer).map((html) => <p set:html={html} />)}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="mini-cta">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">Still Have a Question?</h2>
+        <p class="mini-cta__text">
+          Book a free, no-obligation consultation and we'll talk it through — no jargon, no pressure.
+        </p>
+        <div class="mini-cta__actions">
+          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+          <Button variant="secondary" href="/about/">About SettlePay</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,75 @@
+---
+import SectionHeader from '../SectionHeader.astro';
+import Dashboard from '../previews/Dashboard.astro';
+
+const steps = [
+  [
+    'The Payment Page',
+    "A secure checkout page that lives on your site, branded exactly how you want it — matched to your website's colours and identity, or styled differently if you prefer. Clients pay by card, Apple Pay or Google Pay, and traditional bank transfer stays on the table too. Not everything has to run on cards either — most processors also offer Pay by Bank, which carries a lower fee and still lands in the same dashboard.",
+  ],
+  [
+    'The Processor Dashboard',
+    'We wire your checkout directly to your chosen processor — a trusted, modern name such as Stripe, Adyen or Checkout.com. Every transaction is tracked in real time, and funds settle straight to your business bank account. Already on spreadsheets? That’s fine — your dashboard exports a clean spreadsheet of every payment, so your existing records carry on working.',
+  ],
+  [
+    'Automated Reconciliation',
+    'We build digital bridges directly into your accounting software (like Xero or QuickBooks). When a client pays, the system instantly marks that invoice as “Paid”.',
+  ],
+];
+---
+<section class="integration section-pad" id="integration" data-screen-label="How it works">
+  <div class="container">
+    <SectionHeader
+      eyebrow="How It Works"
+      title="The Plumbing, "
+      blue="Explained"
+      subtitle="We never hold your money. We connect your business to FCA-regulated processors — and hand you the keys."
+    />
+    <div class="integration__grid">
+      <div class="integration__steps">
+        {steps.map(([t, x], i) => (
+          <div class="integration__step">
+            <div class="integration__step-num">{i + 1}</div>
+            <div class="integration__step-content">
+              <h3 class="integration__step-title">{t}</h3>
+              <p class="integration__step-text">{x}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div class="integration__visual">
+        <div class="bezel-wrap"><Dashboard /></div>
+      </div>
+    </div>
+
+    <div class="integration__flex">
+      <div class="integration__flex-head">
+        <h3 class="integration__flex-title">As Hands-On as You Want It to Be</h3>
+        <p class="integration__flex-text">
+          We can overhaul the entire way invoices go out — custom invoice designs and email templates
+          included — so everything feels like one cohesive system. You decide how integrated it gets;
+          we handle every step of the process.
+        </p>
+      </div>
+      <div class="integration__modes">
+        <div class="integration__mode">
+          <span class="integration__mode-tag">Manual</span>
+          <h4 class="integration__mode-title">Enter the Amount, Then Pay</h4>
+          <p class="integration__mode-text">
+            The customer opens the payment page, types in the amount they owe, and pays. Flexible and
+            quick to stand up — ideal when totals vary or are agreed case by case.
+          </p>
+        </div>
+        <div class="integration__mode">
+          <span class="integration__mode-tag integration__mode-tag--auto">Automated</span>
+          <h4 class="integration__mode-title">Pre-Filled Pay-by-Link</h4>
+          <p class="integration__mode-text">
+            Each invoice goes out with its own link to a pre-configured payment page. The customer just
+            enters their card details and pays — no amount or invoice number to type in. It's all
+            auto-populated from their account.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

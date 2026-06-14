@@ -1,0 +1,48 @@
+---
+/**
+ * Footer — two-column footer with honest sole-trader disclosure.
+ * No "Ltd" / no "Registered in England & Wales" (SettlePay is a sole trader).
+ */
+import { SITE } from '../data/site.mjs';
+const year = new Date().getFullYear();
+---
+<footer class="footer" id="contact">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <img
+          src="/assets/logos/wordmark-squircle.svg"
+          alt="SettlePay"
+          class="footer__logo"
+          width="44"
+          height="44"
+          loading="lazy"
+          decoding="async"
+        />
+        <p class="footer__tagline">
+          Bespoke payment-page development for small UK businesses — estate agents, sole traders,
+          auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so
+          you never chase a bank transfer again.
+        </p>
+        <nav class="footer__inline-links" aria-label="Footer">
+          {SITE.footerLinks.map((l) => (
+            <a href={l.href}>{l.label}</a>
+          ))}
+        </nav>
+      </div>
+
+      <div class="footer__contact">
+        <a href={`mailto:${SITE.email}`} class="footer__contact-item">{SITE.email}</a>
+        <a href={`mailto:${SITE.emailConsultations}`} class="footer__contact-item">{SITE.emailConsultations}</a>
+        <span class="footer__contact-item">{SITE.address.city}, {SITE.address.country}</span>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <p>
+        © {year} SettlePay. {SITE.tradingStatement} A sole trader based in {SITE.address.city},
+        {SITE.address.country}.
+      </p>
+    </div>
+  </div>
+</footer>

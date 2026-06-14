@@ -1,0 +1,106 @@
+[
+  {
+    "path": "/",
+    "title": "SettlePay | Bespoke Payment Pages for UK SMEs",
+    "description": "Bespoke, branded payment pages for UK auctioneers, estate agents and SMEs. We integrate Stripe, Adyen and GoCardless so you can stop chasing bank transfers.",
+    "keywords": "bespoke payment pages, branded checkout, UK payment integration, Stripe integration, Adyen integration, GoCardless integration, automated reconciliation, stop chasing bank transfers, payment page developer UK, Xero reconciliation, custom checkout page, SME payments UK",
+    "ogTitle": "Bespoke Branded Payment Pages for UK SMEs | SettlePay",
+    "ogDescription": "We design custom-branded payment pages and wire them to FCA-regulated processors like Stripe and Adyen, with automated reconciliation into Xero, QuickBooks or Sage."
+  },
+  {
+    "path": "/about/",
+    "title": "About SettlePay | Payment Page Developer",
+    "description": "SettlePay is Finlay Salisbury, a UK payment-page developer building branded checkouts and reconciliation for small businesses still relying on bank transfers.",
+    "keywords": "about SettlePay, Finlay Salisbury, payment page developer UK, sole trader payment integration, bespoke checkout developer, UK SME payments specialist",
+    "ogTitle": "About SettlePay | UK Payment Page Developer",
+    "ogDescription": "A solo founder building bespoke, branded payment pages and automated reconciliation for UK auctioneers, estate agents and SMEs. Honest, plain-spoken, jargon-light."
+  },
+  {
+    "path": "/faq/",
+    "title": "SettlePay FAQ | Payment Pages & Integration",
+    "description": "Common questions about SettlePay: how branded payment pages work, who holds your funds, PCI scope, supported processors and accounting software, and getting started.",
+    "keywords": "SettlePay FAQ, payment page questions, who holds my funds, PCI DSS scope SAQ A, Stripe Adyen GoCardless setup, reconciliation Xero QuickBooks Sage, payment integration help UK",
+    "ogTitle": "SettlePay FAQ | Your Payment Page Questions Answered",
+    "ogDescription": "How bespoke payment pages work, who handles your funds, PCI responsibilities, supported processors and accounting tools, and how to get started with SettlePay."
+  },
+  {
+    "path": "/work/",
+    "title": "Our Work | SettlePay Payment System Case Studies",
+    "description": "Case studies in payment management: a live client and five modelled demo businesses showing deposits, invoices, instalments and Direct Debit — with the chasing, matching and reconciliation automated.",
+    "keywords": "SettlePay portfolio, payment page examples, branded checkout examples, pay by link demo, invoice payment page, Direct Debit mandate page, payment page case study UK",
+    "ogTitle": "Our Work | Branded Payment Pages by SettlePay",
+    "ogDescription": "One live client and five fictional, fully-modelled case studies — each replacing bank transfers and phone payments with a branded payment system that runs itself."
+  },
+  {
+    "path": "/work/lockdales-auctioneers/",
+    "title": "Lockdales Auctioneers | SettlePay Case Study",
+    "description": "How SettlePay built Lockdales Auctioneers a bespoke, branded Stripe checkout that matches buyer payments back to winning lots automatically after every sale.",
+    "keywords": "Lockdales Auctioneers, auction house payments, post-auction invoice settlement, branded Stripe checkout, lot reconciliation, auction payment page UK",
+    "ogTitle": "Lockdales Auctioneers Case Study | SettlePay",
+    "ogDescription": "A branded checkout for a Suffolk coin and medal auction house: card payments matched to lots automatically, funds settling straight to the Lockdales account."
+  },
+  {
+    "path": "/work/harbourside-lettings/",
+    "title": "Harbourside Lettings Demo | SettlePay",
+    "description": "A modelled lettings-agency case study: holding deposits paid by branded link, matched to tenancies automatically, with an honest map of what a closed CRM does and doesn’t allow.",
+    "keywords": "lettings agency payments, holding deposit pay by link, estate agent payment page, tenancy deposit online payment, branded checkout demo",
+    "ogTitle": "Harbourside Lettings | Illustrative SettlePay Demo",
+    "ogDescription": "A fictional coastal lettings agency showing how an approved tenant pays a holding deposit on a branded page — test mode only, no real payments taken."
+  },
+  {
+    "path": "/work/marsh-vale-plumbing/",
+    "title": "Marsh & Vale Plumbing Demo | SettlePay",
+    "description": "A modelled sole-trader case study: Xero raises the invoice, the link texts itself, payment marks the invoice paid, reminders chase so he doesn’t — demo in test mode.",
+    "keywords": "plumber invoice payment, pay invoice online, tradesperson payment page, MOTO replacement, Apple Pay invoice, Google Pay invoice, sole trader payments UK",
+    "ogTitle": "Marsh & Vale Plumbing & Heating | Illustrative SettlePay Demo",
+    "ogDescription": "A fictional sole-trader plumber showing how an invoice link texted after the job replaces phone payments — test mode only, no real payments taken."
+  },
+  {
+    "path": "/work/rowan-physiotherapy/",
+    "title": "Rowan Physiotherapy Demo | SettlePay",
+    "description": "A modelled clinic case study: booking deposits sent automatically from Cliniko bookings and instalment plans that collect themselves — clinical data never touched. Demo in test mode.",
+    "keywords": "clinic booking deposit, physiotherapy payments, instalment plan payments, treatment plan payment page, practitioner payment page UK",
+    "ogTitle": "Rowan Physiotherapy | Illustrative SettlePay Demo",
+    "ogDescription": "A fictional clinic showing a booking deposit and a monthly instalment plan on one branded page — test mode only, no real payments taken."
+  },
+  {
+    "path": "/work/stillwater-weddings/",
+    "title": "Stillwater Weddings Demo | SettlePay",
+    "description": "A modelled photographer case study: deposit at booking, balance requested automatically four weeks out, reminders in her own voice — what an honest build looks like with no systems to integrate.",
+    "keywords": "wedding photographer deposit, staged payments, deposit and balance payment page, event supplier payments, booking deposit online UK",
+    "ogTitle": "Stillwater Weddings | Illustrative SettlePay Demo",
+    "ogDescription": "A fictional wedding photographer showing a deposit charged today and a balance openly scheduled for later — test mode only, no real payments taken."
+  },
+  {
+    "path": "/work/whitmore-accountants/",
+    "title": "Whitmore & Co. Accountants Demo | SettlePay",
+    "description": "A modelled accountancy case study: 120 retainers moved from standing orders to Direct Debit, one-off fees on the same mandate, reconciled into Xero — beside closed practice software, not inside it.",
+    "keywords": "accountant retainer Direct Debit, Direct Debit mandate page, recurring payments accountancy, GoCardless style mandate, professional services payments UK",
+    "ogTitle": "Whitmore & Co. Accountants | Illustrative SettlePay Demo",
+    "ogDescription": "A fictional accountancy practice showing a monthly retainer set up by Direct Debit in two steps, with the Direct Debit Guarantee shown in full — test mode only."
+  },
+  {
+    "path": "/privacy/",
+    "title": "Privacy Policy | SettlePay",
+    "description": "How SettlePay (Finlay Salisbury) collects, uses and protects your personal data under UK GDPR, including your rights and how to contact us or the ICO.",
+    "keywords": "SettlePay privacy policy, UK GDPR, data protection, personal data, ICO, data controller, your data rights",
+    "ogTitle": "Privacy Policy | SettlePay",
+    "ogDescription": "How SettlePay handles your personal data under UK GDPR, your rights, and how to raise a concern with us or the Information Commissioner's Office."
+  },
+  {
+    "path": "/cookies/",
+    "title": "Cookie Policy | SettlePay",
+    "description": "How SettlePay uses cookies and similar technologies on settlepay.uk, the types we use, and how you can manage or disable them in your browser.",
+    "keywords": "SettlePay cookie policy, cookies, website cookies UK, manage cookies, cookie consent",
+    "ogTitle": "Cookie Policy | SettlePay",
+    "ogDescription": "The cookies SettlePay uses on settlepay.uk, what they do, and how you can manage or disable them in your browser settings."
+  },
+  {
+    "path": "/terms/",
+    "title": "Terms of Service | SettlePay",
+    "description": "The terms governing use of SettlePay's website and payment-page development services, including scope, responsibilities and governing law in England & Wales.",
+    "keywords": "SettlePay terms of service, terms and conditions, service agreement, governing law England Wales, payment page development terms",
+    "ogTitle": "Terms of Service | SettlePay",
+    "ogDescription": "The terms covering SettlePay's website and payment-page development services, including scope, responsibilities and governing law in England & Wales."
+  }
+]

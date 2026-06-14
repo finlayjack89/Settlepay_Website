@@ -1,0 +1,64 @@
+---
+/**
+ * Nav — sticky floating-island navigation with a mobile drawer.
+ * Links come from SITE.nav; the primary CTA opens the enquiry modal.
+ */
+import { SITE } from '../data/site.mjs';
+import Icon from './Icon.astro';
+import Button from './Button.astro';
+---
+<nav class="navbar" id="navbar" aria-label="Primary">
+  <div class="container">
+    <a href="/" class="navbar__logo" aria-label="SettlePay home">
+      <img
+        src="/assets/logos/wordmark-light.svg"
+        alt="SettlePay"
+        class="navbar__logo-img"
+        width="42"
+        height="42"
+        decoding="async"
+      />
+    </a>
+
+    <div class="navbar__links">
+      {SITE.nav.map((l) => (
+        <a href={l.href} class="navbar__link">{l.label}</a>
+      ))}
+      <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+    </div>
+
+    <button
+      class="navbar__toggle-btn"
+      aria-label="Open menu"
+      aria-expanded="false"
+      aria-controls="navbar-mobile"
+      data-nav-toggle
+    >
+      <Icon name="menu" sw={2} class="nav-icon nav-icon--menu" />
+      <Icon name="close" sw={2} class="nav-icon nav-icon--close" />
+    </button>
+  </div>
+
+  <div class="navbar__mobile" id="navbar-mobile" hidden>
+    {SITE.nav.map((l) => (
+      <a href={l.href} class="navbar__link" data-nav-link>{l.label}</a>
+    ))}
+    <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+  </div>
+</nav>
+
+<style>
+  /* The mobile drawer is in the DOM on every page; the [hidden] attribute (class
+     + attribute = higher specificity) must beat kit-extras' `display:flex`. */
+  .navbar__mobile[hidden] { display: none !important; }
+  /* Never show the drawer on desktop, even if toggled open by stale state. */
+  @media (min-width: 769px) {
+    .navbar__mobile { display: none !important; }
+    .navbar__toggle-btn { display: none !important; }
+  }
+
+  /* Toggle button shows the menu icon by default, the close icon when open. */
+  .navbar__toggle-btn .nav-icon--close { display: none; }
+  .navbar.is-open .navbar__toggle-btn .nav-icon--menu { display: none; }
+  .navbar.is-open .navbar__toggle-btn .nav-icon--close { display: inline-block; }
+</style>

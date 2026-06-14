@@ -1,0 +1,16 @@
+---
+/* Numbered automation-workflow strip for case-study pages.
+   steps: [{ title, detail }] from portfolio.mjs caseStudy.flow. */
+const { steps = [] } = Astro.props;
+---
+<ol class="cflow">
+  {steps.map((s, i) => (
+    <li class="cflow__step">
+      <span class="cflow__num" aria-hidden="true">{i + 1}</span>
+      <div class="cflow__body">
+        <h3 class="cflow__title">{s.title}</h3>
+        <p class="cflow__detail">{s.detail}</p>
+      </div>
+    </li>
+  ))}
+</ol>

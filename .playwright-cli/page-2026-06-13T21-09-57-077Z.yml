@@ -1,0 +1,227 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - generic [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /#integration
+        - link "Our Work" [ref=e9] [cursor=pointer]:
+          - /url: /work/
+        - link "About" [ref=e10] [cursor=pointer]:
+          - /url: /about/
+        - link "Time Saved" [ref=e11] [cursor=pointer]:
+          - /url: /#savings
+        - link "FAQ" [ref=e12] [cursor=pointer]:
+          - /url: /faq/
+        - button "Enquire Now" [ref=e13] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e14]
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - navigation "Breadcrumb" [ref=e19]:
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Home" [ref=e22] [cursor=pointer]:
+              - /url: /
+            - img [ref=e23]
+          - listitem [ref=e25]: Our Work
+      - generic [ref=e26]: Our Work
+      - heading "Branded Payment Pages, Pattern by Pattern" [level=1] [ref=e27]
+      - paragraph [ref=e28]: Six builds — one live client and five fictional demo brands — each replacing bank transfers, cheques or card details read out over the phone with a payment page that looks like the business it belongs to.
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - link "Fine Art & Antiquities Live client Lockdales Auctioneers Post-auction invoice settlement Large volumes of buyer payments after every sale, once reconciled by hand — now settled on a branded checkout and matched to winning lots automatically. Visa Mastercard Apple Pay" [ref=e32] [cursor=pointer]:
+          - /url: /work/lockdales-auctioneers/
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: Fine Art & Antiquities
+              - generic [ref=e48]: Live client
+            - heading "Lockdales Auctioneers" [level=2] [ref=e49]
+            - generic [ref=e50]: Post-auction invoice settlement
+            - paragraph [ref=e51]: Large volumes of buyer payments after every sale, once reconciled by hand — now settled on a branded checkout and matched to winning lots automatically.
+            - generic [ref=e52]:
+              - generic [ref=e53]: Visa
+              - generic [ref=e54]: Mastercard
+              - generic [ref=e55]: Apple Pay
+        - link "Estate & Lettings Illustrative demo Harbourside Lettings Holding deposit by pay-by-link Holding deposits paid by branded link the moment an applicant is approved — matched to the tenancy automatically, with a live deposit log replacing the Excel sheet. Visa Mastercard Apple Pay Google Pay" [ref=e56] [cursor=pointer]:
+          - /url: /work/harbourside-lettings/
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - generic [ref=e71]: Estate & Lettings
+              - generic [ref=e72]: Illustrative demo
+            - heading "Harbourside Lettings" [level=2] [ref=e73]
+            - generic [ref=e74]: Holding deposit by pay-by-link
+            - paragraph [ref=e75]: Holding deposits paid by branded link the moment an applicant is approved — matched to the tenancy automatically, with a live deposit log replacing the Excel sheet.
+            - generic [ref=e76]:
+              - generic [ref=e77]: Visa
+              - generic [ref=e78]: Mastercard
+              - generic [ref=e79]: Apple Pay
+              - generic [ref=e80]: Google Pay
+        - 'link "Trades & Home Services Illustrative demo Marsh & Vale Plumbing & Heating Invoices that collect themselves Approve an invoice in Xero and the rest happens on its own: link texted, paid in one tap, marked paid in Xero, reminders only if needed. No more card numbers down the phone. Visa Mastercard Apple Pay Google Pay" [ref=e81] [cursor=pointer]':
+          - /url: /work/marsh-vale-plumbing/
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - generic [ref=e96]: Trades & Home Services
+              - generic [ref=e97]: Illustrative demo
+            - heading "Marsh & Vale Plumbing & Heating" [level=2] [ref=e98]
+            - generic [ref=e99]: Invoices that collect themselves
+            - paragraph [ref=e100]: "Approve an invoice in Xero and the rest happens on its own: link texted, paid in one tap, marked paid in Xero, reminders only if needed. No more card numbers down the phone."
+            - generic [ref=e101]:
+              - generic [ref=e102]: Visa
+              - generic [ref=e103]: Mastercard
+              - generic [ref=e104]: Apple Pay
+              - generic [ref=e105]: Google Pay
+        - link "Independent Practitioners & Clinics Illustrative demo Rowan Physiotherapy Deposits + instalment plans Booking deposits sent automatically when an assessment is booked, instalment plans that collect on schedule, and a morning summary instead of a spreadsheet. Visa Mastercard Apple Pay" [ref=e106] [cursor=pointer]:
+          - /url: /work/rowan-physiotherapy/
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - generic [ref=e121]: Independent Practitioners & Clinics
+              - generic [ref=e122]: Illustrative demo
+            - heading "Rowan Physiotherapy" [level=2] [ref=e123]
+            - generic [ref=e124]: Deposits + instalment plans
+            - paragraph [ref=e125]: Booking deposits sent automatically when an assessment is booked, instalment plans that collect on schedule, and a morning summary instead of a spreadsheet.
+            - generic [ref=e126]:
+              - generic [ref=e127]: Visa
+              - generic [ref=e128]: Mastercard
+              - generic [ref=e129]: Apple Pay
+        - link "Photographers & Event Suppliers Illustrative demo Stillwater Weddings Staged payments on a schedule Deposit charged at booking, balance requested automatically four weeks out, reminders in her own voice — and a season view of every wedding, paid or pending. Visa Mastercard Amex" [ref=e130] [cursor=pointer]:
+          - /url: /work/stillwater-weddings/
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e145]: Photographers & Event Suppliers
+              - generic [ref=e146]: Illustrative demo
+            - heading "Stillwater Weddings" [level=2] [ref=e147]
+            - generic [ref=e148]: Staged payments on a schedule
+            - paragraph [ref=e149]: Deposit charged at booking, balance requested automatically four weeks out, reminders in her own voice — and a season view of every wedding, paid or pending.
+            - generic [ref=e150]:
+              - generic [ref=e151]: Visa
+              - generic [ref=e152]: Mastercard
+              - generic [ref=e153]: Amex
+        - link "Professional Services Illustrative demo Whitmore & Co. Accountants Retainers by Direct Debit A hundred and twenty retainers collected by Direct Debit instead of standing orders, one-off fees collected against the same mandate, and everything reconciled into Xero on its own. Direct Debit" [ref=e154] [cursor=pointer]:
+          - /url: /work/whitmore-accountants/
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - generic [ref=e169]: Professional Services
+              - generic [ref=e170]: Illustrative demo
+            - heading "Whitmore & Co. Accountants" [level=2] [ref=e171]
+            - generic [ref=e172]: Retainers by Direct Debit
+            - paragraph [ref=e173]: A hundred and twenty retainers collected by Direct Debit instead of standing orders, one-off fees collected against the same mandate, and everything reconciled into Xero on its own.
+            - generic [ref=e175]: Direct Debit
+      - paragraph [ref=e176]: Apart from Lockdales Auctioneers, the businesses shown are fictional brands created to demonstrate the range of what we build. Every demo runs in test mode and no real payments are taken.
+    - generic [ref=e178]:
+      - generic [ref=e179]:
+        - generic [ref=e180]: See It in Your Name
+        - heading "Design Your Own Payment Page" [level=2] [ref=e181]
+        - paragraph [ref=e182]: Type your business name, pick your colour, choose what you collect — and watch a checkout take shape. It is a sketch, not the finished article, but it is a start.
+      - generic [ref=e184]:
+        - generic [ref=e185]:
+          - generic [ref=e186]:
+            - generic [ref=e187]: Your business name
+            - textbox "Your business name" [ref=e188]: Riverbed Vets
+            - generic [ref=e189]: Watch it appear on the page as you type.
+          - generic [ref=e190]:
+            - generic [ref=e191]: Your brand colour
+            - radiogroup "Your brand colour" [ref=e192]:
+              - radio "Brand colour teal" [ref=e193] [cursor=pointer]
+              - radio "Brand colour indigo" [ref=e194] [cursor=pointer]
+              - radio "Brand colour plum" [ref=e195] [cursor=pointer]
+              - radio "Brand colour rose" [checked] [ref=e196] [cursor=pointer]
+              - radio "Brand colour amber" [ref=e197] [cursor=pointer]
+              - radio "Brand colour slate" [ref=e198] [cursor=pointer]
+              - generic "Pick a custom colour" [ref=e199] [cursor=pointer]:
+                - textbox "Custom brand colour" [ref=e200]: "#e11d48"
+                - img
+          - generic [ref=e201]:
+            - generic [ref=e202]: What are you collecting?
+            - radiogroup "What are you collecting?" [ref=e203]:
+              - radio "An invoice" [ref=e204] [cursor=pointer]
+              - radio "A deposit" [checked] [ref=e205] [cursor=pointer]
+              - radio "A membership" [ref=e206] [cursor=pointer]
+          - button "Copy a Shareable Link" [ref=e207] [cursor=pointer]:
+            - img [ref=e208]
+            - generic [ref=e210]: Copy a Shareable Link
+          - paragraph [ref=e211]: Send a colleague — or a prospect — this page already in their name.
+        - generic [ref=e213]:
+          - generic [ref=e219]:
+            - img [ref=e220]
+            - text: pay.riverbed-vets.co.uk/deposit
+          - generic [ref=e222]:
+            - generic [ref=e223]:
+              - generic [ref=e224]: RV
+              - generic [ref=e225]: Riverbed Vets
+            - generic [ref=e226]: Pay Your Deposit
+            - generic [ref=e227]: £150.00
+            - generic [ref=e228]:
+              - generic [ref=e229]: Card number
+              - generic [ref=e230]:
+                - img [ref=e231]
+                - generic [ref=e233]: •••• •••• •••• 4242
+            - generic [ref=e234]:
+              - generic [ref=e235]:
+                - generic [ref=e236]: Expiry
+                - generic [ref=e237]: 12 / 28
+              - generic [ref=e238]:
+                - generic [ref=e239]: CVC
+                - generic [ref=e240]: •••
+            - button [ref=e241]: Pay Deposit
+            - generic [ref=e242]:
+              - img [ref=e243]
+              - text: Illustrative demo — no real payments are taken
+    - generic [ref=e247]:
+      - heading "Ready to Stop Chasing Bank Transfers?" [level=2] [ref=e248]
+      - paragraph [ref=e249]: Tell us how you get paid today and we'll show you what a branded page would look like in your name — free consultation, no jargon, no pressure.
+      - generic [ref=e250]:
+        - button "Enquire Now" [ref=e251] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e252]
+        - link "Read the FAQ" [ref=e254] [cursor=pointer]:
+          - /url: /faq/
+  - contentinfo [ref=e255]:
+    - generic [ref=e256]:
+      - generic [ref=e257]:
+        - generic [ref=e258]:
+          - img "SettlePay" [ref=e259]
+          - paragraph [ref=e260]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e261]:
+            - link "About" [ref=e262] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e263] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e264] [cursor=pointer]:
+              - /url: /#integration
+            - link "Time Saved" [ref=e265] [cursor=pointer]:
+              - /url: /#savings
+            - link "FAQ" [ref=e266] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e267] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e268] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e269] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e270]:
+          - link "hello@settlepay.uk" [ref=e271] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e272] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e273]: London, United Kingdom
+      - paragraph [ref=e275]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.
+  - generic [ref=e278]:
+    - button "Menu" [ref=e279]:
+      - img [ref=e281]
+      - generic: Menu
+    - button "Inspect" [ref=e285]:
+      - img [ref=e287]
+      - generic: Inspect
+    - button "Audit" [ref=e289]:
+      - generic [ref=e290]:
+        - img [ref=e291]
+        - img [ref=e294]
+      - generic: Audit
+    - button "Settings" [ref=e297]:
+      - img [ref=e299]
+      - generic: Settings

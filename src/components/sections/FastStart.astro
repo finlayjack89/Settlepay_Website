@@ -1,0 +1,69 @@
+---
+import Icon from '../Icon.astro';
+import Button from '../Button.astro';
+import SectionHeader from '../SectionHeader.astro';
+
+const reassure = [
+  'No weeks-long project',
+  'No standing meetings',
+  'No disruption to your day-to-day',
+];
+const timeline = [
+  {
+    icon: 'cog',
+    day: 'Day 0',
+    title: 'Your Merchant Account Is Created',
+    text: 'You open your own account with the processor that fits — we guide you through it in a single sitting. That’s the starting gun; everything after is on us.',
+  },
+  {
+    icon: 'card',
+    day: 'As little as 2 days',
+    title: 'Core Payment Page Goes Live',
+    text: 'We design, build and connect your branded checkout. In as little as two working days from your account being created, you’re taking card payments.',
+  },
+  {
+    icon: 'sparkles',
+    day: 'As little as 5 days',
+    title: 'Invoicing & Reconciliation Go Live',
+    text: 'Invoicing templates, automatic payment links, accounting bridges and reconciliation — the deeper work that ties it all together follows in as little as five working days.',
+  },
+];
+---
+<section class="speed section-pad" id="timeline" data-screen-label="Turnaround">
+  <div class="container">
+    <SectionHeader
+      eyebrow="How fast"
+      title="Live in "
+      blue="Days, Not Weeks"
+      subtitle="Getting set up isn’t a drawn-out project that swallows your calendar. Once your merchant account exists, we do the heavy lifting — you just point us at how you’d like to get paid."
+    />
+    <div class="speed__reassure">
+      {reassure.map((r) => (
+        <div class="speed__chip"><Icon name="check" sw={2.5} />{r}</div>
+      ))}
+    </div>
+    <div class="speed__track">
+      <div class="speed__steps">
+        {timeline.map((s) => (
+          <div class="speed__step">
+            <div class="speed__node"><Icon name={s.icon} sw={1.5} /></div>
+            <span class="speed__day">{s.day}</span>
+            <h3 class="speed__step-title">{s.title}</h3>
+            <p class="speed__step-text">{s.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div class="speed__urgent">
+      <div class="speed__urgent-icon"><Icon name="clock" sw={1.5} /></div>
+      <div class="speed__urgent-body">
+        <h3 class="speed__urgent-title">Need It Sooner? We Run an Urgent Service.</h3>
+        <p class="speed__urgent-text">
+          If you’re up against a deadline and need a payment product at short notice, tell us — we
+          prioritise urgent builds and turn them around fast.
+        </p>
+      </div>
+      <Button variant="secondary" onDark enquire>Talk to Us</Button>
+    </div>
+  </div>
+</section>

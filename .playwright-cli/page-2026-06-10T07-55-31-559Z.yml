@@ -1,0 +1,361 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - generic [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /#integration
+        - link "Our Work" [ref=e9] [cursor=pointer]:
+          - /url: /work/
+        - link "About" [ref=e10] [cursor=pointer]:
+          - /url: /about/
+        - link "Time Saved" [ref=e11] [cursor=pointer]:
+          - /url: /#savings
+        - link "FAQ" [ref=e12] [cursor=pointer]:
+          - /url: /faq/
+        - button "Enquire Now" [ref=e13] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e14]
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - navigation "Breadcrumb" [ref=e19]:
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Home" [ref=e22] [cursor=pointer]:
+              - /url: /
+            - img [ref=e23]
+          - listitem [ref=e25]: Privacy Policy
+      - heading "Privacy Policy" [level=1] [ref=e26]
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - img [ref=e30]
+        - text: "Last updated: 7 June 2026"
+      - navigation "On this page" [ref=e32]:
+        - generic [ref=e33]: On this page
+        - list [ref=e34]:
+          - listitem [ref=e35]:
+            - link "Who We Are (Data Controller)" [ref=e36] [cursor=pointer]:
+              - /url: "#who-we-are-data-controller"
+          - listitem [ref=e37]:
+            - link "What Personal Data We Collect" [ref=e38] [cursor=pointer]:
+              - /url: "#what-personal-data-we-collect"
+          - listitem [ref=e39]:
+            - link "How and Why We Use Your Data, and Our Lawful Basis" [ref=e40] [cursor=pointer]:
+              - /url: "#how-and-why-we-use-your-data-and-our-lawful-basis"
+          - listitem [ref=e41]:
+            - link "Who We Share Your Data With" [ref=e42] [cursor=pointer]:
+              - /url: "#who-we-share-your-data-with"
+          - listitem [ref=e43]:
+            - link "International Transfers" [ref=e44] [cursor=pointer]:
+              - /url: "#international-transfers"
+          - listitem [ref=e45]:
+            - link "How Long We Keep Your Data (Retention)" [ref=e46] [cursor=pointer]:
+              - /url: "#how-long-we-keep-your-data-retention"
+          - listitem [ref=e47]:
+            - link "Your Rights Under UK GDPR" [ref=e48] [cursor=pointer]:
+              - /url: "#your-rights-under-uk-gdpr"
+          - listitem [ref=e49]:
+            - link "Automated Decision-Making and Profiling" [ref=e50] [cursor=pointer]:
+              - /url: "#automated-decision-making-and-profiling"
+          - listitem [ref=e51]:
+            - link "Children’s Privacy" [ref=e52] [cursor=pointer]:
+              - /url: "#childrens-privacy"
+          - listitem [ref=e53]:
+            - link "Data Security" [ref=e54] [cursor=pointer]:
+              - /url: "#data-security"
+          - listitem [ref=e55]:
+            - link "Changes to This Policy" [ref=e56] [cursor=pointer]:
+              - /url: "#changes-to-this-policy"
+          - listitem [ref=e57]:
+            - link "Complaints and How to Contact the ICO" [ref=e58] [cursor=pointer]:
+              - /url: "#complaints-and-how-to-contact-the-ico"
+      - article [ref=e59]:
+        - paragraph [ref=e60]:
+          - text: This Privacy Policy explains how SettlePay collects, uses, shares and protects your personal data when you visit our website at
+          - link "https://settlepay.uk" [ref=e61] [cursor=pointer]:
+            - /url: https://settlepay.uk
+          - text: ", contact us, or engage us for our services. It also explains your rights under UK data protection law and how to exercise them."
+        - paragraph [ref=e62]: We have tried to write this policy in plain English. If anything is unclear, please get in touch using the details below and we will be happy to explain.
+        - heading "Who We Are (Data Controller)" [level=2] [ref=e63]
+        - paragraph [ref=e64]: "SettlePay is a trading name of Finlay Salisbury, a sole trader. For the purposes of UK data protection law, the data controller responsible for your personal data is:"
+        - list [ref=e65]:
+          - listitem [ref=e66]:
+            - strong [ref=e67]: "Data controller:"
+            - text: Finlay Salisbury, trading as SettlePay
+          - listitem [ref=e68]:
+            - strong [ref=e69]: "Address:"
+            - text: 2b Rodney Street, London, N1 9FS, United Kingdom
+          - listitem [ref=e70]:
+            - strong [ref=e71]: "Email:"
+            - link "hello@settlepay.uk" [ref=e72] [cursor=pointer]:
+              - /url: mailto:hello@settlepay.uk
+          - listitem [ref=e73]:
+            - strong [ref=e74]: "Website:"
+            - link "https://settlepay.uk" [ref=e75] [cursor=pointer]:
+              - /url: https://settlepay.uk
+        - paragraph [ref=e76]: SettlePay handles personal data in accordance with UK GDPR. ICO registration is in progress; the registration number will be published here once it is issued.
+        - paragraph [ref=e77]: A “data controller” is the person who decides how and why your personal data is processed. Because SettlePay is run by a single founder, when this policy says “we”, “us” or “our”, it means Finlay Salisbury trading as SettlePay.
+        - paragraph [ref=e78]: This policy is governed by, and processing is carried out in accordance with, the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.
+        - heading "What Personal Data We Collect" [level=2] [ref=e79]
+        - paragraph [ref=e80]: We only collect the personal data we need to respond to you, to provide our services, and to run the business responsibly. The personal data we collect falls into the following categories.
+        - heading "Information You Give Us Through the Website Enquiry / Consultation Form" [level=3] [ref=e81]
+        - paragraph [ref=e82]: "When you complete our enquiry or consultation form, we collect:"
+        - list [ref=e83]:
+          - listitem [ref=e84]: your name;
+          - listitem [ref=e85]: your business name;
+          - listitem [ref=e86]: your email address; and
+          - listitem [ref=e87]: the message or details you choose to include (for example, what your business does, the payment problems you want to solve, and any other context you provide).
+        - paragraph [ref=e88]: Please only include in the message field the information that is necessary. We ask that you do not send us sensitive personal data or financial details (such as card numbers) through the form.
+        - heading "Information in Emails and Other Correspondence" [level=3] [ref=e89]
+        - paragraph [ref=e90]:
+          - text: If you email us at
+          - link "hello@settlepay.uk" [ref=e91] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - text: ", or otherwise correspond with us, we will receive and keep the contents of that correspondence, your email address, and any personal data you choose to include."
+        - heading "Server and Log Data" [level=3] [ref=e92]
+        - paragraph [ref=e93]: Like most websites, our hosting and content delivery infrastructure automatically records certain technical information when you visit. This may include your IP address, browser type and version, device information, the pages you view, and the date and time of your visit. This information is generated by our hosting and security providers and is used to keep the website running, secure and available.
+        - heading "Cookies and Similar Technologies" [level=3] [ref=e94]
+        - paragraph [ref=e95]: Our website may use cookies and similar technologies for essential functions and, where relevant, to understand how the site is used. For full details of the cookies we use and how you can control them, please see our Cookie Policy. Where the law requires it, we will ask for your consent before setting non-essential cookies.
+        - paragraph [ref=e96]:
+          - text: We do
+          - strong [ref=e97]: not
+          - text: collect or store cardholder data through this website. Where a payment is taken during a client engagement, it is handled by the client’s chosen payment service provider (see “Who We Share Your Data With” and “What We Do” below).
+        - heading "How and Why We Use Your Data, and Our Lawful Basis" [level=2] [ref=e98]
+        - paragraph [ref=e99]: Under UK GDPR Article 6, we must have a lawful basis for each way we use your personal data. The table below sets out each purpose and the lawful basis we rely on.
+        - table [ref=e100]:
+          - rowgroup [ref=e101]:
+            - row "Purpose Personal data used Lawful basis (UK GDPR Article 6)" [ref=e102]:
+              - columnheader "Purpose" [ref=e103]
+              - columnheader "Personal data used" [ref=e104]
+              - columnheader "Lawful basis (UK GDPR Article 6)" [ref=e105]
+          - rowgroup [ref=e106]:
+            - row "To respond to your enquiry, answer your questions and arrange a consultation Name, business name, email address, message details, email correspondence Legitimate interests — it is in our legitimate interest, and yours, to respond to people who contact us about our service. Where you have submitted an enquiry form, you may also have provided consent." [ref=e107]:
+              - cell "To respond to your enquiry, answer your questions and arrange a consultation" [ref=e108]
+              - cell "Name, business name, email address, message details, email correspondence" [ref=e109]
+              - cell "Legitimate interests — it is in our legitimate interest, and yours, to respond to people who contact us about our service. Where you have submitted an enquiry form, you may also have provided consent." [ref=e110]:
+                - strong [ref=e111]: Legitimate interests
+                - text: — it is in our legitimate interest, and yours, to respond to people who contact us about our service. Where you have submitted an enquiry form, you may also have provided consent.
+            - row "To provide our services to you under an agreement, including designing and building your payment page, guiding the merchant-account setup, and configuring reconciliation Name, business name, email address, project details, ongoing correspondence Performance of a contract — processing is necessary to take steps at your request before entering a contract and to deliver the service we have agreed." [ref=e112]:
+              - cell "To provide our services to you under an agreement, including designing and building your payment page, guiding the merchant-account setup, and configuring reconciliation" [ref=e113]
+              - cell "Name, business name, email address, project details, ongoing correspondence" [ref=e114]
+              - cell "Performance of a contract — processing is necessary to take steps at your request before entering a contract and to deliver the service we have agreed." [ref=e115]:
+                - strong [ref=e116]: Performance of a contract
+                - text: — processing is necessary to take steps at your request before entering a contract and to deliver the service we have agreed.
+            - row "To send you service-related communications about a project we are working on together (for example, updates, questions and deliverables) Name, email address, project details Performance of a contract and, where applicable, legitimate interests in managing the project effectively." [ref=e117]:
+              - cell "To send you service-related communications about a project we are working on together (for example, updates, questions and deliverables)" [ref=e118]
+              - cell "Name, email address, project details" [ref=e119]
+              - cell "Performance of a contract and, where applicable, legitimate interests in managing the project effectively." [ref=e120]:
+                - strong [ref=e121]: Performance of a contract
+                - text: and, where applicable,
+                - strong [ref=e122]: legitimate interests
+                - text: in managing the project effectively.
+            - row "To keep the website secure, available and functioning correctly, and to prevent fraud and abuse Server and log data, IP address, technical information Legitimate interests — it is in our legitimate interest to protect and maintain our website and systems." [ref=e123]:
+              - cell "To keep the website secure, available and functioning correctly, and to prevent fraud and abuse" [ref=e124]
+              - cell "Server and log data, IP address, technical information" [ref=e125]
+              - cell "Legitimate interests — it is in our legitimate interest to protect and maintain our website and systems." [ref=e126]:
+                - strong [ref=e127]: Legitimate interests
+                - text: — it is in our legitimate interest to protect and maintain our website and systems.
+            - row "To use essential cookies needed for the website to work Cookie and device data Legitimate interests — necessary to deliver the website you have requested." [ref=e128]:
+              - cell "To use essential cookies needed for the website to work" [ref=e129]
+              - cell "Cookie and device data" [ref=e130]
+              - cell "Legitimate interests — necessary to deliver the website you have requested." [ref=e131]:
+                - strong [ref=e132]: Legitimate interests
+                - text: — necessary to deliver the website you have requested.
+            - row "To use non-essential cookies or analytics, where applicable Cookie and usage data Consent — we will only do this where you have given your consent, which you can withdraw at any time." [ref=e133]:
+              - cell "To use non-essential cookies or analytics, where applicable" [ref=e134]
+              - cell "Cookie and usage data" [ref=e135]
+              - cell "Consent — we will only do this where you have given your consent, which you can withdraw at any time." [ref=e136]:
+                - strong [ref=e137]: Consent
+                - text: — we will only do this where you have given your consent, which you can withdraw at any time.
+            - row "To keep business, accounting and tax records, and to comply with our legal obligations Name, business name, contact details, transaction and engagement records Legal obligation (for example, tax and accounting law) and legitimate interests in keeping proper records." [ref=e138]:
+              - cell "To keep business, accounting and tax records, and to comply with our legal obligations" [ref=e139]
+              - cell "Name, business name, contact details, transaction and engagement records" [ref=e140]
+              - cell "Legal obligation (for example, tax and accounting law) and legitimate interests in keeping proper records." [ref=e141]:
+                - strong [ref=e142]: Legal obligation
+                - text: (for example, tax and accounting law) and
+                - strong [ref=e143]: legitimate interests
+                - text: in keeping proper records.
+            - row "To establish, exercise or defend legal claims if needed Relevant records and correspondence Legitimate interests — it is in our legitimate interest to protect our legal position." [ref=e144]:
+              - cell "To establish, exercise or defend legal claims if needed" [ref=e145]
+              - cell "Relevant records and correspondence" [ref=e146]
+              - cell "Legitimate interests — it is in our legitimate interest to protect our legal position." [ref=e147]:
+                - strong [ref=e148]: Legitimate interests
+                - text: — it is in our legitimate interest to protect our legal position.
+        - paragraph [ref=e149]: Where we rely on legitimate interests, we have considered whether our interests are overridden by your interests, rights and freedoms, and we have concluded that the processing is proportionate and is what you would reasonably expect. You can ask us for more information about this balancing assessment, and you have the right to object (see “Your Rights” below).
+        - paragraph [ref=e150]: Where we rely on your consent, you can withdraw it at any time without affecting the lawfulness of processing carried out before you withdrew it.
+        - heading "Who We Share Your Data With" [level=2] [ref=e151]
+        - paragraph [ref=e152]: We do not sell your personal data, and we do not share it for anyone else’s marketing. As a solo business, we work with a small number of carefully chosen service providers (“processors”) who help us run the website and deliver our service. Each is permitted to use your data only on our instructions and is bound by a written data-processing agreement that requires appropriate security and confidentiality.
+        - paragraph [ref=e153]: "The categories of processors and recipients we use include:"
+        - list [ref=e154]:
+          - listitem [ref=e155]:
+            - strong [ref=e156]: Website hosting and content delivery (CDN) provider
+            - text: — to host the website, serve its content, and keep it fast and secure.
+          - listitem [ref=e157]:
+            - strong [ref=e158]: Form and email delivery provider
+            - text: — to receive enquiry-form submissions and to send and receive email correspondence.
+          - listitem [ref=e159]:
+            - strong [ref=e160]: Accounting, productivity and communication tools
+            - text: — to manage projects, keep proper financial records, and communicate with you (for example, accounting software, email and document tools).
+          - listitem [ref=e161]:
+            - strong [ref=e162]: Professional advisers
+            - text: — such as an accountant, where reasonably necessary, who are themselves bound by confidentiality.
+          - listitem [ref=e163]:
+            - strong [ref=e164]: Authorities or third parties where required by law
+            - text: — for example, if we are legally obliged to disclose information, or to establish, exercise or defend legal claims.
+        - heading "Payment Service Providers Are Your Processor, Not Ours" [level=3] [ref=e165]
+        - paragraph [ref=e166]:
+          - text: This is important. SettlePay is a technology and integration provider, not a payment institution or money-services business.
+          - strong [ref=e167]: We never hold, touch or control your funds or your customers’ funds.
+          - text: Money settles directly from the payment service provider (PSP) to your own business bank account.
+        - paragraph [ref=e168]:
+          - text: During a client engagement, we guide you to open
+          - strong [ref=e169]: your own
+          - text: merchant account with a third-party, FCA-regulated payment service provider — such as Stripe, Adyen, Checkout.com or GoCardless. That PSP processes payments under its
+          - strong [ref=e170]: own
+          - text: agreement with you and acts as
+          - strong [ref=e171]: your
+          - text: processor (or controller), not ours. Payments are processed by these FCA-regulated partners; SettlePay is not FCA authorised or regulated.
+        - paragraph [ref=e172]:
+          - text: SettlePay does
+          - strong [ref=e173]: not
+          - text: receive, process or store any cardholder data. PCI DSS compliance is handled by your chosen payment processor; using a hosted payment page typically reduces your business’s PCI scope (often to SAQ A). You remain responsible for completing your own PCI Self-Assessment Questionnaire and maintaining appropriate security policies. You should review the privacy policy of any PSP you choose to use.
+        - heading "International Transfers" [level=2] [ref=e174]
+        - paragraph [ref=e175]: We are based in the United Kingdom and prefer to keep personal data within the UK or the European Economic Area (EEA) where we can. However, some of our service providers may process or store data in countries outside the UK.
+        - paragraph [ref=e176]: "Where personal data is transferred outside the UK, we make sure an appropriate safeguard recognised under UK data protection law is in place, such as:"
+        - list [ref=e177]:
+          - listitem [ref=e178]: a UK “adequacy” decision confirming the destination country provides an adequate level of protection; or
+          - listitem [ref=e179]: the UK International Data Transfer Agreement (IDTA), or the EU Standard Contractual Clauses together with the UK International Data Transfer Addendum; together with any additional measures needed to protect your data.
+        - paragraph [ref=e180]:
+          - text: You can ask us for more information about the safeguards we use for a particular transfer by contacting us at
+          - link "hello@settlepay.uk" [ref=e181] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - text: .
+        - heading "How Long We Keep Your Data (Retention)" [level=2] [ref=e182]
+        - paragraph [ref=e183]: "We keep personal data only for as long as we need it for the purposes set out in this policy, and then we securely delete or anonymise it. Our typical retention periods are:"
+        - list [ref=e184]:
+          - listitem [ref=e185]:
+            - strong [ref=e186]: Enquiry and consultation data
+            - text: "(from people who contact us but do not become clients): kept for up to"
+            - strong [ref=e187]: 12 months
+            - text: after our last meaningful contact, so we can follow up and refer back to the conversation, then deleted.
+          - listitem [ref=e188]:
+            - strong [ref=e189]: Client records
+            - text: "(records relating to a project we deliver for you, including correspondence and deliverables): kept for the duration of the engagement and for a reasonable period afterwards for support and reference."
+          - listitem [ref=e190]:
+            - strong [ref=e191]: "Legal, accounting and tax records:"
+            - text: kept for approximately
+            - strong [ref=e192]: 6 years
+            - text: from the end of the relevant financial year (or longer where the law requires), to meet our legal and tax obligations and to defend potential legal claims.
+          - listitem [ref=e193]:
+            - strong [ref=e194]: "Server and log data:"
+            - text: kept for a short period by our hosting and security providers for operational and security purposes, in line with their standard retention.
+        - paragraph [ref=e195]: If you ask us to delete your data, we will do so unless we are required or permitted by law to keep it (for example, for tax or accounting records).
+        - heading "Your Rights Under UK GDPR" [level=2] [ref=e196]
+        - paragraph [ref=e197]: You have the following rights in relation to your personal data. These rights are not absolute and may not apply in every situation, but we will always consider any request you make.
+        - list [ref=e198]:
+          - listitem [ref=e199]:
+            - strong [ref=e200]: Right to be informed
+            - text: — to be told how your data is used, which is the purpose of this policy.
+          - listitem [ref=e201]:
+            - strong [ref=e202]: Right of access
+            - text: — to ask for a copy of the personal data we hold about you.
+          - listitem [ref=e203]:
+            - strong [ref=e204]: Right to rectification
+            - text: — to ask us to correct data that is inaccurate or incomplete.
+          - listitem [ref=e205]:
+            - strong [ref=e206]: Right to erasure
+            - text: — to ask us to delete your data in certain circumstances (sometimes called the “right to be forgotten”).
+          - listitem [ref=e207]:
+            - strong [ref=e208]: Right to restrict processing
+            - text: — to ask us to limit how we use your data in certain circumstances.
+          - listitem [ref=e209]:
+            - strong [ref=e210]: Right to data portability
+            - text: — to ask us to provide certain data to you, or to another controller, in a structured, commonly used and machine-readable format, where this right applies.
+          - listitem [ref=e211]:
+            - strong [ref=e212]: Right to object
+            - text: — to object to processing based on legitimate interests, and to object to direct marketing at any time.
+          - listitem [ref=e213]:
+            - strong [ref=e214]: Right to withdraw consent
+            - text: — where we rely on your consent, to withdraw it at any time.
+          - listitem [ref=e215]:
+            - strong [ref=e216]: Rights relating to automated decision-making
+            - text: — see the section below.
+        - heading "How to Exercise Your Rights" [level=3] [ref=e217]
+        - paragraph [ref=e218]:
+          - text: To exercise any of these rights, please contact us at
+          - link "hello@settlepay.uk" [ref=e219] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - text: or by writing to us at the address in the “Who We Are” section. We may ask you to confirm your identity before we act, so that we can be sure we are dealing with the right person.
+        - paragraph [ref=e220]: We will respond to your request within one month. If your request is particularly complex, or you have made several requests, we may extend this by up to a further two months, and we will let you know if we need to do so. Exercising your rights is free of charge, although we may charge a reasonable fee or refuse a request that is clearly unfounded or excessive.
+        - heading "Automated Decision-Making and Profiling" [level=2] [ref=e221]
+        - paragraph [ref=e222]: We do not make decisions about you based solely on automated processing (including profiling) that produce legal effects concerning you or similarly significantly affect you.
+        - heading "Children’s Privacy" [level=2] [ref=e223]
+        - paragraph [ref=e224]: Our service is a business-to-business (B2B) service aimed at UK businesses, and our website is not directed at children. We do not knowingly collect personal data relating to children. If you believe a child has provided us with personal data, please contact us and we will delete it.
+        - heading "Data Security" [level=2] [ref=e225]
+        - paragraph [ref=e226]: We take the security of your personal data seriously and use appropriate technical and organisational measures to protect it against unauthorised access, loss, misuse or alteration. These measures include using reputable service providers, encrypted connections (HTTPS) for our website, access controls, and keeping the amount of personal data we hold to the minimum necessary.
+        - paragraph [ref=e227]: As noted above, SettlePay never receives or stores cardholder data; payment processing and the related security obligations sit with your chosen FCA-regulated payment service provider. While we do everything reasonable to protect your data, no method of transmission over the internet or method of electronic storage is completely secure, so we cannot guarantee absolute security.
+        - heading "Changes to This Policy" [level=2] [ref=e228]
+        - paragraph [ref=e229]: We may update this Privacy Policy from time to time, for example to reflect changes to our service, our service providers, or the law. When we do, we will update the “Last updated” date at the top of this page. We encourage you to review this policy periodically. If we make a significant change, we will take reasonable steps to bring it to your attention.
+        - heading "Complaints and How to Contact the ICO" [level=2] [ref=e230]
+        - paragraph [ref=e231]:
+          - text: If you have any concerns about how we handle your personal data, please contact us first at
+          - link "hello@settlepay.uk" [ref=e232] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - text: so we can try to put things right.
+        - paragraph [ref=e233]: "You also have the right to make a complaint to the UK Information Commissioner’s Office (ICO), which is the supervisory authority for data protection in the UK:"
+        - list [ref=e234]:
+          - listitem [ref=e235]:
+            - strong [ref=e236]: Information Commissioner’s Office
+          - listitem [ref=e237]: Wycliffe House, Water Lane, Wilmslow, Cheshire, SK9 5AF, United Kingdom
+          - listitem [ref=e238]:
+            - text: "Website:"
+            - link "https://ico.org.uk" [ref=e239] [cursor=pointer]:
+              - /url: https://ico.org.uk
+        - paragraph [ref=e240]: We would, however, appreciate the chance to address your concerns before you approach the ICO.
+  - contentinfo [ref=e241]:
+    - generic [ref=e242]:
+      - generic [ref=e243]:
+        - generic [ref=e244]:
+          - img "SettlePay" [ref=e245]
+          - paragraph [ref=e246]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e247]:
+            - link "About" [ref=e248] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e249] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e250] [cursor=pointer]:
+              - /url: /#integration
+            - link "Time Saved" [ref=e251] [cursor=pointer]:
+              - /url: /#savings
+            - link "FAQ" [ref=e252] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e253] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e254] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e255] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e256]:
+          - link "hello@settlepay.uk" [ref=e257] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e258] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e259]: London, United Kingdom
+      - paragraph [ref=e261]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.
+  - generic [ref=e264]:
+    - button "Menu" [ref=e265]:
+      - img [ref=e267]
+      - generic: Menu
+    - button "Inspect" [ref=e271]:
+      - img [ref=e273]
+      - generic: Inspect
+    - button "Audit" [ref=e275]:
+      - img [ref=e277]
+      - generic: Audit
+    - button "Settings" [ref=e280]:
+      - img [ref=e282]
+      - generic: Settings

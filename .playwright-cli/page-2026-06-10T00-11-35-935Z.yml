@@ -1,0 +1,201 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - navigation "Primary" [ref=e3]:
+    - generic [ref=e4]:
+      - link "SettlePay home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "SettlePay" [ref=e6]
+      - button "Open menu" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+  - main [ref=e10]:
+    - generic [ref=e12]:
+      - navigation "Breadcrumb" [ref=e13]:
+        - list [ref=e14]:
+          - listitem [ref=e15]:
+            - link "Home" [ref=e16] [cursor=pointer]:
+              - /url: /
+            - img [ref=e17]
+          - listitem [ref=e19]:
+            - link "Our Work" [ref=e20] [cursor=pointer]:
+              - /url: /work/
+            - img [ref=e21]
+          - listitem [ref=e23]: Stillwater Weddings
+      - generic [ref=e24]:
+        - generic [ref=e25]: Photographers & Event Suppliers
+        - generic [ref=e26]: Illustrative demo
+      - heading "Stillwater Weddings" [level=1] [ref=e27]
+      - paragraph [ref=e28]: A fictional wedding photographer, showing a booking deposit charged today with the balance openly scheduled — and clearly not charged — until nearer the date.
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - heading "The Challenge" [level=2] [ref=e33]
+        - paragraph [ref=e34]: A wedding photographer confirming dates with "pay the deposit by bank transfer to book", then chasing the balance by email four weeks before each wedding — awkward money conversations at exactly the wrong moment.
+      - generic [ref=e35]:
+        - heading "The Solution" [level=2] [ref=e36]
+        - paragraph [ref=e37]: "A branded booking confirmation powered by Adyen showing the Full Day Collection, the wedding date and a clear schedule: a £350 booking deposit charged today, and a £1,400 balance shown as scheduled — not charged — until four weeks before the day."
+      - generic [ref=e38]:
+        - heading "The Impact" [level=2] [ref=e39]
+        - list [ref=e40]:
+          - listitem [ref=e41]:
+            - img [ref=e42]
+            - text: Dates confirmed the moment the deposit is paid
+          - listitem [ref=e44]:
+            - img [ref=e45]
+            - text: The balance scheduled openly, with nothing charged before its due date
+          - listitem [ref=e47]:
+            - img [ref=e48]
+            - text: Funds settle straight to the photographer's own bank account
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - generic [ref=e53]: The Demo
+        - heading "Try the Interactive Demo" [level=2] [ref=e54]
+        - paragraph [ref=e55]: A working page in Stillwater Weddings's own branding — a fictional brand, running in test mode only.
+      - generic [ref=e56]:
+        - note [ref=e57]:
+          - img [ref=e58]
+          - paragraph [ref=e60]:
+            - strong [ref=e61]: Illustrative Demo
+            - text: — This is a fictional business created to showcase what SettlePay can build. It runs in test mode and no real payments are taken.
+        - generic [ref=e63]:
+          - generic [ref=e69]: pay.stillwaterweddings.co.uk/booking/SW-1106
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - img [ref=e73]
+              - paragraph [ref=e77]: Stillwater
+              - paragraph [ref=e78]: Wedding Photography
+            - generic [ref=e79]:
+              - generic [ref=e80]:
+                - paragraph [ref=e81]: Booking Confirmation — SW-1106
+                - heading "The Full Day Collection" [level=3] [ref=e82]
+                - paragraph [ref=e83]:
+                  - text: Eleanor & James · Saturday 19 September 2026
+                  - text: The Walled Garden, Pelham Green · preparations to first dance
+                - region "Payment schedule" [ref=e84]:
+                  - heading "Payment Schedule" [level=4] [ref=e85]:
+                    - generic [ref=e86]: Payment Schedule
+                  - generic [ref=e87]:
+                    - generic [ref=e88]:
+                      - generic [ref=e89]: Booking deposit
+                      - generic [ref=e90]: Due today — confirms your date
+                    - generic [ref=e91]:
+                      - generic [ref=e92]: £350.00
+                      - generic [ref=e93]: Charged Today
+                  - generic [ref=e94]:
+                    - generic [ref=e95]:
+                      - generic [ref=e96]: Remaining balance
+                      - generic [ref=e97]: Due Saturday 22 August 2026 — four weeks before your day
+                    - generic [ref=e98]:
+                      - generic [ref=e99]: £1,400.00
+                      - generic [ref=e100]: Scheduled — Not Charged Today
+                  - generic [ref=e101]:
+                    - generic [ref=e102]: Collection total
+                    - generic [ref=e103]: £1,750.00
+                - form "Pay your booking deposit by card" [ref=e104]:
+                  - generic [ref=e105]:
+                    - heading "Pay Your Deposit" [level=4] [ref=e106]:
+                      - generic [ref=e107]: Pay Your Deposit
+                    - generic [ref=e108]:
+                      - img "Visa" [ref=e109]
+                      - img "Mastercard" [ref=e110]
+                      - img "Amex" [ref=e111]
+                  - paragraph [ref=e112]: "Demo cards: 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 declines"
+                  - generic [ref=e113]:
+                    - generic [ref=e114]: Name on Card
+                    - textbox "Name on Card" [ref=e115]
+                  - generic [ref=e116]:
+                    - generic [ref=e117]: Card Number
+                    - textbox "Card Number" [ref=e118]:
+                      - /placeholder: 1234 1234 1234 1234
+                  - generic [ref=e119]:
+                    - generic [ref=e120]:
+                      - generic [ref=e121]: Expiry Date
+                      - textbox "Expiry Date" [ref=e122]:
+                        - /placeholder: MM / YY
+                    - generic [ref=e123]:
+                      - generic [ref=e124]: Security Code
+                      - textbox "Security Code" [ref=e125]:
+                        - /placeholder: CVC
+                  - button "Pay £350.00 Deposit" [ref=e126] [cursor=pointer]
+                  - paragraph [ref=e127]: Only the £350.00 deposit is charged today. The £1,400.00 balance is scheduled for Saturday 22 August 2026 and will not be charged today.
+              - status [ref=e128]
+            - generic [ref=e129]:
+              - paragraph [ref=e130]: Illustrative demo — no real payments are taken.
+              - paragraph [ref=e131]:
+                - img [ref=e132]
+                - text: Payments secured and processed by an FCA-regulated processor
+        - paragraph [ref=e134]: Stillwater Weddings is a fictional brand created for this demonstration — it is not a SettlePay client and no real payments are taken.
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - generic [ref=e138]: Capabilities
+        - heading "What This Demonstrates" [level=2] [ref=e139]
+        - paragraph [ref=e140]: The patterns in this build that carry over to any business getting paid the hard way today.
+      - generic [ref=e141]:
+        - generic [ref=e142]:
+          - img [ref=e144]
+          - generic [ref=e146]:
+            - heading "Deposit Now, Balance Later" [level=3] [ref=e147]
+            - paragraph [ref=e148]: A £350 deposit charged today, with the £1,400 balance due four weeks before the wedding — the whole schedule on one page.
+        - generic [ref=e149]:
+          - img [ref=e151]
+          - generic [ref=e153]:
+            - heading "An Honest Schedule" [level=3] [ref=e154]
+            - paragraph [ref=e155]: The balance is marked as scheduled, clearly not charged today, so couples always know exactly where they stand.
+        - generic [ref=e156]:
+          - img [ref=e158]
+          - generic [ref=e160]:
+            - heading "Card Payment for the Deposit" [level=3] [ref=e161]
+            - paragraph [ref=e162]: Visa, Mastercard and Amex on a page set in the photographer’s own type and tone — not a bank-transfer reference in an email.
+        - generic [ref=e163]:
+          - img [ref=e165]
+          - generic [ref=e167]:
+            - heading "Editorial-Grade Branding" [level=3] [ref=e168]
+            - paragraph [ref=e169]: Ink charcoal, champagne accents and generous whitespace — a payment page that feels like the portfolio it belongs to.
+        - generic [ref=e170]:
+          - img [ref=e172]
+          - generic [ref=e174]:
+            - heading "FCA-Regulated Processing" [level=3] [ref=e175]
+            - paragraph [ref=e176]: Payments are processed by FCA-regulated partners and settle to the photographer — never to SettlePay.
+    - generic [ref=e179]:
+      - img [ref=e181]
+      - generic [ref=e183]:
+        - heading "How It Connects" [level=2] [ref=e184]
+        - paragraph [ref=e185]: Behind the page, every payment carries its reference — an invoice number, tenancy, lot or mandate — so it is matched back to the business's records automatically. Funds settle directly from the processor to the business's own bank account; SettlePay never holds funds. Payments are processed by FCA-regulated partners.
+    - generic [ref=e188]:
+      - heading "Want a Page Like This for Your Business?" [level=2] [ref=e189]
+      - paragraph [ref=e190]: Tell us how you get paid today — bank transfers, cheques, card numbers over the phone — and we'll show you what a branded page would look like in your name.
+      - generic [ref=e191]:
+        - button "Enquire Now" [ref=e192] [cursor=pointer]:
+          - text: Enquire Now
+          - img [ref=e193]
+        - link "Back to Our Work" [ref=e195] [cursor=pointer]:
+          - /url: /work/
+  - contentinfo [ref=e196]:
+    - generic [ref=e197]:
+      - generic [ref=e198]:
+        - generic [ref=e199]:
+          - img "SettlePay" [ref=e200]
+          - paragraph [ref=e201]: Bespoke payment-page development for small UK businesses — estate agents, sole traders, auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so you never chase a bank transfer again.
+          - navigation "Footer" [ref=e202]:
+            - link "About" [ref=e203] [cursor=pointer]:
+              - /url: /about/
+            - link "Our Work" [ref=e204] [cursor=pointer]:
+              - /url: /work/
+            - link "How It Works" [ref=e205] [cursor=pointer]:
+              - /url: /#integration
+            - link "Estimated Savings" [ref=e206] [cursor=pointer]:
+              - /url: /#pricing
+            - link "FAQ" [ref=e207] [cursor=pointer]:
+              - /url: /faq/
+            - link "Privacy Policy" [ref=e208] [cursor=pointer]:
+              - /url: /privacy/
+            - link "Cookie Policy" [ref=e209] [cursor=pointer]:
+              - /url: /cookies/
+            - link "Terms of Service" [ref=e210] [cursor=pointer]:
+              - /url: /terms/
+        - generic [ref=e211]:
+          - link "hello@settlepay.uk" [ref=e212] [cursor=pointer]:
+            - /url: mailto:hello@settlepay.uk
+          - link "consultations@settlepay.uk" [ref=e213] [cursor=pointer]:
+            - /url: mailto:consultations@settlepay.uk
+          - generic [ref=e214]: London, United Kingdom
+      - paragraph [ref=e216]: © 2026 SettlePay. SettlePay is a trading name of Finlay Salisbury. A sole trader based in London, United Kingdom.

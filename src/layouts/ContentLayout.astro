@@ -1,0 +1,49 @@
+---
+/**
+ * ContentLayout — markdown layout for prose pages (e.g. About) with a styled
+ * page header and a closing consultation CTA.
+ */
+import BaseLayout from './BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Button from '../components/Button.astro';
+import { webPage, breadcrumbs } from '../data/structuredData.mjs';
+
+const { frontmatter } = Astro.props;
+const { title, seoTitle, description, keywords, eyebrow, lead, path, pageType = 'WebPage' } = frontmatter;
+const crumbs = [{ name: 'Home', path: '/' }, { name: title, path }];
+const jsonLd = [webPage({ path, title, description, type: pageType }), breadcrumbs(crumbs)];
+---
+<BaseLayout
+  title={seoTitle}
+  description={description}
+  keywords={keywords}
+  canonical={path}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      {eyebrow && <div class="section-badge">{eyebrow}</div>}
+      <h1 class="page-header__title">{title}</h1>
+      {lead && <p class="page-header__lead">{lead}</p>}
+    </div>
+  </header>
+  <section class="content-section">
+    <div class="container"><article class="prose"><slot /></article></div>
+  </section>
+  <section class="mini-cta">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">Ready to Stop Chasing Bank Transfers?</h2>
+        <p class="mini-cta__text">
+          Book a free, no-obligation consultation. We'll review how you currently get paid and tell
+          you honestly whether we can help.
+        </p>
+        <div class="mini-cta__actions">
+          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+          <Button variant="secondary" href="/faq/">Read the FAQ</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

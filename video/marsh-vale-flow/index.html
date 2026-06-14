@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #14291f;
+      }
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        color: #f5f2eb;
+      }
+      .mono {
+        font-family: "JetBrains Mono", "SF Mono", monospace;
+      }
+
+      /* ---- scene shell ---- */
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      .scene--green {
+        background: #1e3a2f;
+      }
+      .scene--deep {
+        background: #14291f;
+      }
+      .scene--cream {
+        background: #f5f2eb;
+        color: #1b2b22;
+      }
+      .scene--navy {
+        background: #0f172a;
+        color: #ffffff;
+      }
+      .scene-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 110px 140px;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      /* decoratives */
+      .glow {
+        position: absolute;
+        width: 1100px;
+        height: 1100px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(184, 115, 51, 0.22) 0%, rgba(184, 115, 51, 0) 62%);
+        z-index: 0;
+        pointer-events: none;
+      }
+      .ghost {
+        position: absolute;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: rgba(245, 242, 235, 0.1);
+        z-index: 0;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .scene--cream .ghost {
+        color: rgba(27, 43, 34, 0.08);
+      }
+      .corner {
+        position: absolute;
+        font-size: 20px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(245, 242, 235, 0.45);
+        z-index: 3;
+      }
+      .scene--cream .corner {
+        color: rgba(27, 43, 34, 0.45);
+      }
+      .corner--tl {
+        top: 56px;
+        left: 64px;
+      }
+      .corner--br {
+        bottom: 52px;
+        right: 64px;
+      }
+      .demochip {
+        position: absolute;
+        bottom: 48px;
+        left: 64px;
+        z-index: 3;
+        font-size: 19px;
+        letter-spacing: 0.05em;
+        color: rgba(245, 242, 235, 0.6);
+        border: 2px solid rgba(245, 242, 235, 0.25);
+        border-radius: 8px;
+        padding: 10px 18px;
+      }
+      .scene--cream .demochip {
+        color: rgba(27, 43, 34, 0.55);
+        border-color: rgba(27, 43, 34, 0.22);
+      }
+
+      .rule {
+        height: 6px;
+        width: 220px;
+        background: #b87333;
+        border-radius: 3px;
+        transform-origin: left center;
+      }
+
+      /* ---- S1 title ---- */
+      #s1 .scene-content {
+        justify-content: center;
+        gap: 34px;
+      }
+      .s1-title {
+        font-size: 124px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.02;
+      }
+      .s1-title em {
+        font-style: normal;
+        color: #c98a4b;
+      }
+      .s1-sub {
+        font-size: 34px;
+        font-weight: 500;
+        color: rgba(245, 242, 235, 0.74);
+        max-width: 1050px;
+        line-height: 1.45;
+      }
+      #s1-ghost {
+        font-size: 360px;
+        bottom: -70px;
+        right: -120px;
+      }
+      #s1-glow {
+        top: -420px;
+        right: -260px;
+      }
+
+      /* ---- shared card language (4-8px mockup radii, scaled for video) ---- */
+      .card {
+        background: #fffdf8;
+        color: #1b2b22;
+        border-radius: 14px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+      }
+      .card__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 26px 34px;
+        border-bottom: 3px solid rgba(27, 43, 34, 0.1);
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(27, 43, 34, 0.55);
+      }
+      .card__chip {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: rgba(27, 43, 34, 0.5);
+        background: rgba(27, 43, 34, 0.07);
+        border-radius: 7px;
+        padding: 8px 16px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        padding: 30px 34px;
+        border-bottom: 2px solid rgba(27, 43, 34, 0.07);
+      }
+      .row:last-child {
+        border-bottom: 0;
+      }
+      .row__ref {
+        font-size: 26px;
+        font-weight: 700;
+        width: 210px;
+      }
+      .row__who {
+        font-size: 26px;
+        color: rgba(27, 43, 34, 0.6);
+        flex: 1;
+      }
+      .row__amt {
+        font-size: 28px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .badge {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-radius: 8px;
+        padding: 10px 20px;
+        white-space: nowrap;
+      }
+      .badge--draft {
+        background: rgba(27, 43, 34, 0.08);
+        color: rgba(27, 43, 34, 0.55);
+      }
+      .badge--approved {
+        background: #b87333;
+        color: #fffdf8;
+      }
+      .badge--sent {
+        background: rgba(27, 43, 34, 0.1);
+        color: rgba(27, 43, 34, 0.65);
+      }
+      .badge--paid {
+        background: #1f8a5d;
+        color: #fffdf8;
+      }
+      /* Stacked badge swap: both badges share one slot so the hidden one
+         never reserves layout width (GSAP owns their transforms). */
+      .badge-slot {
+        position: relative;
+        width: 200px;
+        height: 44px;
+        flex-shrink: 0;
+      }
+      .badge-slot .badge {
+        position: absolute;
+        right: 0;
+        top: 0;
+      }
+
+      /* ---- S2 xero ---- */
+      #s2 .scene-content {
+        flex-direction: row;
+        align-items: center;
+        gap: 90px;
+      }
+      .s2-copy {
+        width: 660px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      .s-time {
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        color: #c98a4b;
+      }
+      .s-head {
+        font-size: 84px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        line-height: 1.04;
+      }
+      .s-body {
+        font-size: 32px;
+        line-height: 1.5;
+        color: rgba(245, 242, 235, 0.75);
+        max-width: 620px;
+      }
+      .s2-card {
+        flex: 1;
+        position: relative;
+      }
+      #s2-stamp {
+        position: absolute;
+      }
+      #s2-ghost {
+        font-size: 300px;
+        top: -60px;
+        left: -80px;
+      }
+      #s2-glow {
+        bottom: -460px;
+        left: -300px;
+      }
+
+      /* ---- S3 phone ---- */
+      #s3 .scene-content {
+        flex-direction: row;
+        align-items: center;
+        gap: 110px;
+      }
+      .phone {
+        width: 460px;
+        height: 760px;
+        background: #fdfdfc;
+        border: 14px solid #10201a;
+        border-radius: 56px;
+        padding: 44px 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        box-shadow: 0 40px 90px rgba(0, 0, 0, 0.4);
+        flex-shrink: 0;
+      }
+      .phone__label {
+        text-align: center;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(27, 43, 34, 0.4);
+      }
+      .sms {
+        background: rgba(27, 43, 34, 0.07);
+        border-radius: 22px 22px 22px 6px;
+        padding: 24px 26px;
+        color: #1b2b22;
+      }
+      .sms p {
+        font-size: 23px;
+        line-height: 1.45;
+      }
+      .sms__link {
+        display: inline-block;
+        margin-top: 14px;
+        font-size: 21px;
+        font-weight: 700;
+        color: #b87333;
+        border-bottom: 3px solid rgba(184, 115, 51, 0.4);
+        padding-bottom: 2px;
+      }
+      .sms__time {
+        display: block;
+        margin-top: 12px;
+        font-size: 18px;
+        color: rgba(27, 43, 34, 0.4);
+      }
+      .miniinvoice {
+        border-radius: 12px;
+        border: 2px solid rgba(27, 43, 34, 0.12);
+        overflow: hidden;
+        background: #fffdf8;
+        color: #1b2b22;
+      }
+      .miniinvoice__brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: #1e3a2f;
+        color: #f5f2eb;
+        padding: 18px 22px;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .miniinvoice__mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 9px;
+        background: #b87333;
+        display: grid;
+        place-items: center;
+        font-size: 15px;
+        font-weight: 800;
+      }
+      .miniinvoice__body {
+        padding: 20px 22px;
+      }
+      .miniinvoice__label {
+        font-size: 20px;
+        color: rgba(27, 43, 34, 0.6);
+      }
+      .miniinvoice__amt {
+        font-size: 44px;
+        font-weight: 800;
+        margin-top: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .applepay {
+        margin: 0 22px 22px;
+        background: #000;
+        color: #fff;
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      .applepay img {
+        width: 22px;
+        height: 26px;
+        filter: brightness(0) invert(1);
+      }
+      #s3-ghost {
+        font-size: 320px;
+        bottom: -80px;
+        right: -100px;
+      }
+      #s3-glow {
+        top: -380px;
+        left: -320px;
+      }
+
+      /* ---- S4 paid peak (cream) ---- */
+      #s4 .scene-content {
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+        text-align: center;
+      }
+      .s4-tick {
+        width: 170px;
+        height: 170px;
+        border-radius: 50%;
+        background: #1f8a5d;
+        display: grid;
+        place-items: center;
+      }
+      .s4-tick svg {
+        width: 86px;
+        height: 86px;
+      }
+      .s4-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 170px;
+        height: 170px;
+        margin: -240px 0 0 -85px;
+        border-radius: 50%;
+        border: 6px solid rgba(184, 115, 51, 0.55);
+      }
+      .s4-amt {
+        font-size: 168px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+      .s4-meta {
+        font-size: 34px;
+        font-weight: 600;
+        color: rgba(27, 43, 34, 0.6);
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .s4-meta .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #b87333;
+      }
+      #s4-ghost {
+        font-size: 430px;
+        top: -100px;
+        left: -60px;
+      }
+
+      /* ---- S5 reconciled ---- */
+      #s5 .scene-content {
+        gap: 48px;
+        justify-content: center;
+      }
+      .s5-head {
+        font-size: 68px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        line-height: 1.06;
+        max-width: 1500px;
+      }
+      .s5-head em {
+        font-style: normal;
+        color: #c98a4b;
+      }
+      .s5-cards {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+      }
+      .s5-card {
+        width: 700px;
+      }
+      .s5-linkwrap {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+      }
+      .s5-link {
+        height: 6px;
+        width: 100%;
+        background: #b87333;
+        border-radius: 3px;
+        transform-origin: left center;
+        position: relative;
+      }
+      .s5-body {
+        font-size: 31px;
+        line-height: 1.5;
+        color: rgba(245, 242, 235, 0.75);
+        max-width: 1280px;
+      }
+      #s5-glow {
+        top: -420px;
+        right: -360px;
+      }
+
+      /* ---- S6 outro (navy) ---- */
+      #s6 .scene-content {
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+        text-align: center;
+      }
+      .s6-head {
+        font-size: 104px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+      .s6-logo {
+        height: 116px;
+        margin-top: 16px;
+      }
+      .s6-logo img {
+        height: 100%;
+        width: auto;
+      }
+      .s6-url {
+        font-size: 30px;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.65);
+      }
+      .s6-small {
+        position: absolute;
+        bottom: 56px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1320px;
+        font-size: 19px;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      #s6-glow {
+        bottom: -480px;
+        left: 50%;
+        margin-left: -550px;
+        background: radial-gradient(circle, rgba(59, 92, 138, 0.25) 0%, rgba(59, 92, 138, 0) 62%);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="33"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- S1 · title -->
+      <div id="s1" class="clip scene scene--green" data-start="0" data-duration="5" data-track-index="1">
+        <div id="s1-glow" class="glow" data-layout-allow-overflow></div>
+        <div id="s1-ghost" class="ghost mono" data-layout-ignore>INV-2153</div>
+        <div class="scene-content">
+          <div id="s1-rule" class="rule"></div>
+          <h1 class="s1-title"><span id="s1-l1">One invoice,</span><br /><em id="s1-l2">start to finish.</em></h1>
+          <p id="s1-sub" class="s1-sub">How a sole trader stops chasing payments — a SettlePay demonstration.</p>
+        </div>
+        <div id="s1-corner" class="corner corner--tl mono">Marsh &amp; Vale Plumbing &amp; Heating</div>
+        <div id="s1-chip" class="demochip">Illustrative demo · fictional business</div>
+      </div>
+
+      <!-- S2 · approved in Xero -->
+      <div id="s2" class="clip scene scene--deep" data-start="4.45" data-duration="6.15" data-track-index="2">
+        <div id="s2-glow" class="glow" data-layout-allow-overflow></div>
+        <div id="s2-ghost" class="ghost" data-layout-ignore>APPROVED</div>
+        <div class="scene-content">
+          <div class="s2-copy">
+            <div id="s2-time" class="s-time mono">TUESDAY · 18:10</div>
+            <h2 id="s2-head" class="s-head">The job's done.</h2>
+            <p id="s2-body" class="s-body">He approves the invoice in Xero from the van — the last thing he has to do.</p>
+          </div>
+          <div class="s2-card">
+            <div id="s2-cardbox" class="card">
+              <div class="card__head"><span>His Accounting · Xero</span><span class="card__chip">Simulated view</span></div>
+              <div class="row" id="s2-row1">
+                <span class="row__ref mono">INV-2153</span>
+                <span class="row__who">R. Whittaker — leaking valve</span>
+                <span class="row__amt">£120.00</span>
+                <span class="badge-slot">
+                  <span id="s2-badge-draft" class="badge badge--draft">Draft</span>
+                  <span id="s2-badge-app" class="badge badge--approved">Approved</span>
+                </span>
+              </div>
+              <div class="row" id="s2-row2">
+                <span class="row__ref mono">INV-2148</span>
+                <span class="row__who">L. Cooper — two radiators</span>
+                <span class="row__amt">£410.00</span>
+                <span class="badge badge--sent">Sent</span>
+              </div>
+              <div class="row" id="s2-row3">
+                <span class="row__ref mono">INV-2147</span>
+                <span class="row__who">K. Patel — boiler service</span>
+                <span class="row__amt">£386.40</span>
+                <span class="badge badge--paid">Paid</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="s2-chip" class="demochip">Illustrative demo · fictional business</div>
+      </div>
+
+      <!-- S3 · the link texts itself -->
+      <div id="s3" class="clip scene scene--green" data-start="10" data-duration="5.95" data-track-index="1">
+        <div id="s3-glow" class="glow" data-layout-allow-overflow></div>
+        <div id="s3-ghost" class="ghost" data-layout-ignore>SMS</div>
+        <div class="scene-content">
+          <div class="phone" id="s3-phone">
+            <div class="phone__label">R. Whittaker's phone</div>
+            <div class="sms" id="s3-sms">
+              <p>Marsh &amp; Vale Plumbing: thanks for having us out today. Your invoice is ready —</p>
+              <span class="sms__link">pay.marshandvale.co.uk/i/2153</span>
+              <span class="sms__time mono">18:11</span>
+            </div>
+            <div class="miniinvoice" id="s3-inv">
+              <div class="miniinvoice__brand"><span class="miniinvoice__mark">M&amp;V</span>Marsh &amp; Vale</div>
+              <div class="miniinvoice__body">
+                <div class="miniinvoice__label">Invoice INV-2153 · leaking valve repair</div>
+                <div class="miniinvoice__amt">£120.00</div>
+              </div>
+              <div class="applepay" id="s3-apay"><img src="assets/apple-logo.svg" alt="" /> Pay</div>
+            </div>
+          </div>
+          <div class="s2-copy">
+            <div id="s3-time" class="s-time mono">SECONDS LATER</div>
+            <h2 id="s3-head" class="s-head">The link texts itself.</h2>
+            <p id="s3-body" class="s-body">No card numbers over the phone. No bank details to copy out of a text. A branded page, sent automatically.</p>
+          </div>
+        </div>
+        <div id="s3-chip" class="demochip">Illustrative demo · fictional business</div>
+      </div>
+
+      <!-- S4 · paid (peak, cream) -->
+      <div id="s4" class="clip scene scene--cream" data-start="15.4" data-duration="5.55" data-track-index="2">
+        <div id="s4-ghost" class="ghost" data-layout-ignore>PAID</div>
+        <div class="scene-content">
+          <div id="s4-ring" class="s4-ring" data-layout-ignore></div>
+          <div id="s4-tick" class="s4-tick">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fffdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.75 6 6 9-13.5" /></svg>
+          </div>
+          <div id="s4-amt" class="s4-amt">£120.00</div>
+          <div id="s4-meta" class="s4-meta"><span>Paid 18:42</span><span class="dot"></span><span>One tap · Apple Pay</span></div>
+        </div>
+        <div id="s4-corner" class="corner corner--br mono">Test mode · no real payment</div>
+        <div id="s4-chip" class="demochip">Illustrative demo · fictional business</div>
+      </div>
+
+      <!-- S5 · reconciled -->
+      <div id="s5" class="clip scene scene--deep" data-start="20.4" data-duration="6.35" data-track-index="1">
+        <div id="s5-glow" class="glow" data-layout-allow-overflow></div>
+        <div class="scene-content">
+          <h2 class="s5-head"><span id="s5-h1">Matched. Marked paid in Xero.</span> <em id="s5-h2">Nothing chased.</em></h2>
+          <div class="s5-cards">
+            <div id="s5-card1" class="card s5-card">
+              <div class="card__head"><span>SettlePay</span><span class="card__chip">Connected to Xero</span></div>
+              <div class="row">
+                <span class="row__ref mono">INV-2153</span>
+                <span class="row__who">Paid · reference matched</span>
+                <span id="s5-badge1" class="badge badge--paid">Paid</span>
+              </div>
+            </div>
+            <div class="s5-linkwrap"><div id="s5-link" class="s5-link"></div></div>
+            <div id="s5-card2" class="card s5-card">
+              <div class="card__head"><span>His Accounting · Xero</span><span class="card__chip">Updated itself</span></div>
+              <div class="row">
+                <span class="row__ref mono">INV-2153</span>
+                <span class="row__who">R. Whittaker — leaking valve</span>
+                <span id="s5-badge2" class="badge badge--paid">Paid</span>
+              </div>
+            </div>
+          </div>
+          <p id="s5-body" class="s5-body">And when someone doesn't pay? Polite reminders go out on day 3, 7 and 14 — written once, sent by themselves.</p>
+        </div>
+        <div id="s5-chip" class="demochip">Illustrative demo · fictional business</div>
+      </div>
+
+      <!-- S6 · outro (navy, SettlePay) -->
+      <div id="s6" class="clip scene scene--navy" data-start="26.2" data-duration="6.8" data-track-index="2">
+        <div id="s6-glow" class="glow" data-layout-allow-overflow></div>
+        <div class="scene-content">
+          <h2 id="s6-head" class="s6-head">He never asks twice.</h2>
+          <div id="s6-logo" class="s6-logo"><img src="assets/settlepay-darkmode.png" alt="SettlePay" /></div>
+          <div id="s6-url" class="s6-url mono">settlepay.uk/work</div>
+        </div>
+        <p id="s6-small" class="s6-small">An illustrative demonstration. Marsh &amp; Vale is a fictional business and no real payments are shown. Payment processing runs through FCA-regulated partners on the client's own account — SettlePay never holds funds.</p>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const BLUR = "blur(12px)";
+      const CLEAR = "blur(0px)";
+
+      /* =============== S1 · title (0 – 5.0) =============== */
+      tl.fromTo("#s1-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "expo.out" }, 0.15);
+      tl.fromTo("#s1-l1", { x: -90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 0.3);
+      tl.fromTo("#s1-l2", { x: 90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 0.5);
+      tl.fromTo("#s1-sub", { y: 36, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "sine.out" }, 0.85);
+      tl.fromTo("#s1-corner", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.out" }, 1.0);
+      tl.fromTo("#s1-chip", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.6)" }, 1.15);
+      tl.fromTo("#s1-ghost", { x: 0 }, { x: -60, duration: 4.4, ease: "none" }, 0.2);
+      tl.fromTo("#s1-glow", { scale: 1 }, { scale: 1.1, duration: 2.2, yoyo: true, repeat: 1, ease: "sine.inOut" }, 0.2);
+      /* transition out: blur crossfade (the transition IS the exit) */
+      tl.to("#s1", { opacity: 0, filter: BLUR, duration: 0.5, ease: "power2.in" }, 4.45);
+
+      /* =============== S2 · approved in Xero (4.45 – 10.6) =============== */
+      tl.fromTo("#s2", { opacity: 0, filter: BLUR }, { opacity: 1, filter: CLEAR, duration: 0.55, ease: "power2.out" }, 4.5);
+      tl.fromTo("#s2-time", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power1.out" }, 5.0);
+      tl.fromTo("#s2-head", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, ease: "power3.out" }, 5.1);
+      tl.fromTo("#s2-body", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "sine.out" }, 5.35);
+      tl.fromTo("#s2-cardbox", { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "expo.out" }, 5.2);
+      tl.fromTo("#s2-row2", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 5.7);
+      tl.fromTo("#s2-row3", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 5.85);
+      tl.fromTo("#s2-chip", { opacity: 0 }, { opacity: 0.9, duration: 0.4 }, 5.6);
+      /* the badge stamp: Draft gives way, APPROVED stamps in */
+      tl.fromTo("#s2-badge-app", { scale: 1.9, opacity: 0, rotation: -6 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.45, ease: "back.out(2.2)" }, 7.1);
+      tl.to("#s2-badge-draft", { opacity: 0, duration: 0.18, ease: "power1.in" }, 7.1);
+      tl.set("#s2-badge-draft", { visibility: "hidden" }, 7.3);
+      tl.fromTo("#s2-ghost", { y: 0 }, { y: -45, duration: 5.0, ease: "none" }, 5.0);
+      /* transition out */
+      tl.to("#s2", { opacity: 0, filter: BLUR, duration: 0.5, ease: "power2.in" }, 10.0);
+
+      /* =============== S3 · link texts itself (10.0 – 15.95) =============== */
+      tl.fromTo("#s3", { opacity: 0, filter: BLUR }, { opacity: 1, filter: CLEAR, duration: 0.55, ease: "power2.out" }, 10.05);
+      tl.fromTo("#s3-phone", { y: 90, opacity: 0, rotation: -2 }, { y: 0, opacity: 1, rotation: 0, duration: 0.8, ease: "power3.out" }, 10.45);
+      tl.fromTo("#s3-time", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 10.7);
+      tl.fromTo("#s3-head", { x: 70, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "expo.out" }, 10.8);
+      tl.fromTo("#s3-body", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "sine.out" }, 11.1);
+      tl.fromTo("#s3-sms", { scale: 0.6, opacity: 0, transformOrigin: "bottom left" }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(1.8)" }, 11.5);
+      tl.fromTo("#s3-inv", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" }, 12.6);
+      tl.fromTo("#s3-chip", { opacity: 0 }, { opacity: 0.9, duration: 0.4 }, 11.2);
+      tl.fromTo("#s3-ghost", { x: 0 }, { x: 50, duration: 5.0, ease: "none" }, 10.4);
+      tl.fromTo("#s3-glow", { scale: 1 }, { scale: 1.08, duration: 2.4, yoyo: true, repeat: 1, ease: "sine.inOut" }, 10.4);
+      /* accent transition into the peak: zoom-through */
+      tl.to("#s3", { opacity: 0, scale: 1.06, filter: BLUR, duration: 0.38, ease: "power3.in" }, 15.42);
+
+      /* =============== S4 · PAID peak (15.4 – 20.95, cream) =============== */
+      tl.fromTo("#s4", { opacity: 0, scale: 0.92, filter: BLUR }, { opacity: 1, scale: 1, filter: CLEAR, duration: 0.5, ease: "expo.out" }, 15.5);
+      tl.fromTo("#s4-tick", { scale: 0, rotation: -20 }, { scale: 1, rotation: 0, duration: 0.55, ease: "back.out(2.4)" }, 15.95);
+      tl.fromTo("#s4-ring", { scale: 1, opacity: 0.8 }, { scale: 2.6, opacity: 0, duration: 1.0, ease: "power2.out" }, 16.1);
+      tl.fromTo("#s4-amt", { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power4.out" }, 16.25);
+      tl.fromTo("#s4-meta", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 16.7);
+      tl.fromTo("#s4-corner", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 16.9);
+      tl.fromTo("#s4-chip", { opacity: 0 }, { opacity: 0.9, duration: 0.4 }, 16.9);
+      tl.fromTo("#s4-ghost", { x: 0, opacity: 0.5 }, { x: 60, opacity: 1, duration: 4.4, ease: "none" }, 15.9);
+      /* transition out */
+      tl.to("#s4", { opacity: 0, filter: BLUR, duration: 0.5, ease: "power2.in" }, 20.4);
+
+      /* =============== S5 · reconciled (20.4 – 26.75) =============== */
+      tl.fromTo("#s5", { opacity: 0, filter: BLUR }, { opacity: 1, filter: CLEAR, duration: 0.55, ease: "power2.out" }, 20.45);
+      tl.fromTo("#s5-h1", { y: 46, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 20.85);
+      tl.fromTo("#s5-h2", { y: 46, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 21.05);
+      tl.fromTo("#s5-card1", { x: -110, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "expo.out" }, 21.4);
+      tl.fromTo("#s5-link", { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: "power2.inOut" }, 21.95);
+      tl.fromTo("#s5-card2", { x: 110, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "expo.out" }, 22.35);
+      tl.fromTo("#s5-badge1", { scale: 1.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, 22.1);
+      tl.fromTo("#s5-badge2", { scale: 1.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, 22.95);
+      tl.fromTo("#s5-body", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "sine.out" }, 23.4);
+      tl.fromTo("#s5-chip", { opacity: 0 }, { opacity: 0.9, duration: 0.4 }, 21.6);
+      tl.fromTo("#s5-glow", { scale: 1 }, { scale: 1.09, duration: 2.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, 20.8);
+      /* transition out (wind-down: gentler, longer) */
+      tl.to("#s5", { opacity: 0, filter: BLUR, duration: 0.55, ease: "power1.in" }, 26.2);
+
+      /* =============== S6 · outro (26.2 – 33.0, navy) =============== */
+      tl.fromTo("#s6", { opacity: 0, filter: BLUR }, { opacity: 1, filter: CLEAR, duration: 0.65, ease: "sine.out" }, 26.3);
+      tl.fromTo("#s6-head", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.75, ease: "power2.out" }, 26.7);
+      tl.fromTo("#s6-logo", { scale: 0.88, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.65, ease: "back.out(1.4)" }, 27.5);
+      tl.fromTo("#s6-url", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.out" }, 28.0);
+      tl.fromTo("#s6-small", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out" }, 28.4);
+      tl.fromTo("#s6-glow", { scale: 1 }, { scale: 1.12, duration: 3.0, ease: "sine.inOut" }, 27.0);
+      /* final scene may exit: fade to black */
+      tl.to("#s6 .scene-content, #s6-small", { opacity: 0, duration: 0.8, ease: "power1.in" }, 31.9);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

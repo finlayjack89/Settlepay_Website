@@ -1,0 +1,188 @@
+---
+/**
+ * SiteScripts — all client behaviour, progressively enhanced and guarded so each
+ * page only wires up what it actually contains. Respects reduced-motion via CSS.
+ */
+---
+<script>
+  // ---------------------------------------------------------------------------
+  // Mobile navigation drawer
+  // ---------------------------------------------------------------------------
+  const nav = document.getElementById('navbar');
+  const navToggle = document.querySelector('[data-nav-toggle]');
+  const navMobile = document.getElementById('navbar-mobile');
+  if (nav && navToggle && navMobile) {
+    const setNav = (open: boolean) => {
+      nav.classList.toggle('is-open', open);
+      navToggle.setAttribute('aria-expanded', String(open));
+      navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      (navMobile as HTMLElement).hidden = !open;
+    };
+    navToggle.addEventListener('click', () => setNav(!nav.classList.contains('is-open')));
+    navMobile.querySelectorAll('[data-nav-link]').forEach((l) =>
+      l.addEventListener('click', () => setNav(false))
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hero checkout mockup — payment-method accordion
+  // ---------------------------------------------------------------------------
+  const checkout = document.querySelector('[data-checkout]');
+  if (checkout) {
+    const panels = Array.from(checkout.querySelectorAll('.checkout-v2__panel'));
+    const activate = (panel: Element) => {
+      panels.forEach((p) => {
+        const on = p === panel;
+        p.classList.toggle('checkout-v2__panel--active', on);
+        const header = p.querySelector('.checkout-v2__panel-header');
+        if (header) header.setAttribute('aria-expanded', String(on));
+      });
+    };
+    checkout.querySelectorAll('.checkout-v2__panel-header').forEach((header) => {
+      const handle = () => activate(header.closest('.checkout-v2__panel')!);
+      header.addEventListener('click', handle);
+      header.addEventListener('keydown', (e) => {
+        const ev = e as KeyboardEvent;
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          handle();
+        }
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // ROI calculator
+  // ---------------------------------------------------------------------------
+  const calc = document.querySelector('[data-calculator]');
+  if (calc) {
+    const pEl = calc.querySelector('[data-range="payments"]') as HTMLInputElement | null;
+    const mEl = calc.querySelector('[data-range="mins"]') as HTMLInputElement | null;
+    const pVal = calc.querySelector('[data-val="payments"]');
+    const mVal = calc.querySelector('[data-val="mins"]');
+    const hoursOut = calc.querySelector('[data-out="hours"]');
+    const matchedOut = calc.querySelector('[data-out="matched"]');
+    if (pEl && mEl) {
+      const fill = (el: HTMLInputElement) => {
+        const pct = ((Number(el.value) - Number(el.min)) / (Number(el.max) - Number(el.min))) * 100;
+        el.style.background = `linear-gradient(to right, var(--color-primary-action) ${pct}%, rgba(15,23,42,.08) ${pct}%)`;
+      };
+      const update = () => {
+        const payments = Number(pEl.value);
+        const mins = Number(mEl.value);
+        const hours = Math.round((payments * mins) / 60);
+        fill(pEl);
+        fill(mEl);
+        if (pVal) pVal.textContent = String(payments);
+        if (mVal) mVal.textContent = mins + ' min';
+        if (hoursOut) hoursOut.textContent = hours.toLocaleString() + ' hrs';
+        if (matchedOut) matchedOut.textContent = payments.toLocaleString();
+      };
+      pEl.addEventListener('input', update);
+      mEl.addEventListener('input', update);
+      update();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Enquiry modal
+  // ---------------------------------------------------------------------------
+  const modal = document.getElementById('enquire-modal');
+  if (modal) {
+    const formView = modal.querySelector('[data-modal-form]') as HTMLElement;
+    const successView = modal.querySelector('[data-modal-success]') as HTMLElement;
+    const form = modal.querySelector('[data-enquire-form]') as HTMLFormElement;
+    const errEl = modal.querySelector('[data-form-error]') as HTMLElement;
+    const noteEl = modal.querySelector('[data-form-note]') as HTMLElement;
+    let lastFocused: HTMLElement | null = null;
+
+    const openModal = () => {
+      lastFocused = document.activeElement as HTMLElement;
+      (modal as HTMLElement).hidden = false;
+      document.body.style.overflow = 'hidden';
+      formView.hidden = false;
+      successView.hidden = true;
+      const first = form?.querySelector('input, textarea') as HTMLElement | null;
+      setTimeout(() => first?.focus(), 40);
+    };
+    const closeModal = () => {
+      (modal as HTMLElement).hidden = true;
+      document.body.style.overflow = '';
+      lastFocused?.focus();
+    };
+    const showSuccess = () => {
+      formView.hidden = true;
+      successView.hidden = false;
+      form?.reset();
+    };
+
+    document.querySelectorAll('[data-enquire]').forEach((b) => b.addEventListener('click', openModal));
+    modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeModal));
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !(modal as HTMLElement).hidden) closeModal();
+    });
+
+    // Basic focus trap
+    modal.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key !== 'Tab') return;
+      const list = Array.from(
+        modal.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input, textarea, select, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+      if (!list.length) return;
+      const firstEl = list[0];
+      const lastEl = list[list.length - 1];
+      const ke = e as KeyboardEvent;
+      if (ke.shiftKey && document.activeElement === firstEl) { ke.preventDefault(); lastEl.focus(); }
+      else if (!ke.shiftKey && document.activeElement === lastEl) { ke.preventDefault(); firstEl.focus(); }
+    });
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errEl.hidden = true;
+        if (noteEl) noteEl.hidden = true;
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        const honeypot = form.querySelector('[name="_gotcha"]') as HTMLInputElement | null;
+        if (honeypot && honeypot.value) { showSuccess(); return; }
+
+        const fd = new FormData(form);
+        const data = Object.fromEntries(fd.entries()) as Record<string, string>;
+        const endpoint = form.dataset.endpoint;
+        const mailto = form.dataset.mailto || 'hello@settlepay.uk';
+        const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
+        submitBtn.disabled = true;
+        try {
+          if (endpoint) {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { Accept: 'application/json' },
+              body: fd,
+            });
+            if (!res.ok) throw new Error('bad-status');
+            showSuccess();
+          } else {
+            const subject = encodeURIComponent('Consultation enquiry — ' + (data.business || 'SettlePay'));
+            const body = encodeURIComponent(
+              `Business: ${data.business || ''}\nName: ${data.name || ''}\nEmail: ${data.email || ''}\n\n${data.message || ''}`
+            );
+            window.location.href = `mailto:${mailto}?subject=${subject}&body=${body}`;
+            if (noteEl) {
+              noteEl.innerHTML =
+                'Your email app should have opened with your message — press Send to complete your enquiry. ' +
+                `If nothing opened, email us directly at <a href="mailto:${mailto}">${mailto}</a>.`;
+              noteEl.hidden = false;
+            }
+          }
+        } catch {
+          errEl.textContent = `Sorry — something went wrong. Please email us directly at ${mailto}.`;
+          errEl.hidden = false;
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+    }
+  }
+</script>

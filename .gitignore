@@ -1,0 +1,26 @@
+# build output
+dist/
+# generated types
+.astro/
+# dependencies
+node_modules/
+# local backups / scratch (not part of the site)
+_old_site_backup/
+_design_extract/
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# environment
+.env
+.env.production
+.env.*.local
+# macOS
+.DS_Store
+**/.DS_Store
+# editor
+.vscode/
+.idea/
+# hyperframes video renders (large binaries — source composition is committed)
+video/*/renders/
+video/*/.hyperframes/

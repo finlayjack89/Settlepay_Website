@@ -1,0 +1,117 @@
+[
+  {
+    "category": "Getting started",
+    "question": "What exactly does SettlePay do?",
+    "answer": "SettlePay is a bespoke payment-page development and integration service for small UK businesses. We help you take card and online payments properly, without the manual chasing of bank transfers, cheques and over-the-phone payments. In practice that means three things: we guide you through opening your own merchant account with a trusted, FCA-regulated payment service provider; we design and build a custom-branded checkout or payment page that lives on your own site or invoices; and we wire automated reconciliation into your accounting software so your books update themselves.\n\nWe are a technology and integration provider, not a payment company. The money never passes through us, and you stay fully in control of your own accounts."
+  },
+  {
+    "category": "Getting started",
+    "question": "Do I need to be technical to use SettlePay?",
+    "answer": "No. Onboarding is fully managed, and it is designed for business owners who would rather run their business than wrestle with payment plumbing. You do not need to write any code, understand APIs, or configure anything technical yourself.\n\nWe handle the setup, the build and the integration. Where we need information from you, such as your branding or which accounting software you use, we will ask plain questions and do the work for you."
+  },
+  {
+    "category": "Getting started",
+    "question": "How do I get started?",
+    "answer": "Get in touch by emailing hello@settlepay.uk or by using the enquiry form on settlepay.uk. We will arrange a short conversation to understand how you currently take payments, what your business needs, and which accounting software you use.\n\nFrom there we will recommend a suitable payment service provider, agree a scope and a fixed quote, and then begin the build. There is no obligation at the enquiry stage."
+  },
+  {
+    "category": "Getting started",
+    "question": "What kinds of businesses do you work with?",
+    "answer": "We work with small UK businesses that have outgrown bank transfers, cheques and phone payments. Typical clients include auctioneers, estate and lettings agents, sole traders and small SMEs who want a simpler, more professional way to get paid.\n\nOne live client is Lockdales Auctioneers. We also use an illustrative example, Harbourside Lettings, to show how a typical lettings setup might work; please note that Harbourside Lettings is an illustrative example, not a real client."
+  },
+  {
+    "category": "How it works",
+    "question": "How does the whole setup actually work, step by step?",
+    "answer": "First, we help you open your own merchant account with a reputable, FCA-regulated payment service provider such as Stripe, Adyen, Checkout.com or GoCardless. The account is in your business name and you own it. Second, we design and build a custom-branded payment page that matches your business and sits on your own website or invoices. Third, we connect that payment flow to your accounting software so payments are reconciled automatically.\n\nThroughout, funds settle directly from your payment provider into your own business bank account. SettlePay designs and connects everything; we are never in the money flow."
+  },
+  {
+    "category": "How it works",
+    "question": "Can the payment page match my branding?",
+    "answer": "Yes. Every payment page is bespoke. We build it to match your colours, logo, fonts and overall look so it feels like a natural part of your business rather than a generic, off-the-shelf checkout.\n\nThe aim is for your customers to feel confident they are still dealing with you when they pay, which helps reduce abandoned payments and queries."
+  },
+  {
+    "category": "How it works",
+    "question": "How long does it take to go live?",
+    "answer": "Once your payment service provider account exists, a core payment page can be ready in as little as two working days. A fuller setup, including accounting reconciliation and additional payment methods, typically takes around five working days.\n\nThe main variable is how quickly your provider account is approved, which is on their side rather than ours. If you are working to a tight deadline, an urgent service is available; just let us know your timeline."
+  },
+  {
+    "category": "How it works",
+    "question": "Who owns the payment page and the merchant account?",
+    "answer": "You do. The merchant account is opened in your business name with your chosen payment service provider, and the relationship is directly between you and them. The payment page lives on your own website or invoices.\n\nThis means you are never locked in or dependent on SettlePay to keep taking payments. We build it for you and hand over control to you."
+  },
+  {
+    "category": "Payments & fees",
+    "question": "Do you hold or touch my money?",
+    "answer": "No. SettlePay never holds, touches or controls your money or your customers' money at any point. Funds settle directly from your payment service provider into your own business bank account.\n\nWe are a technology and integration provider, not a payment institution or a money-services business. Keeping ourselves entirely out of the money flow is a deliberate part of how the service is designed."
+  },
+  {
+    "category": "Payments & fees",
+    "question": "Which payment processors do you use?",
+    "answer": "We work with established, FCA-regulated payment service providers including Stripe, Adyen, Checkout.com and GoCardless. The account is always your own, opened in your business name.\n\nWe will recommend the option that best fits your business, your customers and your fee expectations, and then handle the integration. If you already have an account with one of these providers, we can usually work with that."
+  },
+  {
+    "category": "Payments & fees",
+    "question": "How much does SettlePay cost?",
+    "answer": "We quote per project, based on the scope of what you need, so you get a clear fixed price up front rather than an open-ended bill. Once we understand your requirements we will give you a written quote before any work begins.\n\nPlease note this is separate from your payment provider's fees. Your chosen provider charges its own transaction fees directly to you, and those rates are set by the provider, not by SettlePay."
+  },
+  {
+    "category": "Payments & fees",
+    "question": "Can my customers still pay by bank transfer?",
+    "answer": "Yes. We can keep bank transfer as an option alongside card payments, so customers who prefer it are not forced to change. Nothing about taking online payments removes your existing methods.\n\nWe can also set up Pay by Bank, where customers pay you straight from their bank app. This often carries lower fees than card payments while still being quick and secure for the customer."
+  },
+  {
+    "category": "Security & compliance",
+    "question": "Are you FCA regulated?",
+    "answer": "No, SettlePay is not FCA authorised or FCA regulated, and we are careful never to imply otherwise. We are a technology and integration provider. The actual processing of payments is carried out by FCA-regulated partners, namely the payment service provider whose account you open and own.\n\nThis is exactly why your money never flows through us. The regulated payment firm handles the regulated activity of moving and settling funds; we handle the design and integration around it."
+  },
+  {
+    "category": "Security & compliance",
+    "question": "What about PCI and card security?",
+    "answer": "PCI DSS compliance is handled by your chosen payment processor. Because we build you a hosted payment page, card details are entered directly on the processor's secure systems rather than passing through your own website, which typically reduces your business's PCI scope, often to SAQ A.\n\nYou remain responsible for completing your own PCI Self-Assessment Questionnaire. We can explain what this means for your setup and point you to the right SAQ, but the assessment itself is something you complete as the merchant. We do not claim to be PCI DSS compliant ourselves."
+  },
+  {
+    "category": "Security & compliance",
+    "question": "Is my money protected by the FSCS?",
+    "answer": "Payment processing is not covered by the Financial Services Compensation Scheme, so we would never display an FSCS badge or imply that kind of protection; doing so would be misleading. Payment firms simply do not fall under FSCS.\n\nWhat does protect you in practice is the structure of the service: funds settle directly into your own bank account via a regulated payment provider, and SettlePay never holds your money. Your provider will also have its own safeguarding obligations as an FCA-regulated firm."
+  },
+  {
+    "category": "Security & compliance",
+    "question": "How is my data handled?",
+    "answer": "We only handle the information we need to build and support your payment setup, and we treat it carefully under UK data protection law. The data controller is Finlay Salisbury, trading as SettlePay, based at 2b Rodney Street, London, N1 9FS.\n\nFull details are set out in our Privacy Policy on settlepay.uk. ICO registration is in progress, and our registration number will be published there once issued. If you ever have a data concern you cannot resolve with us, you can also contact the ICO at Wycliffe House, Water Lane, Wilmslow, Cheshire, SK9 5AF, or via https://ico.org.uk."
+  },
+  {
+    "category": "Accounting & reconciliation",
+    "question": "Does it work with my accounting software?",
+    "answer": "Yes. We integrate with the main UK accounting packages, including Xero, QuickBooks and Sage. We set up automated reconciliation so that payments taken through your page are matched against your invoices and records without manual data entry.\n\nThis is often the part that saves clients the most time, because it removes the routine of logging in, exporting statements and ticking off payments by hand."
+  },
+  {
+    "category": "Accounting & reconciliation",
+    "question": "What if I still use spreadsheets rather than accounting software?",
+    "answer": "That is fine. If you keep your records in spreadsheets, we can configure a CSV export of your payments so you can import them into whatever you already use.\n\nYou do not have to switch to accounting software to work with us. We can also talk through the benefits of moving to automated reconciliation later, but only if and when it suits you."
+  },
+  {
+    "category": "Working with SettlePay",
+    "question": "Who is SettlePay, and is it a limited company?",
+    "answer": "SettlePay is the trading name of Finlay Salisbury, an individual sole trader. It is not a limited company; there is no Companies House registration or company number, and no Ltd or Limited entity.\n\nIn practice this means you deal with one accountable person who builds and supports your setup directly, rather than being passed around a call centre. The business is based at 2b Rodney Street, London, N1 9FS."
+  },
+  {
+    "category": "Working with SettlePay",
+    "question": "What happens after the payment page goes live?",
+    "answer": "Once you are live, you own the payment page and the merchant account, and payments settle directly to your bank account. We hand over everything you need to run it day to day, and we are available to help with changes, questions or further integrations as your business grows.\n\nIf something needs adjusting, such as branding tweaks, a new payment method or a change to your reconciliation, just get in touch and we will quote any further work clearly before starting."
+  },
+  {
+    "category": "Working with SettlePay",
+    "question": "Do I need a website to use SettlePay?",
+    "answer": "No. A payment page can live on your existing website if you have one, sit on your invoices, or work as a standalone branded link you send to customers by text or email. You do not need a website to take payments this way.\n\nWe will recommend the option that fits how you actually get paid, so customers can pay you from wherever suits them rather than being pushed to a site you may not have."
+  },
+  {
+    "category": "Working with SettlePay",
+    "question": "What happens if you're unavailable, am I dependent on one person?",
+    "answer": "No. Everything runs on your own accounts with mainstream providers, such as Stripe and GoCardless, so your payments keep working regardless of SettlePay. The merchant account is in your business name and the relationship is directly between you and the provider.\n\nBecause we build on standard tools rather than a proprietary system, any competent developer could maintain or extend what is handed over to you. You are never locked in to one person."
+  },
+  {
+    "category": "Working with SettlePay",
+    "question": "How do I get in touch?",
+    "answer": "You can email hello@settlepay.uk or use the enquiry form on https://settlepay.uk, and we will get back to you. Post can be sent to 2b Rodney Street, London, N1 9FS, United Kingdom.\n\nBecause SettlePay is run by one founder, you will be dealing directly with the person doing the work, which keeps communication straightforward and honest."
+  }
+]

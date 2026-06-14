@@ -1,0 +1,88 @@
+---
+/**
+ * EnquireModal — the free-consultation form. Opened by any [data-enquire] button.
+ * Submission is progressively enhanced: it POSTs to SITE.formEndpoint when set,
+ * otherwise falls back to a mailto: so it works with no backend (localhost).
+ */
+import { SITE } from '../data/site.mjs';
+import Icon from './Icon.astro';
+import Button from './Button.astro';
+---
+<div
+  class="sp-modal-overlay"
+  id="enquire-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="enquire-title"
+  hidden
+>
+  <div class="sp-modal">
+    <button class="sp-modal__close" data-modal-close aria-label="Close consultation form">
+      <Icon name="close" sw={2} />
+    </button>
+
+    <div class="sp-modal__view" data-modal-form>
+      <div class="sp-modal__head">
+        <div class="section-badge">Free Consultation</div>
+        <h3 class="sp-modal__title" id="enquire-title">Tell Us About Your Payments</h3>
+        <p class="sp-modal__sub">
+          No obligation. We'll review your current workflow and show you what's possible.
+        </p>
+      </div>
+
+      <form
+        class="sp-modal__form"
+        data-enquire-form
+        data-endpoint={SITE.formEndpoint}
+        data-mailto={SITE.email}
+        novalidate
+      >
+        <div class="sp-field">
+          <input required name="business" id="f-business" placeholder=" " autocomplete="organization" />
+          <label for="f-business">Business name</label>
+        </div>
+        <div class="sp-field">
+          <input required name="name" id="f-name" placeholder=" " autocomplete="name" />
+          <label for="f-name">Your name</label>
+        </div>
+        <div class="sp-field">
+          <input required type="email" name="email" id="f-email" placeholder=" " autocomplete="email" />
+          <label for="f-email">Email address</label>
+        </div>
+        <div class="sp-field sp-field--area">
+          <textarea required name="message" id="f-message" rows="4" placeholder=" "></textarea>
+          <label for="f-message">How can we help?</label>
+        </div>
+        <p class="sp-field__hint">
+          Tell us why you're reaching out, the payment system you use today, and what you'd like to
+          discuss.
+        </p>
+        <!-- Honeypot: bots fill this; humans never see it. -->
+        <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
+        <Button type="submit" icon="arrow">Request My Consultation</Button>
+        <p class="sp-field__hint">
+          Prefer email? Write to us at <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a>
+        </p>
+        <p class="sp-field__hint" data-form-note hidden aria-live="polite"></p>
+        <p class="sp-field__hint" data-form-error hidden aria-live="polite" style="color:var(--color-error)"></p>
+      </form>
+    </div>
+
+    <div class="sp-modal__success" data-modal-success hidden>
+      <div class="sp-modal__success-icon"><Icon name="check" sw={2.5} /></div>
+      <h3>Thank You — We'll Be in Touch</h3>
+      <p>
+        Finlay, SettlePay's founder, will email you within one working day to arrange your free,
+        no-obligation consultation.
+      </p>
+      <Button variant="secondary" data-modal-close>Close</Button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Let the [hidden] attribute win over the flex display from kit-extras.css. */
+  .sp-modal-overlay[hidden] { display: none; }
+  .sp-modal__success[hidden] { display: none; }
+  .sp-modal__view[hidden] { display: none; }
+</style>

@@ -1,0 +1,838 @@
+---
+/**
+ * Rowan Physiotherapy — booking deposit + instalment plan demo.
+ *
+ * Fictional brand. Illustrative only — no real payments are taken.
+ * Two modes behind an accessible toggle:
+ *   Booking Deposit — £40 to secure an initial assessment, deducted from the fee.
+ *   Treatment Plan  — six sessions at £270, three monthly instalments of £90,
+ *                     only the first charged today (static example dates).
+ *
+ * Self-contained: scoped styles + scoped vanilla JS, multiple-instance safe.
+ * Keeps the shared Chrome frame and the outer .mok wrapper.
+ */
+import Chrome from '../../previews/Chrome.astro';
+import Icon from '../../Icon.astro';
+
+// Static uid: only one instance renders per page, and a random value would
+// make the built HTML non-deterministic between builds.
+const uid = 'rw-demo';
+---
+<div class="mok rw" data-rowan-demo>
+  <Chrome url="pay.rowanphysio.co.uk/booking/RP-0934" />
+
+  <div class="rw__body">
+    <header class="rw__head">
+      <svg class="rw__logo" viewBox="0 0 44 44" aria-hidden="true">
+        <rect x="1" y="1" width="42" height="42" rx="12" fill="#52705C" />
+        <path d="M22 33.5 V11.5" stroke="#F4F6F1" stroke-width="1.7" stroke-linecap="round" fill="none" />
+        <path d="M22 28 C18.4 27.6 16.2 25.5 15.7 22.4 M22 28 C25.6 27.6 27.8 25.5 28.3 22.4" stroke="#F4F6F1" stroke-width="1.5" stroke-linecap="round" fill="none" />
+        <path d="M22 21.5 C19.2 21.1 17.5 19.4 17.1 17 M22 21.5 C24.8 21.1 26.5 19.4 26.9 17" stroke="#F4F6F1" stroke-width="1.5" stroke-linecap="round" fill="none" />
+        <path d="M22 15.5 C20.1 15.2 18.9 14 18.6 12.3 M22 15.5 C23.9 15.2 25.1 14 25.4 12.3" stroke="#F4F6F1" stroke-width="1.4" stroke-linecap="round" fill="none" />
+        <circle cx="19.9" cy="9.3" r="1.5" fill="#7FA08A" />
+        <circle cx="24.1" cy="9.3" r="1.5" fill="#7FA08A" />
+        <circle cx="22" cy="6.8" r="1.5" fill="#7FA08A" />
+      </svg>
+      <div class="rw__head-text">
+        <p class="rw__name">Rowan Physiotherapy</p>
+        <p class="rw__strap">Chartered physiotherapy clinic</p>
+      </div>
+      <span class="rw__demo-pill">Illustrative demo</span>
+    </header>
+
+    <p class="rw__status rw-vh" data-rw-status aria-live="polite"></p>
+
+    <form data-rw-form novalidate>
+      <fieldset class="rw__toggle">
+        <legend class="rw-vh">Choose what you would like to pay</legend>
+        <label class="rw__toggle-opt">
+          <input type="radio" name={`${uid}-mode`} value="deposit" checked data-rw-mode />
+          <span>Booking Deposit</span>
+        </label>
+        <label class="rw__toggle-opt">
+          <input type="radio" name={`${uid}-mode`} value="plan" data-rw-mode />
+          <span>Treatment Plan</span>
+        </label>
+      </fieldset>
+
+      <section class="rw__panel" data-rw-panel="deposit" aria-label="Booking deposit details">
+        <h3 class="rw__panel-title">Initial Assessment</h3>
+        <dl class="rw__rows">
+          <div class="rw__row"><dt>Appointment</dt><dd>Fri 19 June, 9:30am</dd></div>
+          <div class="rw__row"><dt>Duration</dt><dd>60 minutes</dd></div>
+          <div class="rw__row"><dt>Practitioner</dt><dd>Eleanor Rowan MCSP</dd></div>
+          <div class="rw__row"><dt>Reference</dt><dd>RP-0934</dd></div>
+        </dl>
+        <p class="rw__panel-note">Your £40.00 deposit secures this appointment and comes off your assessment fee on the day.</p>
+      </section>
+
+      <section class="rw__panel" data-rw-panel="plan" hidden aria-label="Treatment plan details">
+        <div class="rw__plan-head">
+          <h3 class="rw__panel-title">Six-Session Treatment Course</h3>
+          <span class="rw__plan-total">£270.00</span>
+        </div>
+        <ol class="rw__sched">
+          <li class="rw__sched-row rw__sched-row--now">
+            <span class="rw__sched-n" aria-hidden="true">1</span>
+            <span class="rw__sched-date">Today · Wed 10 June</span>
+            <span class="rw__sched-amt">£90.00</span>
+            <span class="rw__sched-tag rw__sched-tag--now">Charged today</span>
+          </li>
+          <li class="rw__sched-row">
+            <span class="rw__sched-n" aria-hidden="true">2</span>
+            <span class="rw__sched-date">Fri 10 July</span>
+            <span class="rw__sched-amt">£90.00</span>
+            <span class="rw__sched-tag">Scheduled</span>
+          </li>
+          <li class="rw__sched-row">
+            <span class="rw__sched-n" aria-hidden="true">3</span>
+            <span class="rw__sched-date">Mon 10 August</span>
+            <span class="rw__sched-amt">£90.00</span>
+            <span class="rw__sched-tag">Scheduled</span>
+          </li>
+        </ol>
+        <p class="rw__panel-note">Only today's instalment is charged now. The remaining two are collected automatically on the dates shown. Reference RP-0934.</p>
+      </section>
+
+      <div class="rw__due">
+        <span class="rw__due-label">Due today</span>
+        <span class="rw__due-amt" data-rw-due>£40.00</span>
+      </div>
+
+      <div class="rw__wallet-wrap">
+        <button type="button" class="rw__applepay" data-rw-wallet aria-label="Apple Pay (demo)">
+          <img src="/assets/payment/apple-logo.svg" alt="" /><span>Pay</span>
+        </button>
+        <p class="rw__wallet-tip" data-rw-wallet-tip hidden>Available on the live page — use the card form in this demo.</p>
+      </div>
+
+      <div class="rw__divider" aria-hidden="true"><span>Or pay by card</span></div>
+
+      <p class="rw__hint">Demo cards: 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 declines</p>
+
+      <div class="rw__field" data-rw-field="name">
+        <label for={`${uid}-name`}>Name on card</label>
+        <input id={`${uid}-name`} type="text" autocomplete="cc-name" spellcheck="false" aria-describedby={`${uid}-name-err`} />
+        <p class="rw__err" id={`${uid}-name-err`} data-rw-err hidden>
+          <Icon name="close" sw={2} />
+          <span></span>
+        </p>
+      </div>
+
+      <div class="rw__field" data-rw-field="card">
+        <label for={`${uid}-card`}>Card number</label>
+        <div class="rw__card-wrap">
+          <input id={`${uid}-card`} type="text" inputmode="numeric" autocomplete="cc-number" spellcheck="false" placeholder="1234 5678 9012 3456" aria-describedby={`${uid}-card-err`} />
+          <span class="rw__marks" aria-hidden="true">
+            <img src="/assets/payment/Visa.svg" alt="" data-rw-mark="visa" />
+            <img src="/assets/payment/Mastercard.svg" alt="" data-rw-mark="mastercard" />
+          </span>
+        </div>
+        <p class="rw__err" id={`${uid}-card-err`} data-rw-err hidden>
+          <Icon name="close" sw={2} />
+          <span></span>
+        </p>
+      </div>
+
+      <div class="rw__split">
+        <div class="rw__field" data-rw-field="exp">
+          <label for={`${uid}-exp`}>Expiry</label>
+          <input id={`${uid}-exp`} type="text" inputmode="numeric" autocomplete="cc-exp" spellcheck="false" placeholder="MM / YY" maxlength="7" aria-describedby={`${uid}-exp-err`} />
+          <p class="rw__err" id={`${uid}-exp-err`} data-rw-err hidden>
+            <Icon name="close" sw={2} />
+            <span></span>
+          </p>
+        </div>
+        <div class="rw__field" data-rw-field="cvc">
+          <label for={`${uid}-cvc`}>Security code</label>
+          <input id={`${uid}-cvc`} type="text" inputmode="numeric" autocomplete="cc-csc" spellcheck="false" placeholder="CVC" maxlength="4" aria-describedby={`${uid}-cvc-err`} />
+          <p class="rw__err" id={`${uid}-cvc-err`} data-rw-err hidden>
+            <Icon name="close" sw={2} />
+            <span></span>
+          </p>
+        </div>
+      </div>
+
+      <button type="submit" class="rw__pay" data-rw-pay>
+        <span data-rw-pay-label>Pay <span data-rw-due>£40.00</span> Today</span>
+        <span class="rw__pay-busy" data-rw-pay-busy hidden><span class="rw__spin" aria-hidden="true"></span>Processing…</span>
+      </button>
+    </form>
+
+    <div class="rw__result rw__result--ok" data-rw-view="success" hidden>
+      <span class="rw__result-icon rw__result-icon--ok" aria-hidden="true">
+        <Icon name="check" sw={2.2} />
+      </span>
+      <h3 class="rw__result-title" data-rw-ok-title>Deposit Paid</h3>
+      <p class="rw__result-amt" data-rw-ok-amount>£40.00</p>
+      <p class="rw__result-sub" data-rw-ok-sub>Your initial assessment on Fri 19 June is booked.</p>
+      <p class="rw__result-line">Booking reference <strong>RP-0934</strong></p>
+      <p class="rw__result-line" data-rw-ok-next hidden></p>
+      <p class="rw__result-line">A receipt has been emailed to you.</p>
+      <p class="rw__result-note">Funds settle directly to the clinic's own bank account.</p>
+      <button type="button" class="rw__reset" data-rw-reset>Restart Demo</button>
+    </div>
+
+    <div class="rw__result rw__result--bad" data-rw-view="declined" hidden>
+      <span class="rw__result-icon rw__result-icon--bad" aria-hidden="true">
+        <Icon name="close" sw={2.2} />
+      </span>
+      <h3 class="rw__result-title">Your Card Was Declined</h3>
+      <p class="rw__result-sub">No payment has been taken. Your details have been kept, so you can try another card.</p>
+      <button type="button" class="rw__reset" data-rw-retry>Try Again</button>
+    </div>
+
+    <footer class="rw__foot">
+      <p class="rw__foot-secure">
+        <Icon name="lock" sw={2} />
+        Payments are processed securely by an FCA-regulated processor and settle directly to the clinic's own bank account.
+      </p>
+      <p class="rw__foot-demo">Illustrative demo — no real payments are taken.</p>
+    </footer>
+  </div>
+</div>
+
+<style>
+  /* Rowan Physiotherapy brand world — sage/eucalyptus, soft neutrals, 6px corners. */
+  .rw {
+    --rw-deep: #52705C;
+    --rw-deep-press: #46604F;
+    --rw-leaf: #7FA08A;
+    --rw-mist: #F4F6F1;
+    --rw-tint: #E9EFE4;
+    --rw-ink: #2E4034;
+    --rw-soft: #5F7166;
+    --rw-line: #DCE3D6;
+    --rw-edge: #C5D1C2;
+    font-family: 'Seravek', 'Gill Sans', 'Segoe UI', 'Trebuchet MS', sans-serif;
+    color: var(--rw-ink);
+  }
+
+  .rw__body {
+    background: var(--rw-mist);
+    padding: 1.35rem 1.35rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+  }
+
+  /* Header --------------------------------------------------------------- */
+  .rw__head { display: flex; align-items: center; gap: 0.7rem; }
+  .rw__logo { width: 42px; height: 42px; flex: none; }
+  .rw__head-text { flex: 1; min-width: 0; }
+  .rw__name { font-size: 0.98rem; font-weight: 600; letter-spacing: 0.01em; }
+  .rw__strap { font-size: 0.68rem; color: var(--rw-soft); letter-spacing: 0.02em; }
+  .rw__demo-pill {
+    flex: none;
+    font-size: 0.58rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--rw-soft);
+    background: var(--rw-tint);
+    border: 1px solid var(--rw-line);
+    border-radius: 5px;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Mode toggle ----------------------------------------------------------- */
+  [data-rw-form] { display: flex; flex-direction: column; gap: 0.95rem; }
+  [data-rw-form][hidden] { display: none; }
+
+  .rw__toggle {
+    border: 1px solid var(--rw-edge);
+    background: #fff;
+    border-radius: 8px;
+    padding: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .rw__toggle-opt { position: relative; display: block; }
+  .rw__toggle-opt input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .rw__toggle-opt span {
+    display: block;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--rw-soft);
+    border-radius: 6px;
+    padding: 0.5rem 0.4rem;
+    transition: background var(--ease-snappy), color var(--ease-snappy);
+  }
+  .rw__toggle-opt input:checked + span { background: var(--rw-deep); color: #fff; }
+  .rw__toggle-opt input:focus-visible + span { outline: 2px solid var(--rw-deep); outline-offset: 2px; }
+
+  /* Summary panels --------------------------------------------------------- */
+  .rw__panel {
+    background: #fff;
+    border: 1px solid var(--rw-line);
+    border-radius: 8px;
+    padding: 0.95rem 1rem;
+  }
+  .rw__panel-title { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em; }
+  .rw__rows { margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.38rem; }
+  .rw__row { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.76rem; }
+  .rw__row dt { color: var(--rw-soft); }
+  .rw__row dd { font-weight: 500; text-align: right; }
+  .rw__panel-note {
+    margin-top: 0.7rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--rw-line);
+    font-size: 0.71rem;
+    line-height: 1.5;
+    color: var(--rw-soft);
+  }
+
+  .rw__plan-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+  .rw__plan-total { font-size: 0.85rem; font-weight: 600; }
+  .rw__sched { margin-top: 0.65rem; display: flex; flex-direction: column; }
+  .rw__sched-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0;
+    border-top: 1px solid var(--rw-line);
+    font-size: 0.74rem;
+  }
+  .rw__sched-row:first-child { border-top: 0; }
+  .rw__sched-n {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--rw-tint);
+    color: var(--rw-deep);
+    font-size: 0.64rem;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+  }
+  .rw__sched-row--now .rw__sched-n { background: var(--rw-deep); color: #fff; }
+  .rw__sched-date { flex: 1; min-width: 0; }
+  .rw__sched-row--now .rw__sched-date { font-weight: 600; }
+  .rw__sched-amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rw__sched-tag {
+    flex: none;
+    font-size: 0.58rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--rw-soft);
+    background: var(--rw-tint);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+  }
+  .rw__sched-tag--now { background: var(--rw-deep); color: #fff; }
+
+  /* Amount due ------------------------------------------------------------- */
+  .rw__due {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 0.15rem;
+  }
+  .rw__due-label { font-size: 0.78rem; font-weight: 500; color: var(--rw-soft); }
+  .rw__due-amt { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+
+  /* Apple Pay --------------------------------------------------------------- */
+  .rw__wallet-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+  .rw__applepay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    height: 42px;
+    background: #000;
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .rw__applepay img { height: 17px; width: auto; }
+  .rw__applepay:focus-visible { outline: 2px solid var(--rw-deep); outline-offset: 2px; }
+  .rw__wallet-tip {
+    font-size: 0.7rem;
+    color: var(--rw-soft);
+    background: var(--rw-tint);
+    border: 1px solid var(--rw-line);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    text-align: center;
+  }
+
+  .rw__divider {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: var(--rw-soft);
+    font-size: 0.66rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .rw__divider::before,
+  .rw__divider::after { content: ''; flex: 1; height: 1px; background: var(--rw-edge); }
+
+  .rw__hint {
+    font-size: 0.66rem;
+    line-height: 1.5;
+    color: var(--rw-soft);
+    background: var(--rw-tint);
+    border: 1px dashed var(--rw-edge);
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Card form ---------------------------------------------------------------- */
+  .rw__field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .rw__field label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--rw-ink);
+  }
+  .rw__field input {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.84rem;
+    color: var(--rw-ink);
+    background: #fff;
+    border: 1px solid var(--rw-edge);
+    border-radius: 6px;
+    padding: 0.55rem 0.65rem;
+    transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy);
+  }
+  .rw__field input::placeholder { color: #A8B5A8; }
+  .rw__field input:focus {
+    outline: none;
+    border-color: var(--rw-deep);
+    box-shadow: 0 0 0 3px rgba(82, 112, 92, 0.18);
+  }
+  .rw__field--invalid input { border-color: var(--color-error); }
+  .rw__field--invalid input:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14); }
+
+  .rw__card-wrap { position: relative; }
+  .rw__card-wrap input { padding-right: 4.6rem; }
+  .rw__marks {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 5px;
+  }
+  .rw__marks img {
+    height: 15px;
+    width: auto;
+    opacity: 0.85;
+    transition: opacity var(--ease-snappy);
+  }
+  .rw__marks img.rw-mark--dim { opacity: 0.22; }
+  .rw__marks img.rw-mark--on { opacity: 1; }
+
+  .rw__split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: start; }
+
+  .rw__err {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    color: var(--color-error);
+  }
+  .rw__err svg { width: 13px; height: 13px; flex: none; margin-top: 1px; }
+  .rw__err[hidden] { display: none; }
+
+  /* Pay button ----------------------------------------------------------------- */
+  .rw__pay {
+    width: 100%;
+    height: 46px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--rw-deep);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background var(--ease-snappy);
+  }
+  .rw__pay:hover:not(:disabled) { background: var(--rw-deep-press); }
+  .rw__pay:focus-visible { outline: 2px solid var(--rw-deep); outline-offset: 2px; }
+  .rw__pay:disabled { opacity: 0.65; cursor: default; }
+  .rw__pay-busy { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .rw__pay-busy[hidden] { display: none; }
+  .rw__spin {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    animation: rw-rotate 0.7s linear infinite;
+  }
+  @keyframes rw-rotate { to { transform: rotate(360deg); } }
+
+  /* Result states ----------------------------------------------------------------- */
+  .rw__result {
+    background: #fff;
+    border: 1px solid var(--rw-line);
+    border-radius: 8px;
+    padding: 1.6rem 1.25rem 1.4rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .rw__result[hidden] { display: none; }
+  .rw__result-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    margin-bottom: 0.35rem;
+  }
+  .rw__result-icon svg { width: 26px; height: 26px; }
+  .rw__result-icon--ok { background: var(--rw-tint); color: var(--rw-deep); }
+  .rw__result-icon--bad { background: #FBEAEA; color: var(--color-error); }
+  .rw__result-title { font-size: 1rem; font-weight: 700; letter-spacing: 0.01em; }
+  .rw__result-amt { font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rw__result-sub { font-size: 0.78rem; color: var(--rw-soft); line-height: 1.55; max-width: 32ch; }
+  .rw__result-line { font-size: 0.74rem; color: var(--rw-ink); }
+  .rw__result-line strong { font-weight: 600; }
+  .rw__result-note {
+    margin-top: 0.3rem;
+    font-size: 0.69rem;
+    color: var(--rw-soft);
+    line-height: 1.5;
+    max-width: 36ch;
+  }
+  .rw__reset {
+    margin-top: 0.7rem;
+    font-family: inherit;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--rw-deep);
+    background: #fff;
+    border: 1px solid var(--rw-edge);
+    border-radius: 6px;
+    padding: 0.5rem 1.1rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), border-color var(--ease-snappy);
+  }
+  .rw__reset:hover { background: var(--rw-tint); border-color: var(--rw-leaf); }
+  .rw__reset:focus-visible { outline: 2px solid var(--rw-deep); outline-offset: 2px; }
+
+  /* Footer -------------------------------------------------------------------------- */
+  .rw__foot {
+    border-top: 1px solid var(--rw-line);
+    padding-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    text-align: center;
+  }
+  .rw__foot-secure {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.65rem;
+    line-height: 1.5;
+    color: var(--rw-soft);
+  }
+  .rw__foot-secure svg { width: 12px; height: 12px; flex: none; margin-top: 2px; color: var(--rw-deep); }
+  .rw__foot-demo { font-size: 0.63rem; font-weight: 500; color: var(--rw-soft); letter-spacing: 0.02em; }
+
+  .rw-vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 420px) {
+    .rw__body { padding: 1rem 0.9rem 0.85rem; }
+    .rw__split { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rw * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<script>
+  const RW_REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  const rwDigits = (v) => v.replace(/\D/g, '');
+
+  function rwBrand(d) {
+    if (/^3/.test(d)) return 'amex';
+    if (/^4/.test(d)) return 'visa';
+    if (/^(5|2[2-7])/.test(d)) return 'mastercard';
+    return null;
+  }
+
+  function rwLuhn(d) {
+    let sum = 0;
+    let alt = false;
+    for (let i = d.length - 1; i >= 0; i--) {
+      let n = +d[i];
+      if (alt) {
+        n *= 2;
+        if (n > 9) n -= 9;
+      }
+      sum += n;
+      alt = !alt;
+    }
+    return sum % 10 === 0;
+  }
+
+  function initRowanDemo(root) {
+    if (root.dataset.rwReady) return;
+    root.dataset.rwReady = 'true';
+
+    const q = (sel) => root.querySelector(sel);
+    const qa = (sel) => Array.from(root.querySelectorAll(sel));
+
+    const form = q('[data-rw-form]');
+    const okView = q('[data-rw-view="success"]');
+    const badView = q('[data-rw-view="declined"]');
+    const status = q('[data-rw-status]');
+
+    const panels = {
+      deposit: q('[data-rw-panel="deposit"]'),
+      plan: q('[data-rw-panel="plan"]'),
+    };
+    const dueEls = qa('[data-rw-due]');
+    const payBtn = q('[data-rw-pay]');
+    const payLabel = q('[data-rw-pay-label]');
+    const payBusy = q('[data-rw-pay-busy]');
+
+    const wraps = {
+      name: q('[data-rw-field="name"]'),
+      card: q('[data-rw-field="card"]'),
+      exp: q('[data-rw-field="exp"]'),
+      cvc: q('[data-rw-field="cvc"]'),
+    };
+    const inputs = {};
+    Object.keys(wraps).forEach((k) => {
+      inputs[k] = wraps[k].querySelector('input');
+    });
+    const marks = qa('[data-rw-mark]');
+
+    const MODES = {
+      deposit: {
+        due: '£40.00',
+        okTitle: 'Deposit Paid',
+        okSub: 'Your initial assessment on Fri 19 June is booked.',
+        next: '',
+        announce: 'Booking deposit selected. £40.00 due today.',
+      },
+      plan: {
+        due: '£90.00',
+        okTitle: 'First Instalment Paid',
+        okSub: 'Your six-session treatment course is under way.',
+        next: 'Next instalment: £90.00 on Fri 10 July.',
+        announce: 'Treatment plan selected. £90.00 due today.',
+      },
+    };
+    let mode = 'deposit';
+
+    function applyMode(next, announce) {
+      mode = next;
+      panels.deposit.hidden = mode !== 'deposit';
+      panels.plan.hidden = mode !== 'plan';
+      dueEls.forEach((el) => {
+        el.textContent = MODES[mode].due;
+      });
+      if (announce) status.textContent = MODES[mode].announce;
+    }
+
+    qa('[data-rw-mode]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (radio.checked) applyMode(radio.value, true);
+      });
+    });
+
+    function showError(wrap, message) {
+      const err = wrap.querySelector('[data-rw-err]');
+      wrap.classList.add('rw__field--invalid');
+      err.hidden = false;
+      err.querySelector('span').textContent = message;
+      wrap.querySelector('input').setAttribute('aria-invalid', 'true');
+    }
+
+    function clearError(wrap) {
+      const err = wrap.querySelector('[data-rw-err]');
+      wrap.classList.remove('rw__field--invalid');
+      err.hidden = true;
+      wrap.querySelector('input').removeAttribute('aria-invalid');
+    }
+
+    const validators = {
+      name: () => (inputs.name.value.trim().length >= 2 ? '' : 'Enter the name on the card.'),
+      card: () => {
+        const d = rwDigits(inputs.card.value);
+        const need = rwBrand(d) === 'amex' ? 15 : 16;
+        if (d.length !== need) return 'Enter a valid card number.';
+        if (!rwLuhn(d)) return 'This card number is invalid.';
+        return '';
+      },
+      exp: () => {
+        const m = inputs.exp.value.match(/^(\d{2}) \/ (\d{2})$/);
+        if (!m || +m[1] < 1 || +m[1] > 12) return 'Enter a valid expiry date (MM / YY).';
+        const yy = 2000 + +m[2];
+        const now = new Date();
+        if (yy < now.getFullYear() || (yy === now.getFullYear() && +m[1] < now.getMonth() + 1)) {
+          return 'This card has expired.';
+        }
+        return '';
+      },
+      cvc: () => {
+        const d = rwDigits(inputs.cvc.value);
+        return d.length === 3 || d.length === 4 ? '' : 'Enter the 3 or 4 digit security code.';
+      },
+    };
+
+    Object.keys(validators).forEach((key) => {
+      inputs[key].addEventListener('blur', () => {
+        if (inputs[key].value.trim() === '') return;
+        const msg = validators[key]();
+        if (msg) showError(wraps[key], msg);
+        else clearError(wraps[key]);
+      });
+    });
+
+    inputs.card.addEventListener('input', () => {
+      const brand = rwBrand(rwDigits(inputs.card.value));
+      const d = rwDigits(inputs.card.value).slice(0, brand === 'amex' ? 15 : 16);
+      inputs.card.value =
+        brand === 'amex'
+          ? [d.slice(0, 4), d.slice(4, 10), d.slice(10, 15)].filter(Boolean).join(' ')
+          : d.replace(/(\d{4})(?=\d)/g, '$1 ');
+      marks.forEach((img) => {
+        const key = img.getAttribute('data-rw-mark');
+        img.classList.toggle('rw-mark--on', brand === key);
+        img.classList.toggle('rw-mark--dim', !!brand && brand !== key);
+      });
+      clearError(wraps.card);
+    });
+
+    inputs.exp.addEventListener('input', () => {
+      let d = rwDigits(inputs.exp.value).slice(0, 4);
+      if (d.length && +d[0] > 1) d = ('0' + d).slice(0, 4);
+      inputs.exp.value = d.length > 2 ? d.slice(0, 2) + ' / ' + d.slice(2) : d;
+      clearError(wraps.exp);
+    });
+
+    inputs.cvc.addEventListener('input', () => {
+      inputs.cvc.value = rwDigits(inputs.cvc.value).slice(0, 4);
+      clearError(wraps.cvc);
+    });
+
+    inputs.name.addEventListener('input', () => clearError(wraps.name));
+
+    function setBusy(busy) {
+      payBtn.disabled = busy;
+      payLabel.hidden = busy;
+      payBusy.hidden = !busy;
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      let firstBad = null;
+      Object.keys(validators).forEach((key) => {
+        const msg = validators[key]();
+        if (msg) {
+          showError(wraps[key], msg);
+          if (!firstBad) firstBad = inputs[key];
+        } else {
+          clearError(wraps[key]);
+        }
+      });
+      if (firstBad) {
+        status.textContent = 'Please check the highlighted fields.';
+        firstBad.focus();
+        return;
+      }
+      setBusy(true);
+      status.textContent = 'Processing your payment…';
+      const settle = () => {
+        setBusy(false);
+        if (rwDigits(inputs.card.value) === '4000000000000002') {
+          form.hidden = true;
+          badView.hidden = false;
+          status.textContent = 'Your card was declined. No payment has been taken.';
+          q('[data-rw-retry]').focus();
+        } else {
+          q('[data-rw-ok-title]').textContent = MODES[mode].okTitle;
+          q('[data-rw-ok-sub]').textContent = MODES[mode].okSub;
+          q('[data-rw-ok-amount]').textContent = MODES[mode].due;
+          const nextLine = q('[data-rw-ok-next]');
+          nextLine.textContent = MODES[mode].next;
+          nextLine.hidden = !MODES[mode].next;
+          form.hidden = true;
+          okView.hidden = false;
+          status.textContent = 'Payment successful. ' + MODES[mode].due + ' paid. A receipt has been emailed to you.';
+          q('[data-rw-reset]').focus();
+        }
+      };
+      if (RW_REDUCED.matches) settle();
+      else setTimeout(settle, 900);
+    });
+
+    q('[data-rw-retry]').addEventListener('click', () => {
+      badView.hidden = true;
+      form.hidden = false;
+      status.textContent = 'Back to the card form. Your details have been kept.';
+      inputs.card.focus();
+    });
+
+    q('[data-rw-reset]').addEventListener('click', () => {
+      form.reset();
+      Object.keys(wraps).forEach((key) => clearError(wraps[key]));
+      marks.forEach((img) => img.classList.remove('rw-mark--on', 'rw-mark--dim'));
+      applyMode('deposit', false);
+      okView.hidden = true;
+      form.hidden = false;
+      status.textContent = 'Demo restarted.';
+      const firstRadio = q('[data-rw-mode]');
+      if (firstRadio) firstRadio.focus();
+    });
+
+    const wallet = q('[data-rw-wallet]');
+    const walletTip = q('[data-rw-wallet-tip]');
+    let walletTimer;
+    wallet.addEventListener('click', () => {
+      walletTip.hidden = false;
+      status.textContent = 'Apple Pay is available on the live page. Use the card form in this demo.';
+      clearTimeout(walletTimer);
+      walletTimer = setTimeout(() => {
+        walletTip.hidden = true;
+      }, 4000);
+    });
+  }
+
+  document.querySelectorAll('[data-rowan-demo]').forEach(initRowanDemo);
+</script>

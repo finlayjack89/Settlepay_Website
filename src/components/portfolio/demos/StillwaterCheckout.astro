@@ -1,0 +1,936 @@
+---
+/**
+ * Stillwater Weddings — staged-payments demo (deposit now, balance later).
+ *
+ * Fictional wedding photographer. A booking confirmation for SW-1106 with a
+ * payment schedule: a £350.00 deposit charged today and a £1,400.00 balance
+ * shown as scheduled — clearly NOT charged — until four weeks before the
+ * wedding. Everything inside the Chrome frame is the fictional brand's world
+ * (ink charcoal + champagne, serif wordmark); no real payments are taken.
+ */
+import Chrome from '../../previews/Chrome.astro';
+import Icon from '../../Icon.astro';
+
+const cardMarks = ['Visa', 'Mastercard', 'Amex'];
+---
+<div class="mok" data-sw-demo>
+  <Chrome url="pay.stillwaterweddings.co.uk/booking/SW-1106" />
+  <div class="sw">
+
+    <header class="sw__masthead">
+      <svg class="sw__mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <circle cx="20" cy="20" r="15.5" stroke="currentColor" stroke-width="1.3" />
+        <path d="M8.5 23.5c3.8-2.4 7.7-2.4 11.5 0s7.7 2.4 11.5 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        <path d="M11.5 28c2.8-1.8 5.7-1.8 8.5 0s5.7 1.8 8.5 0" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+      </svg>
+      <p class="sw__wordmark">Stillwater</p>
+      <p class="sw__wordmark-sub">Wedding Photography</p>
+    </header>
+
+    <div class="sw__body">
+
+      <!-- ======================= Form view ======================= -->
+      <div class="sw__view" data-sw-view="form">
+
+        <p class="sw__eyebrow">Booking Confirmation &mdash; SW-1106</p>
+        <h3 class="sw__title">The Full Day Collection</h3>
+        <p class="sw__lead">
+          Eleanor &amp; James &middot; Saturday 19 September 2026<br />
+          The Walled Garden, Pelham Green &middot; preparations to first dance
+        </p>
+
+        <section class="sw__schedule" aria-label="Payment schedule">
+          <h4 class="sw__rule-heading"><span>Payment Schedule</span></h4>
+
+          <div class="sw__sched-row">
+            <div class="sw__sched-what">
+              <span class="sw__sched-name">Booking deposit</span>
+              <span class="sw__sched-when">Due today &mdash; confirms your date</span>
+            </div>
+            <div class="sw__sched-amount">
+              <span class="sw__sched-sum">&pound;350.00</span>
+              <span class="sw__chip sw__chip--now">Charged Today</span>
+            </div>
+          </div>
+
+          <div class="sw__sched-row">
+            <div class="sw__sched-what">
+              <span class="sw__sched-name">Remaining balance</span>
+              <span class="sw__sched-when">Due Saturday 22 August 2026 &mdash; four weeks before your day</span>
+            </div>
+            <div class="sw__sched-amount">
+              <span class="sw__sched-sum">&pound;1,400.00</span>
+              <span class="sw__chip sw__chip--later">Scheduled &mdash; Not Charged Today</span>
+            </div>
+          </div>
+
+          <div class="sw__sched-total">
+            <span>Collection total</span>
+            <span class="sw__sched-total-sum">&pound;1,750.00</span>
+          </div>
+        </section>
+
+        <form class="sw__form" novalidate aria-label="Pay your booking deposit by card">
+          <div class="sw__form-head">
+            <h4 class="sw__rule-heading"><span>Pay Your Deposit</span></h4>
+            <div class="sw__marks" data-sw-marks>
+              {cardMarks.map((k) => (
+                <img
+                  src={`/assets/payment/${k}.svg`}
+                  alt={k}
+                  class="sw__mark-img"
+                  data-sw-brand-mark={k.toLowerCase()}
+                />
+              ))}
+            </div>
+          </div>
+
+          <p class="sw__hint">
+            Demo cards: 4242&nbsp;4242&nbsp;4242&nbsp;4242 succeeds, 4000&nbsp;0000&nbsp;0000&nbsp;0002 declines
+          </p>
+
+          <label class="sw-field" data-sw-field="name">
+            <span class="sw-field__label">Name on Card</span>
+            <input
+              class="sw-field__input"
+              type="text"
+              autocomplete="cc-name"
+              spellcheck="false"
+              data-sw-input="name"
+              aria-describedby="sw-demo-name-err"
+            />
+            <p class="sw-field__err" id="sw-demo-name-err" hidden data-sw-err>
+              <Icon name="close" sw={2} />
+              <span data-sw-err-text></span>
+            </p>
+          </label>
+
+          <label class="sw-field" data-sw-field="number">
+            <span class="sw-field__label">Card Number</span>
+            <input
+              class="sw-field__input"
+              type="text"
+              inputmode="numeric"
+              autocomplete="cc-number"
+              maxlength="19"
+              placeholder="1234 1234 1234 1234"
+              spellcheck="false"
+              data-sw-input="number"
+              aria-describedby="sw-demo-number-err"
+            />
+            <p class="sw-field__err" id="sw-demo-number-err" hidden data-sw-err>
+              <Icon name="close" sw={2} />
+              <span data-sw-err-text></span>
+            </p>
+          </label>
+
+          <div class="sw__form-row">
+            <label class="sw-field" data-sw-field="expiry">
+              <span class="sw-field__label">Expiry Date</span>
+              <input
+                class="sw-field__input"
+                type="text"
+                inputmode="numeric"
+                autocomplete="cc-exp"
+                maxlength="7"
+                placeholder="MM / YY"
+                spellcheck="false"
+                data-sw-input="expiry"
+                aria-describedby="sw-demo-expiry-err"
+              />
+              <p class="sw-field__err" id="sw-demo-expiry-err" hidden data-sw-err>
+                <Icon name="close" sw={2} />
+                <span data-sw-err-text></span>
+              </p>
+            </label>
+
+            <label class="sw-field" data-sw-field="cvc">
+              <span class="sw-field__label">Security Code</span>
+              <input
+                class="sw-field__input"
+                type="text"
+                inputmode="numeric"
+                autocomplete="cc-csc"
+                maxlength="4"
+                placeholder="CVC"
+                spellcheck="false"
+                data-sw-input="cvc"
+                aria-describedby="sw-demo-cvc-err"
+              />
+              <p class="sw-field__err" id="sw-demo-cvc-err" hidden data-sw-err>
+                <Icon name="close" sw={2} />
+                <span data-sw-err-text></span>
+              </p>
+            </label>
+          </div>
+
+          <button class="sw__pay" type="submit" data-sw-pay>
+            <span data-sw-pay-label>Pay &pound;350.00 Deposit</span>
+            <span class="sw__pay-busy" hidden data-sw-pay-busy>
+              <span class="sw__spinner" aria-hidden="true"></span>Processing&hellip;
+            </span>
+          </button>
+
+          <p class="sw__after-note">
+            Only the &pound;350.00 deposit is charged today. The &pound;1,400.00 balance is
+            scheduled for Saturday 22 August 2026 and will not be charged today.
+          </p>
+        </form>
+      </div>
+
+      <!-- ======================= Success view ======================= -->
+      <div class="sw__view sw__view--success" hidden data-sw-view="success">
+        <span class="sw__tick" aria-hidden="true"><Icon name="check" sw={2} /></span>
+        <h3 class="sw__title sw__title--centre" tabindex="-1" data-sw-success-heading>Your Date Is Booked</h3>
+        <p class="sw__lead sw__lead--centre">
+          Thank you, Eleanor &amp; James &mdash; Saturday 19 September 2026 is now held for you.
+        </p>
+
+        <div class="sw__receipt">
+          <div class="sw__receipt-row">
+            <span>Deposit paid</span>
+            <span class="sw__receipt-strong">&pound;350.00</span>
+          </div>
+          <div class="sw__receipt-row">
+            <span>Booking reference</span>
+            <span class="sw__receipt-strong">SW-1106</span>
+          </div>
+          <div class="sw__receipt-row">
+            <span>Remaining balance</span>
+            <span>&pound;1,400.00 &mdash; due Sat 22 August 2026</span>
+          </div>
+        </div>
+
+        <p class="sw__fine">A receipt has been emailed to you.</p>
+        <p class="sw__fine">
+          Funds settle directly to Stillwater Weddings&rsquo; own bank account. Nothing more is
+          charged today &mdash; we will write to you before the balance is due.
+        </p>
+
+        <button class="sw__restart" type="button" data-sw-restart>Restart Demo</button>
+      </div>
+
+      <!-- ======================= Declined view ======================= -->
+      <div class="sw__view sw__view--declined" hidden data-sw-view="declined">
+        <span class="sw__cross" aria-hidden="true">
+          <Icon name="close" sw={2} />
+        </span>
+        <h3 class="sw__title sw__title--centre">Your Card Was Declined</h3>
+        <p class="sw__lead sw__lead--centre">
+          No payment has been taken and your date is still available. Please check the card
+          details or try a different card.
+        </p>
+        <button class="sw__pay sw__pay--retry" type="button" data-sw-retry>Try Again</button>
+      </div>
+
+      <p class="sw__sr-status" role="status" aria-live="polite" data-sw-status></p>
+    </div>
+
+    <footer class="sw__foot">
+      <p class="sw__foot-demo">Illustrative demo &mdash; no real payments are taken.</p>
+      <p class="sw__foot-secure">
+        <Icon name="lock" sw={2} /> Payments secured and processed by an FCA-regulated processor
+      </p>
+    </footer>
+  </div>
+</div>
+
+<style>
+  /* Stillwater brand world — editorial ink + champagne. Deliberately not
+     SettlePay's language: serif display, 4–6px corners, warm paper field. */
+  .sw {
+    --sw-ink: #26231f;
+    --sw-paper: #faf7f1;
+    --sw-cream: #f2ecdf;
+    --sw-gold: #c8a36a;
+    --sw-gold-deep: #7d5f2c;
+    --sw-hairline: rgba(38, 35, 31, 0.14);
+    --sw-muted: rgba(38, 35, 31, 0.62);
+    --sw-serif: 'Didot', 'Bodoni 72', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sw-sans: 'Avenir Next', 'Helvetica Neue', Helvetica, system-ui, sans-serif;
+    background: var(--sw-paper);
+    color: var(--sw-ink);
+    font-family: var(--sw-sans);
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  /* ---- Masthead ---- */
+  .sw__masthead {
+    background: var(--sw-ink);
+    color: var(--sw-paper);
+    text-align: center;
+    padding: 1.9rem 1.5rem 1.7rem;
+  }
+  .sw__mark {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 0.7rem;
+    color: var(--sw-gold);
+  }
+  .sw__wordmark {
+    margin: 0;
+    font-family: var(--sw-serif);
+    font-size: 1.65rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .sw__wordmark-sub {
+    margin: 0.45rem 0 0;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--sw-gold);
+  }
+
+  /* ---- Body ---- */
+  .sw__body {
+    padding: 2.1rem clamp(1.25rem, 5vw, 2.4rem) 1.9rem;
+  }
+  .sw__eyebrow {
+    margin: 0 0 0.55rem;
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--sw-gold-deep);
+  }
+  .sw__title {
+    margin: 0 0 0.55rem;
+    font-family: var(--sw-serif);
+    font-size: 1.7rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+  .sw__title--centre { text-align: center; }
+  .sw__title--centre:focus { outline: none; }
+  .sw__lead {
+    margin: 0 0 1.8rem;
+    color: var(--sw-muted);
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+  .sw__lead--centre {
+    text-align: center;
+    margin-bottom: 1.4rem;
+  }
+
+  /* Hairline heading: a label resting on a rule, editorial-style */
+  .sw__rule-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin: 0 0 1.1rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--sw-ink);
+  }
+  .sw__rule-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--sw-hairline);
+  }
+
+  /* ---- Payment schedule ---- */
+  .sw__schedule { margin-bottom: 2rem; }
+  .sw__sched-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--sw-hairline);
+  }
+  .sw__sched-row:first-of-type { padding-top: 0.1rem; }
+  .sw__sched-what { display: flex; flex-direction: column; gap: 0.15rem; }
+  .sw__sched-name { font-weight: 600; font-size: 0.9rem; }
+  .sw__sched-when { font-size: 0.78rem; color: var(--sw-muted); }
+  .sw__sched-amount {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+  .sw__sched-sum {
+    font-family: var(--sw-serif);
+    font-size: 1.08rem;
+    letter-spacing: 0.02em;
+  }
+  .sw__chip {
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.55rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .sw__chip--now {
+    background: var(--sw-gold);
+    color: var(--sw-ink);
+  }
+  .sw__chip--later {
+    background: transparent;
+    color: var(--sw-muted);
+    border: 1px solid var(--sw-hairline);
+  }
+  .sw__sched-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 0.8rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sw-muted);
+  }
+  .sw__sched-total-sum {
+    font-family: var(--sw-serif);
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--sw-ink);
+  }
+
+  /* ---- Card form ---- */
+  .sw__form-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+  .sw__form-head .sw__rule-heading { flex: 1; margin-bottom: 0; }
+  .sw__marks {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .sw__mark-img {
+    height: 18px;
+    width: auto;
+    border-radius: 3px;
+    transition: opacity 0.15s ease;
+  }
+  .sw__marks--detected .sw__mark-img { opacity: 0.3; }
+  .sw__marks--detected .sw__mark-img--on { opacity: 1; }
+
+  .sw__hint {
+    margin: 1rem 0 1.2rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed var(--sw-hairline);
+    border-radius: 5px;
+    background: var(--sw-cream);
+    font-size: 0.72rem;
+    color: var(--sw-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sw-field {
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .sw-field__label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sw-gold-deep);
+  }
+  .sw-field__input {
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--sw-hairline);
+    border-radius: 5px;
+    background: #fffdf9;
+    color: var(--sw-ink);
+    font-family: var(--sw-sans);
+    font-size: 0.92rem;
+    letter-spacing: 0.02em;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .sw-field__input::placeholder { color: rgba(38, 35, 31, 0.32); }
+  .sw-field__input:focus {
+    outline: none;
+    border-color: var(--sw-gold);
+    box-shadow: 0 0 0 3px rgba(200, 163, 106, 0.25);
+  }
+  .sw-field--invalid .sw-field__input {
+    border-color: var(--color-error, #dc2626);
+  }
+  .sw-field--invalid .sw-field__input:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  }
+  .sw-field__err {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0.4rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--color-error, #dc2626);
+  }
+  .sw-field__err[hidden] { display: none; }
+  .sw-field__err svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .sw__form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+  }
+
+  .sw__pay {
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.85rem 1rem;
+    border: none;
+    border-radius: 6px;
+    background: var(--sw-gold);
+    color: var(--sw-ink);
+    font-family: var(--sw-sans);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+  }
+  .sw__pay:hover:not(:disabled) { background: #bd9558; }
+  .sw__pay:active:not(:disabled) { transform: scale(0.99); }
+  .sw__pay:focus-visible {
+    outline: 2px solid var(--sw-ink);
+    outline-offset: 2px;
+  }
+  .sw__pay:disabled { cursor: default; opacity: 0.85; }
+  .sw__pay--retry { margin-top: 0.2rem; }
+
+  .sw__pay-busy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .sw__pay-busy[hidden] { display: none; }
+  .sw__spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(38, 35, 31, 0.25);
+    border-top-color: var(--sw-ink);
+    border-radius: 50%;
+    animation: sw-spin 0.8s linear infinite;
+  }
+  @keyframes sw-spin { to { transform: rotate(360deg); } }
+
+  .sw__after-note {
+    margin: 0.9rem 0 0;
+    font-size: 0.74rem;
+    line-height: 1.6;
+    color: var(--sw-muted);
+    text-align: center;
+  }
+
+  /* ---- Success view ---- */
+  .sw__tick {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin: 0.4rem auto 1.1rem;
+    border-radius: 50%;
+    background: var(--sw-gold);
+    color: var(--sw-ink);
+  }
+  .sw__tick :global(svg) { width: 26px; height: 26px; }
+  .sw__receipt {
+    margin: 0 0 1.2rem;
+    padding: 1rem 1.2rem;
+    background: var(--sw-cream);
+    border: 1px solid var(--sw-hairline);
+    border-radius: 6px;
+  }
+  .sw__receipt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    font-size: 0.84rem;
+    color: var(--sw-muted);
+  }
+  .sw__receipt-strong {
+    color: var(--sw-ink);
+    font-weight: 600;
+  }
+  .sw__fine {
+    margin: 0 0 0.5rem;
+    text-align: center;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--sw-muted);
+  }
+  .sw__restart {
+    display: block;
+    margin: 1.2rem auto 0;
+    padding: 0.45rem 1.1rem;
+    background: transparent;
+    border: 1px solid var(--sw-hairline);
+    border-radius: 5px;
+    color: var(--sw-ink);
+    font-family: var(--sw-sans);
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .sw__restart:hover { border-color: var(--sw-gold); background: var(--sw-cream); }
+  .sw__restart:focus-visible {
+    outline: 2px solid var(--sw-ink);
+    outline-offset: 2px;
+  }
+
+  /* ---- Declined view ---- */
+  .sw__cross {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin: 0.4rem auto 1.1rem;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--color-error, #dc2626);
+  }
+  .sw__cross svg { width: 24px; height: 24px; }
+
+  /* ---- Status (screen readers) ---- */
+  .sw__sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---- Footer ---- */
+  .sw__foot {
+    border-top: 1px solid var(--sw-hairline);
+    background: var(--sw-cream);
+    text-align: center;
+    padding: 0.9rem 1.25rem 1rem;
+  }
+  .sw__foot-demo {
+    margin: 0 0 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--sw-muted);
+  }
+  .sw__foot-secure {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.68rem;
+    color: var(--sw-muted);
+  }
+  .sw__foot-secure :global(svg) {
+    width: 11px;
+    height: 11px;
+    color: var(--sw-gold-deep);
+  }
+
+  @media (max-width: 420px) {
+    .sw__sched-row {
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .sw__sched-amount {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .sw__form-row { grid-template-columns: 1fr; gap: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sw *,
+    .sw *::before,
+    .sw *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    .sw__pay:active:not(:disabled) { transform: none; }
+  }
+</style>
+
+<script>
+  function initStillwaterDemo(root) {
+    if (root.dataset.swBound === 'true') return;
+    root.dataset.swBound = 'true';
+
+    var form = root.querySelector('.sw__form');
+    var views = {
+      form: root.querySelector('[data-sw-view="form"]'),
+      success: root.querySelector('[data-sw-view="success"]'),
+      declined: root.querySelector('[data-sw-view="declined"]'),
+    };
+    var status = root.querySelector('[data-sw-status]');
+    var payBtn = root.querySelector('[data-sw-pay]');
+    var payLabel = root.querySelector('[data-sw-pay-label]');
+    var payBusy = root.querySelector('[data-sw-pay-busy]');
+    var marksWrap = root.querySelector('[data-sw-marks]');
+
+    var inputs = {
+      name: root.querySelector('[data-sw-input="name"]'),
+      number: root.querySelector('[data-sw-input="number"]'),
+      expiry: root.querySelector('[data-sw-input="expiry"]'),
+      cvc: root.querySelector('[data-sw-input="cvc"]'),
+    };
+    if (!form || !inputs.name || !inputs.number || !inputs.expiry || !inputs.cvc) return;
+
+    function fieldWrap(key) {
+      return root.querySelector('[data-sw-field="' + key + '"]');
+    }
+
+    function setError(key, message) {
+      var wrap = fieldWrap(key);
+      if (!wrap) return;
+      var err = wrap.querySelector('[data-sw-err]');
+      var text = wrap.querySelector('[data-sw-err-text]');
+      if (message) {
+        wrap.classList.add('sw-field--invalid');
+        inputs[key].setAttribute('aria-invalid', 'true');
+        if (text) text.textContent = message;
+        if (err) err.hidden = false;
+      } else {
+        wrap.classList.remove('sw-field--invalid');
+        inputs[key].removeAttribute('aria-invalid');
+        if (err) err.hidden = true;
+      }
+    }
+
+    function announce(message) {
+      if (status) status.textContent = message;
+    }
+
+    /* ---- Card brand detection + formatting ---- */
+    function detectBrand(digits) {
+      if (!digits) return '';
+      if (digits.charAt(0) === '4') return 'visa';
+      if (digits.charAt(0) === '5') return 'mastercard';
+      if (digits.charAt(0) === '3') return 'amex';
+      return '';
+    }
+
+    function groupDigits(digits, brand) {
+      var groups = brand === 'amex' ? [4, 6, 5] : [4, 4, 4, 4];
+      var parts = [];
+      var i = 0;
+      for (var g = 0; g < groups.length && i < digits.length; g++) {
+        parts.push(digits.slice(i, i + groups[g]));
+        i += groups[g];
+      }
+      return parts.join(' ');
+    }
+
+    function cardDigits() {
+      return inputs.number.value.replace(/\D/g, '');
+    }
+
+    function updateMarks(brand) {
+      if (!marksWrap) return;
+      marksWrap.classList.toggle('sw__marks--detected', !!brand);
+      var marks = marksWrap.querySelectorAll('[data-sw-brand-mark]');
+      for (var i = 0; i < marks.length; i++) {
+        marks[i].classList.toggle(
+          'sw__mark-img--on',
+          marks[i].getAttribute('data-sw-brand-mark') === brand
+        );
+      }
+    }
+
+    inputs.number.addEventListener('input', function () {
+      var brand = detectBrand(inputs.number.value.replace(/\D/g, ''));
+      var max = brand === 'amex' ? 15 : 16;
+      var digits = inputs.number.value.replace(/\D/g, '').slice(0, max);
+      inputs.number.value = groupDigits(digits, brand);
+      inputs.number.maxLength = brand === 'amex' ? 17 : 19;
+      inputs.cvc.maxLength = 4;
+      inputs.cvc.placeholder = brand === 'amex' ? '1234' : 'CVC';
+      updateMarks(brand);
+      if (fieldWrap('number').classList.contains('sw-field--invalid')) validateNumber();
+    });
+
+    inputs.expiry.addEventListener('input', function () {
+      var d = inputs.expiry.value.replace(/\D/g, '').slice(0, 4);
+      if (d.length >= 1 && d.charAt(0) > '1') d = '0' + d;
+      inputs.expiry.value = d.length > 2 ? d.slice(0, 2) + ' / ' + d.slice(2) : d;
+      if (fieldWrap('expiry').classList.contains('sw-field--invalid')) validateExpiry();
+    });
+
+    inputs.cvc.addEventListener('input', function () {
+      inputs.cvc.value = inputs.cvc.value.replace(/\D/g, '').slice(0, 4);
+      if (fieldWrap('cvc').classList.contains('sw-field--invalid')) validateCvc();
+    });
+
+    inputs.name.addEventListener('input', function () {
+      if (fieldWrap('name').classList.contains('sw-field--invalid')) validateName();
+    });
+
+    /* ---- Validation ---- */
+    function validateName() {
+      var ok = inputs.name.value.trim().length >= 2;
+      setError('name', ok ? '' : 'Enter the name as it appears on the card.');
+      return ok;
+    }
+
+    function validateNumber() {
+      var digits = cardDigits();
+      var brand = detectBrand(digits);
+      var needed = brand === 'amex' ? 15 : 16;
+      var ok = digits.length === needed && brand !== '';
+      setError('number', ok ? '' : 'Enter a valid card number.');
+      return ok;
+    }
+
+    function validateExpiry() {
+      var d = inputs.expiry.value.replace(/\D/g, '');
+      var ok = false;
+      var message = 'Enter a valid expiry date.';
+      if (d.length === 4) {
+        var mm = parseInt(d.slice(0, 2), 10);
+        var yy = 2000 + parseInt(d.slice(2), 10);
+        if (mm >= 1 && mm <= 12) {
+          var now = new Date();
+          var expired = yy < now.getFullYear() || (yy === now.getFullYear() && mm < now.getMonth() + 1);
+          if (expired) {
+            message = 'This card has expired.';
+          } else {
+            ok = true;
+          }
+        }
+      }
+      setError('expiry', ok ? '' : message);
+      return ok;
+    }
+
+    function validateCvc() {
+      var v = inputs.cvc.value.replace(/\D/g, '');
+      var ok = v.length === 3 || v.length === 4;
+      setError('cvc', ok ? '' : 'Enter the 3 or 4 digit security code.');
+      return ok;
+    }
+
+    var validators = {
+      name: validateName,
+      number: validateNumber,
+      expiry: validateExpiry,
+      cvc: validateCvc,
+    };
+
+    Object.keys(validators).forEach(function (key) {
+      inputs[key].addEventListener('blur', function () {
+        if (inputs[key].value.trim() !== '') validators[key]();
+      });
+    });
+
+    /* ---- View switching ---- */
+    function showView(name) {
+      Object.keys(views).forEach(function (key) {
+        if (views[key]) views[key].hidden = key !== name;
+      });
+    }
+
+    function setProcessing(on) {
+      if (payBtn) {
+        payBtn.disabled = on;
+        payBtn.setAttribute('aria-busy', on ? 'true' : 'false');
+      }
+      if (payLabel) payLabel.hidden = on;
+      if (payBusy) payBusy.hidden = !on;
+    }
+
+    /* ---- Submit ---- */
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var results = [validateName(), validateNumber(), validateExpiry(), validateCvc()];
+      if (results.indexOf(false) !== -1) {
+        announce('Some card details need attention. Check the highlighted fields.');
+        var order = ['name', 'number', 'expiry', 'cvc'];
+        for (var i = 0; i < order.length; i++) {
+          if (!results[i]) {
+            inputs[order[i]].focus();
+            break;
+          }
+        }
+        return;
+      }
+
+      setProcessing(true);
+      announce('Processing your payment.');
+      var reduced =
+        window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      window.setTimeout(function () {
+        setProcessing(false);
+        if (cardDigits() === '4000000000000002') {
+          showView('declined');
+          announce('Your card was declined. No payment has been taken.');
+          var retry = root.querySelector('[data-sw-retry]');
+          if (retry) retry.focus();
+        } else {
+          showView('success');
+          announce('Payment successful. Your 350 pound deposit has been received and your date is booked.');
+          var heading = root.querySelector('[data-sw-success-heading]');
+          if (heading) heading.focus();
+        }
+      }, reduced ? 0 : 900);
+    });
+
+    /* ---- Try again (values intact) ---- */
+    var retryBtn = root.querySelector('[data-sw-retry]');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', function () {
+        showView('form');
+        announce('');
+        inputs.number.focus();
+      });
+    }
+
+    /* ---- Restart demo ---- */
+    var restartBtn = root.querySelector('[data-sw-restart]');
+    if (restartBtn) {
+      restartBtn.addEventListener('click', function () {
+        form.reset();
+        Object.keys(validators).forEach(function (key) {
+          setError(key, '');
+        });
+        updateMarks('');
+        inputs.cvc.placeholder = 'CVC';
+        setProcessing(false);
+        showView('form');
+        announce('Demo restarted.');
+        inputs.name.focus();
+      });
+    }
+  }
+
+  document.querySelectorAll('[data-sw-demo]').forEach(initStillwaterDemo);
+</script>

@@ -1,0 +1,10 @@
+# SettlePay Stripe demo Worker — example config (safe to commit: contains no secrets).
+#
+# The Stripe TEST secret key is a Worker secret, never a var in this file:
+#   npx wrangler secret put STRIPE_SECRET_KEY      # paste sk_test_… when prompted
+# Then deploy with:
+#   npx wrangler deploy
+
+name = "settlepay-stripe-demo"
+main = "worker.js"
+compatibility_date = "2026-06-01"

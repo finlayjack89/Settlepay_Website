@@ -1,0 +1,46 @@
+---
+/**
+ * LegalLayout — markdown layout for Privacy / Cookies / Terms.
+ * Builds an on-this-page TOC from the document's H2 headings.
+ */
+import BaseLayout from './BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Icon from '../components/Icon.astro';
+import { webPage, breadcrumbs } from '../data/structuredData.mjs';
+
+const { frontmatter, headings = [] } = Astro.props;
+const { title, seoTitle, description, keywords, lastUpdated, path } = frontmatter;
+const crumbs = [{ name: 'Home', path: '/' }, { name: title, path }];
+const toc = headings.filter((h) => h.depth === 2);
+const jsonLd = [webPage({ path, title, description }), breadcrumbs(crumbs)];
+---
+<BaseLayout
+  title={seoTitle}
+  description={description}
+  keywords={keywords}
+  canonical={path}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <h1 class="page-header__title">{title}</h1>
+    </div>
+  </header>
+  <section class="content-section">
+    <div class="container">
+      <div class="legal-meta"><Icon name="clock" sw={2} style="width:14px;height:14px" />Last updated: {lastUpdated}</div>
+      {toc.length > 0 && (
+        <nav class="legal-toc" aria-label="On this page">
+          <div class="legal-toc__title">On this page</div>
+          <ol>
+            {toc.map((h) => (
+              <li><a href={`#${h.slug}`}>{h.text}</a></li>
+            ))}
+          </ol>
+        </nav>
+      )}
+      <article class="prose"><slot /></article>
+    </div>
+  </section>
+</BaseLayout>

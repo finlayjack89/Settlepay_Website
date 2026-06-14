@@ -1,0 +1,69 @@
+---
+/**
+ * OurWork — landing-page teaser for the /work/ portfolio.
+ * Three featured cards (the live client + two demos) reusing the gallery
+ * card styles from portfolio.css, plus a single secondary link to /work/.
+ * Deliberately no primary button — the page's primary CTAs live elsewhere.
+ */
+import '../../styles/portfolio.css';
+import SectionHeader from '../SectionHeader.astro';
+import Button from '../Button.astro';
+import { PORTFOLIO } from '../../data/portfolio.mjs';
+
+const featuredSlugs = ['lockdales-auctioneers', 'marsh-vale-plumbing', 'harbourside-lettings'];
+const featured = featuredSlugs
+  .map((slug) => PORTFOLIO.find((e) => e.slug === slug))
+  .filter(Boolean);
+
+const thumbStyle = (b) =>
+  `--pf-bg:${b.bg};--pf-surface:${b.surface};--pf-accent:${b.accent};--pf-ink:${b.ink}`;
+---
+<section class="our-work section-pad" id="work" data-screen-label="Our work">
+  <div class="container">
+    <SectionHeader
+      eyebrow="Our Work"
+      title="See What a Bespoke Page "
+      blue="Actually Looks Like"
+      subtitle="One live client and five fictional demo brands — each replacing bank transfers, cheques or card numbers read out over the phone with a branded page customers trust."
+    />
+    <div class="pf-grid">
+      {featured.map((e) => (
+        <a class="pf-card" href={`/work/${e.slug}/`}>
+          <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
+            <div class="pf-thumb__chrome"><span></span><span></span><span></span></div>
+            <div class="pf-thumb__page">
+              <div class="pf-thumb__brandbar">
+                <span class="pf-thumb__logo"></span>
+                <span class="pf-thumb__brandline"></span>
+              </div>
+              <span class="pf-thumb__line"></span>
+              <span class="pf-thumb__line pf-thumb__line--short"></span>
+              <span class="pf-thumb__btn"></span>
+            </div>
+          </div>
+          <div class="pf-card__body">
+            <div class="pf-card__head">
+              <span class="pf-card__vertical">{e.vertical}</span>
+              <span class={'use-case__tag ' + (e.live ? 'use-case__tag--live' : 'use-case__tag--demo')}>
+                {e.live ? 'Live client' : 'Illustrative demo'}
+              </span>
+            </div>
+            <h3 class="pf-card__title">{e.name}</h3>
+            <span class="pf-card__pattern">{e.pattern}</span>
+            <p class="pf-card__summary">{e.summary}</p>
+            <div class="pf-card__methods">
+              {e.methods.map((m) => <span class="pf-chip">{m}</span>)}
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+    <p class="pf-disclaimer">
+      Apart from Lockdales Auctioneers, the businesses shown are fictional brands created to
+      demonstrate the range of what we build.
+    </p>
+    <div class="our-work__more">
+      <Button variant="secondary" href="/work/" icon="arrow">View All Our Work</Button>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,471 @@
+/* =========================================================================
+   SettlePay — site-level additions on top of the design-system styles.
+   Accessibility helpers, inner-page headers, breadcrumbs, long-form prose
+   (legal + About), FAQ accordion, and the 404 page. Uses the same tokens
+   (--color-*, --radius-*, --ease-*) defined in styles.css.
+   ========================================================================= */
+
+/* ---- Accessibility: skip link + focus visibility ---- */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100%;
+  z-index: 1100;
+  background: var(--color-primary-brand);
+  color: var(--color-pure-white);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-button);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: top var(--ease-snappy);
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-primary-action);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Add gentle scroll offset so anchor targets clear the floating nav. */
+:target {
+  scroll-margin-top: 90px;
+}
+
+/* ---- Inner-page header (About / FAQ / legal) ---- */
+.page-header {
+  position: relative;
+  padding-block: 7.5rem 3.5rem;
+  background: linear-gradient(165deg, var(--color-pure-white) 0%, var(--color-secondary-bg) 100%);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+.page-header__inner {
+  max-width: 760px;
+}
+.page-header__title {
+  font-size: clamp(2rem, 3vw + 1rem, 3rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--color-primary-brand);
+  margin: 0.75rem 0 0;
+  text-wrap: balance;
+}
+.page-header__title span {
+  color: var(--color-primary-action);
+}
+.page-header__lead {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--color-primary-brand);
+  opacity: 0.6;
+  margin-top: 1rem;
+  max-width: 60ch;
+}
+
+/* ---- Breadcrumbs ---- */
+.breadcrumbs {
+  font-size: 0.82rem;
+  color: var(--color-primary-brand);
+}
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  list-style: none;
+}
+.breadcrumbs a {
+  opacity: 0.55;
+  transition: opacity var(--ease-snappy);
+}
+.breadcrumbs a:hover {
+  opacity: 1;
+}
+.breadcrumbs li[aria-current="page"] {
+  opacity: 0.45;
+}
+.breadcrumbs svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.35;
+}
+
+/* ---- Long-form prose (legal pages + About body) ---- */
+.prose {
+  max-width: 72ch;
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: rgba(15, 23, 42, 0.78);
+}
+.prose > * + * {
+  margin-top: 1.15rem;
+}
+.prose h1 {
+  font-size: clamp(1.9rem, 2.5vw + 0.8rem, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--color-primary-brand);
+  margin-bottom: 0.5rem;
+}
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-brand);
+  margin-top: 2.75rem;
+  scroll-margin-top: 90px;
+}
+.prose h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+  margin-top: 1.75rem;
+}
+.prose p,
+.prose li {
+  color: rgba(15, 23, 42, 0.78);
+}
+.prose strong {
+  color: var(--color-primary-brand);
+  font-weight: 700;
+}
+.prose a {
+  color: var(--color-primary-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  font-weight: 500;
+}
+.prose a:hover {
+  color: var(--color-primary-action-hover);
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.prose ul {
+  list-style: disc;
+}
+.prose ol {
+  list-style: decimal;
+}
+.prose ul li,
+.prose ol li {
+  padding-left: 0.25rem;
+}
+.prose ul li::marker,
+.prose ol li::marker {
+  color: var(--color-primary-action);
+}
+.prose blockquote {
+  border-left: 3px solid var(--color-primary-action);
+  padding: 0.5rem 0 0.5rem 1.25rem;
+  color: rgba(15, 23, 42, 0.7);
+  font-style: italic;
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  margin-block: 2.5rem;
+}
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-secondary-bg);
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin-block: 0.5rem;
+}
+.prose th,
+.prose td {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  vertical-align: top;
+}
+.prose th {
+  background: var(--color-secondary-bg);
+  font-weight: 700;
+  color: var(--color-primary-brand);
+}
+
+/* Section wrapper for legal/long-form pages */
+.content-section {
+  padding-block: 4rem 6rem;
+}
+.legal-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.08);
+  padding: 0.35rem 0.85rem;
+  border-radius: 100px;
+  margin-bottom: 1.5rem;
+}
+.legal-toc {
+  background: var(--color-secondary-bg);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: var(--radius-card);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2.5rem;
+  max-width: 72ch;
+}
+.legal-toc__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary-brand);
+  opacity: 0.55;
+  margin-bottom: 0.85rem;
+}
+.legal-toc ol {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 1.5rem;
+  counter-reset: toc;
+}
+.legal-toc li {
+  counter-increment: toc;
+  font-size: 0.9rem;
+}
+.legal-toc a {
+  color: rgba(15, 23, 42, 0.7);
+  transition: color var(--ease-snappy);
+}
+.legal-toc a::before {
+  content: counter(toc) ". ";
+  color: var(--color-primary-action);
+  font-weight: 600;
+}
+.legal-toc a:hover {
+  color: var(--color-primary-action);
+}
+
+/* ---- About page extras ---- */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+.about-card {
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: var(--radius-card);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-md);
+}
+.about-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+}
+.about-card__icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary-action);
+}
+.about-card__icon--green { background: rgba(16, 185, 129, 0.08); }
+.about-card__icon--green svg { color: #10b981; }
+.about-card__icon--amber { background: rgba(245, 158, 11, 0.08); }
+.about-card__icon--amber svg { color: #f59e0b; }
+.about-card__icon--purple { background: rgba(139, 92, 246, 0.08); }
+.about-card__icon--purple svg { color: #8b5cf6; }
+.about-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.5rem;
+  color: var(--color-primary-brand);
+}
+.about-card p {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: rgba(15, 23, 42, 0.62);
+}
+
+/* ---- FAQ ---- */
+.faq-section {
+  padding-block: 3.5rem 6rem;
+}
+.faq-cat {
+  margin-top: 3rem;
+}
+.faq-cat:first-of-type {
+  margin-top: 0;
+}
+.faq-cat__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary-action);
+  margin-bottom: 1rem;
+}
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 820px;
+}
+.faq-item {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: var(--color-pure-white);
+  overflow: hidden;
+  transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy);
+}
+.faq-item[open] {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: var(--shadow-md);
+}
+.faq-item__q {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+}
+.faq-item__q::-webkit-details-marker {
+  display: none;
+}
+.faq-item__q .faq-chevron {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary-action);
+  transition: transform var(--ease-cinematic);
+}
+.faq-item[open] .faq-chevron {
+  transform: rotate(180deg);
+}
+.faq-item__a {
+  padding: 0 1.5rem 1.4rem;
+  font-size: 0.97rem;
+  line-height: 1.7;
+  color: rgba(15, 23, 42, 0.7);
+}
+.faq-item__a p + p {
+  margin-top: 0.85rem;
+}
+.faq-item__a a {
+  color: var(--color-primary-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---- 404 ---- */
+.notfound {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 7rem 1.5rem 5rem;
+  gap: 1.25rem;
+}
+.notfound__code {
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: var(--color-primary-action);
+}
+.notfound__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-brand);
+}
+.notfound__text {
+  font-size: 1rem;
+  color: rgba(15, 23, 42, 0.6);
+  max-width: 46ch;
+  line-height: 1.6;
+}
+
+/* ---- Contact band on inner pages ---- */
+.mini-cta {
+  background: var(--color-secondary-bg);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+.mini-cta__inner {
+  text-align: center;
+  max-width: 600px;
+  margin-inline: auto;
+  padding-block: 4rem;
+}
+.mini-cta__title {
+  font-size: clamp(1.4rem, 2vw + 0.5rem, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-brand);
+  margin-bottom: 0.75rem;
+  text-wrap: balance;
+}
+.mini-cta__text {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: rgba(15, 23, 42, 0.6);
+  margin-bottom: 2rem;
+}
+.mini-cta__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    padding-block: 6rem 2.5rem;
+  }
+  .legal-toc ol {
+    grid-template-columns: 1fr;
+  }
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+}

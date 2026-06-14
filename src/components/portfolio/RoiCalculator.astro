@@ -1,0 +1,311 @@
+---
+/* "Try it on your own numbers" — interactive ROI calculator for a case study.
+   Driven by caseStudy.roi (see portfolio.mjs). One honest model used across
+   every vertical: volume x minutes-of-admin-per-item x hourly-rate -> hours
+   saved per month and money recovered per year. Defaults reproduce the
+   modelled story above it; the visitor drags to their own numbers.
+
+   Figures remain illustrative — the disclaimer is load-bearing and always
+   renders. Self-contained scoped script; no dependency on SiteScripts. */
+import Icon from '../Icon.astro';
+
+const { roi, accent = '#0F172A' } = Astro.props;
+
+const v = roi.volume.default;
+const m = roi.minutes.default;
+const r = roi.rate.default;
+
+// period 'month' => volume is per month; 'year' => per year.
+const hoursPerMonth = roi.period === 'month' ? (v * m) / 60 : (v * m) / 60 / 12;
+const moneyPerYear = hoursPerMonth * 12 * r;
+
+const fmtHours = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
+const money0 = '£' + (Math.round(moneyPerYear / 10) * 10).toLocaleString('en-GB');
+
+const pct = (val, min, max) => ((val - min) / (max - min)) * 100;
+const fill = (p) =>
+  `background: linear-gradient(to right, var(--color-primary-action) ${p}%, rgba(15,23,42,.1) ${p}%)`;
+
+const sliders = [
+  { key: 'volume', cfg: roi.volume, label: roi.volumeLabel, suffix: roi.period === 'month' ? ' / month' : ' / year' },
+  { key: 'minutes', cfg: roi.minutes, label: roi.minutesLabel, suffix: ' min' },
+  { key: 'rate', cfg: roi.rate, label: roi.rateLabel, suffix: '', prefix: '£' },
+];
+---
+<div
+  class="roi"
+  data-roi
+  data-period={roi.period}
+  data-vol={v}
+  data-min={m}
+  data-rate={r}
+>
+  <div class="roi__inputs">
+    {sliders.map((s) => (
+      <div class="roi__group">
+        <label class="roi__label" for={`roi-${s.key}`}>{s.label}</label>
+        <div class="roi__slider-row">
+          <input
+            type="range"
+            id={`roi-${s.key}`}
+            min={s.cfg.min}
+            max={s.cfg.max}
+            step={s.cfg.step}
+            value={s.cfg.default}
+            class="roi__range"
+            data-range={s.key}
+            aria-label={s.label}
+            style={fill(pct(s.cfg.default, s.cfg.min, s.cfg.max))}
+          />
+          <span class="roi__value" data-val={s.key}>{s.prefix ?? ''}{s.cfg.default}{s.suffix}</span>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div class="roi__results">
+    <div class="roi__card roi__card--highlight">
+      <div class="roi__card-icon roi__card-icon--blue"><Icon name="clock" sw={1.5} /></div>
+      <div>
+        <div class="roi__card-value" data-out="hours">{fmtHours(hoursPerMonth)} hrs</div>
+        <div class="roi__card-label">Admin hours saved per month</div>
+      </div>
+    </div>
+    <div class="roi__card">
+      <div class="roi__card-icon roi__card-icon--green"><Icon name="scale" sw={1.5} /></div>
+      <div>
+        <div class="roi__card-value" data-out="money">{money0}</div>
+        <div class="roi__card-label">Staff time recovered per year</div>
+      </div>
+    </div>
+    <div class="roi__card roi__card--lens">
+      <div class="roi__card-icon roi__card-icon--amber"><Icon name="sparkles" sw={1.5} /></div>
+      <p class="roi__lens">{roi.lens}</p>
+    </div>
+  </div>
+
+  <p class="roi__note">
+    A model, not a measured result: {roi.rateLabel.toLowerCase()} and time-per-item are yours to set,
+    costed against published UK figures. Your own savings depend on your volumes and how you get paid today.
+  </p>
+</div>
+
+<style>
+  .roi {
+    max-width: 920px;
+    margin-inline: auto;
+  }
+  .roi__inputs {
+    display: grid;
+    gap: 1.5rem;
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: var(--radius-card);
+    padding: 1.75rem 1.9rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .roi__label {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    margin-bottom: 0.7rem;
+  }
+  .roi__slider-row {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+  }
+  .roi__range {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(15, 23, 42, 0.1);
+    cursor: pointer;
+  }
+  .roi__range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--color-pure-white);
+    border: 2px solid var(--color-primary-action);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+  }
+  .roi__range::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--color-pure-white);
+    border: 2px solid var(--color-primary-action);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+  }
+  .roi__range:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 4px;
+  }
+  .roi__value {
+    min-width: 96px;
+    text-align: right;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-primary-brand);
+  }
+  .roi__results {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+  }
+  .roi__card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    padding: 1.5rem 1.6rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .roi__card--highlight {
+    background: var(--color-primary-brand);
+    border-color: var(--color-primary-brand);
+  }
+  .roi__card--highlight .roi__card-value {
+    color: var(--color-pure-white);
+  }
+  .roi__card--highlight .roi__card-label {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .roi__card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-icon);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    background: rgba(59, 130, 246, 0.1);
+  }
+  .roi__card-icon svg {
+    width: 22px;
+    height: 22px;
+    color: var(--color-primary-action);
+  }
+  .roi__card--highlight .roi__card-icon {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .roi__card--highlight .roi__card-icon svg {
+    color: var(--color-pure-white);
+  }
+  .roi__card-icon--green {
+    background: rgba(16, 185, 129, 0.1);
+  }
+  .roi__card-icon--green svg {
+    color: var(--color-success);
+  }
+  .roi__card-icon--amber {
+    background: rgba(245, 158, 11, 0.12);
+  }
+  .roi__card-icon--amber svg {
+    color: var(--color-warning);
+  }
+  .roi__card-value {
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-primary-brand);
+  }
+  .roi__card-label {
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: rgba(15, 23, 42, 0.6);
+    margin-top: 0.35rem;
+  }
+  .roi__lens {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgba(15, 23, 42, 0.7);
+    margin: 0;
+  }
+  .roi__note {
+    margin: 1.4rem auto 0;
+    max-width: 72ch;
+    text-align: center;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: rgba(15, 23, 42, 0.5);
+  }
+
+  @media (max-width: 768px) {
+    .roi__results {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .roi__range {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll("[data-roi]").forEach((root) => {
+    if (root.dataset.roiBound) return;
+    root.dataset.roiBound = "1";
+
+    const period = root.dataset.period;
+    const ranges = root.querySelectorAll("[data-range]");
+    const outHours = root.querySelector('[data-out="hours"]');
+    const outMoney = root.querySelector('[data-out="money"]');
+
+    const state = {
+      volume: Number(root.dataset.vol),
+      minutes: Number(root.dataset.min),
+      rate: Number(root.dataset.rate),
+    };
+
+    const fmtHours = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
+    const gbp = (n) => "£" + (Math.round(n / 10) * 10).toLocaleString("en-GB");
+
+    function fill(el) {
+      const min = Number(el.min);
+      const max = Number(el.max);
+      const p = ((Number(el.value) - min) / (max - min)) * 100;
+      el.style.background = `linear-gradient(to right, var(--color-primary-action) ${p}%, rgba(15,23,42,.1) ${p}%)`;
+    }
+
+    function valueLabel(key, val) {
+      if (key === "rate") return "£" + val;
+      if (key === "minutes") return val + " min";
+      return val + (period === "month" ? " / month" : " / year");
+    }
+
+    function render() {
+      const hoursPerMonth = period === "month" ? (state.volume * state.minutes) / 60 : (state.volume * state.minutes) / 60 / 12;
+      const moneyPerYear = hoursPerMonth * 12 * state.rate;
+      outHours.textContent = fmtHours(hoursPerMonth) + " hrs";
+      outMoney.textContent = gbp(moneyPerYear);
+    }
+
+    ranges.forEach((el) => {
+      const key = el.dataset.range;
+      const label = root.querySelector(`[data-val="${key}"]`);
+      el.addEventListener("input", () => {
+        state[key] = Number(el.value);
+        if (label) label.textContent = valueLabel(key, state[key]);
+        fill(el);
+        render();
+      });
+    });
+
+    render();
+  });
+</script>

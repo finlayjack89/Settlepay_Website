@@ -1,0 +1,651 @@
+---
+/* "Follow One Invoice" — the interactive end-to-end workflow theatre for the
+   Marsh & Vale case study. Three synchronised panes (his accounting view, the
+   customer's phone, the SettlePay ops view) step through one invoice from
+   approval to automatic reconciliation, plus the reminder branch.
+
+   Entirely simulated: fictional data, simulated Xero connection, no real
+   systems. Animation is user-initiated only (Play or step buttons — never
+   autoplays on scroll) and honours prefers-reduced-motion.
+
+   Mechanics: the script sets data-step on the root (0..6); any element with
+   data-on="1 5" (step list) or data-from/data-to (range) gets .is-on. */
+import Icon from '../Icon.astro';
+---
+<div class="mvf" data-mvf>
+  <div class="mvf__stage">
+
+    <!-- Pane 1: his accounting software -->
+    <section class="mvf__pane mvf__pane--xero" data-on="1 5" aria-label="Simulated accounting software view">
+      <header class="mvf__panehead">
+        <span class="mvf__panetitle">His Accounting · Xero</span>
+        <span class="mvf__panechip">Simulated view</span>
+      </header>
+      <div class="mvf-xero">
+        <div class="mvf-xero__row" data-on="1 5">
+          <div class="mvf-xero__main">
+            <span class="mvf-xero__ref">INV-2153</span>
+            <span class="mvf-xero__who">R. Whittaker — leaking valve</span>
+          </div>
+          <span class="mvf-xero__amt">£120.00</span>
+          <span class="mvf-badge mvf-badge--draft" data-from="0" data-to="0">Draft</span>
+          <span class="mvf-badge mvf-badge--sent" data-from="1" data-to="4">Approved</span>
+          <span class="mvf-badge mvf-badge--paid" data-from="5">Paid</span>
+        </div>
+        <div class="mvf-xero__row" data-on="6">
+          <div class="mvf-xero__main">
+            <span class="mvf-xero__ref">INV-2148</span>
+            <span class="mvf-xero__who">L. Cooper — two radiators</span>
+          </div>
+          <span class="mvf-xero__amt">£410.00</span>
+          <span class="mvf-badge mvf-badge--sent is-on">Sent</span>
+        </div>
+        <div class="mvf-xero__row">
+          <div class="mvf-xero__main">
+            <span class="mvf-xero__ref">INV-2147</span>
+            <span class="mvf-xero__who">K. Patel — boiler service</span>
+          </div>
+          <span class="mvf-xero__amt">£386.40</span>
+          <span class="mvf-badge mvf-badge--paid is-on">Paid</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pane 2: the customer's phone -->
+    <section class="mvf__pane mvf__pane--phone" data-on="2 3 4 6" aria-label="Simulated customer phone view">
+      <header class="mvf__panehead">
+        <span class="mvf__panetitle" data-from="0" data-to="5">R. Whittaker's Phone</span>
+        <span class="mvf__panetitle mvf__panetitle--swap" data-on="6">L. Cooper's Phone</span>
+      </header>
+      <div class="mvf-phone">
+        <div class="mvf-phone__screen">
+          <div class="mvf-phone__idle" data-from="0" data-to="1">
+            <span class="mvf-phone__clock">18:10</span>
+            <span class="mvf-phone__hint">No new messages</span>
+          </div>
+          <div class="mvf-phone__thread" data-from="0" data-to="5">
+            <div class="mvf-sms" data-from="2">
+              <p>Marsh &amp; Vale Plumbing: thanks for having us out today. Your invoice INV-2153
+              (£120.00) is ready — pay securely at pay.marshandvale.co.uk/i/2153</p>
+              <span class="mvf-sms__time">18:11</span>
+            </div>
+            <div class="mvf-invoice" data-from="3">
+              <div class="mvf-invoice__brand">
+                <span class="mvf-invoice__mark" aria-hidden="true">M&amp;V</span>
+                <span class="mvf-invoice__name">Marsh &amp; Vale<br />Plumbing &amp; Heating</span>
+              </div>
+              <div class="mvf-invoice__body">
+                <span class="mvf-invoice__label">Invoice INV-2153 · leaking valve repair</span>
+                <span class="mvf-invoice__amt">£120.00</span>
+              </div>
+              <button class="mvf-invoice__apay" type="button" tabindex="-1" aria-hidden="true" data-from="3" data-to="3">
+                <img src="/assets/payment/apple-logo.svg" alt="" /> Pay
+              </button>
+              <div class="mvf-invoice__paid" data-from="4">
+                <span class="mvf-invoice__tick" aria-hidden="true"><Icon name="check" sw={3} /></span>
+                Paid £120.00 · 18:42
+              </div>
+            </div>
+          </div>
+          <div class="mvf-phone__thread" data-on="6">
+            <div class="mvf-sms is-on">
+              <p>Marsh &amp; Vale Plumbing: just a gentle reminder — invoice INV-2148 (£410.00) is
+              still open. Pay any time at pay.marshandvale.co.uk/i/2148</p>
+              <span class="mvf-sms__time">09:00 · day 3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pane 3: the SettlePay ops view -->
+    <section class="mvf__pane mvf__pane--ops" data-on="2 4 5 6" aria-label="Simulated SettlePay management view">
+      <header class="mvf__panehead">
+        <span class="mvf__panetitle">SettlePay · Marsh &amp; Vale</span>
+        <span class="mvf__panechip mvf__panechip--sync" data-on="2 5"><Icon name="refresh" sw={2.2} />Xero</span>
+      </header>
+      <div class="mvf-ops">
+        <div class="mvf-ops__row" data-on="2 4 5">
+          <div class="mvf-ops__main">
+            <span class="mvf-ops__ref">INV-2153</span>
+            <span class="mvf-ops__sub" data-from="0" data-to="1">Waiting for approval</span>
+            <span class="mvf-ops__sub" data-from="2" data-to="3">Link texted 18:11</span>
+            <span class="mvf-ops__sub" data-on="4">Paid · matching reference…</span>
+            <span class="mvf-ops__sub" data-from="5">Paid · marked paid in Xero</span>
+          </div>
+          <span class="mvf-badge mvf-badge--draft" data-from="0" data-to="1">—</span>
+          <span class="mvf-badge mvf-badge--sent" data-from="2" data-to="3">Sent</span>
+          <span class="mvf-badge mvf-badge--paid" data-from="4">Paid</span>
+        </div>
+        <div class="mvf-ops__row" data-on="6">
+          <div class="mvf-ops__main">
+            <span class="mvf-ops__ref">INV-2148</span>
+            <span class="mvf-ops__sub" data-from="0" data-to="5">Due · day 3 tomorrow</span>
+            <span class="mvf-ops__sub" data-on="6">Day-3 reminder sent 09:00 — automatically</span>
+          </div>
+          <span class="mvf-badge mvf-badge--due" data-from="0" data-to="5">Due</span>
+          <span class="mvf-badge mvf-badge--remind" data-on="6">Day 3</span>
+        </div>
+        <p class="mvf-ops__feed" data-from="5"><Icon name="sparkles" sw={1.8} />Nothing to match by hand — the reference did the work.</p>
+      </div>
+    </section>
+  </div>
+
+  <p class="mvf__caption" aria-live="polite" data-mvf-caption>
+    Tuesday, 6:10pm. The valve is fixed at R. Whittaker's. Press play to follow the invoice home.
+  </p>
+
+  <div class="mvf__controls">
+    <button class="mvf__btn mvf__btn--play" type="button" data-mvf-play aria-pressed="false">
+      <span class="mvf__btn-ic mvf__btn-ic--play"><Icon name="play" sw={1.8} /></span>
+      <span class="mvf__btn-ic mvf__btn-ic--pause"><Icon name="pause" sw={2} /></span>
+      <span data-mvf-playlabel>Play the Flow</span>
+    </button>
+    <div class="mvf__steps" role="group" aria-label="Steps">
+      <button class="mvf__btn mvf__btn--nav" type="button" data-mvf-prev aria-label="Previous step">
+        <Icon name="chevron" sw={2.2} style="transform: rotate(90deg)" />
+      </button>
+      <div class="mvf__dots" data-mvf-dots></div>
+      <button class="mvf__btn mvf__btn--nav" type="button" data-mvf-next aria-label="Next step">
+        <Icon name="chevron" sw={2.2} style="transform: rotate(-90deg)" />
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .mvf {
+    max-width: 980px;
+    margin-inline: auto;
+  }
+  .mvf__stage {
+    display: grid;
+    grid-template-columns: 1.05fr 0.9fr 1.05fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .mvf__pane {
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.45s;
+  }
+  .mvf__pane.is-on {
+    border-color: rgba(184, 115, 51, 0.55);
+    box-shadow: 0 0 0 3px rgba(184, 115, 51, 0.14), var(--shadow-md);
+  }
+  .mvf__panehead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.6rem 0.85rem;
+    background: rgba(15, 23, 42, 0.035);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .mvf__panetitle {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: rgba(15, 23, 42, 0.55);
+  }
+  .mvf__panetitle--swap { display: none; }
+  .mvf__panetitle--swap.is-on { display: inline; }
+  .mvf__pane--phone .mvf__panetitle:not(.mvf__panetitle--swap):not(.is-on) { display: none; }
+  .mvf__panechip {
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.05);
+    border-radius: 5px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+  .mvf__panechip--sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition: background 0.3s, color 0.3s;
+  }
+  .mvf__panechip--sync svg { width: 11px; height: 11px; }
+  .mvf__panechip--sync.is-on {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+  }
+
+  /* Shared status badges (mockup 4-8px language) */
+  .mvf-badge {
+    display: none;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .mvf-badge.is-on { display: inline-block; }
+  .mvf-badge--draft { background: rgba(15, 23, 42, 0.06); color: rgba(15, 23, 42, 0.5); }
+  .mvf-badge--sent { background: rgba(15, 23, 42, 0.08); color: rgba(15, 23, 42, 0.65); }
+  .mvf-badge--paid { background: rgba(16, 185, 129, 0.12); color: #047857; }
+  .mvf-badge--due { background: rgba(15, 23, 42, 0.06); color: rgba(15, 23, 42, 0.5); }
+  .mvf-badge--remind { background: rgba(245, 158, 11, 0.14); color: #B45309; }
+
+  /* Xero-ish pane (deliberately neutral — not Xero's brand) */
+  .mvf-xero { padding: 0.55rem; display: grid; gap: 0.4rem; }
+  .mvf-xero__row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    border-radius: 8px;
+    transition: background 0.4s, border-color 0.4s;
+  }
+  .mvf-xero__row.is-on {
+    background: rgba(184, 115, 51, 0.06);
+    border-color: rgba(184, 115, 51, 0.35);
+  }
+  .mvf-xero__main { min-width: 0; }
+  .mvf-xero__ref {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+  }
+  .mvf-xero__who {
+    display: block;
+    font-size: 0.72rem;
+    color: rgba(15, 23, 42, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mvf-xero__amt {
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-primary-brand);
+  }
+
+  /* Phone pane */
+  .mvf__pane--phone { background: var(--color-secondary-bg); }
+  .mvf-phone { padding: 0.8rem; display: flex; justify-content: center; }
+  .mvf-phone__screen {
+    width: 100%;
+    max-width: 230px;
+    min-height: 280px;
+    background: #FDFDFC;
+    border: 5px solid #0F172A;
+    border-radius: 18px;
+    padding: 0.7rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .mvf-phone__thread { display: none; flex-direction: column; gap: 0.55rem; }
+  .mvf-phone__thread.is-on { display: flex; }
+  .mvf-phone__idle {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    flex: 1;
+    min-height: 150px;
+  }
+  .mvf-phone__idle.is-on { display: flex; }
+  .mvf-phone__clock {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: rgba(15, 23, 42, 0.75);
+  }
+  .mvf-phone__hint {
+    font-size: 0.62rem;
+    color: rgba(15, 23, 42, 0.38);
+  }
+  .mvf-sms {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.45s, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    background: rgba(15, 23, 42, 0.06);
+    border-radius: 10px 10px 10px 3px;
+    padding: 0.55rem 0.65rem;
+  }
+  .mvf-sms.is-on { opacity: 1; transform: none; }
+  .mvf-sms p {
+    margin: 0;
+    font-size: 0.66rem;
+    line-height: 1.5;
+    color: rgba(15, 23, 42, 0.78);
+    word-break: break-word;
+  }
+  .mvf-sms__time {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.58rem;
+    color: rgba(15, 23, 42, 0.4);
+  }
+
+  /* Mini branded invoice card — Marsh & Vale's mockup world */
+  .mvf-invoice {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.45s, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    border: 1px solid rgba(27, 43, 34, 0.14);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #FFFDF8;
+    font-family: 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+  }
+  .mvf-invoice.is-on { opacity: 1; transform: none; }
+  .mvf-invoice__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #1E3A2F;
+    padding: 0.5rem 0.6rem;
+  }
+  .mvf-invoice__mark {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: #B87333;
+    color: #F5F2EB;
+    font-size: 0.5rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .mvf-invoice__name {
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #F5F2EB;
+    line-height: 1.3;
+  }
+  .mvf-invoice__body { padding: 0.55rem 0.6rem 0.2rem; }
+  .mvf-invoice__label {
+    display: block;
+    font-size: 0.6rem;
+    color: rgba(27, 43, 34, 0.62);
+    margin-bottom: 2px;
+  }
+  .mvf-invoice__amt {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1B2B22;
+  }
+  .mvf-invoice__apay {
+    display: none;
+    width: calc(100% - 1.2rem);
+    margin: 0.5rem 0.6rem 0.6rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    background: #000;
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    padding: 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    pointer-events: none;
+  }
+  .mvf-invoice__apay.is-on { display: flex; }
+  .mvf-invoice__apay img { width: 12px; height: 14px; filter: brightness(0) invert(1); }
+  .mvf-invoice__paid {
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.5rem 0.6rem 0.6rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+  .mvf-invoice__paid.is-on { display: flex; }
+  .mvf-invoice__tick {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #047857;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .mvf-invoice__tick svg { width: 9px; height: 9px; }
+
+  /* Ops pane */
+  .mvf-ops { padding: 0.55rem; display: grid; gap: 0.4rem; align-content: start; }
+  .mvf-ops__row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    border-radius: 8px;
+    transition: background 0.4s, border-color 0.4s;
+  }
+  .mvf-ops__row.is-on {
+    background: rgba(184, 115, 51, 0.06);
+    border-color: rgba(184, 115, 51, 0.35);
+  }
+  .mvf-ops__main { min-width: 0; }
+  .mvf-ops__ref {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+  }
+  .mvf-ops__sub {
+    display: none;
+    font-size: 0.7rem;
+    color: rgba(15, 23, 42, 0.55);
+  }
+  .mvf-ops__sub.is-on { display: block; }
+  .mvf-ops__feed {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.15rem 0 0;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.6);
+    opacity: 0;
+    transition: opacity 0.45s;
+  }
+  .mvf-ops__feed.is-on { opacity: 1; }
+  .mvf-ops__feed svg { width: 13px; height: 13px; color: var(--color-success); flex-shrink: 0; }
+
+  /* Caption + controls (SettlePay UI, not mockup-world) */
+  .mvf__caption {
+    margin: 1.4rem auto 0;
+    max-width: 66ch;
+    min-height: 3.2em;
+    text-align: center;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    font-weight: 500;
+    color: rgba(15, 23, 42, 0.75);
+  }
+  .mvf__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.9rem;
+  }
+  .mvf__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    background: var(--color-pure-white);
+    color: var(--color-primary-brand);
+    border-radius: var(--radius-button);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: background var(--ease-snappy), color var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .mvf__btn:active { transform: scale(0.98); }
+  .mvf__btn--play {
+    background: var(--color-primary-brand);
+    color: var(--color-pure-white);
+    border-color: var(--color-primary-brand);
+    padding: 0.6rem 1.3rem;
+    font-size: 0.88rem;
+  }
+  .mvf__btn--play:hover { background: #1E293B; }
+  .mvf__btn--play svg { width: 15px; height: 15px; }
+  .mvf__btn-ic--pause { display: none; }
+  .mvf__btn--play[aria-pressed='true'] .mvf__btn-ic--play { display: none; }
+  .mvf__btn--play[aria-pressed='true'] .mvf__btn-ic--pause { display: inline-flex; }
+  .mvf__btn--nav {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+  .mvf__btn--nav:hover { background: var(--color-secondary-bg); }
+  .mvf__btn--nav svg { width: 16px; height: 16px; }
+  .mvf__btn--nav:disabled { opacity: 0.35; cursor: default; }
+  .mvf__steps { display: flex; align-items: center; gap: 0.7rem; }
+  .mvf__dots { display: flex; gap: 0.45rem; }
+  .mvf__dots button {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.18);
+    cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .mvf__dots button[aria-current='true'] {
+    background: var(--color-primary-action);
+    transform: scale(1.25);
+  }
+
+  @media (max-width: 960px) {
+    .mvf__stage { grid-template-columns: 1fr; max-width: 420px; margin-inline: auto; }
+    .mvf-phone__screen { min-height: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvf__pane,
+    .mvf-xero__row,
+    .mvf-ops__row,
+    .mvf-sms,
+    .mvf-invoice,
+    .mvf-ops__feed,
+    .mvf__btn,
+    .mvf__dots button {
+      transition: none;
+    }
+    .mvf-sms,
+    .mvf-invoice { transform: none; }
+  }
+</style>
+
+<script>
+  const CAPTIONS = [
+    "Tuesday, 6:10pm. The valve is fixed at R. Whittaker's. Press play to follow the invoice home.",
+    'He approves INV-2153 in Xero from the van — the only thing he does in this whole story.',
+    "SettlePay spots the approved invoice and texts a branded payment link. He's already driving home.",
+    'The customer opens the link: the job, itemised, on a page in Marsh & Vale’s name.',
+    'One tap of Apple Pay on the sofa. £120.00, paid at 6:42pm.',
+    'The payment carries INV-2153 home — the ops view updates and Xero marks it paid. Nothing to match, nothing to chase.',
+    "And when someone doesn't pay? Day three: a polite reminder sends itself. He never has to ask twice.",
+  ];
+  const TOTAL = CAPTIONS.length - 1;
+  const INTERVAL = 3600;
+
+  document.querySelectorAll('[data-mvf]').forEach((root) => {
+    if (root.dataset.mvfBound) return;
+    root.dataset.mvfBound = '1';
+
+    const fx = Array.from(root.querySelectorAll('[data-on], [data-from]'));
+    const caption = root.querySelector('[data-mvf-caption]');
+    const playBtn = root.querySelector('[data-mvf-play]');
+    const playLabel = root.querySelector('[data-mvf-playlabel]');
+    const prevBtn = root.querySelector('[data-mvf-prev]');
+    const nextBtn = root.querySelector('[data-mvf-next]');
+    const dotsWrap = root.querySelector('[data-mvf-dots]');
+
+    let step = 0;
+    let timer = null;
+
+    const dots = CAPTIONS.map((_, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', i === 0 ? 'Start' : 'Step ' + i);
+      b.addEventListener('click', () => { stop(); go(i); });
+      dotsWrap.appendChild(b);
+      return b;
+    });
+
+    function render() {
+      root.dataset.step = String(step);
+      fx.forEach((el) => {
+        let on;
+        if (el.dataset.on !== undefined) {
+          on = el.dataset.on.split(' ').includes(String(step));
+        } else {
+          const from = Number(el.dataset.from);
+          const to = el.dataset.to !== undefined ? Number(el.dataset.to) : TOTAL;
+          on = step >= from && step <= to;
+        }
+        el.classList.toggle('is-on', on);
+      });
+      caption.textContent = CAPTIONS[step];
+      dots.forEach((d, i) => d.setAttribute('aria-current', i === step ? 'true' : 'false'));
+      prevBtn.disabled = step === 0;
+      nextBtn.disabled = step === TOTAL;
+      playLabel.textContent = timer ? 'Pause' : step === TOTAL ? 'Replay the Flow' : 'Play the Flow';
+      playBtn.setAttribute('aria-pressed', timer ? 'true' : 'false');
+    }
+
+    function go(n) {
+      step = Math.max(0, Math.min(TOTAL, n));
+      render();
+    }
+
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+      render();
+    }
+
+    function play() {
+      if (step === TOTAL) go(0);
+      timer = setInterval(() => {
+        if (step >= TOTAL) { stop(); return; }
+        go(step + 1);
+      }, INTERVAL);
+      render();
+    }
+
+    playBtn.addEventListener('click', () => (timer ? stop() : play()));
+    prevBtn.addEventListener('click', () => { stop(); go(step - 1); });
+    nextBtn.addEventListener('click', () => { stop(); go(step + 1); });
+
+    render();
+  });
+</script>
