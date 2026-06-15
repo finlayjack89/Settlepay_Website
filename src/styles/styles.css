@@ -329,6 +329,7 @@ body::after {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  min-height: 44px;
   padding: 0.65rem 1.5rem;
   font-family: var(--font-primary);
   font-size: 0.88rem;
@@ -380,6 +381,7 @@ body::after {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  min-height: 44px;
   padding: 0.65rem 1.5rem;
   font-family: var(--font-primary);
   font-size: 0.88rem;
@@ -1502,9 +1504,17 @@ body::after {
   opacity: 0.6;
 }
 
+.calculator__disclaimer {
+  text-align: center;
+  margin-top: 1.75rem;
+  font-size: 0.8rem;
+  color: var(--color-primary-brand);
+  opacity: 0.6;
+}
+
 .calculator__cta {
   text-align: center;
-  margin-top: 3rem;
+  margin-top: 1.5rem;
 }
 
 /* ---------------------------------------------------------
