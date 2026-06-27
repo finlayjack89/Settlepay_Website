@@ -1,0 +1,15 @@
+{
+  "note": "Viewport widths map to demo-box widths approximately: 1280 -> ~620px stage, 540 -> ~500px, 390 -> ~360px full-width. Demos are being moved to container queries so each adapts to its own box, not the viewport. ALWAYS resize before AND after navigation in playwright-cli — navigation can reset the viewport (the mobile-capture gotcha found during the audit).",
+  "widths": [1280, 540, 390],
+  "demoSelectors": [".mok", ".lkd", ".cf", ".ct", ".mvf", ".roi", ".bs"],
+  "pages": [
+    { "slug": "lockdales-auctioneers", "url": "/work/lockdales-auctioneers/", "surfaces": ["LockdalesCheckout (.lkd)"], "realClient": true },
+    { "slug": "harbourside-lettings", "url": "/work/harbourside-lettings/", "surfaces": ["HarboursideCheckout (.mok)", "CaseTheatre (.ct)", "RoiCalculator (.roi)"] },
+    { "slug": "marsh-vale-plumbing", "url": "/work/marsh-vale-plumbing/", "surfaces": ["MarshValeCheckout (.mok)", "MarshValeFlow (.mvf)", "RoiCalculator (.roi)"] },
+    { "slug": "rowan-physiotherapy", "url": "/work/rowan-physiotherapy/", "surfaces": ["RowanCheckout (.mok)", "CaseTheatre (.ct)", "RoiCalculator (.roi)"] },
+    { "slug": "stillwater-weddings", "url": "/work/stillwater-weddings/", "surfaces": ["StillwaterCheckout (.mok)", "CaseTheatre (.ct)", "RoiCalculator (.roi)"] },
+    { "slug": "whitmore-accountants", "url": "/work/whitmore-accountants/", "surfaces": ["WhitmoreCheckout (.mok)", "CaseTheatre (.ct)", "RoiCalculator (.roi)"] },
+    { "slug": "camber-finch-auctions", "url": "/work/camber-finch-auctions/", "surfaces": ["CamberFinchCheckout (.cf)", "CaseTheatre (.ct)", "RoiCalculator (.roi)"] },
+    { "slug": "work-index", "url": "/work/", "surfaces": ["BrandStudio (.bs)"] }
+  ]
+}

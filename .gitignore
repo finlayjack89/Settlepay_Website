@@ -24,3 +24,5 @@ yarn-error.log*
 # hyperframes video renders (large binaries — source composition is committed)
 video/*/renders/
 video/*/.hyperframes/
+# playwright-cli QA artifacts (throwaway snapshots/logs from visual checks)
+.playwright-cli/
