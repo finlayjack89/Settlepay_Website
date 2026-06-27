@@ -1,0 +1,5 @@
+# Supabase local/CLI artifacts and secrets — never commit these.
+.env
+.env.local
+.branches/
+.temp/
