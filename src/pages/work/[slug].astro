@@ -14,11 +14,13 @@ import OpsPanel from '../../components/portfolio/OpsPanel.astro';
 import StatTiles from '../../components/portfolio/StatTiles.astro';
 import CheckoutTemplate from '../../components/previews/CheckoutTemplate.astro';
 import ReconcileTemplate from '../../components/previews/ReconcileTemplate.astro';
+import LockdalesCheckout from '../../components/portfolio/demos/LockdalesCheckout.astro';
 import HarboursideCheckout from '../../components/portfolio/demos/HarboursideCheckout.astro';
 import MarshValeCheckout from '../../components/portfolio/demos/MarshValeCheckout.astro';
 import RowanCheckout from '../../components/portfolio/demos/RowanCheckout.astro';
 import StillwaterCheckout from '../../components/portfolio/demos/StillwaterCheckout.astro';
 import WhitmoreCheckout from '../../components/portfolio/demos/WhitmoreCheckout.astro';
+import CamberFinchCheckout from '../../components/portfolio/demos/CamberFinchCheckout.astro';
 import { PORTFOLIO } from '../../data/portfolio.mjs';
 import seoData from '../../data/content/seo.json';
 import { webPage, breadcrumbs } from '../../data/structuredData.mjs';
@@ -38,11 +40,13 @@ const crumbs = [
 
 // Fixed contract: demoComponent names in portfolio.mjs resolve here.
 const demos = {
+  LockdalesCheckout,
   HarboursideCheckout,
   MarshValeCheckout,
   RowanCheckout,
   StillwaterCheckout,
   WhitmoreCheckout,
+  CamberFinchCheckout,
 };
 const Demo = entry.demoComponent ? demos[entry.demoComponent] : null;
 
@@ -205,7 +209,25 @@ const jsonLd = [
 
   <section class="case-demo section-pad">
     <div class="container">
-      {Demo ? (
+      {entry.live && Demo ? (
+        <>
+          <SectionHeader
+            eyebrow="The Build"
+            title="The Real "
+            blue="Lockdales Page"
+            subtitle="A faithful reconstruction of the branded payment page we built for Lockdales — try the card flow below."
+          />
+          <div class="case-demo__stage">
+            <div class="bezel-wrap">
+              <Demo />
+            </div>
+            <p class="case-demo__caption">
+              An illustrative reconstruction of the live Lockdales "Pay Your Invoice" page (bank
+              details masked) — not the live site, and no real payments are taken.
+            </p>
+          </div>
+        </>
+      ) : Demo ? (
         <>
           <SectionHeader
             eyebrow="The Demo"
@@ -229,16 +251,15 @@ const jsonLd = [
           <SectionHeader
             eyebrow="The Build"
             title="Inside the "
-            blue="Lockdales Build"
-            subtitle="The shape of the checkout and the reconciliation that sits behind it."
+            blue="Build"
+            subtitle="The shape of the checkout behind the case study."
           />
           <div class="case-demo__pair">
             <div class="bezel-wrap"><CheckoutTemplate /></div>
             <div class="bezel-wrap"><ReconcileTemplate /></div>
           </div>
           <p class="case-demo__caption">
-            These are illustrative reconstructions of the kind of checkout and reconciliation flow
-            built for Lockdales — not screenshots of live client data.
+            Illustrative reconstructions — not screenshots of live client data.
           </p>
         </>
       )}
@@ -317,16 +338,25 @@ const jsonLd = [
   <section class="case-connect">
     <div class="container">
       <div class="case-connect__inner">
-        <div class="case-connect__icon"><Icon name="refresh" sw={1.5} /></div>
+        <div class="case-connect__icon"><Icon name={cs ? 'refresh' : 'shield'} sw={1.5} /></div>
         <div>
-          <h2 class="case-connect__title">How It Connects</h2>
-          <p class="case-connect__text">
-            Behind the page, every payment carries its reference — an invoice number, tenancy, lot
-            or mandate — so it is matched back to the business's records automatically, reminders
-            go out on schedule instead of from someone's evening to-do list, and the books update
-            themselves. Funds settle directly from the processor to the business's own bank
-            account; SettlePay never holds funds. Payments are processed by FCA-regulated partners.
-          </p>
+          <h2 class="case-connect__title">{cs ? 'How It Connects' : 'How It Works'}</h2>
+          {cs ? (
+            <p class="case-connect__text">
+              Behind the page, every payment carries its reference — an invoice number, tenancy, lot
+              or mandate — so it is matched back to the business's records automatically, reminders
+              go out on schedule instead of from someone's evening to-do list, and the books update
+              themselves. Funds settle directly from the processor to the business's own bank
+              account; SettlePay never holds funds. Payments are processed by FCA-regulated partners.
+            </p>
+          ) : (
+            <p class="case-connect__text">
+              A branded payment page on the client's own domain, giving their customers a secure way
+              to pay by card alongside bank transfer. Funds settle directly from the processor to the
+              client's own bank account; SettlePay never holds funds. Card payments are processed by
+              FCA-regulated partners.
+            </p>
+          )}
         </div>
       </div>
     </div>

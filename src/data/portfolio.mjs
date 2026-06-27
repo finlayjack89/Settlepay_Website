@@ -34,19 +34,19 @@ export const PORTFOLIO = [
     name: 'Lockdales Auctioneers',
     live: true,
     vertical: 'Fine Art & Antiquities',
-    pattern: 'Post-auction invoice settlement',
+    pattern: 'Branded "Pay Your Invoice" page',
     tagline:
-      'A bespoke, branded Stripe checkout for a long-established Suffolk coin and medal auction house — every buyer payment matched back to its lot automatically.',
+      'A bespoke, branded payment page for a long-established Suffolk coin and medal auction house — giving buyers a secure card option alongside bank transfer, on a page that looks like Lockdales.',
     summary:
-      'Large volumes of buyer payments after every sale, once reconciled by hand — now settled on a branded checkout and matched to winning lots automatically.',
+      'Buyers once paid by bank transfer or read card details down the phone. Now they settle their invoice on a secure, Lockdales-branded page — by BACS or card — entering their bidder number as the reference.',
     story: {
       challenge:
-        'A long-established Suffolk coin, medal and collectables auction house, reconciling large volumes of buyer payments against winning lots by hand after every sale — invoices settled by bank transfer or card details taken over the phone, then matched to their lots manually.',
+        'A long-established Suffolk coin, medal and collectables auction house taking buyer payments by bank transfer or by card details read out over the phone after each sale — no branded, secure way for a buyer to simply pay their invoice online.',
       solution:
-        'A bespoke, branded checkout processed by Stripe on the Lockdales account, with each card payment carrying its invoice and lot reference so it is matched back automatically, and funds settling straight to the Lockdales bank account.',
+        'A bespoke, Lockdales-branded "Pay Your Invoice" page processed by Stripe on the Lockdales account: buyers choose BACS (with the account details shown) or pay securely by card, entering their name and bidder number as the reference so Lockdales can match the payment to their invoice. Funds settle straight to the Lockdales bank account.',
       impact: [
-        'Branded payment page live on the Lockdales site',
-        'Card payments reconciled against lot records automatically',
+        'A branded, secure payment page live on the Lockdales domain',
+        'Buyers can pay by card instead of reading details down the phone',
         'Funds settle straight to the Lockdales bank account',
       ],
     },
@@ -54,34 +54,34 @@ export const PORTFOLIO = [
       {
         icon: 'card',
         title: 'Branded Card Checkout',
-        text: 'A payment page in Lockdales colours on the Lockdales domain — not a generic processor screen buyers have never heard of.',
+        text: 'A payment page in Lockdales colours on the Lockdales domain — not a generic processor screen buyers have never seen.',
       },
       {
-        icon: 'refresh',
-        title: 'Automatic Lot Reconciliation',
-        text: 'Every payment carries its invoice and lot reference, so post-sale matching happens on its own instead of by hand.',
+        icon: 'scale',
+        title: 'BACS or Card, One Page',
+        text: 'Bank transfer details and a secure card option side by side, so every buyer can pay the way that suits them.',
       },
       {
         icon: 'phone',
-        title: 'One-Tap Mobile Payment',
-        text: 'Buyers settling from a phone pay with Apple Pay in one tap instead of typing out card details.',
+        title: 'No More Phone Payments',
+        text: 'Buyers pay on a secure page instead of reading long card numbers down the line to staff.',
       },
       {
         icon: 'shield',
         title: 'FCA-Regulated Processing',
-        text: 'Payments run through Stripe, an FCA-regulated processor, on the Lockdales account — SettlePay never holds the funds.',
+        text: 'Card payments run through Stripe, an FCA-regulated processor, on the Lockdales account — SettlePay never holds the funds.',
       },
       {
         icon: 'lock',
         title: 'Direct Settlement',
-        text: 'Money moves from the processor straight to the Lockdales bank account, exactly as it did with bank transfers — just without the chasing.',
+        text: 'Money moves from the processor straight to the Lockdales bank account, exactly as it did with bank transfers.',
       },
     ],
-    /* Sovereign gold drawn from the lockdales-coin asset — never SettlePay's
-       reserved action blue (#3B82F6), which must not appear as a brand accent. */
-    brand: { bg: '#0E1117', surface: '#1A1F29', accent: '#C6A14B', ink: '#F8FAFC' },
-    methods: ['Visa', 'Mastercard', 'Apple Pay'],
-    demoComponent: null,
+    /* Navy/gold/cream to match the real Lockdales payment page. Gold accent is
+       never SettlePay's reserved action blue (#3B82F6). */
+    brand: { bg: '#1B3A5B', surface: '#F7F3EA', accent: '#C2A24E', ink: '#15304C' },
+    methods: ['Bank Transfer', 'Visa', 'Mastercard'],
+    demoComponent: 'LockdalesCheckout',
   },
 
   {
@@ -854,6 +854,168 @@ export const PORTFOLIO = [
             },
           },
         ],
+      },
+    },
+  },
+
+  {
+    slug: 'camber-finch-auctions',
+    name: 'Camber & Finch Auctioneers',
+    live: false,
+    vertical: 'Fine Art & Auctions',
+    pattern: 'Post-sale lot settlement',
+    tagline:
+      'A fictional fine-art and antiques auction house, showing the full system an auctioneer can have: every winning lot invoiced with buyer’s premium, paid by branded link, and matched back to its bidder automatically.',
+    summary:
+      'Hundreds of buyers settling after every sale, once reconciled by hand against bidder numbers — now invoiced with buyer’s premium, paid by branded link, and auto-matched to the lot so it can be released.',
+    brand: { bg: '#5A1A2B', surface: '#F5F0E6', accent: '#9C6B3C', ink: '#3A1019' },
+    methods: ['Bank Transfer', 'Visa', 'Mastercard', 'Amex'],
+    demoComponent: 'CamberFinchCheckout',
+    caseStudy: {
+      profile: [
+        { label: 'Business', value: 'Family-run auction house' },
+        { label: 'Sales', value: '~20 auctions a year' },
+        { label: 'Per sale', value: '~400 paying buyers' },
+        { label: 'Paid by, before', value: 'Bank transfer + card by phone' },
+      ],
+      background:
+        'Camber & Finch is a fictional fine-art, antiques and collectables auction house — country-house sales, jewellery, silver and pictures. After each sale, hundreds of winning buyers owe an invoice of hammer price plus buyer’s premium. Historically they paid by bank transfer (matched by hand against a bidder number) or read card details down the phone to the saleroom office. The week after every sale was a reconciliation marathon, and nothing could be released or shipped until a payment was found and matched.',
+      painPoints: [
+        'Hundreds of invoices to settle and match by hand against bidder numbers after <strong>every</strong> sale — days of post-sale admin per auction',
+        'Card details over the phone are the riskiest way to take payment — remote-purchase fraud cost the UK <strong>nearly £400m in 2024</strong> (UK Finance) — and they pull the saleroom phone line into PCI scope',
+        'Overseas buyers (a big share of fine-art bidding) struggled to pay — international transfers were slow and arrived with <strong>mangled references</strong>',
+        'Lots couldn’t be <strong>released or shipped</strong> until payment was matched, so staff time went on chasing and checking instead of cataloguing the next sale',
+      ],
+      setup: {
+        had: [
+          'A saleroom management system for cataloguing, bidding and invoicing',
+          'A website with online bidding',
+          'The auction house’s own bank account',
+        ],
+        access: [
+          'Invoice, lot and bidder references via the saleroom system’s API (where one exists) — or a per-sale export where it doesn’t',
+          'The auctioneer’s own processor account — settlement straight to the auction house',
+          'Buyer contact details already captured at registration',
+        ],
+        untouched: [
+          'The saleroom / catalogue system itself — we work alongside it, not inside it',
+          'Consignor accounts and valuations — never touched by the payment layer',
+          'Buyer data beyond the reference and amount needed to take and match a payment',
+        ],
+        note: 'Auction software varies enormously: some platforms expose a clean API (we connect and reconcile automatically), others are closed (we run the branded pay-by-link and match against an exported bidder reference). We scope to what the specific system allows — this illustrative build shows the fuller, API-connected version. Unlike a real client whose build was a payment page only, this is a what-could-be demonstration.',
+      },
+      delivered: [
+        'A branded post-sale "Pay Your Invoice" page (the demo below)',
+        'Buyer’s premium and VAT calculated and shown correctly per lot',
+        'A pay-by-link sent automatically to each winning bidder after the sale',
+        'Payments auto-matched to the bidder and lot, so it can be marked ready to release',
+        'A settlement board: who’s paid, what’s outstanding, what’s ready to ship',
+        'Automatic reminders for unpaid invoices, in the auction house’s own voice',
+      ],
+      theatre: {
+        intro: "The hammer has just fallen on Lot 214. Press play to follow it from sold to settled.",
+        panes: [
+          { key: 'saleroom', label: 'Saleroom System', sync: 'Lot records' },
+          { key: 'buyer', label: "Buyer's Phone", tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Settlement', sync: 'Auto-match' },
+        ],
+        steps: [
+          {
+            caption: "Lot 214 sells. The invoice is raised automatically — hammer price plus the 24% buyer's premium.",
+            active: 'saleroom',
+            rows: {
+              saleroom: [{ ref: 'Lot 214', who: 'Pair of Georgian silver candlesticks', sub: 'Hammer £1,800 + premium', status: 'due', label: 'Sold' }],
+              buyer: [],
+              ops: [{ ref: 'INV-3471', who: 'Bidder 142', sub: 'Invoice raised · £2,232.00', status: 'due', label: 'New' }],
+            },
+          },
+          {
+            caption: "A branded pay-by-link goes to the winning bidder automatically — no invoice to post, no card read down the phone.",
+            active: 'buyer',
+            rows: {
+              saleroom: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks', sub: 'Awaiting payment', status: 'due', label: 'Invoiced' }],
+              buyer: [{ ref: 'INV-3471', who: 'Pay your invoice', sub: '£2,232.00 · card or transfer', status: 'due', label: 'Link sent' }],
+              ops: [{ ref: 'INV-3471', who: 'Bidder 142', sub: 'Branded link sent', status: 'due', label: 'Awaiting' }],
+            },
+          },
+          {
+            caption: "The buyer pays by card in a tap — from anywhere in the world, no slow international transfer.",
+            active: 'buyer',
+            rows: {
+              saleroom: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks', sub: 'Payment received', status: 'paid', label: 'Paid' }],
+              buyer: [{ ref: 'INV-3471', who: 'Paid £2,232.00', sub: 'Card · receipt emailed', status: 'paid', label: 'Paid' }],
+              ops: [{ ref: 'INV-3471', who: 'Bidder 142', sub: 'Payment received · matching lot…', status: 'paid', label: 'Paid' }],
+            },
+          },
+          {
+            caption: "Matched to the bidder and the lot automatically — the saleroom system marks it ready to release, with no hand-reconciliation.",
+            active: 'ops',
+            rows: {
+              saleroom: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks', sub: 'Matched to Bidder 142 · ready to release', status: 'paid', label: 'Ready' }],
+              buyer: [{ ref: 'INV-3471', who: 'Paid £2,232.00', sub: 'Collection details emailed', status: 'paid', label: 'Paid' }],
+              ops: [{ ref: 'INV-3471', who: 'Bidder 142', sub: 'Matched to lot · funds settle to Camber & Finch', status: 'paid', label: 'Matched' }],
+            },
+          },
+          {
+            caption: "And the unpaid invoices chase themselves. The settlement board shows the whole sale at a glance — no spreadsheet, no marathon.",
+            active: 'ops',
+            rows: {
+              saleroom: [{ ref: 'Sale 0616', who: 'Spring Fine Art & Antiques', sub: '316 of 412 invoices settled', status: 'paid', label: 'Live' }],
+              buyer: [{ ref: 'INV-3468', who: 'Payment reminder', sub: 'A gentle nudge · still time to pay', status: 'reminder', label: 'Reminded' }],
+              ops: [
+                { ref: 'INV-3471', who: 'Bidder 142', sub: 'Settled · ready to release', status: 'paid', label: 'Settled' },
+                { ref: 'INV-3468', who: 'Bidder 097', sub: 'Reminder sent automatically · day 3', status: 'reminder', label: 'Nudged' },
+              ],
+            },
+          },
+        ],
+      },
+      ops: {
+        url: 'app.settlepay.uk/camber-finch',
+        title: 'Settlement Board',
+        subtitle: 'Camber & Finch · Sale 0616',
+        sync: 'Connected to saleroom',
+        rows: [
+          { ref: 'INV-3471', who: 'Bidder 142 — Lot 214', amount: '£2,232.00', status: 'paid', label: 'Released' },
+          { ref: 'INV-3470', who: 'Bidder 138 — Lots 207, 209', amount: '£940.00', status: 'paid', label: 'Paid' },
+          { ref: 'INV-3468', who: 'Bidder 097 — Lot 198', amount: '£3,410.00', status: 'reminder', label: 'Day 3' },
+          { ref: 'INV-3462', who: 'Bidder 061 — Lot 176', amount: '£1,150.00', status: 'overdue', label: 'Day 7' },
+        ],
+        feed: 'This sale: 316 of 412 invoices settled, every payment matched to its lot automatically.',
+      },
+      outcome: {
+        stats: [
+          {
+            value: 'Days → hours',
+            label: 'Post-sale reconciliation',
+            sub: 'The week-long matching marathon becomes a settlement board that has already matched each payment to its lot.',
+          },
+          {
+            value: 'Card, worldwide',
+            label: 'Overseas buyers pay instantly',
+            sub: 'A tap on a branded link replaces slow international transfers with mangled references — lots clear and ship sooner.',
+          },
+          {
+            value: '0 by phone',
+            label: 'Card numbers taken on the line',
+            sub: 'The saleroom office leaves the riskiest category of UK card fraud behind, and the phone line leaves PCI scope.',
+          },
+        ],
+        basis: [
+          'A modelled fine-art auctioneer running ~20 sales a year with several hundred paying buyers each — illustrative volumes, not a real client.',
+          'Remote purchase (card-not-present) fraud: just under £400 million lost in 2024, the largest category of UK card fraud — UK Finance Annual Fraud Report 2025. A hosted page also keeps card data out of the saleroom, with PCI handled by the processor.',
+          'No published figure exists for auction-house reconciliation time, so the post-sale admin saving is stated as a modelled assumption, not a measured result.',
+        ],
+      },
+      roi: {
+        period: 'year',
+        volumeLabel: 'Buyer invoices a year',
+        minutesLabel: 'Minutes matching & chasing each one today',
+        rateLabel: 'Your admin hourly rate',
+        volume: { default: 4000, min: 500, max: 12000, step: 250 },
+        minutes: { default: 4, min: 1, max: 15, step: 1 },
+        rate: { default: 14, min: 11, max: 25, step: 1 },
+        lens: 'And lots clear faster: overseas buyers pay by card the moment the sale ends, so items can be released and shipped without waiting days for a transfer to arrive and be matched.',
       },
     },
   },

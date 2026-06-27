@@ -183,7 +183,7 @@ challenge/solution/impact layout — never attach modelled figures to a real cli
 | `CaseTheatre.astro` | Generic, data-driven workflow theatre for the other case studies — same play/step mechanics, driven by `caseStudy.theatre` ({ intro, panes, steps }). Rebuilds rows via `innerHTML`, so its CSS lives **global** in portfolio.css (not scoped) — keep new `ct-`/`ct__` styles there. Reuses the `.ops-status--*` badge classes. |
 | `RoiCalculator.astro` | "Try it on your own numbers" — interactive ROI sliders (volume × minutes × rate → hours/month + £/year), driven by `caseStudy.roi`. Always renders the "modelled, not measured" note. |
 | `BrandStudio.astro` | "See it in your name" customiser on `/work/` — name + colour + scenario re-skin a live checkout; state mirrors to the URL (`?name=&colour=&plan=`) for shareable pre-branded demos. Computes a readable button text colour from the chosen accent. |
-| `demos/*.astro` | The five interactive brand checkouts (fixed file names — see portfolio.mjs contract). |
+| `demos/*.astro` | The interactive brand checkouts (fixed file names — see portfolio.mjs contract): five fictional mocks, the real-client `LockdalesCheckout` (faithful navy/gold reconstruction of the live page, masked bank numbers, **no** "fictional business" banner — gated on `entry.live` in `[slug].astro`), and `CamberFinchCheckout` (fictional auction house, claret/parchment). |
 
 Outcome figures must be modelled on citable UK sources (named in `outcome.basis`) or explicitly
 labelled as assumptions. The `setup` block exists to manage expectations: never write copy promising

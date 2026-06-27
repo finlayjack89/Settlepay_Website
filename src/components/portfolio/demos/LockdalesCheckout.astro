@@ -1,0 +1,324 @@
+---
+/* Faithful reconstruction of the REAL Lockdales "Pay Your Invoice" page
+   (lockdalespayments.netlify.app) — the one genuinely-built client page.
+   It is a branded payment page offering BACS or card; matching is manual
+   (the buyer supplies name + bidder number as the reference). We do NOT show a
+   lot tracker or auto-reconciliation, because that was never built.
+
+   Bank numbers are masked on purpose — this is an illustrative reconstruction
+   for the portfolio, not the live page, and no real payments are taken.
+   Navy/gold/cream auction-house brand world (mockup 4-8px radii). */
+import Icon from '../../Icon.astro';
+import Chrome from '../../previews/Chrome.astro';
+---
+<div class="mok lkd" data-lkd>
+  <Chrome url="lockdalespayments.netlify.app" dark />
+  <div class="lkd__body">
+    <!-- top utility strip -->
+    <div class="lkd__strip">
+      <span><Icon name="phone" sw={2} /> +44 (0)1473 627110</span>
+      <span class="lkd__strip-ssl"><Icon name="lock" sw={2} /> Secure 256-bit SSL Encrypted Payment</span>
+    </div>
+
+    <!-- brand header -->
+    <header class="lkd__header">
+      <div class="lkd__brand">
+        <img class="lkd__coin" src="/assets/logos/lockdales-coin.png" alt="" width="40" height="40" />
+        <div class="lkd__wordmark">
+          <span class="lkd__name">LOCKDALES</span>
+          <span class="lkd__sub">Auctioneers &amp; Valuers</span>
+        </div>
+      </div>
+      <span class="lkd__verified"><Icon name="shield" sw={2} /> Verified Merchant</span>
+    </header>
+
+    <!-- step indicator -->
+    <div class="lkd__steps">
+      <div class="lkd__track"><span class="lkd__track-fill" data-lkd-fill></span></div>
+      <div class="lkd__step-labels">
+        <span class="is-on" data-lkd-step="1">Payment Method</span>
+        <span data-lkd-step="2">Card Details</span>
+        <span data-lkd-step="3">Secure Checkout</span>
+      </div>
+    </div>
+
+    <!-- view 1: choose method -->
+    <div class="lkd__view" data-lkd-view="method">
+      <div class="lkd__view-head">
+        <div>
+          <h3 class="lkd__h">Pay Your Invoice</h3>
+          <p class="lkd__lede">Choose how you'd like to pay — bank transfer or card.</p>
+        </div>
+        <span class="lkd__stepchip" data-lkd-chip>Step 1 of 3</span>
+      </div>
+
+      <div class="lkd__method">
+        <span class="lkd__method-ic"><Icon name="scale" sw={1.8} /></span>
+        <div>
+          <div class="lkd__method-title">Pay by Bank Transfer (BACS)</div>
+          <div class="lkd__method-note">No fees — preferred payment method</div>
+        </div>
+      </div>
+
+      <dl class="lkd__bacs">
+        <div><dt>Account Name</dt><dd>Lockdale Coins Ltd</dd></div>
+        <div><dt>Sort Code</dt><dd class="lkd__mono">••–••–••</dd></div>
+        <div><dt>Account No.</dt><dd class="lkd__mono">••••••••</dd></div>
+        <div class="lkd__bacs-quiet"><dt>IBAN</dt><dd class="lkd__mono">GB•• •••• •••• •••• •••• ••</dd></div>
+      </dl>
+
+      <p class="lkd__ref"><Icon name="mail" sw={2} /> Please include your <strong>Name</strong> and <strong>Bidder Number</strong> as the payment reference so Lockdales can match your payment to your invoice.</p>
+
+      <div class="lkd__divider"></div>
+      <p class="lkd__alt">Prefer to pay by debit or credit card?</p>
+      <button class="lkd__btn" type="button" data-lkd-tocard><Icon name="card" sw={2} /> Pay by Card <Icon name="arrow" sw={2.2} /></button>
+    </div>
+
+    <!-- view 2: card -->
+    <div class="lkd__view" data-lkd-view="card" hidden>
+      <div class="lkd__view-head">
+        <div>
+          <h3 class="lkd__h">Card Details</h3>
+          <p class="lkd__lede">Invoice <strong>LA-10472</strong> · Bidder 318</p>
+        </div>
+        <span class="lkd__amount">£1,240.00</span>
+      </div>
+      <label class="lkd__flabel">Card number</label>
+      <div class="lkd__input"><Icon name="card" sw={1.6} /><span class="lkd__mono">•••• •••• •••• 4242</span></div>
+      <div class="lkd__split">
+        <div><label class="lkd__flabel">Expiry</label><div class="lkd__input lkd__input--sm lkd__mono">12 / 28</div></div>
+        <div><label class="lkd__flabel">CVC</label><div class="lkd__input lkd__input--sm lkd__mono">•••</div></div>
+      </div>
+      <button class="lkd__btn lkd__btn--pay" type="button" data-lkd-pay>Pay £1,240.00</button>
+      <button class="lkd__back" type="button" data-lkd-back><Icon name="chevron" sw={2.2} style="transform:rotate(90deg)" /> Back to payment options</button>
+    </div>
+
+    <!-- view 3: success -->
+    <div class="lkd__view lkd__success" data-lkd-view="done" hidden>
+      <span class="lkd__tick"><Icon name="check" sw={3} /></span>
+      <h3 class="lkd__h">Payment Received</h3>
+      <p class="lkd__lede">£1,240.00 paid · Invoice LA-10472. A receipt has been emailed.</p>
+      <button class="lkd__back" type="button" data-lkd-reset><Icon name="refresh" sw={2} /> Restart demo</button>
+    </div>
+
+    <div class="lkd__foot">
+      <Icon name="lock" sw={1.8} />
+      Illustrative reconstruction of the live Lockdales page — not the live site; no real payments are taken.
+    </div>
+  </div>
+</div>
+
+<style>
+  .lkd {
+    --lk-navy: #1b3a5b;
+    --lk-navy-deep: #15304c;
+    --lk-gold: #c2a24e;
+    --lk-cream: #f7f3ea;
+    --lk-ink: #1b3a5b;
+    --lk-line: rgba(27, 58, 91, 0.14);
+    font-family: Georgia, 'Times New Roman', serif;
+    box-shadow: var(--shadow-lg);
+  }
+  .lkd__body { background: var(--lk-cream); }
+  .lkd__strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    background: var(--lk-navy-deep);
+    color: rgba(255, 255, 255, 0.82);
+    font-family: system-ui, sans-serif;
+    font-size: 0.66rem;
+    padding: 0.45rem 1rem;
+  }
+  .lkd__strip span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .lkd__strip svg { width: 12px; height: 12px; color: var(--lk-gold); }
+  .lkd__strip-ssl { color: rgba(255, 255, 255, 0.6); }
+
+  .lkd__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    background: #fff;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--lk-line);
+  }
+  .lkd__brand { display: flex; align-items: center; gap: 0.6rem; }
+  .lkd__coin { width: 40px; height: 40px; object-fit: contain; border-radius: 50%; }
+  .lkd__wordmark { display: flex; flex-direction: column; line-height: 1.05; }
+  .lkd__name { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.06em; color: var(--lk-navy); }
+  .lkd__sub {
+    font-size: 0.56rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--lk-gold); font-family: system-ui, sans-serif; font-weight: 600; margin-top: 2px;
+  }
+  .lkd__verified {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-family: system-ui, sans-serif; font-size: 0.66rem; font-weight: 600;
+    color: rgba(27, 58, 91, 0.6);
+  }
+  .lkd__verified svg { width: 14px; height: 14px; color: #1f8a5d; }
+
+  .lkd__steps { padding: 1rem 1.2rem 0.4rem; }
+  .lkd__track { height: 4px; border-radius: 2px; background: rgba(27, 58, 91, 0.12); overflow: hidden; }
+  .lkd__track-fill {
+    display: block; height: 100%; width: 33%;
+    background: var(--lk-navy); border-radius: 2px;
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .lkd__step-labels {
+    display: flex; justify-content: space-between;
+    font-family: system-ui, sans-serif; font-size: 0.62rem; font-weight: 600;
+    color: rgba(27, 58, 91, 0.4); margin-top: 0.5rem;
+  }
+  .lkd__step-labels .is-on { color: var(--lk-navy); }
+
+  .lkd__view { padding: 1rem 1.2rem 1.2rem; }
+  .lkd__view-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  .lkd__h { font-size: 1.3rem; font-weight: 700; color: var(--lk-navy); margin: 0; }
+  .lkd__lede {
+    font-family: system-ui, sans-serif; font-size: 0.78rem; line-height: 1.5;
+    color: rgba(27, 58, 91, 0.65); margin: 0.25rem 0 0;
+  }
+  .lkd__lede strong { color: var(--lk-navy); }
+  .lkd__stepchip {
+    flex-shrink: 0;
+    background: var(--lk-navy); color: #fff;
+    font-family: system-ui, sans-serif; font-size: 0.62rem; font-weight: 600;
+    border-radius: 6px; padding: 6px 11px; white-space: nowrap;
+  }
+  .lkd__amount { flex-shrink: 0; font-size: 1.25rem; font-weight: 700; color: var(--lk-navy); }
+
+  .lkd__method { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.85rem; }
+  .lkd__method-ic {
+    width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
+    background: var(--lk-navy); color: var(--lk-gold); display: grid; place-items: center;
+  }
+  .lkd__method-ic svg { width: 19px; height: 19px; }
+  .lkd__method-title { font-size: 0.98rem; font-weight: 700; color: var(--lk-navy); }
+  .lkd__method-note { font-family: system-ui, sans-serif; font-size: 0.7rem; color: #1f8a5d; font-weight: 600; }
+
+  .lkd__bacs {
+    background: #fff; border: 1px solid var(--lk-line); border-radius: 8px;
+    padding: 0.3rem 0.9rem; margin: 0 0 0.85rem; font-family: system-ui, sans-serif;
+  }
+  .lkd__bacs > div {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.5rem 0; border-bottom: 1px solid var(--lk-line);
+  }
+  .lkd__bacs > div:last-child { border-bottom: 0; }
+  .lkd__bacs dt { font-size: 0.74rem; color: rgba(27, 58, 91, 0.6); }
+  .lkd__bacs dd { font-size: 0.85rem; font-weight: 700; color: var(--lk-navy); margin: 0; }
+  .lkd__bacs-quiet dd { font-size: 0.74rem; font-weight: 600; color: rgba(27, 58, 91, 0.55); }
+  .lkd__mono { font-family: var(--font-mono); letter-spacing: 0.04em; }
+
+  .lkd__ref {
+    display: flex; align-items: flex-start; gap: 0.45rem;
+    background: rgba(194, 162, 78, 0.1); border: 1px solid rgba(194, 162, 78, 0.3);
+    border-radius: 8px; padding: 0.65rem 0.8rem; margin: 0;
+    font-family: system-ui, sans-serif; font-size: 0.72rem; line-height: 1.5;
+    color: rgba(27, 58, 91, 0.78);
+  }
+  .lkd__ref svg { width: 14px; height: 14px; color: var(--lk-gold); flex-shrink: 0; margin-top: 2px; }
+  .lkd__ref strong { color: var(--lk-navy); }
+
+  .lkd__divider { height: 1px; background: var(--lk-line); margin: 1rem 0 0.85rem; }
+  .lkd__alt {
+    text-align: center; font-family: system-ui, sans-serif; font-size: 0.74rem;
+    color: rgba(27, 58, 91, 0.6); margin: 0 0 0.7rem;
+  }
+  .lkd__btn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    background: var(--lk-navy); color: #fff; border: 0; border-radius: 8px;
+    font-family: system-ui, sans-serif; font-size: 0.92rem; font-weight: 700;
+    padding: 0.85rem; cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .lkd__btn:hover { background: var(--lk-navy-deep); }
+  .lkd__btn:active { transform: scale(0.99); }
+  .lkd__btn svg { width: 17px; height: 17px; }
+  .lkd__btn--pay { margin-top: 0.4rem; }
+
+  .lkd__flabel {
+    display: block; font-family: system-ui, sans-serif; font-size: 0.68rem; font-weight: 600;
+    color: rgba(27, 58, 91, 0.55); margin: 0 0 0.3rem;
+  }
+  .lkd__input {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: #fff; border: 1px solid var(--lk-line); border-radius: 6px;
+    padding: 0.65rem 0.75rem; margin-bottom: 0.8rem;
+    font-size: 0.88rem; color: rgba(27, 58, 91, 0.7);
+  }
+  .lkd__input svg { width: 17px; height: 17px; color: rgba(27, 58, 91, 0.4); }
+  .lkd__input--sm { display: block; }
+  .lkd__split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+  .lkd__back {
+    display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+    width: 100%; margin-top: 0.7rem; background: none; border: 0;
+    font-family: system-ui, sans-serif; font-size: 0.76rem; font-weight: 600;
+    color: rgba(27, 58, 91, 0.6); cursor: pointer;
+  }
+  .lkd__back svg { width: 14px; height: 14px; }
+
+  .lkd__success { text-align: center; padding-top: 1.6rem; padding-bottom: 1.6rem; }
+  .lkd__tick {
+    display: inline-grid; place-items: center; width: 56px; height: 56px;
+    border-radius: 50%; background: #1f8a5d; color: #fff; margin-bottom: 0.8rem;
+  }
+  .lkd__tick svg { width: 28px; height: 28px; }
+
+  .lkd__foot {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: var(--lk-navy-deep); color: rgba(255, 255, 255, 0.6);
+    font-family: system-ui, sans-serif; font-size: 0.66rem; line-height: 1.4;
+    padding: 0.7rem 1rem;
+  }
+  .lkd__foot svg { width: 13px; height: 13px; color: var(--lk-gold); flex-shrink: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lkd__track-fill, .lkd__btn { transition: none; }
+  }
+</style>
+
+<script>
+  document.querySelectorAll("[data-lkd]").forEach((root) => {
+    if (root.dataset.lkdBound) return;
+    root.dataset.lkdBound = "1";
+
+    const views = {
+      method: root.querySelector('[data-lkd-view="method"]'),
+      card: root.querySelector('[data-lkd-view="card"]'),
+      done: root.querySelector('[data-lkd-view="done"]'),
+    };
+    const fill = root.querySelector("[data-lkd-fill]");
+    const chip = root.querySelector("[data-lkd-chip]");
+    const stepLabels = root.querySelectorAll("[data-lkd-step]");
+    const widths = { method: "33%", card: "66%", done: "100%" };
+    const stepNum = { method: 1, card: 2, done: 3 };
+
+    function show(view) {
+      Object.entries(views).forEach(([k, el]) => (el.hidden = k !== view));
+      fill.style.width = widths[view];
+      stepLabels.forEach((s) => s.classList.toggle("is-on", Number(s.dataset.lkdStep) <= stepNum[view]));
+      if (chip) chip.textContent = "Step " + stepNum[view] + " of 3";
+    }
+
+    root.querySelector("[data-lkd-tocard]").addEventListener("click", () => show("card"));
+    root.querySelector("[data-lkd-back]").addEventListener("click", () => show("method"));
+    root.querySelector("[data-lkd-reset]").addEventListener("click", () => show("method"));
+
+    const payBtn = root.querySelector("[data-lkd-pay]");
+    payBtn.addEventListener("click", () => {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      payBtn.disabled = true;
+      payBtn.textContent = "Processing…";
+      const finish = () => { show("done"); payBtn.disabled = false; payBtn.textContent = "Pay £1,240.00"; };
+      if (reduce) finish();
+      else setTimeout(finish, 900);
+    });
+  });
+</script>

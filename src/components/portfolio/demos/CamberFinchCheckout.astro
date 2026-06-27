@@ -1,0 +1,327 @@
+---
+/* Camber & Finch Auctioneers — fictional fine-art auction-house checkout.
+   A branded post-sale "Pay Your Invoice" page: lot summary with hammer price +
+   buyer's premium, then card payment. Claret / parchment / antique-brass brand
+   world (mockup 4-8px radii). Illustrative demo, no real payments.
+   Self-contained scoped script; multi-instance safe. */
+import Icon from '../../Icon.astro';
+import Chrome from '../../previews/Chrome.astro';
+---
+<div class="mok cf" data-cf>
+  <Chrome url="pay.camberandfinch.co.uk/invoice/INV-3471" />
+  <div class="cf__body">
+    <header class="cf__header">
+      <span class="cf__mark" aria-hidden="true">C&amp;F</span>
+      <span class="cf__wordmark">
+        <span class="cf__name">Camber &amp; Finch</span>
+        <span class="cf__sub">Auctioneers &amp; Valuers</span>
+      </span>
+    </header>
+
+    <!-- checkout view -->
+    <div class="cf__view" data-cf-view="pay">
+      <h3 class="cf__h">Pay Your Invoice</h3>
+      <p class="cf__meta">Invoice <strong>INV-3471</strong> · Bidder 142 · Spring Fine Art &amp; Antiques</p>
+
+      <div class="cf__lot">
+        <div class="cf__lot-row">
+          <span>Lot 214 — Pair of Georgian silver candlesticks</span>
+          <span class="cf__num">£1,800.00</span>
+        </div>
+        <div class="cf__lot-row cf__lot-row--quiet">
+          <span>Buyer's premium (24%)</span>
+          <span class="cf__num">£432.00</span>
+        </div>
+        <div class="cf__lot-row cf__lot-total">
+          <span>Total due</span>
+          <span class="cf__num">£2,232.00</span>
+        </div>
+      </div>
+
+      <div class="cf__marks" aria-hidden="true">
+        <img src="/assets/payment/Visa.svg" alt="" data-cf-mark="visa" />
+        <img src="/assets/payment/Mastercard.svg" alt="" data-cf-mark="mastercard" />
+        <img src="/assets/payment/Amex.svg" alt="" data-cf-mark="amex" />
+      </div>
+
+      <form class="cf__form" data-cf-form novalidate>
+        <label class="cf__field">
+          <span class="cf__label">Cardholder name</span>
+          <input class="cf__input" type="text" autocomplete="cc-name" data-cf-name placeholder="Name on card" />
+          <span class="cf__err" data-cf-err="name" hidden><Icon name="close" sw={2.5} /><span>Enter the name on your card</span></span>
+        </label>
+        <label class="cf__field">
+          <span class="cf__label">Card number</span>
+          <span class="cf__input-wrap">
+            <Icon name="card" sw={1.6} />
+            <input class="cf__input cf__input--card" type="text" inputmode="numeric" autocomplete="cc-number" data-cf-number placeholder="1234 1234 1234 1234" maxlength="19" />
+          </span>
+          <span class="cf__err" data-cf-err="number" hidden><Icon name="close" sw={2.5} /><span data-cf-err-number>Enter a valid card number</span></span>
+        </label>
+        <div class="cf__split">
+          <label class="cf__field">
+            <span class="cf__label">Expiry</span>
+            <input class="cf__input" type="text" inputmode="numeric" autocomplete="cc-exp" data-cf-exp placeholder="MM / YY" maxlength="7" />
+            <span class="cf__err" data-cf-err="exp" hidden><Icon name="close" sw={2.5} /><span>Check the expiry date</span></span>
+          </label>
+          <label class="cf__field">
+            <span class="cf__label">CVC</span>
+            <input class="cf__input" type="text" inputmode="numeric" autocomplete="cc-csc" data-cf-cvc placeholder="123" maxlength="4" />
+            <span class="cf__err" data-cf-err="cvc" hidden><Icon name="close" sw={2.5} /><span>Check the CVC</span></span>
+          </label>
+        </div>
+
+        <p class="cf__hint">Demo cards: <strong>4242 4242 4242 4242</strong> succeeds · <strong>4000 0000 0000 0002</strong> declines</p>
+
+        <button class="cf__pay" type="submit" data-cf-pay>Pay £2,232.00</button>
+        <p class="cf__declined" data-cf-declined hidden><Icon name="close" sw={2.5} /> Your card was declined. <button type="button" class="cf__retry" data-cf-retry>Try again</button></p>
+      </form>
+    </div>
+
+    <!-- success view -->
+    <div class="cf__view cf__success" data-cf-view="done" hidden>
+      <span class="cf__tick"><Icon name="check" sw={3} /></span>
+      <h3 class="cf__h">Payment Received</h3>
+      <p class="cf__meta">£2,232.00 paid · Invoice INV-3471. A receipt has been emailed, and your lot is marked ready to release.</p>
+      <button class="cf__restart" type="button" data-cf-reset><Icon name="refresh" sw={2} /> Restart demo</button>
+    </div>
+
+    <div class="cf__foot">
+      <Icon name="lock" sw={1.8} />
+      Illustrative demo — no real payments are taken. Card payments are processed by FCA-regulated partners.
+    </div>
+  </div>
+</div>
+
+<style>
+  .cf {
+    --cf-claret: #5a1a2b;
+    --cf-claret-deep: #45131f;
+    --cf-brass: #9c6b3c;
+    --cf-parch: #f5f0e6;
+    --cf-ink: #3a1019;
+    --cf-line: rgba(58, 16, 25, 0.16);
+    font-family: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    box-shadow: var(--shadow-lg);
+  }
+  .cf__body { background: var(--cf-parch); padding: 0; }
+  .cf__header {
+    display: flex; align-items: center; gap: 0.65rem;
+    background: var(--cf-claret); padding: 0.85rem 1.3rem;
+  }
+  .cf__mark {
+    width: 40px; height: 40px; border-radius: 7px; flex-shrink: 0;
+    background: var(--cf-brass); color: var(--cf-parch);
+    display: grid; place-items: center; font-size: 0.82rem; font-weight: 700;
+  }
+  .cf__wordmark { display: flex; flex-direction: column; line-height: 1.1; }
+  .cf__name { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; color: var(--cf-parch); }
+  .cf__sub {
+    font-size: 0.56rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(245, 240, 230, 0.7); font-family: system-ui, sans-serif; font-weight: 600; margin-top: 3px;
+  }
+
+  .cf__view { padding: 1.3rem 1.3rem 1rem; }
+  .cf__h { font-size: 1.4rem; font-weight: 700; color: var(--cf-claret); margin: 0 0 0.3rem; }
+  .cf__meta {
+    font-family: system-ui, sans-serif; font-size: 0.76rem; line-height: 1.5;
+    color: rgba(58, 16, 25, 0.65); margin: 0 0 1.1rem;
+  }
+  .cf__meta strong { color: var(--cf-claret); }
+
+  .cf__lot {
+    background: #fff; border: 1px solid var(--cf-line); border-radius: 8px;
+    padding: 0.5rem 0.95rem; margin-bottom: 1.1rem; font-family: system-ui, sans-serif;
+  }
+  .cf__lot-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.6rem 0; border-bottom: 1px solid var(--cf-line);
+    font-size: 0.82rem; color: var(--cf-ink);
+  }
+  .cf__lot-row--quiet { color: rgba(58, 16, 25, 0.6); }
+  .cf__lot-total { border-bottom: 0; font-weight: 700; font-size: 0.95rem; color: var(--cf-claret); }
+  .cf__num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .cf__marks { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; }
+  .cf__marks img {
+    height: 22px; width: auto; border: 1px solid var(--cf-line); border-radius: 4px;
+    padding: 2px 4px; background: #fff; opacity: 0.4; transition: opacity 0.2s;
+  }
+  .cf__marks img.is-on { opacity: 1; box-shadow: 0 0 0 2px rgba(156, 107, 60, 0.4); }
+
+  .cf__form { font-family: system-ui, sans-serif; }
+  .cf__field { display: block; margin-bottom: 0.75rem; }
+  .cf__label { display: block; font-size: 0.7rem; font-weight: 600; color: rgba(58, 16, 25, 0.6); margin-bottom: 0.3rem; }
+  .cf__input {
+    width: 100%; font: inherit; font-size: 0.9rem; color: var(--cf-ink);
+    background: #fff; border: 1px solid var(--cf-line); border-radius: 6px; padding: 0.65rem 0.75rem;
+  }
+  .cf__input:focus-visible { outline: 2px solid var(--cf-claret); outline-offset: 1px; border-color: var(--cf-claret); }
+  .cf__input-wrap { display: flex; align-items: center; gap: 0.5rem; background: #fff; border: 1px solid var(--cf-line); border-radius: 6px; padding: 0 0.75rem; }
+  .cf__input-wrap:focus-within { outline: 2px solid var(--cf-claret); outline-offset: 1px; border-color: var(--cf-claret); }
+  .cf__input-wrap svg { width: 17px; height: 17px; color: rgba(58, 16, 25, 0.4); flex-shrink: 0; }
+  .cf__input--card { border: 0; padding-left: 0; }
+  .cf__input--card:focus-visible { outline: none; }
+  .cf__split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .cf__err {
+    display: flex; align-items: center; gap: 0.3rem; margin-top: 0.3rem;
+    font-size: 0.72rem; color: var(--color-error);
+  }
+  .cf__err svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+  .cf__hint {
+    background: rgba(156, 107, 60, 0.1); border: 1px solid rgba(156, 107, 60, 0.28);
+    border-radius: 6px; padding: 0.5rem 0.7rem; margin: 0.4rem 0 0.9rem;
+    font-size: 0.68rem; line-height: 1.45; color: rgba(58, 16, 25, 0.7);
+  }
+  .cf__hint strong { color: var(--cf-claret); font-variant-numeric: tabular-nums; }
+
+  .cf__pay {
+    width: 100%; border: 0; border-radius: 8px;
+    background: var(--cf-claret); color: var(--cf-parch);
+    font: inherit; font-size: 1rem; font-weight: 700; padding: 0.9rem; cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .cf__pay:hover { background: var(--cf-claret-deep); }
+  .cf__pay:active { transform: scale(0.99); }
+  .cf__pay:disabled { opacity: 0.7; cursor: default; }
+
+  .cf__declined {
+    display: flex; align-items: center; gap: 0.4rem; justify-content: center;
+    margin: 0.7rem 0 0; font-size: 0.8rem; color: var(--color-error);
+  }
+  .cf__declined svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .cf__retry {
+    background: none; border: 0; color: var(--cf-claret); font: inherit; font-weight: 700;
+    text-decoration: underline; cursor: pointer;
+  }
+
+  .cf__success { text-align: center; padding-top: 1.8rem; padding-bottom: 1.8rem; }
+  .cf__tick {
+    display: inline-grid; place-items: center; width: 56px; height: 56px;
+    border-radius: 50%; background: #1f8a5d; color: #fff; margin-bottom: 0.8rem;
+  }
+  .cf__tick svg { width: 28px; height: 28px; }
+  .cf__restart {
+    display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.8rem;
+    background: none; border: 0; font-family: system-ui, sans-serif; font-size: 0.78rem;
+    font-weight: 600; color: rgba(58, 16, 25, 0.6); cursor: pointer;
+  }
+  .cf__restart svg { width: 14px; height: 14px; }
+
+  .cf__foot {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: var(--cf-claret-deep); color: rgba(245, 240, 230, 0.62);
+    font-family: system-ui, sans-serif; font-size: 0.66rem; line-height: 1.4;
+    padding: 0.7rem 1.3rem;
+  }
+  .cf__foot svg { width: 13px; height: 13px; color: var(--cf-brass); flex-shrink: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cf__pay, .cf__marks img { transition: none; }
+  }
+</style>
+
+<script>
+  document.querySelectorAll("[data-cf]").forEach((root) => {
+    if (root.dataset.cfBound) return;
+    root.dataset.cfBound = "1";
+
+    const form = root.querySelector("[data-cf-form]");
+    const views = {
+      pay: root.querySelector('[data-cf-view="pay"]'),
+      done: root.querySelector('[data-cf-view="done"]'),
+    };
+    const numEl = root.querySelector("[data-cf-number]");
+    const expEl = root.querySelector("[data-cf-exp]");
+    const cvcEl = root.querySelector("[data-cf-cvc]");
+    const nameEl = root.querySelector("[data-cf-name]");
+    const payBtn = root.querySelector("[data-cf-pay]");
+    const declined = root.querySelector("[data-cf-declined]");
+    const marks = root.querySelectorAll("[data-cf-mark]");
+    const errNumberMsg = root.querySelector("[data-cf-err-number]");
+
+    const digits = (s) => s.replace(/\D/g, "");
+    function brand(n) {
+      if (/^4/.test(n)) return "visa";
+      if (/^(5[1-5]|2[2-7])/.test(n)) return "mastercard";
+      if (/^3[47]/.test(n)) return "amex";
+      return null;
+    }
+    function fmtCard(n) {
+      const b = brand(n);
+      if (b === "amex") return n.replace(/^(\d{0,4})(\d{0,6})(\d{0,5}).*/, (_, a, c, d) => [a, c, d].filter(Boolean).join(" "));
+      return n.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+    }
+
+    numEl.addEventListener("input", () => {
+      const n = digits(numEl.value).slice(0, brand(digits(numEl.value)) === "amex" ? 15 : 16);
+      numEl.value = fmtCard(n);
+      const b = brand(n);
+      marks.forEach((m) => m.classList.toggle("is-on", m.dataset.cfMark === b));
+      hideErr("number");
+    });
+    expEl.addEventListener("input", () => {
+      let d = digits(expEl.value).slice(0, 4);
+      if (d.length >= 1 && Number(d[0]) > 1) d = "0" + d;
+      expEl.value = d.length > 2 ? d.slice(0, 2) + " / " + d.slice(2) : d;
+      hideErr("exp");
+    });
+    cvcEl.addEventListener("input", () => { cvcEl.value = digits(cvcEl.value).slice(0, 4); hideErr("cvc"); });
+    nameEl.addEventListener("input", () => hideErr("name"));
+
+    function showErr(k) { const e = root.querySelector(`[data-cf-err="${k}"]`); if (e) e.hidden = false; }
+    function hideErr(k) { const e = root.querySelector(`[data-cf-err="${k}"]`); if (e) e.hidden = true; }
+
+    function validExp() {
+      const d = digits(expEl.value);
+      if (d.length !== 4) return false;
+      const mm = Number(d.slice(0, 2)), yy = Number(d.slice(2));
+      if (mm < 1 || mm > 12) return false;
+      // 2-digit year => 2000+; treat <26 boundary generously via fixed reference (no Date in build, runtime ok)
+      const now = new Date();
+      const curYY = now.getFullYear() % 100, curMM = now.getMonth() + 1;
+      return yy > curYY || (yy === curYY && mm >= curMM);
+    }
+
+    function validate() {
+      let ok = true;
+      const n = digits(numEl.value);
+      const len = brand(n) === "amex" ? 15 : 16;
+      if (n.length !== len) { errNumberMsg.textContent = "Enter a valid card number"; showErr("number"); ok = false; }
+      if (!validExp()) { showErr("exp"); ok = false; }
+      const cvcLen = brand(n) === "amex" ? 4 : 3;
+      if (digits(cvcEl.value).length < (brand(n) === "amex" ? 4 : 3)) { showErr("cvc"); ok = false; }
+      if (!nameEl.value.trim()) { showErr("name"); ok = false; }
+      return ok;
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      declined.hidden = true;
+      if (!validate()) return;
+      const n = digits(numEl.value);
+      payBtn.disabled = true;
+      const original = payBtn.textContent;
+      payBtn.textContent = "Processing…";
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const finish = () => {
+        payBtn.disabled = false;
+        payBtn.textContent = original;
+        if (n === "4000000000000002") {
+          declined.hidden = false;
+        } else {
+          views.pay.hidden = true;
+          views.done.hidden = false;
+        }
+      };
+      reduce ? finish() : setTimeout(finish, 900);
+    });
+
+    root.querySelector("[data-cf-retry]").addEventListener("click", () => { declined.hidden = true; numEl.focus(); });
+    root.querySelector("[data-cf-reset]").addEventListener("click", () => {
+      views.done.hidden = true;
+      views.pay.hidden = false;
+    });
+  });
+</script>

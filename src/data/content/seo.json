@@ -102,5 +102,13 @@
     "keywords": "SettlePay terms of service, terms and conditions, service agreement, governing law England Wales, payment page development terms",
     "ogTitle": "Terms of Service | SettlePay",
     "ogDescription": "The terms covering SettlePay's website and payment-page development services, including scope, responsibilities and governing law in England & Wales."
+  },
+  {
+    "path": "/work/camber-finch-auctions/",
+    "title": "Camber & Finch Auctioneers Demo | SettlePay",
+    "description": "A modelled fine-art auction-house case study: winning lots invoiced with buyer's premium, paid by branded link and auto-matched to the bidder so lots can be released. Demo in test mode.",
+    "keywords": "auction house payments, post-sale lot settlement, buyer's premium payment, auctioneer payment page, lot reconciliation, fine art auction payments UK",
+    "ogTitle": "Camber & Finch Auctioneers | Illustrative SettlePay Demo",
+    "ogDescription": "A fictional fine-art auction house showing post-sale invoices paid by branded link and matched to each lot automatically — test mode only, no real payments taken."
   }
 ]
