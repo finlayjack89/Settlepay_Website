@@ -39,6 +39,16 @@ SEARCH_MAX_REQUESTS_PER_RUN = _int("SEARCH_MAX_REQUESTS_PER_RUN", 50)
 # --- LLM provider ---
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")
 
+# --- send: Microsoft Graph (phase G), from a SEPARATE warmed domain (never @settlepay.uk) ---
+GRAPH_TENANT_ID = os.environ.get("GRAPH_TENANT_ID")
+GRAPH_CLIENT_ID = os.environ.get("GRAPH_CLIENT_ID")
+GRAPH_CLIENT_SECRET = os.environ.get("GRAPH_CLIENT_SECRET")
+GRAPH_SENDER = os.environ.get("GRAPH_SENDER")
+
+# --- send guardrails (phase G) ---
+PER_INBOX_DAILY_CAP = _int("PER_INBOX_DAILY_CAP", 5)
+KILL_SWITCH = os.environ.get("KILL_SWITCH")  # truthy => block ALL sends (dry-run included)
+
 # --- live-send gate (human-only; the loop must NEVER set this) ---
 G_SEND = os.environ.get("G_SEND")
 
