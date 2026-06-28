@@ -27,6 +27,22 @@ uv pip install --python .venv/bin/python "psycopg[binary]" httpx python-dotenv p
 .venv/bin/python -m pytest -q             # unit tests
 ```
 
+## Operator UI (local, optional)
+
+A minimal **localhost** approval queue + read-only dashboard (single operator, no
+auth — do not expose publicly). It reuses `outreach.review` (envelope re-checked,
+audited, `body_original` immutable) and does NOT send — approving only advances a
+draft to `approved`; sending stays gated behind G-SEND.
+
+```bash
+uv pip install --python .venv/bin/python ".[web]"   # fastapi + uvicorn + python-multipart
+.venv/bin/uvicorn outreach.web:app --port 8787
+# open http://localhost:8787  (queue)  ·  /dashboard  (funnel + graduation metrics)
+```
+
+The CLI alternative for the same approvals:
+`python -m outreach.review list | approve <id> --by "Name" [--edit "..."] | reject <id> --by "Name"`.
+
 ## Layout
 
 ```
