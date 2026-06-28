@@ -1,0 +1,26 @@
+Invoice {{invoice_number}}
+
+Hi {{first_name}},
+
+Thank you for your business. Here's a summary of your invoice — the full
+breakdown is in the link below.
+
+Invoice number:  {{invoice_number}}
+Issue date:      {{issue_date}}
+Due date:        {{due_date}}
+Amount due:      {{amount}}
+
+Pay invoice:   {{pay_url}}
+View invoice:  {{invoice_url}}
+
+Payment is due by {{due_date}}. If you have any questions about this
+invoice, just reply to this email.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

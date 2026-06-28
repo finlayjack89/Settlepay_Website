@@ -1,0 +1,23 @@
+Your Consultation Is Coming Up
+
+Hi {{first_name}},
+
+Just a quick reminder that your consultation with me is coming up. Your
+link to join is below — I'll see you then.
+
+Date:   {{date}}
+Time:   {{time}} (UK time)
+Where:  Online video call — use the link below to join (or I can call you)
+
+Join the call: {{meeting_link}}
+
+Can't make it? Reschedule: {{reschedule_url}}
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

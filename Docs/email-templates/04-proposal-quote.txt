@@ -1,0 +1,25 @@
+Your Proposal Is Ready
+
+Hi {{first_name}},
+
+Thank you for your time. I've put together a proposal for {{business}} —
+written in plain English, with no jargon and no surprises. Here's the
+headline; the full document has the detail.
+
+Investment:   {{price_summary}}
+Timeline:     {{timeline_summary}}
+Valid until:  {{valid_until}}
+
+View your proposal: {{proposal_url}}
+
+Take your time reading it over. If anything's unclear or you'd like to
+adjust the scope, just reply to this email and we'll talk it through.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

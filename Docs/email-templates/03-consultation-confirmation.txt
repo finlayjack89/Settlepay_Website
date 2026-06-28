@@ -1,0 +1,32 @@
+Your Consultation Is Booked
+
+Hi {{first_name}},
+
+Your consultation with me is confirmed. There's a calendar invitation
+attached, and I'll email your join link in a reminder shortly before we
+speak.
+
+Date:   {{date}}
+Time:   {{time}} (UK time)
+Where:  Online video call — join link to follow (or I can call you, just say)
+
+WHAT WE'LL COVER
+- How you take payments today, and where it's costing you time
+- What a branded checkout page would look like for your business
+- A clear, no-obligation idea of cost and timeline
+
+WORTH HAVING TO HAND
+A rough sense of your monthly payment volume, and who currently handles
+your bookkeeping. Nothing formal — it just helps me give you useful
+answers on the day.
+
+Need to change the time? Reschedule: {{reschedule_url}}
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

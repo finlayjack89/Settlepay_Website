@@ -1,0 +1,38 @@
+Welcome to SettlePay
+
+Hi {{first_name}},
+
+Thank you for choosing SettlePay — I'm glad to be working with
+{{business}}. Here's exactly what happens next, so you always know where
+things stand.
+
+THREE STEPS TO GET STARTED
+
+1. Send your brand assets
+   Your logo, brand colours and any fonts. Whatever you have is fine.
+
+2. Connect your processor
+   I'll guide you through setting up your own Stripe or Adyen account,
+   step by step. Your money always settles straight to your bank — I
+   never hold it.
+
+3. Share your page content
+   What you sell, your terms, and the contact details for the page.
+
+Most pages are live within two to three weeks of receiving everything.
+The link below opens your onboarding checklist — fill in what you can,
+when you can.
+
+Complete your onboarding: {{onboarding_url}}
+
+Any questions at all, just reply to this email and it comes straight to
+me.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

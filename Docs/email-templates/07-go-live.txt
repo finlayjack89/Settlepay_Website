@@ -1,0 +1,29 @@
+Your Payment Page Is Live
+
+Hi {{first_name}},
+
+It's done — your branded payment page for {{business}} is now live and
+ready to take payments. Congratulations.
+
+Your live page:        {{live_url}}
+What's been delivered: {{summary}}
+
+View your live page: {{live_url}}
+
+USING YOUR PAGE
+Share the link directly with customers, add it to invoices, or link to
+it from your website — wherever it's easiest for people to pay you.
+
+IF SOMETHING LOOKS OFF
+Reply to this email and I'll take a look straight away. Small tweaks in
+the first 30 days are on me, and I'm here for any questions long after
+that.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

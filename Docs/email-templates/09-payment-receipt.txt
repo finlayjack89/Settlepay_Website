@@ -1,0 +1,23 @@
+Payment Received
+
+Hi {{first_name}},
+
+Thank you — your payment has been received in full. Here's your receipt.
+
+Description:    {{description}}
+Date received:  {{paid_on}}
+Amount paid:    {{amount}}
+
+View receipt: {{receipt_url}}
+
+Please keep this email for your records. If anything doesn't look right,
+reply and I'll sort it out.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

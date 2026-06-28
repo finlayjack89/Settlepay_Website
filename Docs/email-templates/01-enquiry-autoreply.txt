@@ -1,0 +1,24 @@
+Thanks — I've Got Your Enquiry
+
+Hi {{first_name}},
+
+Thank you for getting in touch about {{business}}. This is a quick
+automatic note to let you know your message has landed safely with me.
+
+I read every enquiry myself, and I'll reply to you personally — usually
+within one working day. There's no call centre and no sales team here;
+it's just me, Finlay.
+
+If there's anything you'd like to add in the meantime, simply reply to
+this email. It comes straight to my inbox.
+
+See examples of our work: https://settlepay.uk/work/
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

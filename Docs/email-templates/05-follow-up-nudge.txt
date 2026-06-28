@@ -1,0 +1,28 @@
+Still Thinking It Over?
+
+Hi {{first_name}},
+
+I know a decision like this isn't one to rush, so there's no pressure
+from me. I just wanted to leave the door open for {{business}}.
+
+If it helps: most owners I work with are surprised by how much admin a
+branded checkout page quietly gives back. No more chasing bank
+transfers, no more typing payments in by hand, and money that settles
+straight to your own account.
+
+Book a quick call: {{cta_url}}
+
+Or simply reply with whatever's on your mind — I'm happy to answer
+questions with no obligation either way.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+You're receiving this because you enquired with SettlePay.
+Unsubscribe: {{unsubscribe_url}}
+
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

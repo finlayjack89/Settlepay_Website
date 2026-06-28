@@ -1,0 +1,28 @@
+We've Received Your Data Request
+
+Hi {{first_name}},
+
+This is to confirm that we've received your request — {{request_type}} —
+relating to your personal data.
+
+Request type:  {{request_type}}
+Response due:  Within one calendar month of today
+
+WHAT HAPPENS NEXT
+Under UK GDPR, we'll respond within one calendar month. If your request
+is complex we may need a little longer, in which case we'll let you know
+within that month and explain why. There's no charge for a standard
+request.
+
+If we need anything from you to confirm your identity or narrow down
+your request, I'll be in touch directly. Any questions in the meantime,
+just reply to this email.
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk

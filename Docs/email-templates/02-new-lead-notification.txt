@@ -1,0 +1,19 @@
+NEW WEBSITE ENQUIRY
+
+New Enquiry — {{business}}
+
+A new enquiry just came in through the settlepay.uk form. Details below.
+
+Business:      {{business}}
+Name:          {{name}}
+Email:         {{email}}
+Message:       {{message}}
+Lead ID:       {{lead_id}}
+Submitted at:  {{submitted_at}}
+
+Reply to {{first_name}}: {{email}}
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk
