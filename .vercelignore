@@ -1,0 +1,4 @@
+# Keep non-Astro projects out of the Vercel deployment for settlepay.uk.
+# The outreach/ Python pipeline and loops/ machinery are not part of the static site.
+outreach/
+loops/

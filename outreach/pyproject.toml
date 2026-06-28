@@ -1,0 +1,27 @@
+[project]
+name = "outreach"
+version = "0.1.0"
+description = "SettlePay UK PECR-compliant agentic cold-email outreach pipeline (drafting MECHANISM only; conversion strategy is deferred)."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "psycopg[binary]>=3.2",
+  "httpx>=0.27",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+  "floor_a: phase A foundations floor",
+  "floor_b: phase B find_leads floor",
+  "floor_c: phase C compliance firewall floor",
+  "floor_d: phase D enrich_company floor",
+  "floor_e: phase E draft_email floor",
+  "floor_f: phase F approval queue floor",
+  "floor_g: phase G send floor",
+  "floor_h: phase H operational wiring floor",
+]
