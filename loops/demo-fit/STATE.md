@@ -5,22 +5,25 @@ done and writes it after every iteration. Counters here are the ONLY brake the
 budget can rely on.
 
 started-at: 2026-06-27T18:15:03Z
-last-run:   2026-06-27T18:34:00Z (predicate met: all in-scope surfaces green)
-global-iterations: 2
+last-run:   2026-06-28T10:15:00Z (wide-stage re-audit after user-reported Lockdales bug)
+global-iterations: 3
 
 ## Per-surface progress
 Legend: floor = verify.sh deterministic pass · judge = evaluator-agent FITS ·
 each at widths 1280 / 540 / 390. A surface is GREEN only when floor AND judge pass
 at all three. `rounds` = fix-rounds spent (budget: max 2).
 
-Floor verified by verify.sh (full-suite build + overflow/console) on two runs.
-Judge = independent evaluator agent on element screenshots at 540 / 390 (the
-width-dependent problem widths per CONTEXT). 1280 = desktop, documented "fine"
-and floor-passed, so judged pass-by-floor (not separately AI-graded).
+Floor verified by verify.sh (full-suite build + overflow/console) on every run.
+Judge = independent evaluator agent on element screenshots. Round 1 graded 540 /
+390 only (per CONTEXT's "desktop is fine" note). That note proved WRONG: the user
+caught a broken layout at the wide ~620px stage (1280 viewport). Round 3 therefore
+AI-graded ALL 20 surfaces at 1280 too — every demo is now judged at all three
+widths. **Process fix: never trust "desktop is fine"; always AI-judge the wide
+stage as well as the narrow widths.**
 
 | Surface | Page | floor (1280/540/390) | judge (540/390) | rounds | green? |
 |---|---|---|---|---|---|
-| LockdalesCheckout (.lkd) | /work/lockdales-auctioneers/ | ✓ / ✓ / ✓ | FITS / FITS | 0 | YES |
+| LockdalesCheckout (.lkd) | /work/lockdales-auctioneers/ | ✓ / ✓ / ✓ | FITS / FITS / FITS | 1 | YES (fixed) |
 | HarboursideCheckout (.mok) | /work/harbourside-lettings/ | ✓ / ✓ / ✓ | FITS / FITS | 0 | YES |
 | Harbourside CaseTheatre (.ct) | /work/harbourside-lettings/ | ✓ / ✓ / ✓ | FITS / FITS | 0 | YES |
 | Harbourside RoiCalculator (.roi) | /work/harbourside-lettings/ | ✓ / ✓ / ✓ | FITS / FITS | 0 | YES |
@@ -51,6 +54,13 @@ Outcome: 18 / 18 in-scope surfaces GREEN. The only in-scope sizing fault found
   brand header out as a grid so the "Illustrative demo" chip drops to its own row,
   letting "Rowan Physiotherapy" hold a single line. (Round 1 font-clamp was
   insufficient; round 2 grid rework confirmed FITS by the evaluator agent.)
+- `src/components/portfolio/demos/LockdalesCheckout.astro` (round 3, user-reported):
+  the `.lkd__ref` reference note used `display:flex` directly on the `<p>`, so its
+  inline runs and each `<strong>` became separate flex columns that wrapped
+  vertically into a broken grid at the wide ~620px stage. Wrapped the sentence in a
+  single `.lkd__ref-text` span (+ `min-width:0`) so it's ONE flex item beside the
+  icon and flows as a normal sentence. Confirmed FITS at 1280/540/390 by the
+  evaluator and visually; restores fidelity to the real flowing-sentence note.
 
 ### Methodology note (for re-runs)
 Element screenshots of any demo TALLER than the capture viewport (e.g. the
