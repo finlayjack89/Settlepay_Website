@@ -32,11 +32,10 @@ export const SITE = {
   // Data protection — fill in once registered with the ICO.
   icoRegistration: '[ICO_REGISTRATION_NUMBER]',
 
-  // Enquiry form delivery endpoint.
-  // Leave empty to use the no-backend mailto: fallback (good for localhost).
-  // For production set this to a form handler URL (e.g. Formspree, Web3Forms,
-  // or a Netlify/Cloudflare Function) that accepts a POST and returns 200.
-  formEndpoint: '',
+  // Enquiry form delivery endpoint — the Supabase `enquiry` Edge Function.
+  // Stores each submission in the `leads` table and emails a notification via Resend.
+  // Leave empty to fall back to the no-backend mailto: flow.
+  formEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/enquiry',
 
   // Default SEO
   defaultTitle: 'SettlePay — Bespoke Payment Pages for UK Businesses',
