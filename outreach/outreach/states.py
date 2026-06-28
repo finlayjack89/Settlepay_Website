@@ -41,7 +41,7 @@ TERMINAL: frozenset[LeadState] = frozenset({
 ALLOWED: dict[LeadState, set[LeadState]] = {
     LeadState.DISCOVERED: {LeadState.ENRICHED, LeadState.DISCARDED},
     LeadState.ENRICHED: {LeadState.DRAFTED, LeadState.DISCARDED},
-    LeadState.DRAFTED: {LeadState.AWAITING_APPROVAL, LeadState.DISCARDED},
+    LeadState.DRAFTED: {LeadState.APPROVED, LeadState.REJECTED, LeadState.DISCARDED},
     LeadState.AWAITING_APPROVAL: {LeadState.APPROVED, LeadState.REJECTED},
     LeadState.APPROVED: {LeadState.SENDING, LeadState.REJECTED},
     LeadState.SENDING: {LeadState.SENT, LeadState.BOUNCED},
