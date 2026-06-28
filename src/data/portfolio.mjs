@@ -265,6 +265,133 @@ export const PORTFOLIO = [
       /* Renders the interactive end-to-end workflow theatre in place of the
          static CaseFlow strip — see src/components/portfolio/MarshValeFlow.astro */
       flowDemo: 'MarshValeFlow',
+      /* Unified, scenario-selectable workflow — the reference implementation that
+         supersedes flowDemo/theatre/ops. Pick a customer, follow their payment;
+         the board state folds in the old standalone OpsPanel. Rendered by
+         src/components/portfolio/WorkflowTheatre.astro. */
+      workflow: {
+        intro: 'Pick a customer to follow their payment end to end — or open The Board to see how the week settles itself.',
+        panes: [
+          { key: 'system', label: 'His Accounting · Xero', tag: 'Simulated view' },
+          { key: 'phone', label: 'Customer’s Phone', tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Marsh & Vale', sync: 'Xero' },
+        ],
+        board: {
+          caption: 'Every invoice and its live status, in one place — reminders and reconciliation running themselves. Nothing to match by hand.',
+          feed: 'This week: 14 of 16 invoices settled — every payment matched to its job automatically.',
+          rows: [
+            { ref: 'INV-2153', who: 'R. Whittaker — leaking valve', amount: '£120.00', status: 'paid', label: 'Paid' },
+            { ref: 'INV-2151', who: 'D. Osei — bathroom re-pipe', amount: '£1,240.00', status: 'paid', label: 'Paid' },
+            { ref: 'INV-2150', who: 'S. Klein — boiler, by transfer', amount: '£560.00', status: 'paid', label: 'Matched' },
+            { ref: 'INV-2148', who: 'L. Cooper — two radiators', amount: '£410.00', status: 'reminder', label: 'Day 3' },
+            { ref: 'INV-2142', who: 'M. Hughes — emergency call-out', amount: '£95.00', status: 'overdue', label: 'Day 9' },
+          ],
+        },
+        scenarios: [
+          {
+            id: 'whittaker',
+            tab: 'Paid on the spot',
+            customer: 'R. Whittaker',
+            blurb: 'Taps Apple Pay the same evening',
+            steps: [
+              {
+                caption: 'Tuesday, 6:10pm. The valve is fixed. He approves INV-2153 in Xero from the van — the only thing he does in this whole story.',
+                system: { rows: [{ ref: 'INV-2153', who: 'R. Whittaker — leaking valve', amount: '£120.00', badge: { label: 'Approved', tone: 'sent' }, active: true }] },
+                phone: { title: 'R. Whittaker’s Phone', idle: { clock: '18:10', hint: 'No new messages' } },
+                ops: { rows: [{ ref: 'INV-2153', sub: 'Waiting for approval', badge: { label: '—', tone: 'draft' } }] },
+              },
+              {
+                caption: 'SettlePay spots the approved invoice and texts a branded payment link. He’s already driving home.',
+                system: { rows: [{ ref: 'INV-2153', who: 'R. Whittaker — leaking valve', amount: '£120.00', badge: { label: 'Approved', tone: 'sent' } }] },
+                phone: { title: 'R. Whittaker’s Phone', items: [{ type: 'sms', text: 'Marsh & Vale Plumbing: thanks for having us out today. Your invoice INV-2153 (£120.00) is ready — pay securely at pay.marshandvale.co.uk/i/2153', time: '18:11' }] },
+                ops: { sync: true, rows: [{ ref: 'INV-2153', sub: 'Link texted 18:11', badge: { label: 'Sent', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'The customer opens the link: the job, itemised, on a page in Marsh & Vale’s name.',
+                system: { rows: [{ ref: 'INV-2153', who: 'R. Whittaker — leaking valve', amount: '£120.00', badge: { label: 'Approved', tone: 'sent' } }] },
+                phone: { title: 'R. Whittaker’s Phone', items: [{ type: 'sms', text: 'Marsh & Vale Plumbing: your invoice INV-2153 (£120.00) is ready — pay at pay.marshandvale.co.uk/i/2153', time: '18:11' }, { type: 'invoice', label: 'Invoice INV-2153 · leaking valve repair', amount: '£120.00', cta: 'applepay' }] },
+                ops: { rows: [{ ref: 'INV-2153', sub: 'Link opened · awaiting payment', badge: { label: 'Sent', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'One tap of Apple Pay on the sofa. £120.00, paid at 6:42pm.',
+                system: { rows: [{ ref: 'INV-2153', who: 'R. Whittaker — leaking valve', amount: '£120.00', badge: { label: 'Approved', tone: 'sent' } }] },
+                phone: { title: 'R. Whittaker’s Phone', items: [{ type: 'sms', text: 'Marsh & Vale Plumbing: your invoice INV-2153 (£120.00) is ready — pay at pay.marshandvale.co.uk/i/2153', time: '18:11' }, { type: 'invoice', label: 'Invoice INV-2153 · leaking valve repair', amount: '£120.00', paid: { amount: '£120.00', time: '18:42' } }] },
+                ops: { rows: [{ ref: 'INV-2153', sub: 'Paid · matching reference…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'The payment carries INV-2153 home — Xero is marked paid automatically. Nothing to match, nothing to chase.',
+                system: { rows: [{ ref: 'INV-2153', who: 'R. Whittaker — leaking valve', amount: '£120.00', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+                phone: { title: 'R. Whittaker’s Phone', items: [{ type: 'invoice', label: 'Invoice INV-2153 · leaking valve repair', amount: '£120.00', paid: { amount: '£120.00', time: '18:42' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-2153', sub: 'Paid · marked paid in Xero', badge: { label: 'Paid', tone: 'paid' } }], feed: 'Nothing to match by hand — the reference did the work.' },
+              },
+            ],
+          },
+          {
+            id: 'cooper',
+            tab: 'Needed a nudge',
+            customer: 'L. Cooper',
+            blurb: 'Pays after an automatic reminder',
+            steps: [
+              {
+                caption: 'INV-2148 went out three days ago and is still open. On the old way, this is where the awkward chase text gets written.',
+                system: { rows: [{ ref: 'INV-2148', who: 'L. Cooper — two radiators', amount: '£410.00', badge: { label: 'Sent', tone: 'sent' }, active: true }] },
+                phone: { title: 'L. Cooper’s Phone', items: [{ type: 'sms', text: 'Marsh & Vale Plumbing: your invoice INV-2148 (£410.00) is ready — pay at pay.marshandvale.co.uk/i/2148', time: 'Mon 17:40' }] },
+                ops: { rows: [{ ref: 'INV-2148', sub: 'Due · day 3 tomorrow', badge: { label: 'Due', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'Day 3, 9am: a polite reminder sends itself — written once, in his voice. He doesn’t lift a finger.',
+                system: { rows: [{ ref: 'INV-2148', who: 'L. Cooper — two radiators', amount: '£410.00', badge: { label: 'Sent', tone: 'sent' } }] },
+                phone: { title: 'L. Cooper’s Phone', items: [{ type: 'sms', text: 'Marsh & Vale Plumbing: just a gentle reminder — invoice INV-2148 (£410.00) is still open. Pay any time at pay.marshandvale.co.uk/i/2148', time: '09:00 · day 3' }] },
+                ops: { rows: [{ ref: 'INV-2148', sub: 'Day-3 reminder sent 09:00 — automatically', badge: { label: 'Day 3', tone: 'remind' }, active: true }] },
+              },
+              {
+                caption: 'The nudge does the work. She taps through and pays £410.00 — no second ask needed.',
+                system: { rows: [{ ref: 'INV-2148', who: 'L. Cooper — two radiators', amount: '£410.00', badge: { label: 'Sent', tone: 'sent' } }] },
+                phone: { title: 'L. Cooper’s Phone', items: [{ type: 'invoice', label: 'Invoice INV-2148 · two radiators fitted', amount: '£410.00', paid: { amount: '£410.00', time: 'day 3 · 09:18' } }] },
+                ops: { rows: [{ ref: 'INV-2148', sub: 'Paid · matching reference…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Marked paid in Xero automatically. He never had to write the awkward message — or send it twice.',
+                system: { rows: [{ ref: 'INV-2148', who: 'L. Cooper — two radiators', amount: '£410.00', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+                phone: { title: 'L. Cooper’s Phone', items: [{ type: 'invoice', label: 'Invoice INV-2148 · two radiators fitted', amount: '£410.00', paid: { amount: '£410.00', time: 'day 3 · 09:18' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-2148', sub: 'Paid · marked paid in Xero', badge: { label: 'Paid', tone: 'paid' } }], feed: 'The reminder did the asking — reconciliation did the rest.' },
+              },
+            ],
+          },
+          {
+            id: 'klein',
+            tab: 'Paid by bank transfer',
+            customer: 'S. Klein',
+            blurb: 'Prefers a transfer — matched by reference',
+            steps: [
+              {
+                caption: 'Some customers still prefer a bank transfer — which used to mean matching “BOILER” to an invoice by memory.',
+                system: { rows: [{ ref: 'INV-2150', who: 'S. Klein — boiler replacement', amount: '£560.00', badge: { label: 'Sent', tone: 'sent' }, active: true }] },
+                phone: { title: 'S. Klein’s Phone', items: [{ type: 'sms', text: 'Marsh & Vale Plumbing: your invoice INV-2150 (£560.00) is ready — pay by card or bank transfer at pay.marshandvale.co.uk/i/2150', time: '14:02' }] },
+                ops: { sync: true, rows: [{ ref: 'INV-2150', sub: 'Link texted 14:02', badge: { label: 'Sent', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'The branded page offers card or transfer — with a unique reference baked in, so the payment can find its own invoice.',
+                system: { rows: [{ ref: 'INV-2150', who: 'S. Klein — boiler replacement', amount: '£560.00', badge: { label: 'Sent', tone: 'sent' } }] },
+                phone: { title: 'S. Klein’s Phone', items: [{ type: 'invoice', label: 'Invoice INV-2150 · boiler replacement', amount: '£560.00', note: 'Bank transfer · reference MV-2150', cta: 'transfer' }] },
+                ops: { rows: [{ ref: 'INV-2150', sub: 'Awaiting payment · reference MV-2150', badge: { label: 'Due', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'She pays £560.00 from her banking app. The reference carries the invoice number home.',
+                system: { rows: [{ ref: 'INV-2150', who: 'S. Klein — boiler replacement', amount: '£560.00', badge: { label: 'Sent', tone: 'sent' } }] },
+                phone: { title: 'S. Klein’s Phone', items: [{ type: 'invoice', label: 'Invoice INV-2150 · boiler replacement', amount: '£560.00', note: 'Bank transfer · reference MV-2150', paid: { amount: '£560.00', time: 'transfer received' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-2150', sub: 'Transfer received · matching reference…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Matched and marked paid automatically — no bank feed to eyeball, even for a transfer.',
+                system: { rows: [{ ref: 'INV-2150', who: 'S. Klein — boiler replacement', amount: '£560.00', badge: { label: 'Matched', tone: 'matched' }, active: true }] },
+                phone: { title: 'S. Klein’s Phone', items: [{ type: 'invoice', label: 'Invoice INV-2150 · boiler replacement', amount: '£560.00', note: 'Bank transfer · reference MV-2150', paid: { amount: '£560.00', time: 'transfer received' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-2150', sub: 'Matched by reference · marked paid in Xero', badge: { label: 'Matched', tone: 'matched' } }], feed: 'Even bank transfers reconcile themselves when the reference does the work.' },
+              },
+            ],
+          },
+        ],
+      },
       profile: [
         { label: 'Team', value: 'Sole trader' },
         { label: 'Volume', value: '~30 invoices a month' },

@@ -9,6 +9,7 @@ import DemoBanner from '../../components/portfolio/DemoBanner.astro';
 import CaseFlow from '../../components/portfolio/CaseFlow.astro';
 import MarshValeFlow from '../../components/portfolio/MarshValeFlow.astro';
 import CaseTheatre from '../../components/portfolio/CaseTheatre.astro';
+import WorkflowTheatre from '../../components/portfolio/WorkflowTheatre.astro';
 import RoiCalculator from '../../components/portfolio/RoiCalculator.astro';
 import OpsPanel from '../../components/portfolio/OpsPanel.astro';
 import StatTiles from '../../components/portfolio/StatTiles.astro';
@@ -159,7 +160,16 @@ const jsonLd = [
               <li><Icon name="check" sw={2.5} />{d}</li>
             ))}
           </ul>
-          {FlowDemo ? (
+          {cs.workflow ? (
+            <>
+              <WorkflowTheatre workflow={cs.workflow} accent={entry.brand.accent} />
+              <p class="case-demo__caption">
+                A simulated, user-controlled walkthrough — pick a customer to follow their
+                payment end to end, or open The Board to see the week at a glance. Fictional
+                data and simulated system connections; nothing plays until you choose.
+              </p>
+            </>
+          ) : FlowDemo ? (
             <>
               <FlowDemo />
               <p class="case-demo__caption">
@@ -268,6 +278,7 @@ const jsonLd = [
 
   {cs && (
     <>
+      {!cs.workflow && (
       <section class="case-ops section-pad">
         <div class="container">
           <SectionHeader
@@ -287,6 +298,7 @@ const jsonLd = [
           </div>
         </div>
       </section>
+      )}
 
       <section class="case-outcome section-pad">
         <div class="container">

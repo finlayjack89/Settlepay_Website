@@ -1,0 +1,309 @@
+---
+/* Unified, scenario-selectable workflow theatre — the reference engine for every
+   case study. Pick a customer (a "scenario") and follow their payment end to end
+   across three synchronised panes (their system / the customer's phone / the
+   SettlePay ops view), with play/step controls. A default "Board" tab folds in
+   the old standalone OpsPanel: the whole week's invoices and live statuses at a
+   glance.
+
+   Entirely simulated: fictional data and simulated system connections. Nothing
+   plays until the user presses play; honours prefers-reduced-motion. All visual
+   state is rebuilt on the client from the embedded JSON, so the styles live in
+   the GLOBAL stylesheet (src/styles/portfolio.css, .wf-* namespace), not here —
+   scoped styles would not reach the client-rendered nodes.
+
+   Driven by caseStudy.workflow (see src/data/portfolio.mjs). */
+import Icon from '../Icon.astro';
+
+const { workflow, accent = '#0F172A' } = Astro.props;
+const board = workflow.board;
+---
+<div class="wf" data-wf style={`--wf-accent:${accent}`}>
+  <div class="wf__tabs" role="tablist" aria-label="Choose a view">
+    <button class="wf__tab is-active" type="button" role="tab" aria-selected="true" data-wf-tab="board">
+      <span class="wf__tab-title">The Board</span>
+      <span class="wf__tab-sub">The week at a glance</span>
+    </button>
+    {workflow.scenarios.map((s, i) => (
+      <button class="wf__tab" type="button" role="tab" aria-selected="false" data-wf-tab={String(i)}>
+        <span class="wf__tab-title">{s.tab}</span>
+        <span class="wf__tab-sub">{s.customer}{s.blurb ? ' · ' + s.blurb : ''}</span>
+      </button>
+    ))}
+  </div>
+
+  <!-- Stage: server-rendered with the Board as the default, no-JS-friendly state.
+       The client replaces this on tab/step changes. -->
+  <div class="wf__stage wf__stage--board" data-wf-stage role="tabpanel">
+    <section class="wf-board" aria-label="Settlement board (simulated)">
+      <header class="wf-board__head">
+        <span class="wf-board__title">Invoices · this week</span>
+        <span class="wf__panechip wf__panechip--sync"><Icon name="refresh" sw={2.2} />Connected to Xero</span>
+      </header>
+      <div class="wf-board__rows">
+        {board.rows.map((r) => (
+          <div class="wf-board__row">
+            <span class="wf-row__ref">{r.ref}</span>
+            <span class="wf-board__who">{r.who}</span>
+            <span class="wf-board__amount">{r.amount}</span>
+            <span class={'ops-status ops-status--' + (r.status ?? 'due')}>{r.label}</span>
+          </div>
+        ))}
+      </div>
+      {board.feed && (
+        <p class="wf-board__feed"><Icon name="sparkles" sw={1.8} />{board.feed}</p>
+      )}
+    </section>
+  </div>
+
+  <p class="wf__caption" aria-live="polite" data-wf-caption>{board.caption}</p>
+
+  <div class="wf__controls" data-wf-controls hidden>
+    <button class="wf__btn wf__btn--play" type="button" data-wf-play aria-pressed="false">
+      <span class="wf__btn-ic wf__btn-ic--play"><Icon name="play" sw={1.8} /></span>
+      <span class="wf__btn-ic wf__btn-ic--pause"><Icon name="pause" sw={2} /></span>
+      <span data-wf-playlabel>Play the Flow</span>
+    </button>
+    <div class="wf__steps" role="group" aria-label="Steps">
+      <button class="wf__btn wf__btn--nav" type="button" data-wf-prev aria-label="Previous step">
+        <Icon name="chevron" sw={2.2} style="transform: rotate(90deg)" />
+      </button>
+      <div class="wf__dots" data-wf-dots></div>
+      <button class="wf__btn wf__btn--nav" type="button" data-wf-next aria-label="Next step">
+        <Icon name="chevron" sw={2.2} style="transform: rotate(-90deg)" />
+      </button>
+    </div>
+  </div>
+
+  <script type="application/json" data-wf-json set:html={JSON.stringify(workflow)}></script>
+</div>
+
+<script>
+  const INTERVAL = 3600;
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>';
+  const REFRESH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>';
+  const SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>';
+  const APPLE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 13c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .7.9 1.4 2 2.5 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.4-1.9c.5-.7.8-1.5.8-1.5s-1.6-.6-1.6-2.7zM14 6.6c.5-.7.9-1.6.8-2.6-.8 0-1.8.6-2.4 1.3-.5.6-1 1.5-.8 2.5.9 0 1.8-.5 2.4-1.2z"/></svg>';
+
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  document.querySelectorAll('[data-wf]').forEach((root) => {
+    if (root.dataset.wfBound) return;
+    root.dataset.wfBound = '1';
+
+    const data = JSON.parse(root.querySelector('[data-wf-json]').textContent);
+    const panes = data.panes;
+    const scenarios = data.scenarios;
+
+    const tabs = Array.from(root.querySelectorAll('[data-wf-tab]'));
+    const stage = root.querySelector('[data-wf-stage]');
+    const caption = root.querySelector('[data-wf-caption]');
+    const controls = root.querySelector('[data-wf-controls]');
+    const playBtn = root.querySelector('[data-wf-play]');
+    const playLabel = root.querySelector('[data-wf-playlabel]');
+    const prevBtn = root.querySelector('[data-wf-prev]');
+    const nextBtn = root.querySelector('[data-wf-next]');
+    const dotsWrap = root.querySelector('[data-wf-dots]');
+
+    let view = 'board';   // 'board' | scenario index (number)
+    let step = 0;
+    let timer = null;
+    let dots = [];
+
+    /* ---------- markup builders ---------- */
+    function badgeHtml(b) {
+      return b ? `<span class="wf-badge wf-badge--${b.tone || 'draft'}">${esc(b.label)}</span>` : '';
+    }
+
+    function sysRowHtml(r) {
+      return (
+        `<div class="wf-row${r.active ? ' is-active' : ''}">` +
+        `<span class="wf-row__dot" style="background:var(--wf-accent)" aria-hidden="true"></span>` +
+        `<div class="wf-row__main"><span class="wf-row__ref">${esc(r.ref)}</span>` +
+        `<span class="wf-row__who">${esc(r.who)}</span></div>` +
+        `<span class="wf-row__amount">${esc(r.amount)}</span>` +
+        badgeHtml(r.badge) +
+        '</div>'
+      );
+    }
+
+    function opsRowHtml(r) {
+      return (
+        `<div class="wf-row wf-row--ops${r.active ? ' is-active' : ''}">` +
+        `<span class="wf-row__dot" style="background:var(--wf-accent)" aria-hidden="true"></span>` +
+        `<div class="wf-row__main"><span class="wf-row__ref">${esc(r.ref)}</span>` +
+        `<span class="wf-row__sub">${esc(r.sub)}</span></div>` +
+        badgeHtml(r.badge) +
+        '</div>'
+      );
+    }
+
+    function invoiceHtml(it) {
+      let inner =
+        '<div class="wf-invoice__brand"><span class="wf-invoice__mark" aria-hidden="true">M&amp;V</span>' +
+        '<span class="wf-invoice__name">Marsh &amp; Vale<br>Plumbing &amp; Heating</span></div>' +
+        `<div class="wf-invoice__body"><span class="wf-invoice__label">${esc(it.label)}</span>` +
+        `<span class="wf-invoice__amt">${esc(it.amount)}</span>` +
+        (it.note ? `<span class="wf-invoice__note">${esc(it.note)}</span>` : '') +
+        '</div>';
+      if (it.paid) {
+        inner += `<div class="wf-invoice__paid"><span class="wf-invoice__tick" aria-hidden="true">${CHECK}</span>Paid ${esc(it.paid.amount)} · ${esc(it.paid.time)}</div>`;
+      } else if (it.cta === 'applepay') {
+        inner += `<button class="wf-invoice__cta wf-invoice__cta--apay" type="button" tabindex="-1" aria-hidden="true">${APPLE} Pay</button>`;
+      } else if (it.cta === 'transfer') {
+        inner += '<button class="wf-invoice__cta wf-invoice__cta--alt" type="button" tabindex="-1" aria-hidden="true">Pay by bank transfer</button>';
+      }
+      return `<div class="wf-invoice is-on">${inner}</div>`;
+    }
+
+    function phoneHtml(phone) {
+      let screen;
+      if (phone.items && phone.items.length) {
+        screen = phone.items
+          .map((it) =>
+            it.type === 'invoice'
+              ? invoiceHtml(it)
+              : `<div class="wf-sms is-on"><p>${esc(it.text)}</p><span class="wf-sms__time">${esc(it.time)}</span></div>`
+          )
+          .join('');
+      } else {
+        const idle = phone.idle || { clock: '', hint: 'No new messages' };
+        screen = `<div class="wf-phone__idle is-on"><span class="wf-phone__clock">${esc(idle.clock)}</span><span class="wf-phone__hint">${esc(idle.hint)}</span></div>`;
+      }
+      return `<div class="wf-phone"><div class="wf-phone__screen">${screen}</div></div>`;
+    }
+
+    function paneHtml(pane, stepData) {
+      let head =
+        '<header class="wf__panehead">' +
+        `<span class="wf__panetitle">${esc(pane.key === 'phone' && stepData.phone && stepData.phone.title ? stepData.phone.title : pane.label)}</span>`;
+      if (pane.key === 'ops' && pane.sync && stepData.ops && stepData.ops.sync) {
+        head += `<span class="wf__panechip wf__panechip--sync is-on">${REFRESH}${esc(pane.sync)}</span>`;
+      } else if (pane.tag) {
+        head += `<span class="wf__panechip">${esc(pane.tag)}</span>`;
+      } else if (pane.sync) {
+        head += `<span class="wf__panechip wf__panechip--sync">${REFRESH}${esc(pane.sync)}</span>`;
+      }
+      head += '</header>';
+
+      let body = '';
+      if (pane.key === 'phone') {
+        body = phoneHtml(stepData.phone || {});
+      } else if (pane.key === 'ops') {
+        const o = stepData.ops || {};
+        body = '<div class="wf-rows">' + (o.rows || []).map(opsRowHtml).join('') + '</div>';
+        if (o.feed) body += `<p class="wf-ops__feed is-on">${SPARK}${esc(o.feed)}</p>`;
+      } else {
+        const sys = stepData.system || {};
+        body = '<div class="wf-rows">' + (sys.rows || []).map(sysRowHtml).join('') + '</div>';
+      }
+      const active = stepData.active === pane.key;
+      return `<section class="wf__pane wf__pane--${pane.key}${active ? ' is-active' : ''}">${head}${body}</section>`;
+    }
+
+    function boardHtml() {
+      const b = data.board;
+      const rows = b.rows
+        .map(
+          (r) =>
+            '<div class="wf-board__row">' +
+            `<span class="wf-row__ref">${esc(r.ref)}</span>` +
+            `<span class="wf-board__who">${esc(r.who)}</span>` +
+            `<span class="wf-board__amount">${esc(r.amount)}</span>` +
+            `<span class="ops-status ops-status--${r.status || 'due'}">${esc(r.label)}</span>` +
+            '</div>'
+        )
+        .join('');
+      return (
+        '<section class="wf-board" aria-label="Settlement board (simulated)">' +
+        '<header class="wf-board__head"><span class="wf-board__title">Invoices · this week</span>' +
+        `<span class="wf__panechip wf__panechip--sync is-on">${REFRESH}Connected to Xero</span></header>` +
+        `<div class="wf-board__rows">${rows}</div>` +
+        (b.feed ? `<p class="wf-board__feed">${SPARK}${esc(b.feed)}</p>` : '') +
+        '</section>'
+      );
+    }
+
+    /* ---------- render ---------- */
+    function buildDots(n) {
+      dotsWrap.innerHTML = '';
+      dots = [];
+      for (let i = 0; i < n; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', i === 0 ? 'Start' : 'Step ' + i);
+        btn.addEventListener('click', () => { stopTimer(); step = i; render(); });
+        dotsWrap.appendChild(btn);
+        dots.push(btn);
+      }
+    }
+
+    function render() {
+      tabs.forEach((t) => {
+        const on = t.dataset.wfTab === String(view);
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+
+      if (view === 'board') {
+        stage.className = 'wf__stage wf__stage--board';
+        stage.innerHTML = boardHtml();
+        caption.textContent = data.board.caption;
+        controls.hidden = true;
+        stopTimer();
+        return;
+      }
+
+      const sc = scenarios[view];
+      const total = sc.steps.length - 1;
+      const s = sc.steps[step];
+      stage.className = 'wf__stage wf__stage--panes wf__stage--' + panes.length;
+      stage.innerHTML = panes.map((p) => paneHtml(p, s)).join('');
+      caption.textContent = s.caption || data.intro;
+      controls.hidden = false;
+      dots.forEach((d, i) => d.setAttribute('aria-current', i === step ? 'true' : 'false'));
+      prevBtn.disabled = step === 0;
+      nextBtn.disabled = step === total;
+      playLabel.textContent = timer ? 'Pause' : step === total ? 'Replay the Flow' : 'Play the Flow';
+      playBtn.setAttribute('aria-pressed', timer ? 'true' : 'false');
+    }
+
+    function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+    function play() {
+      const total = scenarios[view].steps.length - 1;
+      if (step === total) step = 0;
+      timer = setInterval(() => {
+        const t = scenarios[view].steps.length - 1;
+        if (step >= t) { stopTimer(); render(); return; }
+        step += 1;
+        render();
+      }, INTERVAL);
+      render();
+    }
+
+    function selectTab(key) {
+      stopTimer();
+      if (key === 'board') {
+        view = 'board';
+        render();
+      } else {
+        view = Number(key);
+        step = 0;
+        buildDots(scenarios[view].steps.length);
+        render();
+      }
+    }
+
+    tabs.forEach((t) => t.addEventListener('click', () => selectTab(t.dataset.wfTab)));
+    playBtn.addEventListener('click', () => { if (timer) { stopTimer(); render(); } else { play(); } });
+    prevBtn.addEventListener('click', () => { stopTimer(); step = Math.max(0, step - 1); render(); });
+    nextBtn.addEventListener('click', () => {
+      stopTimer();
+      step = Math.min(scenarios[view].steps.length - 1, step + 1);
+      render();
+    });
+
+    render();
+  });
+</script>
