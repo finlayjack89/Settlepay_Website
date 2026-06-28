@@ -5,9 +5,9 @@ is and writes it after every iteration. The counters here are the ONLY brake the
 budget can rely on — nothing held in session memory survives a cold start.
 
 started-at:        2026-06-28 (interactive build, user-driven; G0+G1 cleared by user: creds + schema decision)
-last-run:          2026-06-28 — phase G GREEN (floor PASS + judge PASS); advancing to H (final)
-current-phase:     H
-global-iterations: 7
+last-run:          2026-06-28 — phase H GREEN (floor PASS + judge PASS). ALL 8 PHASES GREEN — predicate MET.
+current-phase:     DONE (A–H green; awaiting G3 PR — human review, no merge)
+global-iterations: 8
 G_SEND:            unset   (human-only; the loop must never set this)
 
 ## Per-phase progress
@@ -24,7 +24,7 @@ rounds spent (budget: max 2, then leave + report).
 | E | draft_email (mechanism only) | PASS | PASS | 0 | YES |
 | F | Approval queue | PASS | PASS | 0 | YES |
 | G | send (hard-gated, dry-run) | PASS | PASS | 0 | YES |
-| H | Operational wiring | – | – | 0 | no |
+| H | Operational wiring | PASS | PASS | 1 | YES |
 
 ## Spend this run (reset/accumulate per run; cross-check against HUMAN-GATES caps)
 - Companies House requests: 0   (cap ≤50/run during build)
@@ -66,10 +66,16 @@ rounds spent (budget: max 2, then leave + report).
   switch, individual block, check_suppression, per-inbox cap), then live gate
   (_graph_send only reachable on mode=live AND send_enabled()). 2 dry-run sends
   recorded; 0 live. Migration 0002 added sends.from_inbox. Judge: airtight, no bypass.
-- PHASE H (operational wiring — FINAL) carry-forward: `python -m outreach run
-  --stage all --dry-run` advances each lead ONE step/tick (classify → [enrich/draft
-  are loop-agent/spend stages] → send dry-run within send-window). Timing CONFIG-
-  DRIVEN via sequence_config.json (PLACEHOLDER timing — deferred; no hardcoded
-  delays). Graduation thresholds encoded (≥50 reviewed/vertical, ≥90% approved
-  unedited, <2% bounce, 1-in-20 spot check). Kill switch checked at tick start.
-  When H is GREEN → all 8 phases green → loop opens PR (G3).
+- Phase H GREEN: run.py orchestrator (kill switch → classify → dry-run send in
+  window), __main__ CLI, sequence_config.json (PLACEHOLDER timing + real graduation
+  thresholds), sequence.py. Safe one-step-per-tick, idempotent, no hardcoded delays,
+  live still gated. Fixed a floor bug: H delay-greps were scanning .venv (vendored
+  sleep() false-positive) → now scoped to the pipeline package.
+- ALL 8 PHASES GREEN (floor + judge). 63 tests pass. Pipeline live in Supabase
+  `outreach` schema: 44 discovered + 6 processed (2 enriched/approved/dry-run-sent,
+  4 discarded); 0 live sends; G_SEND unset.
+- NEXT = G3 (human gate): push feat/outreach-build + open a PR for human review.
+  The loop NEVER pushes/merges on its own, and live send stays behind G-SEND (which
+  needs warmup + LIA + drafting playbook v1). DEFERRED for later: drafting playbook
+  (real copy + sequence timing), Firecrawl key for unattended discovery, api LLM
+  provider, separate sending domain + warmup.
