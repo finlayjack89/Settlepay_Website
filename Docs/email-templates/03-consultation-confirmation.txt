@@ -15,10 +15,12 @@ WHAT WE'LL COVER
 - What a branded checkout page would look like for your business
 - A clear, no-obligation idea of cost and timeline
 
-WORTH HAVING TO HAND
-A rough sense of your monthly payment volume, and who currently handles
-your bookkeeping. Nothing formal — it just helps me give you useful
-answers on the day.
+HELPFUL TO KNOW
+A rough idea of the systems you use to run things — where you keep
+customer details, and what you use for bookkeeping, invoicing or any
+CRM. Knowing what's already in place helps me work out what we could
+realistically connect to, so the ideas on the day are practical rather
+than generic.
 
 Need to change the time? Reschedule: {{reschedule_url}}
 
