@@ -22,7 +22,7 @@ import Icon from '../Icon.astro';
         <span class="mvf__panechip">Simulated view</span>
       </header>
       <div class="mvf-xero">
-        <div class="mvf-xero__row" data-on="1 5">
+        <div class="mvf-xero__row mvf-xero__row--pick" data-on="1 5" data-mvf-jump="4" role="button" tabindex="0" aria-label="Follow R. Whittaker's invoice — the paid-and-reconciled story">
           <div class="mvf-xero__main">
             <span class="mvf-xero__ref">INV-2153</span>
             <span class="mvf-xero__who">R. Whittaker — leaking valve</span>
@@ -32,7 +32,7 @@ import Icon from '../Icon.astro';
           <span class="mvf-badge mvf-badge--sent" data-from="1" data-to="4">Approved</span>
           <span class="mvf-badge mvf-badge--paid" data-from="5">Paid</span>
         </div>
-        <div class="mvf-xero__row" data-on="6">
+        <div class="mvf-xero__row mvf-xero__row--pick" data-on="6" data-mvf-jump="6" role="button" tabindex="0" aria-label="Follow L. Cooper's invoice — the auto-reminder story">
           <div class="mvf-xero__main">
             <span class="mvf-xero__ref">INV-2148</span>
             <span class="mvf-xero__who">L. Cooper — two radiators</span>
@@ -130,6 +130,8 @@ import Icon from '../Icon.astro';
       </div>
     </section>
   </div>
+
+  <p class="mvf__hint">Select an invoice above to jump to its moment — or press play for the full story.</p>
 
   <p class="mvf__caption" aria-live="polite" data-mvf-caption>
     Tuesday, 6:10pm. The valve is fixed at R. Whittaker's. Press play to follow the invoice home.
@@ -249,6 +251,21 @@ import Icon from '../Icon.astro';
   .mvf-xero__row.is-on {
     background: rgba(184, 115, 51, 0.06);
     border-color: rgba(184, 115, 51, 0.35);
+  }
+  /* Selectable invoice rows — click/keyboard to jump to that invoice's moment. */
+  .mvf-xero__row--pick { cursor: pointer; }
+  .mvf-xero__row--pick:hover {
+    background: rgba(184, 115, 51, 0.06);
+    border-color: rgba(184, 115, 51, 0.4);
+  }
+  .mvf-xero__row--pick:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 2px;
+  }
+  .mvf-xero__row.is-selected {
+    background: rgba(184, 115, 51, 0.12);
+    border-color: rgba(184, 115, 51, 0.6);
+    box-shadow: 0 0 0 2px rgba(184, 115, 51, 0.18);
   }
   .mvf-xero__main { min-width: 0; }
   .mvf-xero__ref {
@@ -474,8 +491,15 @@ import Icon from '../Icon.astro';
   .mvf-ops__feed svg { width: 13px; height: 13px; color: var(--color-success); flex-shrink: 0; }
 
   /* Caption + controls (SettlePay UI, not mockup-world) */
+  .mvf__hint {
+    margin: 1.3rem auto 0;
+    max-width: 62ch;
+    text-align: center;
+    font-size: 0.78rem;
+    color: rgba(15, 23, 42, 0.5);
+  }
   .mvf__caption {
-    margin: 1.4rem auto 0;
+    margin: 0.55rem auto 0;
     max-width: 66ch;
     min-height: 3.2em;
     text-align: center;
@@ -592,12 +616,14 @@ import Icon from '../Icon.astro';
 
     let step = 0;
     let timer = null;
+    const pickRows = Array.from(root.querySelectorAll('[data-mvf-jump]'));
+    let selectedRow = null;
 
     const dots = CAPTIONS.map((_, i) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.setAttribute('aria-label', i === 0 ? 'Start' : 'Step ' + i);
-      b.addEventListener('click', () => { stop(); go(i); });
+      b.addEventListener('click', () => { selectedRow = null; stop(); go(i); });
       dotsWrap.appendChild(b);
       return b;
     });
@@ -616,6 +642,11 @@ import Icon from '../Icon.astro';
         el.classList.toggle('is-on', on);
       });
       caption.textContent = CAPTIONS[step];
+      pickRows.forEach((r) => {
+        const sel = r === selectedRow;
+        r.classList.toggle('is-selected', sel);
+        r.setAttribute('aria-pressed', sel ? 'true' : 'false');
+      });
       dots.forEach((d, i) => d.setAttribute('aria-current', i === step ? 'true' : 'false'));
       prevBtn.disabled = step === 0;
       nextBtn.disabled = step === TOTAL;
@@ -642,9 +673,17 @@ import Icon from '../Icon.astro';
       render();
     }
 
-    playBtn.addEventListener('click', () => (timer ? stop() : play()));
-    prevBtn.addEventListener('click', () => { stop(); go(step - 1); });
-    nextBtn.addEventListener('click', () => { stop(); go(step + 1); });
+    playBtn.addEventListener('click', () => { selectedRow = null; if (timer) stop(); else play(); });
+    prevBtn.addEventListener('click', () => { selectedRow = null; stop(); go(step - 1); });
+    nextBtn.addEventListener('click', () => { selectedRow = null; stop(); go(step + 1); });
+
+    pickRows.forEach((r) => {
+      const jump = () => { selectedRow = r; stop(); go(Number(r.dataset.mvfJump)); };
+      r.addEventListener('click', jump);
+      r.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); jump(); }
+      });
+    });
 
     render();
   });

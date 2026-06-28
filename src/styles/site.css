@@ -89,6 +89,13 @@
   gap: 0.4rem;
   list-style: none;
 }
+/* Each crumb is its own row so the chevron sits inline and vertically centred
+   with the label (the icon renders as a block, which otherwise drops it below). */
+.breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 .breadcrumbs a {
   opacity: 0.55;
   transition: opacity var(--ease-snappy);
