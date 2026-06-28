@@ -26,3 +26,6 @@ video/*/renders/
 video/*/.hyperframes/
 # playwright-cli QA artifacts (throwaway snapshots/logs from visual checks)
 .playwright-cli/
+# email template preview canvas (large generated artifact) + raw export bundle
+docs/email-previews.html
+docs/SettlePay Email Templates.zip

@@ -8,7 +8,8 @@ of this same `leads` table; the website never changes again.
 
 ```
 Browser form ──POST FormData──▶  enquiry Edge Function  ──┬─▶ insert into public.leads  (source of truth)
-                                                          └─▶ email notification via Resend
+                                                          ├─▶ notify the team via Resend (→ hello@)
+                                                          └─▶ auto-acknowledge the enquirer via Resend (from hello@)
 ```
 
 If the endpoint is ever down (e.g. a paused free-tier project), the form falls
@@ -59,9 +60,14 @@ Verify in **Table editor**: a `public.leads` table exists, RLS is on, and
 ## 5. Set the function secrets
 ```bash
 cp supabase/functions/enquiry/.env.example supabase/functions/enquiry/.env
-# edit .env: RESEND_API_KEY, LEAD_NOTIFY_TO, LEAD_NOTIFY_FROM, ALLOWED_ORIGIN
+# edit .env: RESEND_API_KEY, LEAD_NOTIFY_TO, LEAD_NOTIFY_FROM,
+#            LEAD_AUTOREPLY_FROM (optional — the customer acknowledgement), ALLOWED_ORIGIN
 supabase secrets set --env-file supabase/functions/enquiry/.env
 ```
+`LEAD_AUTOREPLY_FROM` should be a **monitored, replyable** address (e.g.
+`SettlePay <hello@settlepay.uk>`) — the enquirer gets a branded "we've received
+your enquiry" email from it, and their replies route back to `LEAD_NOTIFY_TO`.
+Leave it blank to disable the autoreply.
 (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are injected automatically — don't set them.)
 
 ## 6. Deploy the function (public — no JWT)
@@ -85,9 +91,11 @@ Then rebuild/redeploy the site (`npm run build`). The form auto-switches from
 the mailto fallback to real POST submission — no other code change.
 
 ## 8. Test end to end
-- Submit the form on the live site.
+- Submit the form on the live site (use a real address you control as the enquirer).
 - Confirm a row appears in **Table editor → leads**.
 - Confirm the notification email arrives at `LEAD_NOTIFY_TO`.
+- Confirm the **autoreply** arrives at the address you submitted, and that
+  replying to it lands at `LEAD_NOTIFY_TO`.
 - Submit with a fake/invalid email → expect the form's error state, no row.
 
 ---
