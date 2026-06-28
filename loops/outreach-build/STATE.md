@@ -5,9 +5,9 @@ is and writes it after every iteration. The counters here are the ONLY brake the
 budget can rely on — nothing held in session memory survives a cold start.
 
 started-at:        2026-06-28 (interactive build, user-driven; G0+G1 cleared by user: creds + schema decision)
-last-run:          2026-06-28 — phase A GREEN (floor PASS + judge PASS); advancing to B
-current-phase:     B
-global-iterations: 1
+last-run:          2026-06-28 — phase B GREEN (floor PASS + judge PASS); advancing to C
+current-phase:     C
+global-iterations: 2
 G_SEND:            unset   (human-only; the loop must never set this)
 
 ## Per-phase progress
@@ -18,7 +18,7 @@ rounds spent (budget: max 2, then leave + report).
 | Phase | Name | floor | judge | rounds | green? |
 |---|---|---|---|---|---|
 | A | Foundations | PASS | PASS | 1 | YES |
-| B | find_leads | – | – | 0 | no |
+| B | find_leads | PASS | PASS | 0 | YES |
 | C | Compliance firewall (PECR) | – | – | 0 | no |
 | D | enrich_company | – | – | 0 | no |
 | E | draft_email (mechanism only) | – | – | 0 | no |
@@ -42,5 +42,10 @@ rounds spent (budget: max 2, then leave + report).
 ## Notes / handoff
 - Connection: direct host is IPv6-only (no resolve); using session pooler
   aws-1-eu-north-1:5432. Python 3.12 via uv venv at outreach/.venv.
-- Phase A: migration 0001 applied to live DB (outreach schema). Floor A PASS.
-  Next: run independent judge for A; if PASS → mark green, advance to B (find_leads).
+- Phase A GREEN+committed (966bbe1). Phase B GREEN: 50 active SIC-68310 leads in
+  outreach.leads (deduped), audit row each. CH client = Basic auth + per-run cap
+  + 0.6s interval.
+- PHASE C carry-forward (judge note): the firewall must process the ENTIRE
+  discovered backlog each run — the C floor only fails on leads LEFT contactable
+  after C, so don't sample; classify every discovered lead. Classify from stored
+  company_type (no re-fetch). Suppress against public.<ENQUIRY_SOURCE_TABLE>=leads.
