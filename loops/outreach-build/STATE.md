@@ -5,9 +5,9 @@ is and writes it after every iteration. The counters here are the ONLY brake the
 budget can rely on — nothing held in session memory survives a cold start.
 
 started-at:        2026-06-28 (interactive build, user-driven; G0+G1 cleared by user: creds + schema decision)
-last-run:          2026-06-28 — phase F GREEN (floor PASS + judge PASS); advancing to G
-current-phase:     G
-global-iterations: 6
+last-run:          2026-06-28 — phase G GREEN (floor PASS + judge PASS); advancing to H (final)
+current-phase:     H
+global-iterations: 7
 G_SEND:            unset   (human-only; the loop must never set this)
 
 ## Per-phase progress
@@ -23,7 +23,7 @@ rounds spent (budget: max 2, then leave + report).
 | D | enrich_company | PASS | PASS | 0 | YES |
 | E | draft_email (mechanism only) | PASS | PASS | 0 | YES |
 | F | Approval queue | PASS | PASS | 0 | YES |
-| G | send (hard-gated, dry-run) | – | – | 0 | no |
+| G | send (hard-gated, dry-run) | PASS | PASS | 0 | YES |
 | H | Operational wiring | – | – | 0 | no |
 
 ## Spend this run (reset/accumulate per run; cross-check against HUMAN-GATES caps)
@@ -62,9 +62,14 @@ rounds spent (budget: max 2, then leave + report).
   immutable; approve re-checks envelope on body_final; state-machine-guarded;
   audit per decision). 2 drafts approved (Burnap as-is; Naish edited → body_final
   diff captured). states.py: DRAFTED→{approved,rejected,discarded}.
-- PHASE G (send — HARD-GATED) carry-forward: send_email sends body_final via MS
-  Graph from a SEPARATE warmed domain (GRAPH_SENDER, never @settlepay.uk). Guards
-  BEFORE any send (dry-run included): global kill switch, individual/unknown block,
-  check_suppression(suppressions ∪ enquiries), per-inbox daily cap (3–5). LIVE send
-  REFUSES unless config.send_enabled() (G_SEND truthy) — the loop NEVER sets G_SEND.
-  Build = dry-run/test mailbox only; 0 live sends. Needs migration 0002 (sends.from_inbox).
+- Phase G GREEN: send.py hard-gated. send_one runs 4 guards before any send (kill
+  switch, individual block, check_suppression, per-inbox cap), then live gate
+  (_graph_send only reachable on mode=live AND send_enabled()). 2 dry-run sends
+  recorded; 0 live. Migration 0002 added sends.from_inbox. Judge: airtight, no bypass.
+- PHASE H (operational wiring — FINAL) carry-forward: `python -m outreach run
+  --stage all --dry-run` advances each lead ONE step/tick (classify → [enrich/draft
+  are loop-agent/spend stages] → send dry-run within send-window). Timing CONFIG-
+  DRIVEN via sequence_config.json (PLACEHOLDER timing — deferred; no hardcoded
+  delays). Graduation thresholds encoded (≥50 reviewed/vertical, ≥90% approved
+  unedited, <2% bounce, 1-in-20 spot check). Kill switch checked at tick start.
+  When H is GREEN → all 8 phases green → loop opens PR (G3).
