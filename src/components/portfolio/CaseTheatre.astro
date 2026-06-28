@@ -35,7 +35,9 @@ function rowsFor(paneKey, step) {
           )}
         </header>
         <div class="ct-pane__rows" data-rows={p.key}>
-          {rowsFor(p.key, s0).map((r) => (
+          {rowsFor(p.key, s0).length === 0 ? (
+            <div class="ct-pane__empty">{p.idle ?? 'Waiting…'}</div>
+          ) : rowsFor(p.key, s0).map((r) => (
             <div class="ct-row">
               <span class="ct-row__dot" style={`background:${accent}`} aria-hidden="true"></span>
               <div class="ct-row__main">
@@ -85,6 +87,8 @@ function rowsFor(paneKey, step) {
     const steps = data.steps;
     const TOTAL = steps.length - 1;
     const panes = data.panes.map((p) => p.key);
+    const paneIdle = {};
+    data.panes.forEach((p) => { paneIdle[p.key] = p.idle || "Waiting…"; });
 
     const paneEls = {};
     panes.forEach((k) => {
@@ -132,7 +136,9 @@ function rowsFor(paneKey, step) {
       const s = steps[step];
       panes.forEach((k) => {
         const rows = (s.rows && s.rows[k]) || [];
-        paneEls[k].rows.innerHTML = rows.map(rowHtml).join("");
+        paneEls[k].rows.innerHTML = rows.length
+          ? rows.map(rowHtml).join("")
+          : `<div class="ct-pane__empty">${esc(paneIdle[k])}</div>`;
         paneEls[k].pane.classList.toggle("is-active", s.active === k);
       });
       caption.textContent = s.caption || data.intro;

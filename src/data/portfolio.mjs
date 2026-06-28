@@ -476,7 +476,7 @@ export const PORTFOLIO = [
         intro: "A new patient has just booked an initial assessment in Cliniko. Press play to follow the booking and the plan behind it.",
         panes: [
           { key: 'cliniko', label: 'Cliniko Booking', tag: 'Simulated' },
-          { key: 'patient', label: "Patient's Phone", tag: 'Simulated' },
+          { key: 'patient', label: "Patient's Phone", tag: 'Simulated', idle: 'No message yet' },
           { key: 'ops', label: 'SettlePay · Rowan', sync: 'Cliniko' },
         ],
         steps: [
@@ -916,7 +916,7 @@ export const PORTFOLIO = [
         intro: "The hammer has just fallen on Lot 214. Press play to follow it from sold to settled.",
         panes: [
           { key: 'saleroom', label: 'Saleroom System', sync: 'Lot records' },
-          { key: 'buyer', label: "Buyer's Phone", tag: 'Simulated' },
+          { key: 'buyer', label: "Buyer's Phone", tag: 'Simulated', idle: 'No message yet' },
           { key: 'ops', label: 'SettlePay · Settlement', sync: 'Auto-match' },
         ],
         steps: [

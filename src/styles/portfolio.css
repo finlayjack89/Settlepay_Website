@@ -1070,6 +1070,19 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* Resting state for a pane that has no rows at the current step (e.g. the
+     buyer's/patient's phone before the link is sent) — reads as deliberately
+     idle, not broken. */
+  .ct-pane__empty {
+    display: grid;
+    place-items: center;
+    min-height: 116px;
+    text-align: center;
+    color: rgba(15, 23, 42, 0.36);
+    font-size: 0.76rem;
+    font-style: italic;
+    letter-spacing: 0.01em;
+  }
 
   .ct__caption {
     margin: 1.4rem auto 0;
@@ -1113,6 +1126,23 @@
   }
   .ct__btn--play:hover { background: #1e293b; }
   .ct__btn--play svg { width: 15px; height: 15px; }
+  /* One-time attention pulse so it's obvious the theatre is playable. */
+  .ct__btn--play { position: relative; }
+  .ct__btn--play::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 2px solid var(--color-primary-brand);
+    opacity: 0;
+    pointer-events: none;
+    animation: ct-play-hint 2.2s ease-out 0.7s 3;
+  }
+  .ct__btn--play[aria-pressed='true']::after { animation: none; opacity: 0; }
+  @keyframes ct-play-hint {
+    0% { opacity: 0.5; transform: scale(1); }
+    70%, 100% { opacity: 0; transform: scale(1.16); }
+  }
   .ct__ic--pause { display: none; }
   .ct__btn--play[aria-pressed='true'] .ct__ic--play { display: none; }
   .ct__btn--play[aria-pressed='true'] .ct__ic--pause { display: inline-flex; }
@@ -1137,4 +1167,5 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .ct-pane, .ct-row, .ct__btn, .ct__dots button { transition: none; animation: none; }
+    .ct__btn--play::after { animation: none; opacity: 0; }
   }
