@@ -26,9 +26,15 @@ ENQUIRY_SOURCE_TABLE = os.environ.get("ENQUIRY_SOURCE_TABLE", "leads")
 COMPANIES_HOUSE_API_KEY = os.environ.get("COMPANIES_HOUSE_API_KEY")
 MILLIONVERIFIER_API_KEY = os.environ.get("MILLIONVERIFIER_API_KEY")
 
+# --- website discovery (phase D): inline (loop agent) | firecrawl | brave ---
+WEBSITE_RESOLVER = os.environ.get("WEBSITE_RESOLVER", "inline")
+FIRECRAWL_API_KEY = os.environ.get("FIRECRAWL_API_KEY")
+BRAVE_SEARCH_API_KEY = os.environ.get("BRAVE_SEARCH_API_KEY")
+
 # --- budget caps (build-time) ---
 CH_MAX_REQUESTS_PER_RUN = _int("CH_MAX_REQUESTS_PER_RUN", 50)
 MV_MAX_PER_RUN = _int("MV_MAX_PER_RUN", 20)
+SEARCH_MAX_REQUESTS_PER_RUN = _int("SEARCH_MAX_REQUESTS_PER_RUN", 50)
 
 # --- LLM provider ---
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")

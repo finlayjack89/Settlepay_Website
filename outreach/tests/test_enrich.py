@@ -1,0 +1,96 @@
+import uuid
+
+import pytest
+
+from outreach import enrich
+
+pytestmark = pytest.mark.floor_d
+
+
+# ---- pick_contact_email (pure) ----
+def test_prefers_generic_over_personal():
+    emails = ["john.smith@acme.co.uk", "info@acme.co.uk", "jane@acme.co.uk"]
+    assert enrich.pick_contact_email(emails, prefer_domain="acme.co.uk") == "info@acme.co.uk"
+
+
+def test_prefers_own_domain():
+    emails = ["info@aggregator.com", "contact@acme.co.uk"]
+    assert enrich.pick_contact_email(emails, prefer_domain="acme.co.uk") == "contact@acme.co.uk"
+
+
+def test_none_when_no_emails():
+    assert enrich.pick_contact_email([], prefer_domain="acme.co.uk") is None
+
+
+# ---- verify_email maps MillionVerifier result (fake client) ----
+class _FakeMVResponse:
+    def __init__(self, result):
+        self._result = result
+
+    def json(self):
+        return {"result": self._result}
+
+
+class _FakeMVClient:
+    def __init__(self, result):
+        self._result = result
+
+    def get(self, *a, **k):
+        return _FakeMVResponse(self._result)
+
+
+@pytest.mark.parametrize("result,expected", [
+    ("ok", True), ("catch_all", False), ("unknown", False),
+    ("invalid", False), ("disposable", False),
+])
+def test_verify_email_mapping(result, expected):
+    verified, res = enrich.verify_email("x@y.com", api_key="k", client=_FakeMVClient(result))
+    assert verified is expected and res == result
+
+
+# ---- enrich_one verified vs discarded (DB, rolled back) ----
+def _seed_lead(cur, company_number):
+    cur.execute(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state) values (%s,%s,'ltd','corporate','discovered')",
+        (company_number, company_number),
+    )
+
+
+def test_enrich_one_verified_advances_to_enriched(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_OK_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "growing local agent",
+                            cur=cur, verifier=lambda e: (True, "ok"))
+    assert res["verified"] is True and res["email"] == "info@acme.co.uk"
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "enriched"
+    cur.execute("select website, signal, email_verified from outreach.enrichment where company_number=%s", (cn,))
+    site, signal, verified = cur.fetchone()
+    assert site and signal and verified is True
+
+
+def test_enrich_one_unverifiable_is_discarded(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_BAD_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "signal",
+                            cur=cur, verifier=lambda e: (False, "invalid"))
+    assert res["verified"] is False
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discarded"  # never left contactable
+
+
+def test_enrich_one_no_email_is_discarded(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_NONE_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "signal", cur=cur,
+                            verifier=lambda e: (True, "ok"))
+    assert res["email"] is None and res["verified"] is False
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discarded"
