@@ -5,9 +5,9 @@ is and writes it after every iteration. The counters here are the ONLY brake the
 budget can rely on — nothing held in session memory survives a cold start.
 
 started-at:        2026-06-28 (interactive build, user-driven; G0+G1 cleared by user: creds + schema decision)
-last-run:          2026-06-28 — phase D GREEN (floor PASS + judge PASS); advancing to E
-current-phase:     E
-global-iterations: 4
+last-run:          2026-06-28 — phase E GREEN (floor PASS + judge PASS); advancing to F
+current-phase:     F
+global-iterations: 5
 G_SEND:            unset   (human-only; the loop must never set this)
 
 ## Per-phase progress
@@ -21,7 +21,7 @@ rounds spent (budget: max 2, then leave + report).
 | B | find_leads | PASS | PASS | 0 | YES |
 | C | Compliance firewall (PECR) | PASS | PASS | 0 | YES |
 | D | enrich_company | PASS | PASS | 0 | YES |
-| E | draft_email (mechanism only) | – | – | 0 | no |
+| E | draft_email (mechanism only) | PASS | PASS | 0 | YES |
 | F | Approval queue | – | – | 0 | no |
 | G | send (hard-gated, dry-run) | – | – | 0 | no |
 | H | Operational wiring | – | – | 0 | no |
@@ -55,9 +55,13 @@ rounds spent (budget: max 2, then leave + report).
   free httpx). Live: Burnap+Abel + Naish verified via MillionVerifier (real 'ok');
   Kays + 2 no-site + Manor(mismatch) discarded. Inline-discovery mismatch on
   SC578527 caught + corrected (discarded + audited).
-- PHASE E (draft_email MECHANISM ONLY) carry-forward: write outreach/prompts/
-  draft_email.md VERBATIM from CONTEXT placeholder — do NOT author conversion copy.
-  Mechanism: load playbook file → inline provider drafts into body_original →
-  structural reviewer enforces envelope (<125 words, plain-text unsubscribe +
-  SettlePay sender ID, "FCA-regulated partners", ZERO links/images). GREEN is
-  purely structural/compliance. Draft for the 2 enriched leads.
+- Phase E GREEN: draft mechanism (load placeholder playbook → inline provisional
+  responder → check_envelope) wrote 2 provisional drafts to body_original (status
+  awaiting_approval), 76/75 words, compliant. Judge: no conversion copy invented.
+- PHASE F (approval queue) carry-forward: drafts sit awaiting_approval; review
+  surface (CLI) approve/edit/reject. edit → body_final + reviewer_note (body_original
+  IMMUTABLE); approve-as-is → copy body_original → body_final; reject → rejected.
+  Only approved drafts advance; NOTHING advances without decided_by/decided_at.
+  NOTE: lead state machine updated — DRAFTED → {approved, rejected, discarded}
+  (a drafted lead's review resolves directly). Approve 1 as-is + 1 with an edit to
+  capture the body_original/body_final diff (the training signal).
