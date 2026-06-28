@@ -5,9 +5,9 @@ is and writes it after every iteration. The counters here are the ONLY brake the
 budget can rely on — nothing held in session memory survives a cold start.
 
 started-at:        2026-06-28 (interactive build, user-driven; G0+G1 cleared by user: creds + schema decision)
-last-run:          2026-06-28 — phase B GREEN (floor PASS + judge PASS); advancing to C
-current-phase:     C
-global-iterations: 2
+last-run:          2026-06-28 — phase C GREEN (floor PASS + judge PASS); advancing to D
+current-phase:     D
+global-iterations: 3
 G_SEND:            unset   (human-only; the loop must never set this)
 
 ## Per-phase progress
@@ -19,7 +19,7 @@ rounds spent (budget: max 2, then leave + report).
 |---|---|---|---|---|---|
 | A | Foundations | PASS | PASS | 1 | YES |
 | B | find_leads | PASS | PASS | 0 | YES |
-| C | Compliance firewall (PECR) | – | – | 0 | no |
+| C | Compliance firewall (PECR) | PASS | PASS | 0 | YES |
 | D | enrich_company | – | – | 0 | no |
 | E | draft_email (mechanism only) | – | – | 0 | no |
 | F | Approval queue | – | – | 0 | no |
@@ -45,7 +45,13 @@ rounds spent (budget: max 2, then leave + report).
 - Phase A GREEN+committed (966bbe1). Phase B GREEN: 50 active SIC-68310 leads in
   outreach.leads (deduped), audit row each. CH client = Basic auth + per-run cap
   + 0.6s interval.
-- PHASE C carry-forward (judge note): the firewall must process the ENTIRE
-  discovered backlog each run — the C floor only fails on leads LEFT contactable
-  after C, so don't sample; classify every discovered lead. Classify from stored
-  company_type (no re-fetch). Suppress against public.<ENQUIRY_SOURCE_TABLE>=leads.
+- Phase C GREEN: firewall classifies whole backlog (subscriber_class is null);
+  50 leads all corporate (ltd estate agents), 0 suppressed; suppress-path covered
+  by seeded rolled-back test. check_suppression(suppressions ∪ public.leads),
+  _safe_ident guards the table name. Judge: rigorous PASS, no fall-through.
+- PHASE D (enrich_company) carry-forward: needs a WEBSITE-DISCOVERY method —
+  Companies House gives no website. Options: a search API (Tavily, needs key) for
+  the unattended runtime, OR inline (loop agent finds the URL via its own tools)
+  for the Max-driven build. Then scrape homepage+about/contact, prefer generic
+  email (info@/contact@), verify via MillionVerifier (≤20/run), signal via inline
+  provider, DISCARD unverifiable. SMALL sample only (3–5) during build.
