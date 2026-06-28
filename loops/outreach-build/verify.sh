@@ -160,18 +160,18 @@ check_G(){
 
 check_H(){
   echo "— H operational wiring"
-  # no hardcoded timing: timedelta(days/hours/minutes=<n>) or sleep(<n>) outside the config module
-  if grep -RInE 'timedelta\((days|hours|minutes|weeks)=[0-9]' "$OUT" --include='*.py' \
-       | grep -viE '(sequence_config|/config/|config\.py)' >/dev/null 2>&1; then
-    nf "H: hardcoded timedelta delay found outside sequence_config"
-  else ok "H: no hardcoded timedelta delays outside config"; fi
-  if grep -RInE '(time\.)?sleep\([0-9]' "$OUT" --include='*.py' \
-       | grep -viE '(sequence_config|/config/|config\.py|test)' >/dev/null 2>&1; then
-    nf "H: hardcoded sleep() delay found outside config/tests"
-  else ok "H: no hardcoded sleep() delays outside config/tests"; fi
-  grep -RIl -iE 'kill[_ ]?switch' "$OUT" --include='*.py' >/dev/null 2>&1 \
+  # hardcoded-timing checks scope to the PIPELINE PACKAGE only — never vendored
+  # deps under .venv, nor tests/migrations. Timing must live in sequence_config.
+  local SRC="$OUT/outreach"
+  if grep -RInE 'timedelta\((days|hours|minutes|weeks)=[0-9]' "$SRC" --include='*.py' >/dev/null 2>&1; then
+    nf "H: hardcoded timedelta delay in pipeline source"
+  else ok "H: no hardcoded timedelta delays in pipeline source"; fi
+  if grep -RInE '(time\.)?sleep\([0-9]' "$SRC" --include='*.py' >/dev/null 2>&1; then
+    nf "H: hardcoded sleep() delay in pipeline source"
+  else ok "H: no hardcoded sleep() delays in pipeline source"; fi
+  grep -RIl -iE 'kill[_ ]?switch' "$SRC" --include='*.py' >/dev/null 2>&1 \
     && ok "H: kill switch present" || nf "H: no kill switch found"
-  grep -RIl -iE 'graduat|threshold' "$OUT" >/dev/null 2>&1 \
+  grep -liE 'graduat|threshold' "$OUT/sequence_config.json" "$SRC"/sequence.py >/dev/null 2>&1 \
     && ok "H: graduation thresholds present in config" || nf "H: no graduation thresholds found"
   if (cd "$OUT" && "$PY" -m outreach run --stage all --dry-run >/tmp/outreach-run.log 2>&1); then
     ok "H: \`run --stage all --dry-run\` exits 0"

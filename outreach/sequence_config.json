@@ -1,0 +1,21 @@
+{
+  "_note": "PLACEHOLDER timing. Cadence / follow-up delays / send windows are DEFERRED — they come from the researched drafting playbook. The mechanism READS these values; timing must never be hardcoded elsewhere. The `graduation` thresholds below are operational policy (from the brief) and are real, not placeholders.",
+  "send_window": {
+    "start_hour": 9,
+    "end_hour": 17,
+    "days": [0, 1, 2, 3],
+    "_comment": "PLACEHOLDER — weekday ints (Mon=0). Real send window TBD from playbook."
+  },
+  "follow_up_delays_days": [3, 7],
+  "max_follow_ups": 2,
+  "_follow_up_note": "PLACEHOLDER follow-up cadence (days after previous touch). TBD from playbook.",
+  "graduation": {
+    "min_reviewed_drafts_per_vertical": 50,
+    "min_approved_unedited_rate": 0.90,
+    "max_bounce_rate": 0.02,
+    "max_complaint_rate": 0.001,
+    "spot_check_ratio": 0.05,
+    "per_vertical_auto_send": false,
+    "guardrails_permanently_on": true
+  }
+}
