@@ -15,10 +15,10 @@
    Driven by caseStudy.workflow (see src/data/portfolio.mjs). */
 import Icon from '../Icon.astro';
 
-const { workflow, accent = '#0F172A' } = Astro.props;
+const { workflow, accent = '#0F172A', brandBg = '#0F172A', brandSurface = '#F5F2EB' } = Astro.props;
 const board = workflow.board;
 ---
-<div class="wf" data-wf style={`--wf-accent:${accent}`}>
+<div class="wf" data-wf style={`--wf-accent:${accent};--wf-brand-bg:${brandBg};--wf-brand-surface:${brandSurface}`}>
   <div class="wf__tabs" role="tablist" aria-label="Choose a view">
     <button class="wf__tab is-active" type="button" role="tab" aria-selected="true" data-wf-tab="board">
       <span class="wf__tab-title">The Board</span>
@@ -37,8 +37,8 @@ const board = workflow.board;
   <div class="wf__stage wf__stage--board" data-wf-stage role="tabpanel">
     <section class="wf-board" aria-label="Settlement board (simulated)">
       <header class="wf-board__head">
-        <span class="wf-board__title">Invoices · this week</span>
-        <span class="wf__panechip wf__panechip--sync"><Icon name="refresh" sw={2.2} />Connected to Xero</span>
+        <span class="wf-board__title">{board.title}</span>
+        <span class="wf__panechip wf__panechip--sync"><Icon name="refresh" sw={2.2} />{board.sync}</span>
       </header>
       <div class="wf-board__rows">
         {board.rows.map((r) => (
@@ -94,6 +94,7 @@ const board = workflow.board;
     const data = JSON.parse(root.querySelector('[data-wf-json]').textContent);
     const panes = data.panes;
     const scenarios = data.scenarios;
+    const brand = data.brand || { mark: '', nameLines: [] };
 
     const tabs = Array.from(root.querySelectorAll('[data-wf-tab]'));
     const stage = root.querySelector('[data-wf-stage]');
@@ -139,19 +140,25 @@ const board = workflow.board;
     }
 
     function invoiceHtml(it) {
+      const nameHtml = (brand.nameLines || []).map(esc).join('<br>');
       let inner =
-        '<div class="wf-invoice__brand"><span class="wf-invoice__mark" aria-hidden="true">M&amp;V</span>' +
-        '<span class="wf-invoice__name">Marsh &amp; Vale<br>Plumbing &amp; Heating</span></div>' +
+        `<div class="wf-invoice__brand"><span class="wf-invoice__mark" aria-hidden="true">${esc(brand.mark)}</span>` +
+        `<span class="wf-invoice__name">${nameHtml}</span></div>` +
         `<div class="wf-invoice__body"><span class="wf-invoice__label">${esc(it.label)}</span>` +
         `<span class="wf-invoice__amt">${esc(it.amount)}</span>` +
         (it.note ? `<span class="wf-invoice__note">${esc(it.note)}</span>` : '') +
         '</div>';
       if (it.paid) {
-        inner += `<div class="wf-invoice__paid"><span class="wf-invoice__tick" aria-hidden="true">${CHECK}</span>Paid ${esc(it.paid.amount)} · ${esc(it.paid.time)}</div>`;
+        const paidText = it.paid.label ? esc(it.paid.label) : 'Paid ' + esc(it.paid.amount) + ' · ' + esc(it.paid.time);
+        inner += `<div class="wf-invoice__paid"><span class="wf-invoice__tick" aria-hidden="true">${CHECK}</span>${paidText}</div>`;
       } else if (it.cta === 'applepay') {
         inner += `<button class="wf-invoice__cta wf-invoice__cta--apay" type="button" tabindex="-1" aria-hidden="true">${APPLE} Pay</button>`;
       } else if (it.cta === 'transfer') {
         inner += '<button class="wf-invoice__cta wf-invoice__cta--alt" type="button" tabindex="-1" aria-hidden="true">Pay by bank transfer</button>';
+      } else if (it.cta === 'mandate') {
+        inner += '<button class="wf-invoice__cta wf-invoice__cta--alt" type="button" tabindex="-1" aria-hidden="true">Set up Direct Debit</button>';
+      } else if (it.cta === 'card') {
+        inner += `<button class="wf-invoice__cta wf-invoice__cta--card" type="button" tabindex="-1" aria-hidden="true">Pay ${esc(it.amount)}</button>`;
       }
       return `<div class="wf-invoice is-on">${inner}</div>`;
     }
@@ -216,8 +223,8 @@ const board = workflow.board;
         .join('');
       return (
         '<section class="wf-board" aria-label="Settlement board (simulated)">' +
-        '<header class="wf-board__head"><span class="wf-board__title">Invoices · this week</span>' +
-        `<span class="wf__panechip wf__panechip--sync is-on">${REFRESH}Connected to Xero</span></header>` +
+        '<header class="wf-board__head"><span class="wf-board__title">' + esc(b.title) + '</span>' +
+        `<span class="wf__panechip wf__panechip--sync is-on">${REFRESH}${esc(b.sync)}</span></header>` +
         `<div class="wf-board__rows">${rows}</div>` +
         (b.feed ? `<p class="wf-board__feed">${SPARK}${esc(b.feed)}</p>` : '') +
         '</section>'

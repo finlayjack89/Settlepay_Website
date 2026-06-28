@@ -193,6 +193,104 @@ export const PORTFOLIO = [
         rate: { default: 13, min: 11, max: 25, step: 1 },
         lens: 'And the deposit is secured during the approval call — not after a weekend of checking the bank statement, with the statutory 15-day clock already ticking.',
       },
+      workflow: {
+        intro: 'Pick an applicant to follow their holding deposit — or open The Board to see the week’s deposits at a glance.',
+        brand: { mark: 'HL', nameLines: ['Harbourside', 'Lettings'] },
+        panes: [
+          { key: 'phone', label: 'Applicant’s Phone', tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Harbourside', sync: 'Live log' },
+        ],
+        board: {
+          title: 'Deposit requests · this week',
+          sync: 'Live log · CSV',
+          caption: 'Every holding deposit and its status in one live log — matched to its tenancy automatically. The Excel sheet is gone.',
+          feed: 'This week: six of eight deposit requests paid on the day they were sent.',
+          rows: [
+            { ref: 'HQ-2218', who: 'Eleanor Hartley — Flat 2, Anchor Quay', amount: '£450.00', status: 'paid', label: 'Matched' },
+            { ref: 'HQ-2217', who: 'Daniel Okafor — 14 Mariners Row', amount: '£495.00', status: 'paid', label: 'Paid' },
+            { ref: 'HQ-2220', who: 'J & A Whitfield — 6 Cliff Court', amount: '£520.00', status: 'paid', label: 'Paid' },
+            { ref: 'HQ-2219', who: 'Sophie Mercer — Flat 1, Pier View', amount: '£415.00', status: 'reminder', label: 'Day 2' },
+            { ref: 'HQ-2212', who: 'T. Bremner — 9 Harbour Walk', amount: '£430.00', status: 'overdue', label: 'Expired' },
+          ],
+        },
+        scenarios: [
+          {
+            id: 'hartley', tab: 'Paid in the call', customer: 'Eleanor Hartley', blurb: 'Apple Pay during approval',
+            steps: [
+              {
+                caption: 'Approved for Flat 2, 18 Anchor Quay. A staff member pastes the tenancy reference into the link generator — that’s the whole job.',
+                phone: { title: 'Eleanor Hartley’s Phone', idle: { clock: '11:04', hint: 'No new messages' } },
+                ops: { sync: true, rows: [{ ref: 'HQ-2218', sub: 'Generating branded deposit link…', badge: { label: 'Ready', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'The link arrives by text — the property, her name, £450 and a plain validity date. No bank details to copy out.',
+                phone: { title: 'Eleanor Hartley’s Phone', items: [{ type: 'sms', text: 'Harbourside Lettings: congratulations! Your holding deposit for Flat 2, 18 Anchor Quay (£450.00) secures the property — pay securely at pay.harbourside-lettings.co.uk/d/2218', time: '11:05' }] },
+                ops: { rows: [{ ref: 'HQ-2218', sub: 'Link sent 11:05 · awaiting payment', badge: { label: 'Awaiting', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'She opens the link: the property, itemised, on a page in Harbourside’s name — and taps Apple Pay before the call has even ended.',
+                phone: { title: 'Eleanor Hartley’s Phone', items: [{ type: 'invoice', label: 'Holding deposit · Flat 2, 18 Anchor Quay', amount: '£450.00', note: 'Valid until Fri 19 June', cta: 'applepay' }] },
+                ops: { rows: [{ ref: 'HQ-2218', sub: 'Link opened · awaiting payment', badge: { label: 'Awaiting', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'Paid in minutes. The reference travels with the payment, so it matches the right tenancy on its own and settles to the client account — no statement to check.',
+                phone: { title: 'Eleanor Hartley’s Phone', items: [{ type: 'invoice', label: 'Holding deposit · Flat 2, 18 Anchor Quay', amount: '£450.00', paid: { amount: '£450.00', time: '11:09 · Apple Pay' } }] },
+                ops: { sync: true, rows: [{ ref: 'HQ-2218', sub: 'Matched to tenancy · settled to client account', badge: { label: 'Matched', tone: 'matched' } }], feed: 'No surname to match by hand — the reference did the work.' },
+              },
+            ],
+          },
+          {
+            id: 'mercer', tab: 'Needed a nudge', customer: 'Sophie Mercer', blurb: 'Pays after an automatic reminder',
+            steps: [
+              {
+                caption: 'Sophie’s link went out yesterday and the deposit is still open — the property held on a promise. On the old way, this is the awkward chase call.',
+                phone: { title: 'Sophie Mercer’s Phone', items: [{ type: 'sms', text: 'Harbourside Lettings: your holding deposit for Flat 1, Pier View (£415.00) secures the property — pay at pay.harbourside-lettings.co.uk/d/2219', time: 'Tue 16:20' }] },
+                ops: { rows: [{ ref: 'HQ-2219', sub: 'Due · valid until Fri 19 June', badge: { label: 'Due', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'A polite reminder sends itself this morning — no one had to remember it, no one had to phone.',
+                phone: { title: 'Sophie Mercer’s Phone', items: [{ type: 'sms', text: 'Harbourside Lettings: a gentle reminder — your holding deposit (£415.00) is still open and your offer is being held. Pay any time at pay.harbourside-lettings.co.uk/d/2219', time: '09:00 · day 2' }] },
+                ops: { rows: [{ ref: 'HQ-2219', sub: 'Day-2 reminder sent 09:00 — automatically', badge: { label: 'Day 2', tone: 'remind' }, active: true }] },
+              },
+              {
+                caption: 'The nudge does the work. She taps through and pays £415.00 by card.',
+                phone: { title: 'Sophie Mercer’s Phone', items: [{ type: 'invoice', label: 'Holding deposit · Flat 1, Pier View', amount: '£415.00', paid: { amount: '£415.00', time: 'day 2 · 09:24' } }] },
+                ops: { rows: [{ ref: 'HQ-2219', sub: 'Paid · matching tenancy…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Matched to her tenancy automatically and off the daily summary. The property is secured — no one chased it by hand.',
+                phone: { title: 'Sophie Mercer’s Phone', items: [{ type: 'invoice', label: 'Holding deposit · Flat 1, Pier View', amount: '£415.00', paid: { amount: '£415.00', time: 'day 2 · 09:24' } }] },
+                ops: { sync: true, rows: [{ ref: 'HQ-2219', sub: 'Matched to tenancy · settled', badge: { label: 'Matched', tone: 'matched' } }], feed: 'The reminder did the chasing — the reference did the matching.' },
+              },
+            ],
+          },
+          {
+            id: 'whitfield', tab: 'Joint applicants', customer: 'James & Anna Whitfield', blurb: 'One link, paid by card',
+            steps: [
+              {
+                caption: 'A joint application for 6 Cliff Court — two names, one deposit, one link. Staff paste the tenancy reference and that’s it.',
+                phone: { title: 'The Whitfields’ Phone', idle: { clock: '15:31', hint: 'No new messages' } },
+                ops: { sync: true, rows: [{ ref: 'HQ-2220', sub: 'Generating branded deposit link…', badge: { label: 'Ready', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'The branded page shows the property, both their names and £520 — payable by card, Apple Pay or Google Pay.',
+                phone: { title: 'The Whitfields’ Phone', items: [{ type: 'sms', text: 'Harbourside Lettings: your holding deposit for 6 Cliff Court (£520.00) secures the property for James & Anna Whitfield — pay at pay.harbourside-lettings.co.uk/d/2220', time: '15:33' }, { type: 'invoice', label: 'Holding deposit · 6 Cliff Court', amount: '£520.00', note: 'James & Anna Whitfield', cta: 'card' }] },
+                ops: { rows: [{ ref: 'HQ-2220', sub: 'Link sent 15:33 · awaiting payment', badge: { label: 'Awaiting', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'They pay £520.00 by card that evening — one payment, against one tenancy.',
+                phone: { title: 'The Whitfields’ Phone', items: [{ type: 'invoice', label: 'Holding deposit · 6 Cliff Court', amount: '£520.00', note: 'James & Anna Whitfield', paid: { amount: '£520.00', time: '19:48' } }] },
+                ops: { rows: [{ ref: 'HQ-2220', sub: 'Paid · matching tenancy…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Matched and settled to the client account automatically — the same hands-off path, whoever pays and however they pay.',
+                phone: { title: 'The Whitfields’ Phone', items: [{ type: 'invoice', label: 'Holding deposit · 6 Cliff Court', amount: '£520.00', note: 'James & Anna Whitfield', paid: { amount: '£520.00', time: '19:48' } }] },
+                ops: { sync: true, rows: [{ ref: 'HQ-2220', sub: 'Matched to tenancy · settled to client account', badge: { label: 'Matched', tone: 'matched' } }], feed: 'One link, one reference, one tidy line in the log.' },
+              },
+            ],
+          },
+        ],
+      },
       theatre: {
         intro: "An applicant has just been approved for Flat 2, 18 Anchor Quay. Press play to follow the holding deposit.",
         panes: [
@@ -271,12 +369,15 @@ export const PORTFOLIO = [
          src/components/portfolio/WorkflowTheatre.astro. */
       workflow: {
         intro: 'Pick a customer to follow their payment end to end — or open The Board to see how the week settles itself.',
+        brand: { mark: 'M&V', nameLines: ['Marsh & Vale', 'Plumbing & Heating'] },
         panes: [
           { key: 'system', label: 'His Accounting · Xero', tag: 'Simulated view' },
           { key: 'phone', label: 'Customer’s Phone', tag: 'Simulated' },
           { key: 'ops', label: 'SettlePay · Marsh & Vale', sync: 'Xero' },
         ],
         board: {
+          title: 'Invoices · this week',
+          sync: 'Connected to Xero',
           caption: 'Every invoice and its live status, in one place — reminders and reconciliation running themselves. Nothing to match by hand.',
           feed: 'This week: 14 of 16 invoices settled — every payment matched to its job automatically.',
           rows: [
@@ -599,6 +700,116 @@ export const PORTFOLIO = [
         rate: { default: 13, min: 11, max: 25, step: 1 },
         lens: 'And the bigger win is off this chart: a deposit that secures the booking changes the no-show maths, and an empty slot is no longer worth nothing.',
       },
+      workflow: {
+        intro: 'Pick a patient to follow their booking or plan — or open The Board to see the week at a glance.',
+        brand: { mark: 'RP', nameLines: ['Rowan', 'Physiotherapy'] },
+        panes: [
+          { key: 'system', label: 'Diary · Cliniko', tag: 'Simulated view' },
+          { key: 'phone', label: 'Patient’s Phone', tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Rowan', sync: 'Cliniko' },
+        ],
+        board: {
+          title: 'Bookings & plans · this week',
+          sync: 'Connected to Cliniko',
+          caption: 'Deposits, plans and instalments in one place — matched to the diary automatically. The plan spreadsheet is retired.',
+          feed: 'This month: every plan instalment collected without a phone call.',
+          rows: [
+            { ref: 'RP-0934', who: 'E. Sutton — initial assessment', amount: '£40.00', status: 'paid', label: 'Confirmed' },
+            { ref: 'RP-0921', who: 'T. Mason — plan 2 of 3', amount: '£90.00', status: 'paid', label: 'Collected' },
+            { ref: 'RP-0936', who: 'A. Devlin — initial assessment', amount: '£40.00', status: 'due', label: 'Awaiting' },
+            { ref: 'RP-0918', who: 'C. Rhodes — plan 3 of 3', amount: '£90.00', status: 'reminder', label: 'Retrying' },
+          ],
+        },
+        scenarios: [
+          {
+            id: 'sutton', tab: 'Deposit confirms the booking', customer: 'E. Sutton', blurb: 'Pays the deposit, slot secured',
+            steps: [
+              {
+                caption: 'Reception books E. Sutton’s initial assessment in Cliniko, exactly as always. That’s the only manual step.',
+                system: { rows: [{ ref: 'RP-0934', who: 'E. Sutton — initial assessment, Fri 19 Jun', amount: '£40.00', badge: { label: 'Booked', tone: 'sent' }, active: true }] },
+                phone: { title: 'E. Sutton’s Phone', idle: { clock: '10:10', hint: 'No new messages' } },
+                ops: { sync: true, rows: [{ ref: 'RP-0934', sub: 'New booking seen · sending deposit link…', badge: { label: 'Ready', tone: 'sent' } }] },
+              },
+              {
+                caption: 'A calm, branded page goes out automatically — deposit or full plan, the patient’s choice.',
+                system: { rows: [{ ref: 'RP-0934', who: 'E. Sutton — initial assessment, Fri 19 Jun', amount: '£40.00', badge: { label: 'Booked', tone: 'sent' } }] },
+                phone: { title: 'E. Sutton’s Phone', items: [{ type: 'sms', text: 'Rowan Physiotherapy: your initial assessment on Fri 19 June is held. Secure it with a £40 deposit (it comes off your fee on the day) at pay.rowanphysio.co.uk/b/0934', time: '10:12' }] },
+                ops: { rows: [{ ref: 'RP-0934', sub: 'Link sent 10:12 · awaiting deposit', badge: { label: 'Awaiting', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'She pays the £40 deposit by Apple Pay — it comes off her assessment fee on the day.',
+                system: { rows: [{ ref: 'RP-0934', who: 'E. Sutton — initial assessment, Fri 19 Jun', amount: '£40.00', badge: { label: 'Booked', tone: 'sent' } }] },
+                phone: { title: 'E. Sutton’s Phone', items: [{ type: 'invoice', label: 'Booking deposit · initial assessment, Fri 19 Jun', amount: '£40.00', note: 'Comes off your fee on the day', paid: { amount: '£40.00', time: '10:15 · Apple Pay' } }] },
+                ops: { rows: [{ ref: 'RP-0934', sub: 'Paid · confirming booking…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'The booking is marked confirmed in Cliniko automatically — reception never touches it, and the slot is secured.',
+                system: { rows: [{ ref: 'RP-0934', who: 'E. Sutton — initial assessment, Fri 19 Jun', amount: '£40.00', badge: { label: 'Confirmed', tone: 'paid' }, active: true }] },
+                phone: { title: 'E. Sutton’s Phone', items: [{ type: 'invoice', label: 'Booking deposit · initial assessment, Fri 19 Jun', amount: '£40.00', paid: { amount: '£40.00', time: '10:15 · Apple Pay' } }] },
+                ops: { sync: true, rows: [{ ref: 'RP-0934', sub: 'Confirmed in Cliniko · settled to the clinic', badge: { label: 'Confirmed', tone: 'matched' } }], feed: 'No transfer to check against the diary in the morning.' },
+              },
+            ],
+          },
+          {
+            id: 'mason', tab: 'Treatment plan', customer: 'T. Mason', blurb: 'Six-session course, paid monthly',
+            steps: [
+              {
+                caption: 'T. Mason books a six-session course. The branded page offers the full plan — three monthly instalments of £90, shown up front, no surprises.',
+                system: { rows: [{ ref: 'RP-0921', who: 'T. Mason — six-session course', amount: '£270.00', badge: { label: 'Booked', tone: 'sent' }, active: true }] },
+                phone: { title: 'T. Mason’s Phone', items: [{ type: 'sms', text: 'Rowan Physiotherapy: your six-session course is booked. Set up your plan — 3 monthly instalments of £90 — at pay.rowanphysio.co.uk/b/0921', time: '09:40' }] },
+                ops: { rows: [{ ref: 'RP-0921', sub: 'Plan link sent · awaiting setup', badge: { label: 'Awaiting', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'He sets it up and the first instalment is taken today — £90. The next two are scheduled on their dates.',
+                system: { rows: [{ ref: 'RP-0921', who: 'T. Mason — six-session course', amount: '£270.00', badge: { label: 'Plan active', tone: 'paid' }, active: true }] },
+                phone: { title: 'T. Mason’s Phone', items: [{ type: 'invoice', label: 'Treatment plan · six sessions', amount: '£90.00', note: 'Instalment 1 of 3 · then 10 Jul, 10 Aug', paid: { amount: '£90.00', time: 'today' } }] },
+                ops: { rows: [{ ref: 'RP-0921', sub: 'Instalment 1 of 3 paid · plan active', badge: { label: 'Active', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'A month on, instalment 2 collects itself on its date — no reminder, no card machine, no phone call.',
+                system: { rows: [{ ref: 'RP-0921', who: 'T. Mason — six-session course', amount: '£270.00', badge: { label: 'Plan active', tone: 'paid' } }] },
+                phone: { title: 'T. Mason’s Phone', items: [{ type: 'invoice', label: 'Treatment plan · six sessions', amount: '£90.00', note: 'Instalment 2 of 3 · collected 10 Jul', paid: { amount: '£90.00', time: '10 Jul · automatic' } }] },
+                ops: { sync: true, rows: [{ ref: 'RP-0921', sub: 'Instalment 2 of 3 collected on schedule', badge: { label: 'Collected', tone: 'matched' }, active: true }] },
+              },
+              {
+                caption: 'Every instalment matched to the patient and the course automatically. The plan spreadsheet is retired.',
+                system: { rows: [{ ref: 'RP-0921', who: 'T. Mason — six-session course', amount: '£270.00', badge: { label: 'On track', tone: 'paid' }, active: true }] },
+                phone: { title: 'T. Mason’s Phone', items: [{ type: 'invoice', label: 'Treatment plan · six sessions', amount: '£90.00', note: 'Instalment 2 of 3 · final on 10 Aug', paid: { amount: '£90.00', time: '10 Jul · automatic' } }] },
+                ops: { rows: [{ ref: 'RP-0921', sub: '2 of 3 collected · final on 10 Aug', badge: { label: 'On track', tone: 'paid' } }], feed: 'Every plan instalment collected without a phone call.' },
+              },
+            ],
+          },
+          {
+            id: 'rhodes', tab: 'A card fails', customer: 'C. Rhodes', blurb: 'Declined, retried, flagged early',
+            steps: [
+              {
+                caption: 'C. Rhodes is on the final instalment of her plan — and on the due date, her card declines. On a spreadsheet, this surfaces a month late.',
+                system: { rows: [{ ref: 'RP-0918', who: 'C. Rhodes — plan, instalment 3 of 3', amount: '£90.00', badge: { label: 'Active', tone: 'sent' }, active: true }] },
+                phone: { title: 'C. Rhodes’s Phone', idle: { clock: '08:01', hint: 'No new messages' } },
+                ops: { rows: [{ ref: 'RP-0918', sub: 'Instalment 3 declined · card expired', badge: { label: 'Declined', tone: 'overdue' }, active: true }] },
+              },
+              {
+                caption: 'SettlePay retries the card automatically the next day — most failures are just a temporary glitch.',
+                system: { rows: [{ ref: 'RP-0918', who: 'C. Rhodes — plan, instalment 3 of 3', amount: '£90.00', badge: { label: 'Active', tone: 'sent' } }] },
+                phone: { title: 'C. Rhodes’s Phone', items: [{ type: 'sms', text: 'Rowan Physiotherapy: we couldn’t take your final plan instalment (£90) today. No action needed yet — we’ll try again tomorrow.', time: '08:05' }] },
+                ops: { rows: [{ ref: 'RP-0918', sub: 'Auto-retry scheduled for tomorrow', badge: { label: 'Retrying', tone: 'remind' }, active: true }] },
+              },
+              {
+                caption: 'The retry still fails — so it’s raised by name on this week’s summary, not found in a spreadsheet a month into treatment.',
+                system: { rows: [{ ref: 'RP-0918', who: 'C. Rhodes — plan, instalment 3 of 3', amount: '£90.00', badge: { label: 'Action needed', tone: 'overdue' }, active: true }] },
+                phone: { title: 'C. Rhodes’s Phone', items: [{ type: 'sms', text: 'Rowan Physiotherapy: your card still didn’t go through. Pop in a new card any time at pay.rowanphysio.co.uk/b/0918 — no rush, just so your plan stays on track.', time: 'day 2 · 08:05' }] },
+                ops: { rows: [{ ref: 'RP-0918', sub: 'Retry failed · flagged on this week’s summary', badge: { label: 'Flagged', tone: 'overdue' }, active: true }] },
+              },
+              {
+                caption: 'She updates her card and the instalment clears. A problem caught in days and handled kindly — not an awkward conversation mid-session.',
+                system: { rows: [{ ref: 'RP-0918', who: 'C. Rhodes — plan, instalment 3 of 3', amount: '£90.00', badge: { label: 'Complete', tone: 'paid' }, active: true }] },
+                phone: { title: 'C. Rhodes’s Phone', items: [{ type: 'invoice', label: 'Treatment plan · final instalment', amount: '£90.00', paid: { amount: '£90.00', time: 'day 2 · 16:20' } }] },
+                ops: { sync: true, rows: [{ ref: 'RP-0918', sub: 'New card · instalment cleared · plan complete', badge: { label: 'Collected', tone: 'matched' } }], feed: 'Failed cards surface in days, not a month late.' },
+              },
+            ],
+          },
+        ],
+      },
       theatre: {
         intro: "A new patient has just booked an initial assessment in Cliniko. Press play to follow the booking and the plan behind it.",
         panes: [
@@ -762,6 +973,94 @@ export const PORTFOLIO = [
         minutes: { default: 45, min: 15, max: 90, step: 5 },
         rate: { default: 18, min: 12, max: 45, step: 1 },
         lens: 'And the balance request sends itself four weeks out — even in peak season — so the awkward money chase at the worst possible moment simply stops.',
+      },
+      workflow: {
+        intro: 'Pick a wedding to follow its payments — or open The Board to see the whole season at a glance.',
+        brand: { mark: 'SW', nameLines: ['Stillwater', 'Weddings'] },
+        panes: [
+          { key: 'phone', label: 'Couple’s Phone', tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Stillwater', sync: 'Live record' },
+        ],
+        board: {
+          title: 'The season · weddings',
+          sync: 'Live record',
+          caption: 'With no other system to keep, SettlePay is the record for money — every deposit and balance for the season in one place, not fifty email threads.',
+          feed: '25 weddings this season — every deposit and balance tracked automatically.',
+          rows: [
+            { ref: 'SW-1099', who: 'Grace & Tom · 7 Jun', amount: '£1,750.00', status: 'paid', label: 'Settled' },
+            { ref: 'SW-1118', who: 'Hannah & Mo · 12 Jul', amount: '£1,400.00', status: 'due', label: 'Balance due' },
+            { ref: 'SW-1106', who: 'Eleanor & James · 19 Sep', amount: '£350.00', status: 'paid', label: 'Deposit paid' },
+            { ref: 'SW-1121', who: 'Priya & Sam · 30 Aug', amount: '£1,400.00', status: 'reminder', label: 'Balance · Day 3' },
+            { ref: 'SW-1124', who: 'New enquiry · 4 Oct', amount: '£350.00', status: 'due', label: 'Deposit sent' },
+          ],
+        },
+        scenarios: [
+          {
+            id: 'deposit', tab: 'Deposit secures the date', customer: 'Eleanor & James', blurb: 'Paid at booking',
+            steps: [
+              {
+                caption: 'Eleanor & James confirm their date. At booking, the deposit is requested on a branded page — the date isn’t held on a promise.',
+                phone: { title: 'Eleanor & James’s Phone', items: [{ type: 'sms', text: 'Stillwater Weddings: so excited for 19 September! Secure your date with your £350 booking deposit at pay.stillwaterweddings.co.uk/b/1106', time: 'Booked · 16:20' }] },
+                ops: { rows: [{ ref: 'SW-1106', sub: 'Booking deposit requested · awaiting', badge: { label: 'Awaiting', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'They pay the £350 deposit by card that evening. The date is theirs.',
+                phone: { title: 'Eleanor & James’s Phone', items: [{ type: 'invoice', label: 'Booking deposit · wedding 19 September', amount: '£350.00', paid: { amount: '£350.00', time: '19:05' } }] },
+                ops: { rows: [{ ref: 'SW-1106', sub: 'Deposit paid · date secured', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'With no other system to keep, SettlePay becomes the record: the deposit is logged and the balance scheduled for four weeks out — automatically.',
+                phone: { title: 'Eleanor & James’s Phone', items: [{ type: 'invoice', label: 'Booking deposit · wedding 19 September', amount: '£350.00', paid: { amount: '£350.00', time: '19:05' } }] },
+                ops: { rows: [{ ref: 'SW-1106', sub: 'Deposit logged · balance scheduled for 22 Aug', badge: { label: 'Scheduled', tone: 'sent' } }], feed: 'No spreadsheet, no inbox thread — one tidy record per wedding.' },
+              },
+            ],
+          },
+          {
+            id: 'balance', tab: 'Balance, four weeks out', customer: 'Eleanor & James', blurb: 'Requested automatically, no chase',
+            steps: [
+              {
+                caption: 'Four weeks before the wedding — the exact moment a balance chase used to land in a couple’s most stressful fortnight. Here it sends itself, warmly.',
+                phone: { title: 'Eleanor & James’s Phone', items: [{ type: 'sms', text: 'Stillwater Weddings: not long now! Your final balance of £1,400 for 19 September is ready whenever you are — pay at pay.stillwaterweddings.co.uk/b/1106', time: '22 Aug · 10:00' }] },
+                ops: { rows: [{ ref: 'SW-1106', sub: 'Balance requested automatically · 4 weeks out', badge: { label: 'Sent', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'No ultimatum, no awkward email she had to write. They pay the £1,400 balance the same day.',
+                phone: { title: 'Eleanor & James’s Phone', items: [{ type: 'invoice', label: 'Final balance · wedding 19 September', amount: '£1,400.00', paid: { amount: '£1,400.00', time: '22 Aug · 21:14' } }] },
+                ops: { rows: [{ ref: 'SW-1106', sub: 'Balance paid · wedding fully settled', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Fully paid four weeks early — she shoots the day knowing it’s settled, the relationship intact.',
+                phone: { title: 'Eleanor & James’s Phone', items: [{ type: 'invoice', label: 'Final balance · wedding 19 September', amount: '£1,400.00', paid: { amount: '£1,400.00', time: '22 Aug · 21:14' } }] },
+                ops: { rows: [{ ref: 'SW-1106', sub: '£1,750 settled in full · Eleanor & James', badge: { label: 'Settled', tone: 'matched' } }], feed: 'No balance chased in the run-up to the day.' },
+              },
+            ],
+          },
+          {
+            id: 'nudge', tab: 'Balance needs a nudge', customer: 'Priya & Sam', blurb: 'One gentle reminder, then paid',
+            steps: [
+              {
+                caption: 'Priya & Sam’s balance went out four weeks ago and is still open, with the wedding approaching.',
+                phone: { title: 'Priya & Sam’s Phone', items: [{ type: 'sms', text: 'Stillwater Weddings: your final balance of £1,400 for 30 August is ready whenever you are — pay at pay.stillwaterweddings.co.uk/b/1121', time: '2 Aug · 10:00' }] },
+                ops: { rows: [{ ref: 'SW-1121', sub: 'Balance due · 4 weeks out', badge: { label: 'Due', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'A gentle reminder sends itself, in her own voice — not a panicked chase the week before.',
+                phone: { title: 'Priya & Sam’s Phone', items: [{ type: 'sms', text: 'Stillwater Weddings: just a gentle reminder — your final balance (£1,400) for 30 August is still open. No rush, pay any time at pay.stillwaterweddings.co.uk/b/1121', time: '09:00 · day 3' }] },
+                ops: { rows: [{ ref: 'SW-1121', sub: 'Day-3 reminder sent 09:00 — automatically', badge: { label: 'Day 3', tone: 'remind' }, active: true }] },
+              },
+              {
+                caption: 'They pay the £1,400 balance the same morning — the nudge did the asking.',
+                phone: { title: 'Priya & Sam’s Phone', items: [{ type: 'invoice', label: 'Final balance · wedding 30 August', amount: '£1,400.00', paid: { amount: '£1,400.00', time: 'day 3 · 11:40' } }] },
+                ops: { rows: [{ ref: 'SW-1121', sub: 'Paid · wedding fully settled', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Settled, with goodwill intact — and not one email she dreaded sending.',
+                phone: { title: 'Priya & Sam’s Phone', items: [{ type: 'invoice', label: 'Final balance · wedding 30 August', amount: '£1,400.00', paid: { amount: '£1,400.00', time: 'day 3 · 11:40' } }] },
+                ops: { rows: [{ ref: 'SW-1121', sub: '£1,750 settled in full · Priya & Sam', badge: { label: 'Settled', tone: 'matched' } }], feed: 'The reminder did the chasing — kindly, and on time.' },
+              },
+            ],
+          },
+        ],
       },
       theatre: {
         intro: "A couple has just confirmed their wedding date. Press play to follow both payments — without a single chase email.",
@@ -927,6 +1226,104 @@ export const PORTFOLIO = [
         rate: { default: 25, min: 14, max: 60, step: 1 },
         lens: 'And fewer write-offs: 57% of small practices sometimes forfeit a fee rather than chase it — here a failed collection is flagged the same morning, not found at year end.',
       },
+      workflow: {
+        intro: 'Pick a client to follow their Direct Debit — or open The Board to see the month’s collection run.',
+        brand: { mark: 'WC', nameLines: ['Whitmore', '& Co.'] },
+        panes: [
+          { key: 'phone', label: 'Client’s Phone', tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Collections', sync: 'GoCardless + Xero' },
+        ],
+        board: {
+          title: 'Collections · July run',
+          sync: 'GoCardless + Xero',
+          caption: 'Every retainer and one-off fee on one rail — collected on schedule, reconciled into Xero, failures flagged the same morning. No chasing list.',
+          feed: 'July run: collected first time for all but one client — flagged and re-invited the same morning.',
+          rows: [
+            { ref: 'WC-0412', who: 'Hartley Joinery — monthly retainer', amount: '£120.00', status: 'paid', label: 'Collected' },
+            { ref: 'WC-0398', who: 'Bramble Café — monthly retainer', amount: '£150.00', status: 'paid', label: 'Collected' },
+            { ref: 'WC-0405', who: 'F. Nash — self-assessment fee', amount: '£240.00', status: 'scheduled', label: 'Noticed' },
+            { ref: 'WC-0376', who: 'Orchard Glazing — monthly retainer', amount: '£120.00', status: 'reminder', label: 'Flagged' },
+            { ref: 'WC-0420', who: 'Lentell Ltd — monthly retainer', amount: '£180.00', status: 'paid', label: 'Collected' },
+          ],
+        },
+        scenarios: [
+          {
+            id: 'hartley', tab: 'New retainer', customer: 'Hartley Joinery', blurb: 'Direct Debit, set up once',
+            steps: [
+              {
+                caption: 'Whitmore generate a mandate invitation from one CSV export — no standing order for the client to set up themselves.',
+                phone: { title: 'Hartley Joinery’s Phone', items: [{ type: 'sms', text: 'Whitmore & Co.: set up your monthly retainer by Direct Debit (£120/month, with the Direct Debit Guarantee) at pay.whitmore.co.uk/m/0412', time: '09:30' }] },
+                ops: { sync: true, rows: [{ ref: 'WC-0412', sub: 'Mandate invitation sent', badge: { label: 'Invited', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'Two calm steps: bank details, then a clear confirmation with the Direct Debit Guarantee shown in full.',
+                phone: { title: 'Hartley Joinery’s Phone', items: [{ type: 'invoice', label: 'Direct Debit · monthly retainer', amount: '£120/month', note: 'Direct Debit Guarantee included', cta: 'mandate' }] },
+                ops: { rows: [{ ref: 'WC-0412', sub: 'Mandate being authorised', badge: { label: 'Pending', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'Mandate active. From now on the £120 retainer collects itself every month — set up once.',
+                phone: { title: 'Hartley Joinery’s Phone', items: [{ type: 'invoice', label: 'Direct Debit · monthly retainer', amount: '£120/month', paid: { label: 'Direct Debit active · £120/month' } }] },
+                ops: { rows: [{ ref: 'WC-0412', sub: 'Mandate active · scheduled monthly', badge: { label: 'Active', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'On collection day, £120 lands and reconciles into Xero on its own — no reference to match, no standing order to police.',
+                phone: { title: 'Hartley Joinery’s Phone', items: [{ type: 'invoice', label: 'Monthly retainer · 1 July', amount: '£120.00', paid: { label: 'Collected £120.00 · 1 Jul' } }] },
+                ops: { sync: true, rows: [{ ref: 'WC-0412', sub: 'Collected 1 Jul · reconciled to Xero', badge: { label: 'Collected', tone: 'matched' } }], feed: '120 retainers collect on the same day — reconciled into Xero automatically.' },
+              },
+            ],
+          },
+          {
+            id: 'nash', tab: 'One-off fee, same mandate', customer: 'F. Nash', blurb: 'Collected against the existing mandate',
+            steps: [
+              {
+                caption: 'F. Nash already has a mandate. A one-off self-assessment fee can collect against it — no new setup, no invoice to chase.',
+                phone: { title: 'F. Nash’s Phone', items: [{ type: 'sms', text: 'Whitmore & Co.: your self-assessment fee of £240 will be collected by Direct Debit on 8 July, under your existing mandate. No action needed.', time: '1 Jul' }] },
+                ops: { rows: [{ ref: 'WC-0405', sub: 'One-off fee · advance notice sent', badge: { label: 'Noticed', tone: 'sent' }, active: true }] },
+              },
+              {
+                caption: 'Proper advance notice goes out automatically — the Direct Debit rules require it, and the client always knows what’s coming.',
+                phone: { title: 'F. Nash’s Phone', items: [{ type: 'invoice', label: 'Self-assessment fee · one-off', amount: '£240.00', note: 'Collects 8 Jul · existing mandate' }] },
+                ops: { rows: [{ ref: 'WC-0405', sub: 'Advance notice given · scheduled 8 Jul', badge: { label: 'Scheduled', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'On the 8th it collects against the same mandate — £240, no second setup, no transfer to match.',
+                phone: { title: 'F. Nash’s Phone', items: [{ type: 'invoice', label: 'Self-assessment fee · one-off', amount: '£240.00', paid: { label: 'Collected £240.00 · 8 Jul' } }] },
+                ops: { rows: [{ ref: 'WC-0405', sub: 'Collected 8 Jul · matched to client', badge: { label: 'Collected', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Reconciled into Xero automatically, against F. Nash. One mandate carries the retainer and the ad-hoc fees alike.',
+                phone: { title: 'F. Nash’s Phone', items: [{ type: 'invoice', label: 'Self-assessment fee · one-off', amount: '£240.00', paid: { label: 'Collected £240.00 · 8 Jul' } }] },
+                ops: { sync: true, rows: [{ ref: 'WC-0405', sub: 'Reconciled to Xero · one-off fee settled', badge: { label: 'Matched', tone: 'matched' } }], feed: 'Ad-hoc fees collect on the same rail as the retainer — nothing re-keyed.' },
+              },
+            ],
+          },
+          {
+            id: 'orchard', tab: 'A mandate fails', customer: 'Orchard Glazing', blurb: 'Caught the same morning, re-invited',
+            steps: [
+              {
+                caption: 'Orchard Glazing’s mandate fails — the kind of silent break a standing order would hide until a month-end reconciliation.',
+                phone: { title: 'Orchard Glazing’s Phone', idle: { clock: '07:30', hint: 'No new messages' } },
+                ops: { rows: [{ ref: 'WC-0376', sub: 'Mandate failed · client changed bank', badge: { label: 'Failed', tone: 'overdue' }, active: true }] },
+              },
+              {
+                caption: 'But it isn’t hidden. The same morning, the partner is notified and a fresh mandate invitation goes out automatically.',
+                phone: { title: 'Orchard Glazing’s Phone', items: [{ type: 'sms', text: 'Whitmore & Co.: your Direct Debit needs renewing (a bank change, perhaps). Pop in your new details at pay.whitmore.co.uk/m/0376 — your retainer stays uninterrupted.', time: '08:00' }] },
+                ops: { rows: [{ ref: 'WC-0376', sub: 'Partner notified · new invitation sent', badge: { label: 'Re-invited', tone: 'remind' }, active: true }] },
+              },
+              {
+                caption: 'The client re-confirms in two steps. The mandate is live again — the retainer never actually lapsed.',
+                phone: { title: 'Orchard Glazing’s Phone', items: [{ type: 'invoice', label: 'Direct Debit · monthly retainer', amount: '£120/month', paid: { label: 'Direct Debit active · £120/month' } }] },
+                ops: { rows: [{ ref: 'WC-0376', sub: 'New mandate active · back on schedule', badge: { label: 'Active', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'A break caught the same morning, not at year-end. 57% of small practices write fees off rather than chase — this one doesn’t have to.',
+                phone: { title: 'Orchard Glazing’s Phone', items: [{ type: 'invoice', label: 'Direct Debit · monthly retainer', amount: '£120/month', paid: { label: 'Direct Debit active · £120/month' } }] },
+                ops: { sync: true, rows: [{ ref: 'WC-0376', sub: 'Reconciled · no fee written off', badge: { label: 'Recovered', tone: 'matched' } }], feed: 'Silent failures become same-morning flags — not year-end write-offs.' },
+              },
+            ],
+          },
+        ],
+      },
       theatre: {
         intro: "A new client has just accepted their engagement letter. Press play to follow the retainer from setup to a flagged failure.",
         panes: [
@@ -1039,6 +1436,117 @@ export const PORTFOLIO = [
         'A settlement board: who’s paid, what’s outstanding, what’s ready to ship',
         'Automatic reminders for unpaid invoices, in the auction house’s own voice',
       ],
+      workflow: {
+        intro: 'Pick a buyer to follow their lot from sold to settled — or open The Board to see the whole sale at a glance.',
+        brand: { mark: 'C&F', nameLines: ['Camber', '& Finch'] },
+        panes: [
+          { key: 'system', label: 'Saleroom System', tag: 'Simulated' },
+          { key: 'phone', label: 'Buyer’s Phone', tag: 'Simulated' },
+          { key: 'ops', label: 'SettlePay · Settlement', sync: 'Saleroom' },
+        ],
+        board: {
+          title: 'Settlement board · Sale 0616',
+          sync: 'Connected to saleroom',
+          caption: 'Every lot, every invoice and its live status — matched to the lot automatically, reminders sending themselves. No settlement spreadsheet.',
+          feed: 'This sale: 316 of 412 invoices settled, every payment matched to its lot automatically.',
+          rows: [
+            { ref: 'INV-3471', who: 'Bidder 142 — Lot 214', amount: '£2,232.00', status: 'paid', label: 'Released' },
+            { ref: 'INV-3470', who: 'Bidder 138 — Lots 207, 209', amount: '£940.00', status: 'paid', label: 'Paid' },
+            { ref: 'INV-3468', who: 'Bidder 097 — Lot 198', amount: '£3,410.00', status: 'reminder', label: 'Day 3' },
+            { ref: 'INV-3462', who: 'Bidder 061 — Lot 176', amount: '£1,150.00', status: 'overdue', label: 'Day 7' },
+            { ref: 'INV-3455', who: 'Bidder 044 — Lot 151', amount: '£680.00', status: 'paid', label: 'Released' },
+          ],
+        },
+        scenarios: [
+          {
+            id: 'lot214', tab: 'Paid on the spot', customer: 'Bidder 142 · Lot 214', blurb: 'Pays by card in a tap',
+            steps: [
+              {
+                caption: 'Lot 214 sells. The invoice is raised automatically — hammer price plus the 24% buyer’s premium.',
+                system: { rows: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks · Bidder 142', amount: '£1,800', badge: { label: 'Sold', tone: 'sent' }, active: true }] },
+                phone: { title: 'Buyer’s Phone · Bidder 142', idle: { clock: '14:32', hint: 'No new messages' } },
+                ops: { sync: true, rows: [{ ref: 'INV-3471', sub: 'Invoice raised · £2,232.00 (hammer + premium)', badge: { label: 'New', tone: 'sent' } }] },
+              },
+              {
+                caption: 'A branded pay-by-link goes to the winning bidder automatically — no invoice to post, no card read down the phone.',
+                system: { rows: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks · Bidder 142', amount: '£2,232.00', badge: { label: 'Invoiced', tone: 'sent' } }] },
+                phone: { title: 'Buyer’s Phone · Bidder 142', items: [{ type: 'sms', text: 'Camber & Finch: congratulations on Lot 214. Your invoice (£2,232.00, incl. 24% buyer’s premium) is ready — pay securely at pay.camberfinch.co.uk/i/3471', time: '14:34' }] },
+                ops: { rows: [{ ref: 'INV-3471', sub: 'Branded link sent 14:34 · awaiting payment', badge: { label: 'Sent', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'The buyer pays by card in a tap — from anywhere in the world, no slow international transfer.',
+                system: { rows: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks · Bidder 142', amount: '£2,232.00', badge: { label: 'Invoiced', tone: 'sent' } }] },
+                phone: { title: 'Buyer’s Phone · Bidder 142', items: [{ type: 'invoice', label: 'Lot 214 · Georgian silver candlesticks', amount: '£2,232.00', note: 'Hammer £1,800 + 24% premium', paid: { amount: '£2,232.00', time: '14:41' } }] },
+                ops: { rows: [{ ref: 'INV-3471', sub: 'Paid · matching to lot…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Matched to the bidder and the lot automatically — the saleroom marks it ready to release, with no hand-reconciliation.',
+                system: { rows: [{ ref: 'Lot 214', who: 'Georgian silver candlesticks · Bidder 142', amount: '£2,232.00', badge: { label: 'Ready to release', tone: 'paid' }, active: true }] },
+                phone: { title: 'Buyer’s Phone · Bidder 142', items: [{ type: 'invoice', label: 'Lot 214 · Georgian silver candlesticks', amount: '£2,232.00', paid: { amount: '£2,232.00', time: '14:41' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-3471', sub: 'Matched to lot · funds settle to Camber & Finch', badge: { label: 'Released', tone: 'matched' } }], feed: 'Every payment matched to its lot automatically — no settlement spreadsheet.' },
+              },
+            ],
+          },
+          {
+            id: 'lot198', tab: 'Needed a nudge', customer: 'Bidder 097 · Lot 198', blurb: 'Pays after an automatic reminder',
+            steps: [
+              {
+                caption: 'Lot 198 sold, but two days on the invoice is still open — in a 400-lot sale, this is where chasing slips through the cracks.',
+                system: { rows: [{ ref: 'Lot 198', who: 'Pair of famille rose vases · Bidder 097', amount: '£3,410', badge: { label: 'Invoiced', tone: 'sent' }, active: true }] },
+                phone: { title: 'Buyer’s Phone · Bidder 097', items: [{ type: 'sms', text: 'Camber & Finch: your invoice for Lot 198 (£3,410.00) is ready — pay at pay.camberfinch.co.uk/i/3468', time: 'Mon 16:10' }] },
+                ops: { rows: [{ ref: 'INV-3468', sub: 'Due · still open after 2 days', badge: { label: 'Due', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'A polite reminder sends itself — no one had to comb the unpaid list.',
+                system: { rows: [{ ref: 'Lot 198', who: 'Pair of famille rose vases · Bidder 097', amount: '£3,410', badge: { label: 'Invoiced', tone: 'sent' } }] },
+                phone: { title: 'Buyer’s Phone · Bidder 097', items: [{ type: 'sms', text: 'Camber & Finch: a gentle reminder — your invoice for Lot 198 (£3,410.00) is still open. Pay any time at pay.camberfinch.co.uk/i/3468', time: '09:00 · day 3' }] },
+                ops: { rows: [{ ref: 'INV-3468', sub: 'Day-3 reminder sent 09:00 — automatically', badge: { label: 'Day 3', tone: 'remind' }, active: true }] },
+              },
+              {
+                caption: 'The bidder pays £3,410 — the nudge did the asking, not a member of staff.',
+                system: { rows: [{ ref: 'Lot 198', who: 'Pair of famille rose vases · Bidder 097', amount: '£3,410', badge: { label: 'Invoiced', tone: 'sent' } }] },
+                phone: { title: 'Buyer’s Phone · Bidder 097', items: [{ type: 'invoice', label: 'Lot 198 · pair of famille rose vases', amount: '£3,410.00', paid: { amount: '£3,410.00', time: 'day 3 · 09:22' } }] },
+                ops: { rows: [{ ref: 'INV-3468', sub: 'Paid · matching to lot…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Matched and marked ready to release automatically — and off the chase list for good.',
+                system: { rows: [{ ref: 'Lot 198', who: 'Famille rose vases · Bidder 097', amount: '£3,410.00', badge: { label: 'Ready to release', tone: 'paid' }, active: true }] },
+                phone: { title: 'Buyer’s Phone · Bidder 097', items: [{ type: 'invoice', label: 'Lot 198 · pair of famille rose vases', amount: '£3,410.00', paid: { amount: '£3,410.00', time: 'day 3 · 09:22' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-3468', sub: 'Matched to lot · ready to release', badge: { label: 'Released', tone: 'matched' } }], feed: 'The unpaid invoices chase themselves — the settlement board does the watching.' },
+              },
+            ],
+          },
+          {
+            id: 'lot176', tab: 'Paid by bank transfer', customer: 'Bidder 061 · Lot 176', blurb: 'Trade buyer, matched by reference',
+            steps: [
+              {
+                caption: 'Trade buyers often settle a larger lot by bank transfer — which used to mean matching a payment to a lot by hand.',
+                system: { rows: [{ ref: 'Lot 176', who: 'Victorian mahogany bookcase · Bidder 061', amount: '£1,150', badge: { label: 'Invoiced', tone: 'sent' }, active: true }] },
+                phone: { title: 'Buyer’s Phone · Bidder 061', items: [{ type: 'sms', text: 'Camber & Finch: your invoice for Lot 176 (£1,150.00) is ready — pay by card or bank transfer at pay.camberfinch.co.uk/i/3462', time: '15:20' }] },
+                ops: { sync: true, rows: [{ ref: 'INV-3462', sub: 'Link sent · card or transfer', badge: { label: 'Sent', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'The branded page carries a unique reference, so even a transfer can find its own lot.',
+                system: { rows: [{ ref: 'Lot 176', who: 'Victorian mahogany bookcase · Bidder 061', amount: '£1,150', badge: { label: 'Invoiced', tone: 'sent' } }] },
+                phone: { title: 'Buyer’s Phone · Bidder 061', items: [{ type: 'invoice', label: 'Lot 176 · Victorian mahogany bookcase', amount: '£1,150.00', note: 'Bank transfer · reference CF-3462', cta: 'transfer' }] },
+                ops: { rows: [{ ref: 'INV-3462', sub: 'Awaiting transfer · reference CF-3462', badge: { label: 'Due', tone: 'due' }, active: true }] },
+              },
+              {
+                caption: 'The transfer lands — £1,150 — and the reference carries the lot number home.',
+                system: { rows: [{ ref: 'Lot 176', who: 'Victorian mahogany bookcase · Bidder 061', amount: '£1,150', badge: { label: 'Invoiced', tone: 'sent' } }] },
+                phone: { title: 'Buyer’s Phone · Bidder 061', items: [{ type: 'invoice', label: 'Lot 176 · Victorian mahogany bookcase', amount: '£1,150.00', note: 'Bank transfer · reference CF-3462', paid: { amount: '£1,150.00', time: 'transfer received' } }] },
+                ops: { rows: [{ ref: 'INV-3462', sub: 'Transfer received · matching reference…', badge: { label: 'Paid', tone: 'paid' }, active: true }] },
+              },
+              {
+                caption: 'Matched to the lot automatically — no bank feed to eyeball, even for a transfer.',
+                system: { rows: [{ ref: 'Lot 176', who: 'Victorian mahogany bookcase · Bidder 061', amount: '£1,150.00', badge: { label: 'Ready to release', tone: 'paid' }, active: true }] },
+                phone: { title: 'Buyer’s Phone · Bidder 061', items: [{ type: 'invoice', label: 'Lot 176 · Victorian mahogany bookcase', amount: '£1,150.00', note: 'Bank transfer · reference CF-3462', paid: { amount: '£1,150.00', time: 'transfer received' } }] },
+                ops: { sync: true, rows: [{ ref: 'INV-3462', sub: 'Matched by reference · ready to release', badge: { label: 'Matched', tone: 'matched' } }], feed: 'Even bank transfers reconcile themselves when the reference does the work.' },
+              },
+            ],
+          },
+        ],
+      },
       theatre: {
         intro: "The hammer has just fallen on Lot 214. Press play to follow it from sold to settled.",
         panes: [

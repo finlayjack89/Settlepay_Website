@@ -7,11 +7,8 @@ import Icon from '../../components/Icon.astro';
 import SectionHeader from '../../components/SectionHeader.astro';
 import DemoBanner from '../../components/portfolio/DemoBanner.astro';
 import CaseFlow from '../../components/portfolio/CaseFlow.astro';
-import MarshValeFlow from '../../components/portfolio/MarshValeFlow.astro';
-import CaseTheatre from '../../components/portfolio/CaseTheatre.astro';
 import WorkflowTheatre from '../../components/portfolio/WorkflowTheatre.astro';
 import RoiCalculator from '../../components/portfolio/RoiCalculator.astro';
-import OpsPanel from '../../components/portfolio/OpsPanel.astro';
 import StatTiles from '../../components/portfolio/StatTiles.astro';
 import CheckoutTemplate from '../../components/previews/CheckoutTemplate.astro';
 import ReconcileTemplate from '../../components/previews/ReconcileTemplate.astro';
@@ -56,10 +53,8 @@ const Demo = entry.demoComponent ? demos[entry.demoComponent] : null;
    or fabricated infrastructure detail are ever attached to a real client. */
 const cs = entry.caseStudy ?? null;
 
-// Interactive workflow theatre — currently Marsh & Vale only. The static
-// CaseFlow strip is replaced by the theatre where one exists.
-const flowDemos = { MarshValeFlow };
-const FlowDemo = cs?.flowDemo ? flowDemos[cs.flowDemo] : null;
+// The scenario-selectable WorkflowTheatre replaces the static CaseFlow strip and
+// the standalone ops panel wherever a case study defines `workflow`.
 
 const jsonLd = [
   webPage({ path, title: entry.name, description: seo.description }),
@@ -162,28 +157,11 @@ const jsonLd = [
           </ul>
           {cs.workflow ? (
             <>
-              <WorkflowTheatre workflow={cs.workflow} accent={entry.brand.accent} />
+              <WorkflowTheatre workflow={cs.workflow} accent={entry.brand.accent} brandBg={entry.brand.bg} brandSurface={entry.brand.surface} />
               <p class="case-demo__caption">
                 A simulated, user-controlled walkthrough — pick a customer to follow their
                 payment end to end, or open The Board to see the week at a glance. Fictional
                 data and simulated system connections; nothing plays until you choose.
-              </p>
-            </>
-          ) : FlowDemo ? (
-            <>
-              <FlowDemo />
-              <p class="case-demo__caption">
-                A simulated, user-controlled walkthrough — fictional data and a simulated
-                accounting connection. No real systems are involved and nothing plays until
-                you press play.
-              </p>
-            </>
-          ) : cs.theatre ? (
-            <>
-              <CaseTheatre theatre={cs.theatre} accent={entry.brand.accent} />
-              <p class="case-demo__caption">
-                A simulated, user-controlled walkthrough — fictional data and simulated system
-                connections. No real systems are involved and nothing plays until you press play.
               </p>
             </>
           ) : (
@@ -278,28 +256,6 @@ const jsonLd = [
 
   {cs && (
     <>
-      {!cs.workflow && (
-      <section class="case-ops section-pad">
-        <div class="container">
-          <SectionHeader
-            eyebrow="Beyond the Page"
-            title="The Part the Customer "
-            blue="Never Sees"
-            subtitle="Every payment page comes with the management layer behind it — statuses, reminders and reconciliation that run themselves."
-          />
-          <div class="case-ops__stage">
-            <div class="bezel-wrap">
-              <OpsPanel ops={cs.ops} accent={entry.brand.accent} />
-            </div>
-            <p class="case-demo__caption">
-              An illustrative view of the payment-management layer — fictional names and
-              statuses, shown to demonstrate the workflow.
-            </p>
-          </div>
-        </div>
-      </section>
-      )}
-
       <section class="case-outcome section-pad">
         <div class="container">
           <SectionHeader

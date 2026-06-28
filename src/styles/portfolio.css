@@ -1270,6 +1270,7 @@
   .wf-badge--remind { background: rgba(245, 158, 11, 0.14); color: #B45309; }
   .wf-badge--paid { background: rgba(16, 185, 129, 0.12); color: #047857; }
   .wf-badge--matched { background: rgba(13, 148, 136, 0.12); color: #0F766E; }
+  .wf-badge--overdue { background: rgba(220, 38, 38, 0.1); color: #B91C1C; }
 
   /* Row lists (system + ops panes) */
   .wf-rows { padding: 0.55rem; display: grid; gap: 0.4rem; align-content: start; }
@@ -1353,13 +1354,13 @@
     background: #FFFDF8;
     font-family: 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
   }
-  .wf-invoice__brand { display: flex; align-items: center; gap: 0.45rem; background: #1E3A2F; padding: 0.5rem 0.6rem; }
+  .wf-invoice__brand { display: flex; align-items: center; gap: 0.45rem; background: var(--wf-brand-bg, #1E3A2F); padding: 0.5rem 0.6rem; }
   .wf-invoice__mark {
     display: grid; place-items: center; width: 22px; height: 22px;
-    border-radius: 5px; background: #B87333; color: #F5F2EB;
+    border-radius: 5px; background: var(--wf-accent, #B87333); color: var(--wf-brand-surface, #F5F2EB);
     font-size: 0.5rem; font-weight: 700; flex-shrink: 0;
   }
-  .wf-invoice__name { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #F5F2EB; line-height: 1.3; }
+  .wf-invoice__name { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wf-brand-surface, #F5F2EB); line-height: 1.3; }
   .wf-invoice__body { padding: 0.55rem 0.6rem 0.2rem; }
   .wf-invoice__label { display: block; font-size: 0.6rem; color: rgba(27, 43, 34, 0.62); margin-bottom: 2px; }
   .wf-invoice__amt { display: block; font-size: 1.05rem; font-weight: 700; color: #1B2B22; }
@@ -1372,7 +1373,8 @@
   }
   .wf-invoice__cta--apay { background: #000; color: #fff; }
   .wf-invoice__cta--apay svg { width: 13px; height: 13px; }
-  .wf-invoice__cta--alt { background: #1E3A2F; color: #F5F2EB; }
+  .wf-invoice__cta--alt { background: var(--wf-brand-bg, #1E3A2F); color: var(--wf-brand-surface, #F5F2EB); }
+  .wf-invoice__cta--card { background: var(--wf-accent, #0F172A); color: #fff; }
   .wf-invoice__paid {
     display: flex; align-items: center; gap: 0.4rem;
     margin: 0.5rem 0.6rem 0.6rem; padding: 0.45rem 0.55rem;
