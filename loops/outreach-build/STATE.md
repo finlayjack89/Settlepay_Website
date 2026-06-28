@@ -5,9 +5,9 @@ is and writes it after every iteration. The counters here are the ONLY brake the
 budget can rely on — nothing held in session memory survives a cold start.
 
 started-at:        2026-06-28 (interactive build, user-driven; G0+G1 cleared by user: creds + schema decision)
-last-run:          2026-06-28 — phase E GREEN (floor PASS + judge PASS); advancing to F
-current-phase:     F
-global-iterations: 5
+last-run:          2026-06-28 — phase F GREEN (floor PASS + judge PASS); advancing to G
+current-phase:     G
+global-iterations: 6
 G_SEND:            unset   (human-only; the loop must never set this)
 
 ## Per-phase progress
@@ -22,7 +22,7 @@ rounds spent (budget: max 2, then leave + report).
 | C | Compliance firewall (PECR) | PASS | PASS | 0 | YES |
 | D | enrich_company | PASS | PASS | 0 | YES |
 | E | draft_email (mechanism only) | PASS | PASS | 0 | YES |
-| F | Approval queue | – | – | 0 | no |
+| F | Approval queue | PASS | PASS | 0 | YES |
 | G | send (hard-gated, dry-run) | – | – | 0 | no |
 | H | Operational wiring | – | – | 0 | no |
 
@@ -58,10 +58,13 @@ rounds spent (budget: max 2, then leave + report).
 - Phase E GREEN: draft mechanism (load placeholder playbook → inline provisional
   responder → check_envelope) wrote 2 provisional drafts to body_original (status
   awaiting_approval), 76/75 words, compliant. Judge: no conversion copy invented.
-- PHASE F (approval queue) carry-forward: drafts sit awaiting_approval; review
-  surface (CLI) approve/edit/reject. edit → body_final + reviewer_note (body_original
-  IMMUTABLE); approve-as-is → copy body_original → body_final; reject → rejected.
-  Only approved drafts advance; NOTHING advances without decided_by/decided_at.
-  NOTE: lead state machine updated — DRAFTED → {approved, rejected, discarded}
-  (a drafted lead's review resolves directly). Approve 1 as-is + 1 with an edit to
-  capture the body_original/body_final diff (the training signal).
+- Phase F GREEN: review.py (CLI list/approve/reject; --by required; body_original
+  immutable; approve re-checks envelope on body_final; state-machine-guarded;
+  audit per decision). 2 drafts approved (Burnap as-is; Naish edited → body_final
+  diff captured). states.py: DRAFTED→{approved,rejected,discarded}.
+- PHASE G (send — HARD-GATED) carry-forward: send_email sends body_final via MS
+  Graph from a SEPARATE warmed domain (GRAPH_SENDER, never @settlepay.uk). Guards
+  BEFORE any send (dry-run included): global kill switch, individual/unknown block,
+  check_suppression(suppressions ∪ enquiries), per-inbox daily cap (3–5). LIVE send
+  REFUSES unless config.send_enabled() (G_SEND truthy) — the loop NEVER sets G_SEND.
+  Build = dry-run/test mailbox only; 0 live sends. Needs migration 0002 (sends.from_inbox).
