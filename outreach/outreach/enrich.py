@@ -7,12 +7,13 @@ can't verifiably reach is DISCARDED (never left contactable).
 """
 from __future__ import annotations
 import abc
+import json
 import re
 from typing import Optional
 
 import httpx
 
-from . import audit, config, db
+from . import audit, config, db, stats
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 GENERIC_PREFIXES = ("info", "contact", "enquiries", "enquiry", "hello", "sales", "admin", "office", "mail")
@@ -39,7 +40,8 @@ SKIP_DOMAINS = (
 # ---- website discovery (pluggable; inline default, tavily stub for later) ----
 class WebsiteResolver(abc.ABC):
     @abc.abstractmethod
-    def resolve(self, *, company_name: str, address: Optional[str] = None) -> Optional[str]:
+    def resolve(self, *, company_name: str, address: Optional[str] = None,
+                hint: Optional[str] = None) -> Optional[str]:
         ...
 
 
@@ -50,7 +52,7 @@ class InlineWebsiteResolver(WebsiteResolver):
     def __init__(self, mapping: Optional[dict] = None):
         self._mapping = mapping or {}
 
-    def resolve(self, *, company_name, address=None):
+    def resolve(self, *, company_name, address=None, hint=None):
         return self._mapping.get(company_name)
 
 
@@ -66,13 +68,13 @@ class FirecrawlWebsiteResolver(WebsiteResolver):
         self.count = 0
         self._client = client
 
-    def resolve(self, *, company_name, address=None):
+    def resolve(self, *, company_name, address=None, hint=None):
         if not self.api_key:
             raise RuntimeError("FIRECRAWL_API_KEY not set")
         if self.count >= self.max_requests:
             raise RuntimeError(f"search per-run cap reached ({self.max_requests})")
         client = self._client or httpx.Client(timeout=30)
-        query = " ".join(filter(None, [company_name, address, "estate agent"]))
+        query = " ".join(filter(None, [company_name, address, hint]))
         try:
             self.count += 1
             r = client.post(self.ENDPOINT,
@@ -98,13 +100,13 @@ class BraveWebsiteResolver(WebsiteResolver):
         self.count = 0
         self._client = client
 
-    def resolve(self, *, company_name, address=None):
+    def resolve(self, *, company_name, address=None, hint=None):
         if not self.api_key:
             raise RuntimeError("BRAVE_SEARCH_API_KEY not set")
         if self.count >= self.max_requests:
             raise RuntimeError(f"search per-run cap reached ({self.max_requests})")
         client = self._client or httpx.Client(timeout=30)
-        query = " ".join(filter(None, [company_name, address, "estate agent"]))
+        query = " ".join(filter(None, [company_name, address, hint]))
         try:
             self.count += 1
             r = client.get(self.ENDPOINT,
@@ -242,19 +244,24 @@ def _domain_of(url: Optional[str]) -> Optional[str]:
     return re.sub(r"^https?://(www\.)?", "", url).split("/")[0].lower() or None
 
 
-def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
-               cur, http_client: Optional[httpx.Client] = None, verifier=None) -> dict:
-    """Scrape `website`, pick + verify a contact email, store enrichment, and
-    advance the lead to 'enriched' (verified) or 'discarded' (unverifiable)."""
+def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
+            verifier=None) -> dict:
+    """The SLOW, networked half of enrichment (scrape + verify), with NO database
+    handle held. Kept separate so a long Firecrawl/HTTP call never sits inside an
+    open DB transaction (the pooler drops idle connections)."""
     verifier = verifier or verify_email
     domain = _domain_of(website)
-    scrape_source = "httpx"
-    emails = scrape_emails(website, client=http_client) if website else []
-    email = pick_contact_email(emails, prefer_domain=domain)
-
+    scrape_source = None
+    httpx_emails = scrape_emails(website, client=http_client) if website else []
+    candidates = list(httpx_emails)
+    email = pick_contact_email(httpx_emails, prefer_domain=domain)
+    if email:
+        scrape_source = "httpx"
     # fallback: Firecrawl renders JS / extracts where free httpx found nothing
-    if not email and website and config.FIRECRAWL_API_KEY:
-        email = pick_contact_email(firecrawl_scrape_emails(website), prefer_domain=domain)
+    elif website and config.FIRECRAWL_API_KEY:
+        fc_emails = firecrawl_scrape_emails(website)
+        candidates = fc_emails
+        email = pick_contact_email(fc_emails, prefer_domain=domain)
         if email:
             scrape_source = "firecrawl"
 
@@ -262,25 +269,36 @@ def enrich_one(company_number: str, website: Optional[str], signal: Optional[str
         verified, result = verifier(email)
     else:
         verified, result = (False, "no_email")
+    return {"email": email, "verified": verified, "result": result,
+            "scrape_source": scrape_source, "candidates": candidates}
 
+
+def _persist(company_number: str, website: Optional[str], signal: Optional[str],
+             g: dict, *, cur) -> dict:
+    """The FAST, DB-only half: write enrichment + advance/discard the lead. Holds
+    the connection for milliseconds, never across network I/O."""
+    email, verified, result = g["email"], g["verified"], g["result"]
+    scraped = json.dumps({  # provenance for the dashboard
+        "source": g["scrape_source"], "emails_found": len(g["candidates"]),
+        "candidates": g["candidates"][:8], "verify_result": result,
+    })
     cur.execute(
         "insert into outreach.enrichment "
-        "(company_number, website, contact_email, email_verified, email_verify_result, signal) "
-        "values (%s,%s,%s,%s,%s,%s) "
+        "(company_number, website, contact_email, email_verified, email_verify_result, signal, scraped) "
+        "values (%s,%s,%s,%s,%s,%s,%s::jsonb) "
         "on conflict (company_number) do update set "
         "website=excluded.website, contact_email=excluded.contact_email, "
         "email_verified=excluded.email_verified, email_verify_result=excluded.email_verify_result, "
-        "signal=excluded.signal",
-        (company_number, website, email, (verified if email else None), result, signal),
+        "signal=excluded.signal, scraped=excluded.scraped",
+        (company_number, website, email, (verified if email else None), result, signal, scraped),
     )
-
     if verified:
         cur.execute(
             "update outreach.leads set state='enriched', updated_at=now() "
             "where company_number=%s and state='discovered'", (company_number,))
         audit.record(company_number, "enriched", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
-                     reason=f"verified {email} ({result}) via {scrape_source}", cur=cur)
+                     reason=f"verified {email} ({result}) via {g['scrape_source']}", cur=cur)
     else:
         cur.execute(
             "update outreach.leads set state='discarded', updated_at=now() "
@@ -288,8 +306,15 @@ def enrich_one(company_number: str, website: Optional[str], signal: Optional[str
         audit.record(company_number, "discarded", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
                      reason=f"unverifiable contact ({result})", cur=cur)
-
     return {"company_number": company_number, "email": email, "verified": verified, "result": result}
+
+
+def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
+               cur, http_client: Optional[httpx.Client] = None, verifier=None) -> dict:
+    """Scrape `website`, pick + verify a contact email, store enrichment, and
+    advance the lead to 'enriched' (verified) or 'discarded' (unverifiable)."""
+    g = _gather(website, http_client=http_client, verifier=verifier)
+    return _persist(company_number, website, signal, g, cur=cur)
 
 
 def run(items: list[dict], *, cur=None) -> list[dict]:
@@ -327,35 +352,52 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     (a real LLM signal arrives with the api provider — deferred)."""
     resolver = resolver or get_website_resolver()
     own = cur is None
-    conn = None
+
+    # phase 1 — pick the backlog (short DB read)
     if own:
-        conn = db.connect(); cur = conn.cursor()
+        conn = db.connect(); c = conn.cursor()
+        try:
+            c.execute(_BACKLOG_SQL, (limit,)); leads = c.fetchall()
+        finally:
+            conn.close()
+    else:
+        cur.execute(_BACKLOG_SQL, (limit,)); leads = cur.fetchall()
+
+    # phase 2 — slow networked work (resolve + scrape + verify), NO DB connection held
     http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
-    results: list[dict] = []
+    gathered: list[tuple] = []
     try:
-        cur.execute(
-            "select l.company_number, l.company_name, l.registered_address->>'locality' "
-            "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
-            "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
-            "order by l.company_name limit %s", (limit,))
-        for cn, name, town in cur.fetchall():
+        for cn, name, town, sic in leads:
+            vertical = stats.sic_label(sic)  # e.g. "Accountants", "Estate agents"
+            hint = vertical if vertical and vertical != "Unknown" else None
             try:
-                website = resolver.resolve(company_name=name, address=town or "")
+                website = resolver.resolve(company_name=name, address=town or "", hint=hint)
             except Exception:
                 website = None
-            signal = name + (f", estate agent in {town}" if town else "")
-            results.append(enrich_one(cn, website, signal, cur=cur, http_client=http))
-        if own:
-            conn.commit()
-        return results
-    except Exception:
-        if own and conn is not None:
-            conn.rollback()
-        raise
+            signal = name + (f" — {vertical}" if hint else "") + (f" in {town}" if town else "")
+            gathered.append((cn, website, signal, _gather(website, http_client=http)))
     finally:
         http.close()
-        if own and conn is not None:
+
+    # phase 3 — fast DB writes (connection open only for the persists)
+    if own:
+        conn = db.connect(); c = conn.cursor()
+        try:
+            results = [_persist(cn, w, sig, g, cur=c) for cn, w, sig, g in gathered]
+            conn.commit()
+            return results
+        except Exception:
+            conn.rollback(); raise
+        finally:
             conn.close()
+    return [_persist(cn, w, sig, g, cur=cur) for cn, w, sig, g in gathered]
+
+
+_BACKLOG_SQL = (
+    "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1] "
+    "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
+    "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
+    "order by l.company_name limit %s")
 
 
 if __name__ == "__main__":
