@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Install the SettlePay outreach operator console as an always-on LOCAL service.
+# Install the SettlePay operations console as an always-on LOCAL service.
+# (Unified inbound enquiries + outbound outreach surface.)
 #
 # Registers a macOS LaunchAgent that runs uvicorn on 127.0.0.1:8787 with
-# RunAtLoad + KeepAlive, so the dashboard is always reachable at
-#   http://localhost:8787/dashboard
+# RunAtLoad + KeepAlive, so the console is always reachable at
+#   http://localhost:8787/
 # across logouts and reboots.
 #
 # WHY a deployed copy: macOS TCC blocks launchd agents from reading
@@ -77,5 +78,5 @@ launchctl load -w "$PLIST"
 
 echo "Deployed runtime: $RUNTIME"
 echo "Installed LaunchAgent: $LABEL"
-echo "Console (always-on, local): http://localhost:$PORT/dashboard"
+echo "Console (always-on, local): http://localhost:$PORT/"
 echo "Logs: $LOG_DIR/console.log"

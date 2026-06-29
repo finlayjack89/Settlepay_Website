@@ -14,29 +14,37 @@ immutable). Approving only advances a draft to 'approved'; sending stays gated
 behind G-SEND. Run:
 
     cd outreach && .venv/bin/uvicorn outreach.web:app --port 8787
-    # then open http://localhost:8787/dashboard
+    # then open http://localhost:8787/
 """
 from __future__ import annotations
 import html
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from . import config, db, review, stats
+from . import config, db, enquiries, review, stats
 from .sequence import graduation_thresholds, load_sequence_config
 
-app = FastAPI(title="SettlePay Outreach — operator console")
+app = FastAPI(title="SettlePay — operations console")
 
-NAV = [
-    ("/dashboard", "Dashboard", "grid"),
-    ("/queue", "Approval queue", "inbox"),
-    ("/leads", "Leads", "users"),
-    ("/settings", "Settings", "cog"),
+# Grouped sidebar: one unified surface over inbound (enquiries) + outbound (outreach).
+NAV_GROUPS = [
+    (None, [("/", "Dashboard", "grid")]),
+    ("Inbound", [("/enquiries", "Enquiries", "inbox")]),
+    ("Outbound", [
+        ("/outreach", "Outreach", "megaphone"),
+        ("/outreach/queue", "Approval queue", "clipboard"),
+        ("/outreach/leads", "Leads", "users"),
+    ]),
+    ("System", [("/settings", "Settings", "cog")]),
 ]
 
 ICONS = {
     "grid": "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
     "inbox": "M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z",
+    "megaphone": "M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535",
+    "clipboard": "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z",
     "users": "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
     "cog": "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
 }
@@ -57,6 +65,39 @@ STATE_STYLE = {
     "discarded": ("Discarded", "muted"),
     "bounced": ("Bounced", "error"),
 }
+
+# inbound enquiry status -> (label, semantic colour key)
+ENQUIRY_STYLE = {
+    "new": ("New", "warning"),
+    "contacted": ("Contacted", "neutral"),
+    "quoted": ("Quoted", "info"),
+    "won": ("Won", "success"),
+    "client": ("Client", "success"),
+    "lost": ("Lost", "muted"),
+}
+PIPELINE_ORDER = ["new", "contacted", "quoted", "won", "client", "lost"]
+
+
+def _enq_badge(status: str) -> str:
+    label, kind = ENQUIRY_STYLE.get(status, (status, "neutral"))
+    return f'<span class="badge b-{kind}">{html.escape(label)}</span>'
+
+
+def _ago(dt) -> str:
+    if not dt:
+        return ""
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    secs = (now - dt).total_seconds()
+    if secs < 3600:
+        return f"{int(secs // 60)}m ago"
+    if secs < 86400:
+        return f"{int(secs // 3600)}h ago"
+    if secs < 7 * 86400:
+        return f"{int(secs // 86400)}d ago"
+    return dt.strftime("%d %b %Y")
+
 
 _STYLE = """
 :root{
@@ -85,6 +126,7 @@ a{color:inherit;text-decoration:none}
 .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
 .nav a.active{background:var(--action);color:#fff;box-shadow:0 4px 12px rgba(59,130,246,.35)}
 .nav a.soon{opacity:.35;cursor:default}
+.nav-group{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:.9rem .75rem .25rem}
 .nav svg{width:18px;height:18px;flex-shrink:0}
 .nav .tag{margin-left:auto;font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   background:rgba(255,255,255,.12);padding:.1rem .4rem;border-radius:6px}
@@ -124,6 +166,7 @@ a{color:inherit;text-decoration:none}
   min-width:2px;transition:width .4s}
 .ffill.green{background:linear-gradient(90deg,#10B981,#34d399)}
 .ffill.grey{background:linear-gradient(90deg,#94a3b8,#cbd5e1)}
+.ffill.amber{background:linear-gradient(90deg,#F59E0B,#fbbf24)}
 .frow .fn{font-size:.82rem;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
 .frow .fn small{display:block;font-weight:500;color:var(--muted);font-size:.7rem}
 /* tables */
@@ -156,7 +199,7 @@ tr.clk:hover{background:var(--bg);cursor:pointer}
 /* forms */
 textarea{width:100%;min-height:13rem;font:13.5px/1.6 var(--mono);padding:.8rem;border:1px solid var(--line);
   border-radius:var(--radius-input);background:#fcfcfd;resize:vertical}
-input[type=text],input:not([type]){padding:.5rem .7rem;border:1px solid var(--line);border-radius:var(--radius-input);font:inherit;font-size:.85rem;min-width:220px}
+input[type=text],input:not([type]),select{padding:.5rem .7rem;border:1px solid var(--line);border-radius:var(--radius-input);font:inherit;font-size:.85rem;min-width:220px;background:#fff}
 label.fld{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin:.9rem 0 .35rem}
 .btn{display:inline-flex;align-items:center;gap:.4rem;font:inherit;font-size:.85rem;font-weight:600;
   border:none;border-radius:var(--radius-pill);padding:.6rem 1.4rem;cursor:pointer;transition:all .15s}
@@ -166,6 +209,8 @@ label.fld{display:block;font-size:.78rem;font-weight:600;color:var(--muted);marg
 .btn-ghost:hover{border-color:rgba(15,23,42,.3)}
 .row{display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap}
 .alert{background:rgba(220,38,38,.08);color:#b91c1c;border:1px solid rgba(220,38,38,.2);
+  padding:.7rem .9rem;border-radius:var(--radius-input);font-size:.84rem;margin-bottom:1rem}
+.ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#0f7a55;
   padding:.7rem .9rem;border-radius:var(--radius-input);font-size:.84rem;margin-bottom:1rem}
 .note{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#92400e;
   padding:.75rem 1rem;border-radius:var(--radius-input);font-size:.82rem;margin-bottom:1.5rem}
@@ -220,10 +265,12 @@ def _safety() -> dict:
 def _shell(active: str, title: str, sub: str, body: str) -> str:
     s = _safety()
     nav = ""
-    for href, label, icon in NAV:
-        cls = "active" if href == active else ""
-        nav += f'<a class="{cls}" href="{href}">{_icon(icon)}<span>{label}</span></a>'
-    nav += f'<a class="soon">{_icon("inbox")}<span>Sequences</span><span class="tag">Soon</span></a>'
+    for group, items in NAV_GROUPS:
+        if group:
+            nav += f'<div class="nav-group">{group}</div>'
+        for href, label, icon in items:
+            cls = "active" if href == active else ""
+            nav += f'<a class="{cls}" href="{href}">{_icon(icon)}<span>{label}</span></a>'
     if s["live"]:
         send_line = '<span class="dot dot-red"></span>LIVE SEND ENABLED'
     elif s["kill"]:
@@ -234,13 +281,13 @@ def _shell(active: str, title: str, sub: str, body: str) -> str:
             '<span class="dot" style="background:#dc2626"></span>LIVE SEND</span>') if s["live"] else (
             '<span class="statpill"><span class="dot"></span>Dry-run mode · G-SEND off</span>')
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)} · SettlePay Outreach</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)} · SettlePay Console</title>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap">
 <style>{_STYLE}</style></head><body><div class="app">
 <aside class="sidebar">
-  <div class="brand"><b>SettlePay</b><span>Outreach</span></div>
+  <div class="brand"><b>SettlePay</b><span>Operations</span></div>
   <nav class="nav">{nav}</nav>
   <div class="side-status">{send_line}<br>
     <span class="muted" style="color:rgba(255,255,255,.45);font-size:.7rem">
@@ -253,14 +300,61 @@ def _shell(active: str, title: str, sub: str, body: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-#  Dashboard
+#  Combined landing (inbound + outbound at a glance)
 # --------------------------------------------------------------------------- #
+_ENQ_EMPTY = {"total": 0, "new": 0, "contacted": 0, "quoted": 0, "won": 0,
+              "client": 0, "lost": 0, "this_week": 0}
+_OUT_EMPTY = {"discovered": 0, "emails_verified": 0, "emails_risky": 0,
+              "drafts_awaiting": 0, "sends_dry": 0, "sends_live": 0}
+
+
+def _tiles(ts) -> str:
+    return "".join(
+        f'<div class="tile {c}"><div class="n">{n}</div><div class="l">{l}</div><div class="s">{s}</div></div>'
+        for c, n, l, s in ts)
+
+
 @app.get("/", response_class=HTMLResponse)
 def root():
-    return RedirectResponse("/dashboard", status_code=307)
+    out, enq = dict(_OUT_EMPTY), dict(_ENQ_EMPTY)
+    try:
+        with db.cursor(commit=False) as cur:
+            out = stats.overview(cur)
+    except Exception:
+        pass
+    try:
+        with db.dict_cursor() as cur:
+            enq = enquiries.overview(cur) or dict(_ENQ_EMPTY)
+    except Exception:
+        pass
+    et = enq.get("total", 0) or 0
+    conv = (100.0 * ((enq.get("won", 0) or 0) + (enq.get("client", 0) or 0)) / et) if et else 0.0
+    in_tiles = [
+        ("accent", enq.get("total", 0), "Enquiries", "inbound, all time"),
+        ("", enq.get("new", 0), "New", "awaiting first contact"),
+        ("", enq.get("this_week", 0), "This week", "last 7 days"),
+        ("", f"{conv:.0f}%", "Conversion", "won + client"),
+    ]
+    out_tiles = [
+        ("accent", out.get("discovered", 0), "Companies discovered", "outbound, all time"),
+        ("", out.get("emails_verified", 0), "Verified", f"+{out.get('emails_risky', 0)} risky"),
+        ("", out.get("drafts_awaiting", 0), "Awaiting approval", "in the queue"),
+        ("", out.get("sends_dry", 0), "Dry-run sends", f"{out.get('sends_live', 0)} live"),
+    ]
+    body = f"""
+<div class="panel"><h2>Inbound — Enquiries</h2>
+  <div class="hint">Website enquiries pipeline. <a href="/enquiries">Open enquiries &rarr;</a></div>
+  <div class="kpis">{_tiles(in_tiles)}</div></div>
+<div class="panel"><h2>Outbound — Outreach</h2>
+  <div class="hint">Cold-email pipeline (dry-run; G-SEND off). <a href="/outreach">Open outreach &rarr;</a></div>
+  <div class="kpis">{_tiles(out_tiles)}</div></div>"""
+    return _shell("/", "Dashboard", "Inbound + outbound at a glance", body)
 
 
-@app.get("/dashboard", response_class=HTMLResponse)
+# --------------------------------------------------------------------------- #
+#  Outreach (outbound) dashboard
+# --------------------------------------------------------------------------- #
+@app.get("/outreach", response_class=HTMLResponse)
 def dashboard():
     with db.cursor(commit=False) as cur:
         o = stats.overview(cur)
@@ -303,7 +397,7 @@ def dashboard():
                    f'<div class="fn">{n}<small>{w:.0f}% of disc.</small></div></div>')
 
     vrows = "".join(
-        f'<tr class="clk" onclick="location.href=\'/leads?vertical={html.escape(v["sic"])}\'">'
+        f'<tr class="clk" onclick="location.href=\'/outreach/leads?vertical={html.escape(v["sic"])}\'">'
         f'<td><b>{html.escape(v["label"])}</b><br><span class="muted" style="font-size:.74rem">SIC {html.escape(v["sic"])}</span></td>'
         f'<td class="num">{v["total"]}</td><td class="num">{v["corporate"]}</td>'
         f'<td class="num">{v["websites"]}</td><td class="num">{v["emails"]}</td>'
@@ -373,7 +467,7 @@ def dashboard():
   <div class="hint">Audit trail — one row per lead decision, each carrying its lawful basis.</div>
   <div class="feed">{feed_html}</div>
 </div>"""
-    return _shell("/dashboard", "Dashboard", "Live overview of the outreach pipeline", body)
+    return _shell("/outreach", "Outreach", "Live overview of the outreach pipeline", body)
 
 
 def _badge_event(ev: str) -> str:
@@ -386,7 +480,7 @@ def _badge_event(ev: str) -> str:
 # --------------------------------------------------------------------------- #
 #  Approval queue
 # --------------------------------------------------------------------------- #
-@app.get("/queue", response_class=HTMLResponse)
+@app.get("/outreach/queue", response_class=HTMLResponse)
 def queue():
     with db.cursor(commit=False) as cur:
         rows = review.list_pending(cur)
@@ -400,15 +494,15 @@ def queue():
         f'<div class="qcard"><div class="who"><b>{html.escape(name)}</b> '
         f'<span class="m">({html.escape(cn)})</span><br>'
         f'<span class="m">{html.escape((sigs.get(cn) or "no signal on file")[:80])}</span></div>'
-        f'<a class="btn btn-primary" href="/draft/{did}">Review &rarr;</a></div>'
+        f'<a class="btn btn-primary" href="/outreach/draft/{did}">Review &rarr;</a></div>'
         for did, cn, name, _body in rows
     ) or '<div class="panel"><div class="empty">Nothing awaiting approval. Drafts will appear here once leads are enriched and drafted.</div></div>'
     head = f'<div class="panel"><h2>{len(rows)} draft{"" if len(rows)==1 else "s"} awaiting your decision</h2>' \
            f'<div class="hint">Approving advances a draft to <b>approved</b> only — sending stays gated behind G-SEND.</div></div>'
-    return _shell("/queue", "Approval queue", "The human gate before any send", head + cards)
+    return _shell("/outreach/queue", "Approval queue", "The human gate before any send", head + cards)
 
 
-@app.get("/draft/{draft_id}", response_class=HTMLResponse)
+@app.get("/outreach/draft/{draft_id}", response_class=HTMLResponse)
 def draft_view(draft_id: str, err: str = ""):
     with db.cursor(commit=False) as cur:
         cur.execute(
@@ -419,7 +513,7 @@ def draft_view(draft_id: str, err: str = ""):
             "where d.id=%s", (draft_id,))
         row = cur.fetchone()
     if not row:
-        return HTMLResponse(_shell("/queue", "Not found", "", '<div class="panel"><div class="empty">Draft not found.</div></div>'), status_code=404)
+        return HTMLResponse(_shell("/outreach/queue", "Not found", "", '<div class="panel"><div class="empty">Draft not found.</div></div>'), status_code=404)
     cn, name, body, status, email, vres, website, signal = row
     errhtml = f'<div class="alert">{html.escape(err)}</div>' if err else ""
     site = f'<a href="{html.escape(website)}" target="_blank">{html.escape(website)}</a>' if website else "—"
@@ -428,7 +522,7 @@ def draft_view(draft_id: str, err: str = ""):
 <div class="two">
   <div class="panel"><h2>Draft message</h2>
     <div class="hint">body_original is immutable. Edit below to approve a revised version (compliance is re-checked on save).</div>
-    <form method="post" action="/approve/{draft_id}">
+    <form method="post" action="/outreach/approve/{draft_id}">
       <textarea name="edited">{html.escape(body)}</textarea>
       <div class="row">
         <div><label class="fld">Reviewer</label><input name="reviewer" required placeholder="Your name"></div>
@@ -436,7 +530,7 @@ def draft_view(draft_id: str, err: str = ""):
       </div>
       <div class="row" style="margin-top:1rem"><button class="btn btn-primary" type="submit">Approve</button></div>
     </form>
-    <form method="post" action="/reject/{draft_id}" style="margin-top:1.25rem;border-top:1px solid var(--line);padding-top:1.1rem">
+    <form method="post" action="/outreach/reject/{draft_id}" style="margin-top:1.25rem;border-top:1px solid var(--line);padding-top:1.1rem">
       <div class="row"><div><label class="fld">Reviewer</label><input name="reviewer" required placeholder="Your name"></div>
       <div style="flex:1"><label class="fld">Reason (optional)</label><input name="note" style="width:100%"></div>
       <button class="btn btn-ghost" type="submit">Reject</button></div>
@@ -452,13 +546,13 @@ def draft_view(draft_id: str, err: str = ""):
       <dt>Website</dt><dd>{site}</dd>
       <dt>Signal</dt><dd>{html.escape(signal or '—')}</dd>
     </dl>
-    <p class="muted" style="margin-top:1rem;font-size:.8rem"><a href="/lead/{html.escape(cn)}">Full lead record &rarr;</a></p>
+    <p class="muted" style="margin-top:1rem;font-size:.8rem"><a href="/outreach/lead/{html.escape(cn)}">Full lead record &rarr;</a></p>
   </div>
 </div>"""
-    return _shell("/queue", f"Review · {name}", "Approve, edit, or reject this draft", body_html)
+    return _shell("/outreach/queue", f"Review · {name}", "Approve, edit, or reject this draft", body_html)
 
 
-@app.post("/approve/{draft_id}")
+@app.post("/outreach/approve/{draft_id}")
 def approve(draft_id: str, reviewer: str = Form(...), edited: str = Form(""), note: str = Form("")):
     try:
         with db.cursor(commit=False) as cur:
@@ -468,23 +562,23 @@ def approve(draft_id: str, reviewer: str = Form(...), edited: str = Form(""), no
         edit_arg = None if edited.strip() == original.strip() else edited
         review.approve(draft_id, reviewer, edited=edit_arg, note=note or None)
     except Exception as e:
-        return RedirectResponse(f"/draft/{draft_id}?err={html.escape(str(e))}", status_code=303)
-    return RedirectResponse("/queue", status_code=303)
+        return RedirectResponse(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}", status_code=303)
+    return RedirectResponse("/outreach/queue", status_code=303)
 
 
-@app.post("/reject/{draft_id}")
+@app.post("/outreach/reject/{draft_id}")
 def reject(draft_id: str, reviewer: str = Form(...), note: str = Form("")):
     try:
         review.reject(draft_id, reviewer, note=note or None)
     except Exception as e:
-        return RedirectResponse(f"/draft/{draft_id}?err={html.escape(str(e))}", status_code=303)
-    return RedirectResponse("/queue", status_code=303)
+        return RedirectResponse(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}", status_code=303)
+    return RedirectResponse("/outreach/queue", status_code=303)
 
 
 # --------------------------------------------------------------------------- #
 #  Leads (CRM)
 # --------------------------------------------------------------------------- #
-@app.get("/leads", response_class=HTMLResponse)
+@app.get("/outreach/leads", response_class=HTMLResponse)
 def leads(state: str = "", vertical: str = ""):
     where, params = [], []
     if state:
@@ -505,16 +599,16 @@ def leads(state: str = "", vertical: str = ""):
         rows = cur.fetchall()
 
     total = sum(counts.values())
-    chips = f'<a class="chip {"active" if not state else ""}" href="/leads">All <b>{total}</b></a>'
+    chips = f'<a class="chip {"active" if not state else ""}" href="/outreach/leads">All <b>{total}</b></a>'
     for st in ["awaiting_approval", "approved", "drafted", "enriched", "discovered", "suppressed", "discarded", "rejected"]:
         if counts.get(st):
-            chips += f'<a class="chip {"active" if state==st else ""}" href="/leads?state={st}">{STATE_STYLE.get(st,(st,))[0]} <b>{counts[st]}</b></a>'
+            chips += f'<a class="chip {"active" if state==st else ""}" href="/outreach/leads?state={st}">{STATE_STYLE.get(st,(st,))[0]} <b>{counts[st]}</b></a>'
 
     trs = ""
     for cn, name, sic, st, website, email, verified in rows:
         site = f'<a href="{html.escape(website)}" target="_blank" onclick="event.stopPropagation()">{html.escape(_short(website))}</a>' if website else '<span class="muted">—</span>'
         vmark = '<span class="badge b-success">✓</span>' if verified else ('<span class="muted">—</span>')
-        trs += (f'<tr class="clk" onclick="location.href=\'/lead/{html.escape(cn)}\'">'
+        trs += (f'<tr class="clk" onclick="location.href=\'/outreach/lead/{html.escape(cn)}\'">'
                 f'<td><b>{html.escape(name)}</b><br><span class="muted" style="font-size:.74rem">{html.escape(cn)}</span></td>'
                 f'<td>{html.escape(stats.sic_label(sic))}</td><td>{_badge(st)}</td>'
                 f'<td>{site}</td><td>{html.escape(email or "")}</td><td class="num">{vmark}</td></tr>')
@@ -526,7 +620,7 @@ def leads(state: str = "", vertical: str = ""):
 {trs}</table>
 <p class="muted" style="margin-top:1rem;font-size:.78rem">Showing {len(rows)} lead(s){' (capped at 500)' if len(rows)==500 else ''}.</p>
 </div>"""
-    return _shell("/leads", "Leads", "CRM view of every discovered company", body)
+    return _shell("/outreach/leads", "Leads", "CRM view of every discovered company", body)
 
 
 def _short(url: str) -> str:
@@ -534,7 +628,7 @@ def _short(url: str) -> str:
     return _re.sub(r"^https?://(www\.)?", "", url or "").rstrip("/")[:38]
 
 
-@app.get("/lead/{company_number}", response_class=HTMLResponse)
+@app.get("/outreach/lead/{company_number}", response_class=HTMLResponse)
 def lead_detail(company_number: str):
     with db.cursor(commit=False) as cur:
         cur.execute(
@@ -543,7 +637,7 @@ def lead_detail(company_number: str):
             "from outreach.leads where company_number=%s", (company_number,))
         lead = cur.fetchone()
         if not lead:
-            return HTMLResponse(_shell("/leads", "Not found", "", '<div class="panel"><div class="empty">Lead not found.</div></div>'), status_code=404)
+            return HTMLResponse(_shell("/outreach/leads", "Not found", "", '<div class="panel"><div class="empty">Lead not found.</div></div>'), status_code=404)
         cur.execute(
             "select website, contact_email, email_verified, email_verify_result, signal, scraped, contact_tier "
             "from outreach.enrichment where company_number=%s", (company_number,))
@@ -606,8 +700,8 @@ def lead_detail(company_number: str):
 </div>
 <div class="panel"><h2>Drafts</h2>{draft_html}</div>
 <div class="panel"><h2>Audit timeline</h2><div class="feed">{feed}</div></div>
-<p class="muted" style="font-size:.8rem"><a href="/leads">&larr; Back to leads</a></p>"""
-    return _shell("/leads", name, "Lead record", body)
+<p class="muted" style="font-size:.8rem"><a href="/outreach/leads">&larr; Back to leads</a></p>"""
+    return _shell("/outreach/leads", name, "Lead record", body)
 
 
 # --------------------------------------------------------------------------- #
@@ -616,6 +710,10 @@ def lead_detail(company_number: str):
 @app.get("/settings", response_class=HTMLResponse)
 def settings():
     s = _safety()
+    try:
+        db_ok = db.ping()
+    except Exception:
+        db_ok = False
     try:
         seq = load_sequence_config()
     except Exception:
@@ -662,7 +760,115 @@ def settings():
       <dt>Effect</dt><dd>bounce→suppress+bounced · opt-out→suppress · reply→replied</dd>
     </dl></div>
 </div>
+<div class="two">
+  <div class="panel"><h2>Inbound enquiries (CRM)</h2>
+    <div class="hint">Where the Enquiries section reads from.</div>
+    <dl class="kv">
+      <dt>Database</dt><dd>{'<span class="badge b-success">connected</span>' if db_ok else '<span class="badge b-error">not reachable</span>'}</dd>
+      <dt>Enquiries table</dt><dd>public.{html.escape(config.ENQUIRY_SOURCE_TABLE)}</dd>
+      <dt>Capture</dt><dd><span class="badge b-success">live</span> <span class="muted">(website form → Supabase)</span></dd>
+    </dl></div>
+  <div class="panel"><h2>Console</h2>
+    <div class="hint">This unified operations surface.</div>
+    <dl class="kv">
+      <dt>Sections</dt><dd>Inbound (Enquiries) + Outbound (Outreach)</dd>
+      <dt>Access</dt><dd>localhost only · no auth</dd>
+    </dl></div>
+</div>
 <div class="note">This is a read-only view. Changing any of these means editing <b>outreach/.env</b> (or
 <b>sequence_config.json</b>) and restarting the service — deliberately not editable from the browser, since
 this console has no authentication.</div>"""
     return _shell("/settings", "Settings", "Runtime configuration & safety posture (read-only)", cfg)
+
+
+# --------------------------------------------------------------------------- #
+#  Enquiries (inbound) — website form CRM
+# --------------------------------------------------------------------------- #
+@app.get("/enquiries", response_class=HTMLResponse)
+def enquiries_list(status: str = ""):
+    try:
+        with db.dict_cursor() as cur:
+            counts = enquiries.status_counts(cur)
+            rows = enquiries.list_enquiries(cur, status)
+    except Exception:
+        counts, rows = {}, []
+    total = sum(counts.values())
+    chips = f'<a class="chip {"active" if not status else ""}" href="/enquiries">All <b>{total}</b></a>'
+    for st in PIPELINE_ORDER:
+        if counts.get(st):
+            chips += (f'<a class="chip {"active" if status==st else ""}" href="/enquiries?status={st}">'
+                      f'{ENQUIRY_STYLE[st][0]} <b>{counts[st]}</b></a>')
+    trs = ""
+    for r in rows:
+        trs += (f'<tr class="clk" onclick="location.href=\'/enquiry/{html.escape(str(r["id"]))}\'">'
+                f'<td><b>{html.escape(r["business"])}</b></td>'
+                f'<td>{html.escape(r["name"])}</td>'
+                f'<td><a href="mailto:{html.escape(r["email"])}" onclick="event.stopPropagation()">{html.escape(r["email"])}</a></td>'
+                f'<td>{_enq_badge(r["status"])}</td>'
+                f'<td class="num muted">{_ago(r["created_at"])}</td></tr>')
+    trs = trs or '<tr><td colspan=5 class="empty">No enquiries match this filter.</td></tr>'
+    body = f"""<div class="chips">{chips}</div>
+<div class="panel"><table>
+<tr><th>Business</th><th>Name</th><th>Email</th><th>Status</th><th class="num">Received</th></tr>
+{trs}</table>
+<p class="muted" style="margin-top:1rem;font-size:.78rem">Showing {len(rows)} enquir{"y" if len(rows)==1 else "ies"}.</p>
+</div>"""
+    return _shell("/enquiries", "Enquiries", "Every inbound enquiry — your CRM", body)
+
+
+@app.get("/enquiry/{lead_id}", response_class=HTMLResponse)
+def enquiry_detail(lead_id: str, saved: int = 0):
+    try:
+        with db.dict_cursor() as cur:
+            lead = enquiries.get(cur, lead_id)
+    except Exception:
+        lead = None
+    if not lead:
+        return HTMLResponse(_shell("/enquiries", "Not found", "",
+                            '<div class="panel"><div class="empty">Enquiry not found.</div></div>'), status_code=404)
+    options = "".join(
+        f'<option value="{st}"{" selected" if lead["status"] == st else ""}>{ENQUIRY_STYLE[st][0]}</option>'
+        for st in PIPELINE_ORDER)
+    saved_html = '<div class="ok">Saved.</div>' if saved else ""
+    received = lead["created_at"].strftime("%d %b %Y, %H:%M") if lead.get("created_at") else "—"
+    body = f"""
+{saved_html}
+<div class="two">
+  <div class="panel"><h2>{html.escape(lead["business"])}</h2>
+    <div class="hint">Enquiry received {_ago(lead["created_at"])}</div>
+    <dl class="kv">
+      <dt>Contact</dt><dd>{html.escape(lead["name"])}</dd>
+      <dt>Email</dt><dd><a href="mailto:{html.escape(lead["email"])}">{html.escape(lead["email"])}</a></dd>
+      <dt>Status</dt><dd>{_enq_badge(lead["status"])}</dd>
+      <dt>Source</dt><dd>{html.escape(lead.get("source") or "—")}</dd>
+      <dt>Received</dt><dd>{received}</dd>
+    </dl>
+    <h2 style="margin-top:1.5rem">Their message</h2>
+    <div class="body-box" style="margin-top:.6rem">{html.escape(lead["message"])}</div>
+  </div>
+  <div class="panel"><h2>Manage</h2>
+    <div class="hint">Move the enquiry through your pipeline and keep private notes.</div>
+    <form method="post" action="/enquiry/{html.escape(str(lead["id"]))}">
+      <label class="fld">Status</label>
+      <select name="status">{options}</select>
+      <label class="fld">Notes (private — not shown to the enquirer)</label>
+      <textarea name="notes">{html.escape(lead.get("notes") or "")}</textarea>
+      <div class="row" style="margin-top:1rem">
+        <button class="btn btn-primary" type="submit">Save</button>
+        <a class="btn btn-ghost" href="mailto:{html.escape(lead["email"])}?subject=Re%3A%20your%20SettlePay%20enquiry">Reply by email</a>
+      </div>
+    </form>
+  </div>
+</div>
+<p class="muted" style="font-size:.8rem"><a href="/enquiries">&larr; Back to enquiries</a></p>"""
+    return _shell("/enquiries", lead["business"], "Enquiry record", body)
+
+
+@app.post("/enquiry/{lead_id}")
+def enquiry_update(lead_id: str, status: str = Form(...), notes: str = Form("")):
+    try:
+        with db.dict_cursor(commit=True) as cur:
+            enquiries.update(cur, lead_id, status, notes)
+    except Exception:
+        return RedirectResponse(f"/enquiry/{lead_id}", status_code=303)
+    return RedirectResponse(f"/enquiry/{lead_id}?saved=1", status_code=303)
