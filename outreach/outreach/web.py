@@ -325,11 +325,12 @@ def dashboard():
             f'<tr><td>Bounce rate</td><td class="num muted">n/a</td>'
             f'<td class="num muted">&lt; {g.get("max_bounce_rate",0):.0%}</td></tr></table>')
 
-    effort_line = (f'<b>{o["websites"]}</b> sites fetched · '
-                   f'<b>{effort["httpx"]}</b> via httpx, <b>{effort["firecrawl"]}</b> via Firecrawl fallback · '
+    effort_line = (f'<b>{o["websites"]}</b> sites with a resolved URL · contact found by: '
+                   f'<b>{effort["guess"]}</b> info@ guess, <b>{effort["httpx"]}</b> httpx scrape, '
+                   f'<b>{effort["firecrawl"]}</b> Firecrawl · '
                    f'<b>{effort["emails_found_total"]}</b> candidate emails harvested'
                    if effort["tracked"] else
-                   f'<b>{o["websites"]}</b> sites fetched (up to 5 pages each via httpx, +3 via Firecrawl). '
+                   f'<b>{o["websites"]}</b> sites fetched (info@ guess-and-verify, then httpx, then Firecrawl). '
                    f'<span class="muted">Source split tracked from this build onward.</span>')
 
     body = f"""
