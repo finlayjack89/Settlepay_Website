@@ -191,10 +191,14 @@ own-domain picking (#2), `catch_all` risky tier + send opt-in (#3), DB-connectio
 hardening + verify retry (#4). Measured lift: estate agents 6% → accountants 50% /
 dental 42%, with catch-all businesses now recovered rather than discarded.
 
-**Next (blocking before any live send):**
-1. **Reply/bounce/unsubscribe ingestion** — read the sending mailbox into
-   `suppressions` + lead state (PECR + reputation + the bounce-rate metric).
-2. **Domain warmup + SPF/DKIM/DMARC** on the dedicated sending domain (deliverability).
+**Pre-live-send blockers — mechanism now BUILT, provisioning is yours**
+(full scope + go-live checklist in [`pre-send-blockers.md`](pre-send-blockers.md)):
+1. **Reply/bounce/unsubscribe ingestion** — ✅ built (`inbound.py`, migration 0004):
+   classify + idempotent suppression/state writes, swappable mailbox source. Needs a
+   Graph `Mail.Read` mailbox to read live.
+2. **Domain warmup + SPF/DKIM/DMARC** — ✅ built: warm-up ramp enforced in `send.py`,
+   and `dns_auth.py` verifies SPF/DKIM/DMARC. Needs the dedicated sending domain +
+   DNS records provisioned.
 
 **Then (yield + quality):**
 3. **Spend/usage tracking** (`runs` table + dashboard) — make Firecrawl/MV cost visible.

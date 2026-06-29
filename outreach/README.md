@@ -68,7 +68,18 @@ The CLI alternative for the same approvals:
 `python -m outreach.review list | approve <id> --by "Name" [--edit "..."] | reject <id> --by "Name"`.
 
 See [`docs/system-assessment.md`](docs/system-assessment.md) for an honest review of
-where the pipeline wastes effort and what to improve next.
+where the pipeline wastes effort and what to improve next, and
+[`docs/pre-send-blockers.md`](docs/pre-send-blockers.md) for the go-live checklist.
+
+## Pre-live-send tooling (gated)
+
+```bash
+python -m outreach.inbound      # ingest replies/bounces/unsubscribes -> suppressions
+python -m outreach.dns_auth     # verify SPF/DKIM/DMARC on the sending domain
+```
+
+Both are required before `G_SEND`: the first keeps opt-outs/bounces honoured (PECR +
+reputation), the second confirms deliverability. Sending stays gated regardless.
 
 ## Layout
 

@@ -267,6 +267,7 @@ def dashboard():
         verify = stats.verify_breakdown(cur)
         verticals = stats.by_vertical(cur)
         effort = stats.scrape_effort(cur)
+        inb = stats.inbound_summary(cur)
         feed = stats.recent_activity(cur)
     g = graduation_thresholds()
 
@@ -362,7 +363,8 @@ def dashboard():
     <div class="hint">PECR firewall + send gating, live.</div>
     <dl class="kv">
       <dt>PECR suppressed</dt><dd>{o['suppressed']} (individual / unknown subscribers)</dd>
-      <dt>Discarded</dt><dd>{o['discarded']} (no verifiable contact)</dd>
+      <dt>Suppressions</dt><dd>{inb['suppressions']} total (opt-outs ∪ bounces ∪ PECR)</dd>
+      <dt>Inbound</dt><dd>{inb['reply']} replies · {inb['bounce']} bounces · {inb['unsubscribe']} opt-outs · {inb['complaint']} complaints</dd>
       <dt>Live sends</dt><dd>{o['sends_live']} &nbsp;<span class="badge b-{'error' if _safety()['live'] else 'success'}">{'ENABLED' if _safety()['live'] else 'gated (G-SEND off)'}</span></dd>
       <dt>Per-inbox cap</dt><dd>{_safety()['cap']} / day</dd>
     </dl></div>
@@ -619,6 +621,7 @@ def settings():
     except Exception:
         seq = {}
     win = seq.get("send_window", {})
+    warm = seq.get("warmup", {})
     cfg = f"""<div class="two">
   <div class="panel"><h2>Send safety</h2>
     <div class="hint">The gates that keep this from emailing anyone before you're ready.</div>
@@ -641,6 +644,22 @@ def settings():
       <dt>CH cap</dt><dd>{config.CH_MAX_REQUESTS_PER_RUN} req/run</dd>
       <dt>Verify cap</dt><dd>{config.MV_MAX_PER_RUN}/run</dd>
       <dt>Search cap</dt><dd>{config.SEARCH_MAX_REQUESTS_PER_RUN}/run</dd>
+    </dl></div>
+</div>
+<div class="two">
+  <div class="panel"><h2>Deliverability (pre-live-send)</h2>
+    <div class="hint">Required before G-SEND. See docs/pre-send-blockers.md.</div>
+    <dl class="kv">
+      <dt>Warm-up ramp</dt><dd>day-1 {warm.get('daily_caps',['?'])[0]} → steady {warm.get('steady','?')} / inbox / day</dd>
+      <dt>Sending domain</dt><dd>{html.escape((s['sender'].split('@')[-1] if '@' in s['sender'] else s['sender']))}</dd>
+      <dt>SPF / DKIM / DMARC</dt><dd class="muted">verify: <code>python -m outreach.dns_auth</code></dd>
+    </dl></div>
+  <div class="panel"><h2>Inbound ingestion</h2>
+    <div class="hint">Reply / bounce / unsubscribe feedback loop into suppressions.</div>
+    <dl class="kv">
+      <dt>Source</dt><dd>{html.escape(config.INBOUND_SOURCE)} {'<span class="badge b-muted">needs Graph Mail.Read</span>' if config.INBOUND_SOURCE=='graph' else ''}</dd>
+      <dt>Run</dt><dd class="muted"><code>python -m outreach.inbound</code></dd>
+      <dt>Effect</dt><dd>bounce→suppress+bounced · opt-out→suppress · reply→replied</dd>
     </dl></div>
 </div>
 <div class="note">This is a read-only view. Changing any of these means editing <b>outreach/.env</b> (or

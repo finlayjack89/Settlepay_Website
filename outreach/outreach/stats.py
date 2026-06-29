@@ -113,6 +113,15 @@ def by_vertical(cur) -> list[dict]:
     return out
 
 
+def inbound_summary(cur) -> dict:
+    """Inbound handling + suppression totals — the PECR/reputation feedback loop."""
+    cur.execute("select kind, count(*) from outreach.replies group by 1")
+    by = dict(cur.fetchall())
+    return {"reply": by.get("reply", 0), "bounce": by.get("bounce", 0),
+            "unsubscribe": by.get("unsubscribe", 0), "complaint": by.get("complaint", 0),
+            "suppressions": _scalar(cur, "select count(*) from outreach.suppressions")}
+
+
 def recent_activity(cur, limit: int = 18) -> list[tuple]:
     """The audit trail tail — every lead decision with its lawful basis on file."""
     cur.execute(
