@@ -84,11 +84,40 @@ def test_enrich_one_unverifiable_is_discarded(db_rollback, monkeypatch):
     assert cur.fetchone()[0] == "discarded"  # never left contactable
 
 
+def test_firecrawl_fallback_used_when_httpx_finds_nothing(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_FC_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])      # httpx blank
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", "fc-test")
+    monkeypatch.setattr(enrich, "firecrawl_scrape_emails", lambda url, **kw: ["info@acme.co.uk"])
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"))
+    assert res["email"] == "info@acme.co.uk" and res["verified"] is True
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "enriched"
+
+
+def test_firecrawl_fallback_skipped_without_key(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_NK_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)                  # no key
+    calls = []
+    monkeypatch.setattr(enrich, "firecrawl_scrape_emails",
+                        lambda url, **kw: calls.append(url) or ["x@y.com"])
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"))
+    assert res["email"] is None and not calls           # fallback never called -> discarded
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discarded"
+
+
 def test_enrich_one_no_email_is_discarded(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_NONE_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
     monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)  # keep offline (no fallback)
     res = enrich.enrich_one(cn, "https://acme.co.uk", "signal", cur=cur,
                             verifier=lambda e: (True, "ok"))
     assert res["email"] is None and res["verified"] is False

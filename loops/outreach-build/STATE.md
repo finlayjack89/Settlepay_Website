@@ -74,8 +74,20 @@ rounds spent (budget: max 2, then leave + report).
 - ALL 8 PHASES GREEN (floor + judge). 63 tests pass. Pipeline live in Supabase
   `outreach` schema: 44 discovered + 6 processed (2 enriched/approved/dry-run-sent,
   4 discarded); 0 live sends; G_SEND unset.
-- NEXT = G3 (human gate): push feat/outreach-build + open a PR for human review.
-  The loop NEVER pushes/merges on its own, and live send stays behind G-SEND (which
-  needs warmup + LIA + drafting playbook v1). DEFERRED for later: drafting playbook
-  (real copy + sequence timing), Firecrawl key for unattended discovery, api LLM
-  provider, separate sending domain + warmup.
+- G3 DONE: pushed feat/outreach-build, opened PR #4 (CI green, mergeable).
+- POST-MERGE EXTRAS (also on PR #4): operator UI (outreach/web.py — FastAPI
+  approval queue + dashboard); Firecrawl scrape fallback (httpx -> firecrawl in
+  enrich_one when httpx finds nothing AND key set); automated discovery wired
+  (enrich.discover_and_run + `python -m outreach.enrich N`) using the Firecrawl
+  /search resolver; expanded SKIP_DOMAINS for directories.
+- KEY FINDING (discovery): the email-finding failures were BAD INLINE URLS (dead
+  domains), not JS scraping. Firecrawl /search returns correct resolving URLs
+  (e.g. fixed Kays -> kaysestates.co.uk). Firecrawl key now in .env. With correct
+  discovery, Kays verified (info@kaysestates.co.uk) -> real draft.
+- YIELD REALITY: of 50 SIC-68310 leads, only ~3 (Burnap, Naish, Kays) are real
+  contactable agencies (~6%); the rest are property/investment LTDs with no
+  contactable site (correctly discarded). Improving yield = a TARGETING/lead-source
+  question (e.g. filter for companies with websites), arguably out of remit.
+- DEFERRED still: drafting playbook v1 (real copy + timing), api LLM provider (real
+  signals), separate sending domain + warmup + LIA (the G-SEND triad). Live send
+  remains gated.
