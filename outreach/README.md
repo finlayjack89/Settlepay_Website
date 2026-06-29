@@ -27,21 +27,48 @@ uv pip install --python .venv/bin/python "psycopg[binary]" httpx python-dotenv p
 .venv/bin/python -m pytest -q             # unit tests
 ```
 
-## Operator UI (local, optional)
+## Operator console (local)
 
-A minimal **localhost** approval queue + read-only dashboard (single operator, no
-auth — do not expose publicly). It reuses `outreach.review` (envelope re-checked,
-audited, `body_original` immutable) and does NOT send — approving only advances a
-draft to `approved`; sending stays gated behind G-SEND.
+A **localhost-only** operations console (single operator, no auth — do not expose
+publicly; it holds a service-role DB connection). Design system mirrors the
+SettlePay site so it can grow into the CRM/ops surface. Tabs:
+
+- **`/dashboard`** — live funnel (discovered → PECR-cleared → website → email →
+  verified → drafted → approved → sent), yield-by-vertical, verification breakdown,
+  graduation thresholds, compliance/safety, and the audit activity feed.
+- **`/queue`** — approval queue (the human gate). Reuses `outreach.review`
+  (envelope re-checked, audited, `body_original` immutable). Approving only advances
+  a draft to `approved`; sending stays gated behind **G-SEND**.
+- **`/leads`** — CRM table of every discovered company (filter by state / vertical),
+  with a per-lead record (`/lead/<company_number>`: facts, enrichment, drafts, audit).
+- **`/settings`** — read-only runtime safety posture + pipeline config.
+
+### Always-on (recommended)
+
+`ops/install-console.sh` deploys a self-contained runtime under
+`~/Library/Application Support/SettlePayOutreach` and registers a macOS LaunchAgent
+(RunAtLoad + KeepAlive), so the console is always reachable at
+**http://localhost:8787/dashboard** across logouts and reboots. (The deploy lives
+outside `~/Documents` because macOS TCC blocks launchd agents from reading it.)
+Re-run the script after code changes to redeploy; `ops/uninstall-console.sh
+[--purge]` removes it.
 
 ```bash
-uv pip install --python .venv/bin/python ".[web]"   # fastapi + uvicorn + python-multipart
-.venv/bin/uvicorn outreach.web:app --port 8787
-# open http://localhost:8787  (queue)  ·  /dashboard  (funnel + graduation metrics)
+uv pip install --python .venv/bin/python ".[web]"   # for ad-hoc runs
+ops/install-console.sh                              # always-on local service
+```
+
+### Ad-hoc run
+
+```bash
+.venv/bin/uvicorn outreach.web:app --port 8787   # then open http://localhost:8787/dashboard
 ```
 
 The CLI alternative for the same approvals:
 `python -m outreach.review list | approve <id> --by "Name" [--edit "..."] | reject <id> --by "Name"`.
+
+See [`docs/system-assessment.md`](docs/system-assessment.md) for an honest review of
+where the pipeline wastes effort and what to improve next.
 
 ## Layout
 

@@ -16,3 +16,6 @@ dist/
 # Scratch
 *.log
 .DS_Store
+
+# operator console runtime logs
+ops/logs/
