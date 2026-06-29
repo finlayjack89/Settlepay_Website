@@ -27,6 +27,12 @@ SKIP_DOMAINS = (
     "linkedin.com", "instagram.com", "twitter.com", "x.com", "gov.uk",
     "companieshouse", "company-information.service.gov.uk", "find-and-update",
     "endole.co.uk", "checkcompany", "opencorporates.com", "192.com",
+    # property / business directories + ombudsman + data aggregators (not own sites)
+    "tpos.co.uk", "allagents.co.uk", "getagent.co.uk", "netanagent.co.uk",
+    "home.co.uk", "cylex", "centralindex", "opendi", "estateagentdb",
+    "estate-agents.directory", "indieyork", "solicitor.info", "wheree.com",
+    "rocketreach", "zoominfo", "brightdata", "the-property-ombudsman",
+    "housesimple", "nethouseprices", "globrix",
 )
 
 
@@ -158,6 +164,45 @@ def scrape_emails(url: str, *, client: Optional[httpx.Client] = None) -> list[st
             client.close()
 
 
+def firecrawl_scrape_emails(url: str, *, api_key: Optional[str] = None, client=None,
+                            paths=("", "/contact", "/contact-us")) -> list[str]:
+    """Fallback scraper for sites plain httpx can't crack (JS-rendered / blocked):
+    Firecrawl /v1/scrape renders the page to markdown, from which we regex emails.
+    No-op (returns []) without FIRECRAWL_API_KEY. Stops at the first page that
+    yields an email, to spend the fewest credits."""
+    api_key = api_key or config.FIRECRAWL_API_KEY
+    if not api_key or not url:
+        return []
+    owns = client is None
+    client = client or httpx.Client(timeout=60)
+    found: list[str] = []
+    try:
+        base = url.rstrip("/")
+        for p in paths:
+            try:
+                r = client.post(
+                    "https://api.firecrawl.dev/v1/scrape",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"url": base + p, "formats": ["markdown"], "onlyMainContent": False},
+                )
+            except httpx.HTTPError:
+                continue
+            if r.status_code != 200:
+                continue
+            data = (r.json() or {}).get("data", {}) or {}
+            text = f"{data.get('markdown') or ''} {data.get('metadata') or ''}"
+            for m in EMAIL_RE.findall(text):
+                e = m.lower()
+                if not any(j in e for j in JUNK_SUBSTR) and e not in found:
+                    found.append(e)
+            if found:
+                break
+        return found
+    finally:
+        if owns:
+            client.close()
+
+
 def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None) -> Optional[str]:
     """Prefer a generic mailbox (info@/contact@…) on the company's own domain — a
     generic address is both more useful and less likely to be an individual."""
@@ -203,8 +248,15 @@ def enrich_one(company_number: str, website: Optional[str], signal: Optional[str
     advance the lead to 'enriched' (verified) or 'discarded' (unverifiable)."""
     verifier = verifier or verify_email
     domain = _domain_of(website)
+    scrape_source = "httpx"
     emails = scrape_emails(website, client=http_client) if website else []
     email = pick_contact_email(emails, prefer_domain=domain)
+
+    # fallback: Firecrawl renders JS / extracts where free httpx found nothing
+    if not email and website and config.FIRECRAWL_API_KEY:
+        email = pick_contact_email(firecrawl_scrape_emails(website), prefer_domain=domain)
+        if email:
+            scrape_source = "firecrawl"
 
     if email:
         verified, result = verifier(email)
@@ -228,7 +280,7 @@ def enrich_one(company_number: str, website: Optional[str], signal: Optional[str
             "where company_number=%s and state='discovered'", (company_number,))
         audit.record(company_number, "enriched", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
-                     reason=f"verified {email} ({result})", cur=cur)
+                     reason=f"verified {email} ({result}) via {scrape_source}", cur=cur)
     else:
         cur.execute(
             "update outreach.leads set state='discarded', updated_at=now() "
@@ -265,3 +317,50 @@ def run(items: list[dict], *, cur=None) -> list[dict]:
         http.close()
         if own and conn is not None:
             conn.close()
+
+
+def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
+    """Automated discovery + enrich for up to `limit` not-yet-enriched corporate
+    discovered leads: resolve each website via the configured resolver
+    (firecrawl/brave/inline), then scrape + verify a contact (httpx -> Firecrawl
+    fallback) and enrich or discard. Signal is a factual placeholder for now
+    (a real LLM signal arrives with the api provider — deferred)."""
+    resolver = resolver or get_website_resolver()
+    own = cur is None
+    conn = None
+    if own:
+        conn = db.connect(); cur = conn.cursor()
+    http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
+    results: list[dict] = []
+    try:
+        cur.execute(
+            "select l.company_number, l.company_name, l.registered_address->>'locality' "
+            "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
+            "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
+            "order by l.company_name limit %s", (limit,))
+        for cn, name, town in cur.fetchall():
+            try:
+                website = resolver.resolve(company_name=name, address=town or "")
+            except Exception:
+                website = None
+            signal = name + (f", estate agent in {town}" if town else "")
+            results.append(enrich_one(cn, website, signal, cur=cur, http_client=http))
+        if own:
+            conn.commit()
+        return results
+    except Exception:
+        if own and conn is not None:
+            conn.rollback()
+        raise
+    finally:
+        http.close()
+        if own and conn is not None:
+            conn.close()
+
+
+if __name__ == "__main__":
+    import sys
+
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+    for r in discover_and_run(limit=n):
+        print(r)
