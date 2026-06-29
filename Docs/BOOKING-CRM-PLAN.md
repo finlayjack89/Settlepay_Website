@@ -1,6 +1,7 @@
 # Booking + CRM — Architecture Decision Doc
 
-**Status:** planning (no code written). **Decision needed:** Path A vs Path B.
+**Status:** planning (no code written). **Decision (2026-06-29):** Path A primary
+(Bookings + custom CRM), Path B as fallback. **Blocked on:** Step 0 M365 licence check.
 **First milestone (agreed):** booking → calendar → Teams link working end-to-end.
 
 ## Goal
