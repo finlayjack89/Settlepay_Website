@@ -27,28 +27,31 @@ uv pip install --python .venv/bin/python "psycopg[binary]" httpx python-dotenv p
 .venv/bin/python -m pytest -q             # unit tests
 ```
 
-## Operator console (local)
+## Operations console (local)
 
-A **localhost-only** operations console (single operator, no auth — do not expose
-publicly; it holds a service-role DB connection). Design system mirrors the
-SettlePay site so it can grow into the CRM/ops surface. Tabs:
+A **localhost-only** unified operations console (single operator, no auth — do not
+expose publicly; it holds a service-role DB connection). One sidebar over **inbound
+enquiries** + **outbound outreach**, in the shared SettlePay design system. Routes:
 
-- **`/dashboard`** — live funnel (discovered → PECR-cleared → website → email →
-  verified → drafted → approved → sent), yield-by-vertical, verification breakdown,
-  graduation thresholds, compliance/safety, and the audit activity feed.
-- **`/queue`** — approval queue (the human gate). Reuses `outreach.review`
+- **`/`** — combined overview: inbound enquiries KPIs + outbound outreach KPIs.
+- **`/enquiries`** — inbound website-enquiry CRM (filter by status); per-enquiry
+  record `/enquiry/<id>` (status + private notes; reads/updates `public.<table>`).
+- **`/outreach`** — outbound live funnel (discovered → PECR-cleared → website →
+  email → verified → drafted → approved → sent), yield-by-vertical, verification
+  breakdown, graduation thresholds, compliance/safety, audit activity feed.
+- **`/outreach/queue`** — approval queue (the human gate). Reuses `outreach.review`
   (envelope re-checked, audited, `body_original` immutable). Approving only advances
   a draft to `approved`; sending stays gated behind **G-SEND**.
-- **`/leads`** — CRM table of every discovered company (filter by state / vertical),
-  with a per-lead record (`/lead/<company_number>`: facts, enrichment, drafts, audit).
-- **`/settings`** — read-only runtime safety posture + pipeline config.
+- **`/outreach/leads`** — CRM of every discovered company (filter by state / vertical),
+  per-lead record at `/outreach/lead/<company_number>`.
+- **`/settings`** — read-only runtime safety posture + pipeline + data-source config.
 
 ### Always-on (recommended)
 
 `ops/install-console.sh` deploys a self-contained runtime under
 `~/Library/Application Support/SettlePayOutreach` and registers a macOS LaunchAgent
 (RunAtLoad + KeepAlive), so the console is always reachable at
-**http://localhost:8787/dashboard** across logouts and reboots. (The deploy lives
+**http://localhost:8787/** across logouts and reboots. (The deploy lives
 outside `~/Documents` because macOS TCC blocks launchd agents from reading it.)
 Re-run the script after code changes to redeploy; `ops/uninstall-console.sh
 [--purge]` removes it.
@@ -61,7 +64,7 @@ ops/install-console.sh                              # always-on local service
 ### Ad-hoc run
 
 ```bash
-.venv/bin/uvicorn outreach.web:app --port 8787   # then open http://localhost:8787/dashboard
+.venv/bin/uvicorn outreach.web:app --port 8787   # then open http://localhost:8787/
 ```
 
 The CLI alternative for the same approvals:

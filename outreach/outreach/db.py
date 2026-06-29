@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 
 import psycopg
+from psycopg.rows import dict_row
 
 from . import config
 
@@ -28,6 +29,22 @@ def cursor(commit: bool = True):
     conn = connect()
     try:
         with conn.cursor() as cur:
+            yield cur
+        conn.commit() if commit else conn.rollback()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@contextlib.contextmanager
+def dict_cursor(commit: bool = False):
+    """Like `cursor`, but rows come back as dicts (column -> value). Used by the
+    inbound enquiries reader, which addresses columns by name."""
+    conn = connect()
+    try:
+        with conn.cursor(row_factory=dict_row) as cur:
             yield cur
         conn.commit() if commit else conn.rollback()
     except Exception:
