@@ -100,11 +100,17 @@ inboxes sit on **catch-all** Microsoft 365 / Google Workspace tenants and come b
 `catch_all`.
 
 **Cost:** real, deliverable businesses are thrown away as "unverifiable." On a
-catch-all-heavy vertical this can be the single biggest filter after targeting.
+catch-all-heavy vertical this can be the single biggest filter after targeting —
+e.g. hair & beauty yielded ~11% partly for this reason.
 
-**Fix:** make `catch_all` a distinct **"risky-but-sendable"** tier (send at lower
-volume / with extra spot-checking) instead of a discard. This is a policy lever the
-playbook should own; right now the mechanism forecloses it at the code level.
+**✅ Implemented:** `catch_all` is now a distinct **"risky"** contact tier
+(`enrichment.contact_tier`, migration 0003): kept as an enriched, reviewable lead
+(config `ACCEPT_CATCH_ALL`, default on) instead of discarded. Sending to a risky
+contact needs `RISKY_SEND_ENABLED` (default off) on **top** of G-SEND — a 5th send
+guardrail — so a routine batch never sprays catch-all mailboxes. The dashboard,
+queue and lead view flag the tier. Backfill promoted the existing catch-all leads
+into the tier. *Remaining policy (for the playbook): lower per-inbox volume +
+mandatory spot-check ratio for the risky tier at send time.*
 
 ## 4. No retry/backoff — transient failures become permanent discards
 
@@ -181,17 +187,19 @@ path that would relax the human gate per-vertical is not built.
 ## Recommended next steps (priority order)
 
 **✅ Done this review:** targeting pre-filter (#1), `info@` guess-and-verify +
-own-domain picking (#2), DB-connection hardening + verify retry (#4). Measured lift:
-estate agents 6% → accountants 50% / dental 42%.
+own-domain picking (#2), `catch_all` risky tier + send opt-in (#3), DB-connection
+hardening + verify retry (#4). Measured lift: estate agents 6% → accountants 50% /
+dental 42%, with catch-all businesses now recovered rather than discarded.
 
-**Next:**
-1. **Accept `catch_all` as a "risky-but-sendable" tier** (#3) — small change, recovers
-   reachable businesses; matters most for in-person verticals like hair & beauty.
-2. **Reply/bounce/unsubscribe ingestion** — required before any live send (PECR +
-   reputation + bounce-rate metric).
-3. **Domain warmup + SPF/DKIM/DMARC** on the dedicated sending domain — required
-   before any live send (deliverability).
-4. **Spend/usage tracking** (`runs` table + dashboard) — make Firecrawl/MV cost visible.
-5. **Web-first lead source** + `mailto`/JSON-LD parsing — push yield past 50%.
+**Next (blocking before any live send):**
+1. **Reply/bounce/unsubscribe ingestion** — read the sending mailbox into
+   `suppressions` + lead state (PECR + reputation + the bounce-rate metric).
+2. **Domain warmup + SPF/DKIM/DMARC** on the dedicated sending domain (deliverability).
+
+**Then (yield + quality):**
+3. **Spend/usage tracking** (`runs` table + dashboard) — make Firecrawl/MV cost visible.
+4. **Web-first lead source** + `mailto`/JSON-LD parsing + abbreviated own-domain — push
+   yield past 50%.
+5. **Risky-tier send policy** — lower per-inbox volume + mandatory spot-check ratio.
 6. **Real personalisation signal** (the deferred `api` provider + playbook) — the
    biggest reply-rate lever, once the above make the funnel worth sending into.
