@@ -17,6 +17,14 @@ from . import audit, config, db, stats
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 GENERIC_PREFIXES = ("info", "contact", "enquiries", "enquiry", "hello", "sales", "admin", "office", "mail")
+# free-mail / third-party domains a scraped address may belong to (font authors,
+# theme devs, registries) — never a valid cold-B2B contact for the company itself
+FREEMAIL_DOMAINS = frozenset({
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "hotmail.co.uk",
+    "yahoo.com", "yahoo.co.uk", "ymail.com", "icloud.com", "me.com", "aol.com",
+    "live.com", "live.co.uk", "msn.com", "mail.com", "gmx.com", "protonmail.com",
+    "proton.me", "lursoft.lv", "sentry.io", "wix.com", "squarespace.com",
+})
 JUNK_SUBSTR = ("example.com", "sentry", "@2x", ".png", ".jpg", ".gif", "wixpress",
                "godaddy", "domain.com", "yourdomain", "email@", "sentry.io")
 SCRAPE_PATHS = ("", "/contact", "/contact-us", "/about", "/about-us")
@@ -34,6 +42,9 @@ SKIP_DOMAINS = (
     "estate-agents.directory", "indieyork", "solicitor.info", "wheree.com",
     "rocketreach", "zoominfo", "brightdata", "the-property-ombudsman",
     "housesimple", "nethouseprices", "globrix",
+    # company registries / data aggregators (not a company's own site)
+    "lursoft.lv", "company-information", "datanyze", "dnb.com", "creditsafe",
+    "bizdb", "companycheck", "ukbusinessdirectory", "freeindex",
 )
 
 
@@ -206,18 +217,26 @@ def firecrawl_scrape_emails(url: str, *, api_key: Optional[str] = None, client=N
 
 
 def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None) -> Optional[str]:
-    """Prefer a generic mailbox (info@/contact@…) on the company's own domain — a
-    generic address is both more useful and less likely to be an individual."""
+    """Pick the best cold-B2B contact: a generic mailbox (info@/contact@…) on the
+    company's OWN domain. Free-mail / third-party addresses are rejected outright
+    (a page often leaks a font author's gmail or a registry address), and when the
+    company's domain is known we accept ONLY that domain — better no contact than a
+    wrong one. Returns None if nothing qualifies."""
     if not emails:
+        return None
+    pool = [e for e in emails if e.partition("@")[2].lower() not in FREEMAIL_DOMAINS]
+    if prefer_domain:
+        pd = prefer_domain.lower()
+        pool = [e for e in pool if pd in e.partition("@")[2].lower()]
+    if not pool:
         return None
 
     def score(e: str) -> tuple:
-        local, _, dom = e.partition("@")
+        local = e.partition("@")[0]
         generic = any(local == g or local.startswith(g) for g in GENERIC_PREFIXES)
-        own_domain = bool(prefer_domain) and prefer_domain in dom
-        return (0 if generic else 1, 0 if own_domain else 1, e)
+        return (0 if generic else 1, e)
 
-    return sorted(emails, key=score)[0]
+    return sorted(pool, key=score)[0]
 
 
 def verify_email(email: str, *, api_key: Optional[str] = None,
