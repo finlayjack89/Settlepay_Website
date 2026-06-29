@@ -17,6 +17,8 @@ from . import audit, config, db, stats
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 GENERIC_PREFIXES = ("info", "contact", "enquiries", "enquiry", "hello", "sales", "admin", "office", "mail")
+# generic mailboxes to guess-and-verify on a company's own domain before scraping
+GUESS_PREFIXES = ("info", "enquiries", "hello", "contact")
 # free-mail / third-party domains a scraped address may belong to (font authors,
 # theme devs, registries) — never a valid cold-B2B contact for the company itself
 FREEMAIL_DOMAINS = frozenset({
@@ -264,30 +266,44 @@ def _domain_of(url: Optional[str]) -> Optional[str]:
 
 
 def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
-            verifier=None) -> dict:
-    """The SLOW, networked half of enrichment (scrape + verify), with NO database
-    handle held. Kept separate so a long Firecrawl/HTTP call never sits inside an
-    open DB transaction (the pooler drops idle connections)."""
+            verifier=None, guess_generics: bool = True) -> dict:
+    """The SLOW, networked half of enrichment (guess/scrape + verify), with NO
+    database handle held. Kept separate so a long Firecrawl/HTTP call never sits
+    inside an open DB transaction (the pooler drops idle connections)."""
     verifier = verifier or verify_email
     domain = _domain_of(website)
     scrape_source = None
-    httpx_emails = scrape_emails(website, client=http_client) if website else []
-    candidates = list(httpx_emails)
-    email = pick_contact_email(httpx_emails, prefer_domain=domain)
-    if email:
-        scrape_source = "httpx"
-    # fallback: Firecrawl renders JS / extracts where free httpx found nothing
-    elif website and config.FIRECRAWL_API_KEY:
-        fc_emails = firecrawl_scrape_emails(website)
-        candidates = fc_emails
-        email = pick_contact_email(fc_emails, prefer_domain=domain)
-        if email:
-            scrape_source = "firecrawl"
+    candidates: list[str] = []
+    email = None
+    verified, result = False, "no_email"
 
-    if email:
-        verified, result = verifier(email)
-    else:
-        verified, result = (False, "no_email")
+    # 1. cheap path: guess a generic mailbox on the company's OWN domain and verify
+    #    it directly. Recovers contact-form-only sites and avoids a paid scrape when
+    #    info@ is deliverable. Stops at the first verified address.
+    if guess_generics and domain:
+        for prefix in GUESS_PREFIXES:
+            guess = f"{prefix}@{domain}"
+            ok, res = verifier(guess)
+            if ok:
+                email, verified, result, scrape_source, candidates = guess, True, res, "guess", [guess]
+                break
+
+    # 2. fall back to scraping the site for a published address
+    if not email:
+        httpx_emails = scrape_emails(website, client=http_client) if website else []
+        candidates = list(httpx_emails)
+        email = pick_contact_email(httpx_emails, prefer_domain=domain)
+        if email:
+            scrape_source = "httpx"
+        # Firecrawl renders JS / extracts where free httpx found nothing
+        elif website and config.FIRECRAWL_API_KEY:
+            fc_emails = firecrawl_scrape_emails(website)
+            candidates = fc_emails
+            email = pick_contact_email(fc_emails, prefer_domain=domain)
+            if email:
+                scrape_source = "firecrawl"
+        verified, result = verifier(email) if email else (False, "no_email")
+
     return {"email": email, "verified": verified, "result": result,
             "scrape_source": scrape_source, "candidates": candidates}
 
@@ -329,10 +345,11 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
 
 
 def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
-               cur, http_client: Optional[httpx.Client] = None, verifier=None) -> dict:
-    """Scrape `website`, pick + verify a contact email, store enrichment, and
+               cur, http_client: Optional[httpx.Client] = None, verifier=None,
+               guess_generics: bool = True) -> dict:
+    """Guess/scrape + verify a contact email for `website`, store enrichment, and
     advance the lead to 'enriched' (verified) or 'discarded' (unverifiable)."""
-    g = _gather(website, http_client=http_client, verifier=verifier)
+    g = _gather(website, http_client=http_client, verifier=verifier, guess_generics=guess_generics)
     return _persist(company_number, website, signal, g, cur=cur)
 
 

@@ -6,26 +6,12 @@ Supabase `outreach` schema, so the dashboard reflects real pipeline performance.
 """
 from __future__ import annotations
 
-# First SIC code -> human label, for the per-vertical breakdown. Unknown codes
-# fall through to the raw code so nothing is silently hidden.
-SIC_LABELS = {
-    "68310": "Estate agents",
-    "68320": "Property management",
-    "69201": "Accountants",
-    "69202": "Bookkeepers",
-    "69109": "Legal (solicitors)",
-    "71111": "Architects",
-    "70229": "Management consultants",
-    "85530": "Driving instruction",
-    "86230": "Dental practices",
-    "75000": "Veterinary",
-    "96020": "Hair & beauty",
-    "56101": "Restaurants",
-    "43210": "Electrical installation",
-}
+from .targeting import SIC_LABELS  # single source of truth for SIC -> label
 
 
 def sic_label(sic: str | None) -> str:
+    """First SIC code -> human label for the per-vertical breakdown. Unknown codes
+    fall through to the raw code so nothing is silently hidden."""
     if not sic:
         return "Unknown"
     return SIC_LABELS.get(sic, sic)
@@ -87,16 +73,17 @@ def verify_breakdown(cur) -> list[tuple]:
 
 
 def scrape_effort(cur) -> dict:
-    """Scrape-source split (httpx vs Firecrawl fallback) + total emails harvested.
-    Tracked in enrichment.scraped from this build onward; older rows show as n/a."""
+    """Contact-source split (info@ guess vs httpx scrape vs Firecrawl fallback) +
+    total emails harvested. Tracked in enrichment.scraped from this build onward."""
     cur.execute(
-        "select count(*) filter (where scraped->>'source'='httpx'), "
+        "select count(*) filter (where scraped->>'source'='guess'), "
+        "count(*) filter (where scraped->>'source'='httpx'), "
         "count(*) filter (where scraped->>'source'='firecrawl'), "
         "coalesce(sum((scraped->>'emails_found')::int),0), "
         "count(*) filter (where scraped is not null) "
         "from outreach.enrichment")
-    httpx_n, fc_n, emails, tracked = cur.fetchone()
-    return {"httpx": httpx_n or 0, "firecrawl": fc_n or 0,
+    guess_n, httpx_n, fc_n, emails, tracked = cur.fetchone()
+    return {"guess": guess_n or 0, "httpx": httpx_n or 0, "firecrawl": fc_n or 0,
             "emails_found_total": emails or 0, "tracked": tracked or 0}
 
 

@@ -78,7 +78,7 @@ def test_enrich_one_verified_advances_to_enriched(db_rollback, monkeypatch):
     _seed_lead(cur, cn)
     monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
     res = enrich.enrich_one(cn, "https://acme.co.uk", "growing local agent",
-                            cur=cur, verifier=lambda e: (True, "ok"))
+                            cur=cur, verifier=lambda e: (True, "ok"), guess_generics=False)
     assert res["verified"] is True and res["email"] == "info@acme.co.uk"
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "enriched"
@@ -93,7 +93,7 @@ def test_enrich_one_unverifiable_is_discarded(db_rollback, monkeypatch):
     _seed_lead(cur, cn)
     monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
     res = enrich.enrich_one(cn, "https://acme.co.uk", "signal",
-                            cur=cur, verifier=lambda e: (False, "invalid"))
+                            cur=cur, verifier=lambda e: (False, "invalid"), guess_generics=False)
     assert res["verified"] is False
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "discarded"  # never left contactable
@@ -106,7 +106,7 @@ def test_firecrawl_fallback_used_when_httpx_finds_nothing(db_rollback, monkeypat
     monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])      # httpx blank
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", "fc-test")
     monkeypatch.setattr(enrich, "firecrawl_scrape_emails", lambda url, **kw: ["info@acme.co.uk"])
-    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"))
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"), guess_generics=False)
     assert res["email"] == "info@acme.co.uk" and res["verified"] is True
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "enriched"
@@ -121,7 +121,7 @@ def test_firecrawl_fallback_skipped_without_key(db_rollback, monkeypatch):
     calls = []
     monkeypatch.setattr(enrich, "firecrawl_scrape_emails",
                         lambda url, **kw: calls.append(url) or ["x@y.com"])
-    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"))
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"), guess_generics=False)
     assert res["email"] is None and not calls           # fallback never called -> discarded
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "discarded"
@@ -134,7 +134,38 @@ def test_enrich_one_no_email_is_discarded(db_rollback, monkeypatch):
     monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)  # keep offline (no fallback)
     res = enrich.enrich_one(cn, "https://acme.co.uk", "signal", cur=cur,
-                            verifier=lambda e: (True, "ok"))
+                            verifier=lambda e: (True, "ok"), guess_generics=False)
     assert res["email"] is None and res["verified"] is False
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "discarded"
+
+
+# ---- guess-and-verify info@ (the cheap discovery path) ----
+def test_guess_verify_finds_generic_without_scraping(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_GUESS_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    called = []
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: called.append(url) or ["x@y.com"])
+    # only the guessed info@ on the site domain verifies
+    res = enrich.enrich_one(
+        cn, "https://acme.co.uk", "sig", cur=cur,
+        verifier=lambda e: (e == "info@acme.co.uk", "ok" if e == "info@acme.co.uk" else "invalid"))
+    assert res["email"] == "info@acme.co.uk" and res["verified"] is True
+    assert not called  # scrape skipped because the guess verified
+    cur.execute("select scraped->>'source' from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "guess"
+
+
+def test_guess_falls_back_to_scrape_when_generics_fail(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_GFB_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["team@acme.co.uk"])
+    # generic guesses all fail; only the scraped (non-generic) own-domain address verifies
+    res = enrich.enrich_one(
+        cn, "https://acme.co.uk", "sig", cur=cur,
+        verifier=lambda e: (e == "team@acme.co.uk", "ok" if e == "team@acme.co.uk" else "catch_all"))
+    assert res["email"] == "team@acme.co.uk" and res["verified"] is True
+    cur.execute("select scraped->>'source' from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "httpx"
