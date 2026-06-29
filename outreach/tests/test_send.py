@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from outreach import config, send
+from outreach import config, send, sequence
 
 pytestmark = pytest.mark.floor_g
 
@@ -95,3 +95,22 @@ def test_per_inbox_daily_cap_enforced(db_rollback, monkeypatch):
     send.send_one(d1, mode="dry_run", inbox="cap@settlepayhq.uk", cur=cur)   # 1st ok
     with pytest.raises(send.SendRefused):
         send.send_one(d2, mode="dry_run", inbox="cap@settlepayhq.uk", cur=cur)  # 2nd over cap
+
+
+def test_warmup_cap_ramps_then_holds():
+    assert sequence.warmup_cap(1) <= sequence.warmup_cap(8)
+    assert sequence.warmup_cap(10_000) == sequence.warmup_cap(8)  # holds at steady
+
+
+def test_warmup_limits_below_steady_cap(db_rollback, monkeypatch):
+    # steady ceiling is high, but on warm-up day 1 the effective cap is the ramp value
+    cur = db_rollback.cursor()
+    monkeypatch.setattr(send.config, "PER_INBOX_DAILY_CAP", 999)
+    day1 = sequence.warmup_cap(1)
+    inbox = f"warm-{uuid.uuid4().hex[:6]}@settlepayhq.uk"  # no prior live send -> day 1
+    for _ in range(day1):
+        _, _, d = _seed_approved(cur)
+        send.send_one(d, mode="dry_run", inbox=inbox, cur=cur)
+    _, _, over = _seed_approved(cur)
+    with pytest.raises(send.SendRefused):
+        send.send_one(over, mode="dry_run", inbox=inbox, cur=cur)  # ramp cap reached

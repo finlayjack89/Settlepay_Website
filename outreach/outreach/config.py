@@ -53,6 +53,9 @@ RISKY_SEND_ENABLED = _bool("RISKY_SEND_ENABLED", False)
 # --- LLM provider ---
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")
 
+# --- inbound ingestion (reply/bounce/unsubscribe): graph (live) | inline (test) ---
+INBOUND_SOURCE = os.environ.get("INBOUND_SOURCE", "graph")
+
 # --- send: Microsoft Graph (phase G), from a SEPARATE warmed domain (never @settlepay.uk) ---
 GRAPH_TENANT_ID = os.environ.get("GRAPH_TENANT_ID")
 GRAPH_CLIENT_ID = os.environ.get("GRAPH_CLIENT_ID")

@@ -39,3 +39,13 @@ def follow_up_delay_days(seq: dict, n: int) -> Optional[int]:
 
 def graduation_thresholds(seq: Optional[dict] = None) -> dict:
     return (seq or load_sequence_config()).get("graduation", {})
+
+
+def warmup_cap(day: int, seq: Optional[dict] = None) -> int:
+    """Per-inbox daily send ceiling on warm-up `day` (1-indexed). Ramps up a new
+    sending mailbox to protect deliverability, then holds at the steady ceiling.
+    Config-driven (sequence_config.json `warmup`); never hardcoded in send logic."""
+    w = (seq or load_sequence_config()).get("warmup", {})
+    caps = w.get("daily_caps") or [w.get("steady", 50)]
+    idx = max(1, day) - 1
+    return caps[idx] if idx < len(caps) else (w.get("steady") or caps[-1])

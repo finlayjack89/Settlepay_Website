@@ -13,9 +13,10 @@ EVERY send (dry-run or live) passes ALL guardrails first, in order:
 What gets sent is body_final (the human-approved text), never body_original.
 """
 from __future__ import annotations
+import datetime
 from typing import Optional
 
-from . import audit, config, db
+from . import audit, config, db, sequence
 from .firewall import check_suppression
 from .states import LeadState, SubscriberClass
 
@@ -93,12 +94,19 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     # on top of G-SEND, so a routine batch never sprays catch-all mailboxes
     if tier == "risky" and not config.RISKY_SEND_ENABLED:
         raise SendRefused("risky (catch-all) contact — set RISKY_SEND_ENABLED to send")
+    # warm-up-aware per-inbox daily cap: ramp a new sending mailbox up gradually
+    # (deliverability) — effective cap = min(steady ceiling, today's warm-up cap).
+    cur.execute("select min(created_at::date) from outreach.sends "
+                "where from_inbox = %s and mode = 'live'", (inbox,))
+    first_live = cur.fetchone()[0]
+    warmup_day = ((datetime.date.today() - first_live).days + 1) if first_live else 1
+    effective_cap = min(config.PER_INBOX_DAILY_CAP, sequence.warmup_cap(warmup_day))
     cur.execute(
         "select count(*) from outreach.sends "
         "where from_inbox = %s and created_at::date = current_date "
         "and status in ('sent', 'dry_run_ok')", (inbox,))
-    if cur.fetchone()[0] >= config.PER_INBOX_DAILY_CAP:
-        raise SendRefused(f"per-inbox daily cap reached ({config.PER_INBOX_DAILY_CAP})")
+    if cur.fetchone()[0] >= effective_cap:
+        raise SendRefused(f"per-inbox daily cap reached ({effective_cap}; warm-up day {warmup_day})")
 
     # ---- LIVE gate: never send live unless a human cleared G-SEND ----
     if mode == "live":
