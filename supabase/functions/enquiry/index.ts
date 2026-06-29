@@ -16,6 +16,7 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { renderAutoreply, renderNotification } from './templates.ts';
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
 
@@ -34,12 +35,6 @@ function json(body: unknown, status = 200): Response {
 
 const str = (v: FormDataEntryValue | null): string =>
   typeof v === 'string' ? v.trim() : '';
-
-// Escape user-supplied text before it goes into an HTML email body.
-const esc = (s: string): string =>
-  s.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!),
-  );
 
 // Send one email via Resend. Lead is already saved by the time we call this, so
 // a send failure must never throw — log it and move on.
@@ -84,6 +79,8 @@ Deno.serve(async (req) => {
     return json({ error: 'validation', detail: 'Missing or invalid fields.' }, 400);
   }
 
+  const firstName = name.split(/\s+/)[0] || name;
+
   // 1) Store the lead. Service-role key bypasses RLS. This is the source of
   //    truth, so a failure here is the only thing that fails the request.
   const supabase = createClient(
@@ -112,18 +109,20 @@ Deno.serve(async (req) => {
     const notifyTo = Deno.env.get('LEAD_NOTIFY_TO');
     const notifyFrom = Deno.env.get('LEAD_NOTIFY_FROM');
     if (notifyTo && notifyFrom) {
+      const notif = renderNotification({
+        business, name, first_name: firstName, email, message,
+        lead_id: data.id,
+        submitted_at: new Date().toLocaleString('en-GB', {
+          timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'short',
+        }),
+      });
       await sendViaResend(resendKey, {
         from: notifyFrom,
         to: [notifyTo],
         reply_to: email,
         subject: `New enquiry — ${business}`,
-        text:
-          `New consultation enquiry via settlepay.uk\n\n` +
-          `Business: ${business}\n` +
-          `Name: ${name}\n` +
-          `Email: ${email}\n\n` +
-          `Message:\n${message}\n\n` +
-          `— Lead ID: ${data.id}`,
+        html: notif.html,
+        text: notif.text,
       }, 'notification');
     } else {
       console.warn('LEAD_NOTIFY_TO/FROM not set — lead stored but no notification sent.');
@@ -133,30 +132,14 @@ Deno.serve(async (req) => {
     //    with replies routed there too. Skipped if LEAD_AUTOREPLY_FROM is unset.
     const autoreplyFrom = Deno.env.get('LEAD_AUTOREPLY_FROM');
     if (autoreplyFrom) {
-      const firstName = name.split(/\s+/)[0] || name;
+      const auto = renderAutoreply({ first_name: firstName, business });
       await sendViaResend(resendKey, {
         from: autoreplyFrom,
         to: [email],
         reply_to: notifyTo ?? autoreplyFrom,
         subject: 'Thanks for your enquiry — SettlePay',
-        text:
-          `Hi ${firstName},\n\n` +
-          `Thanks for getting in touch with SettlePay. I've received your enquiry ` +
-          `about ${business} and I'll get back to you personally, usually within ` +
-          `one working day.\n\n` +
-          `If anything's urgent in the meantime, just reply to this email — it ` +
-          `comes straight to me.\n\n` +
-          `Best regards,\n` +
-          `Finlay Salisbury\n` +
-          `SettlePay · settlepay.uk`,
-        html:
-          `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0F172A;line-height:1.6;font-size:16px;max-width:560px;">` +
-          `<p>Hi ${esc(firstName)},</p>` +
-          `<p>Thanks for getting in touch with SettlePay. I've received your enquiry about <strong>${esc(business)}</strong> and I'll get back to you personally, usually within one working day.</p>` +
-          `<p>If anything's urgent in the meantime, just reply to this email — it comes straight to me.</p>` +
-          `<p style="margin-top:24px;">Best regards,<br>Finlay Salisbury<br>SettlePay</p>` +
-          `<p style="color:#64748B;font-size:13px;margin-top:24px;"><a href="https://settlepay.uk" style="color:#64748B;">settlepay.uk</a></p>` +
-          `</div>`,
+        html: auto.html,
+        text: auto.text,
       }, 'autoreply');
     }
   } else {
