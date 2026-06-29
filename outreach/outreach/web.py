@@ -212,6 +212,8 @@ def _safety() -> dict:
         "cap": config.PER_INBOX_DAILY_CAP,
         "resolver": config.WEBSITE_RESOLVER,
         "sender": config.GRAPH_SENDER or "(not configured)",
+        "accept_catch_all": config.ACCEPT_CATCH_ALL,
+        "risky_send": config.RISKY_SEND_ENABLED,
     }
 
 
@@ -271,7 +273,7 @@ def dashboard():
     tiles = [
         ("accent", o["discovered"], "Companies discovered", "Companies House"),
         ("", o["corporate"], "PECR-cleared", f"{o['suppressed']} suppressed"),
-        ("", o["emails_verified"], "Verified emails", f"{o['emails_found']} found"),
+        ("", o["emails_verified"], "Verified emails", f"+{o['emails_risky']} risky · {o['emails_found']} found"),
         ("", o["drafts_awaiting"], "Awaiting approval", "in your queue"),
         ("", o["approved"], "Approved", f"{o['unedited_rate']:.0%} unedited"),
         ("", o["sends_dry"], "Dry-run sends", f"{o['sends_live']} live"),
@@ -541,7 +543,7 @@ def lead_detail(company_number: str):
         if not lead:
             return HTMLResponse(_shell("/leads", "Not found", "", '<div class="panel"><div class="empty">Lead not found.</div></div>'), status_code=404)
         cur.execute(
-            "select website, contact_email, email_verified, email_verify_result, signal, scraped "
+            "select website, contact_email, email_verified, email_verify_result, signal, scraped, contact_tier "
             "from outreach.enrichment where company_number=%s", (company_number,))
         enr = cur.fetchone()
         cur.execute(
@@ -564,14 +566,17 @@ def lead_detail(company_number: str):
       <dt>Location</dt><dd>{html.escape(locality or '—')}</dd></dl>"""
 
     if enr:
-        website, email, verified, vres, signal, scraped = enr
+        website, email, verified, vres, signal, scraped, tier = enr
         site = f'<a href="{html.escape(website)}" target="_blank">{html.escape(website)}</a>' if website else '—'
         cands = ", ".join((scraped or {}).get("candidates", [])) if scraped else ""
         src = (scraped or {}).get("source") if scraped else None
+        tier_badge = {"verified": '<span class="badge b-success">verified</span>',
+                      "risky": '<span class="badge b-warning">risky · catch-all</span>'}.get(
+                          tier, '<span class="badge b-muted">—</span>')
         enr_html = f"""<dl class="kv">
           <dt>Website</dt><dd>{site}</dd>
           <dt>Contact</dt><dd>{html.escape(email or '—')}</dd>
-          <dt>Verified</dt><dd>{'<span class="badge b-success">yes</span>' if verified else '<span class="badge b-muted">no</span>'} <span class="muted">({html.escape(vres or 'n/a')})</span></dd>
+          <dt>Contact tier</dt><dd>{tier_badge} <span class="muted">({html.escape(vres or 'n/a')})</span></dd>
           <dt>Scraper</dt><dd>{html.escape(src or '—')}</dd>
           <dt>Candidates</dt><dd>{html.escape(cands or '—')}</dd>
           <dt>Signal</dt><dd>{html.escape(signal or '—')}</dd></dl>"""
@@ -621,6 +626,7 @@ def settings():
       <dt>Live send (G-SEND)</dt><dd>{'<span class="badge b-error">ENABLED</span>' if s['live'] else '<span class="badge b-success">gated — off</span>'}</dd>
       <dt>Kill switch</dt><dd>{'<span class="badge b-error">ON (all sends blocked)</span>' if s['kill'] else '<span class="badge b-muted">off</span>'}</dd>
       <dt>Per-inbox cap</dt><dd>{s['cap']} / day</dd>
+      <dt>Risky (catch-all) send</dt><dd>{'<span class="badge b-error">ENABLED</span>' if s['risky_send'] else '<span class="badge b-success">off — needs RISKY_SEND_ENABLED</span>'}</dd>
       <dt>Sending domain</dt><dd>{html.escape(s['sender'])}</dd>
       <dt>Send window</dt><dd>{win.get('start_hour','?')}:00–{win.get('end_hour','?')}:00 <span class="muted">(placeholder)</span></dd>
     </dl></div>
@@ -630,6 +636,7 @@ def settings():
       <dt>DB schema</dt><dd>{html.escape(config.DB_SCHEMA)}</dd>
       <dt>Enquiry source</dt><dd>public.{html.escape(config.ENQUIRY_SOURCE_TABLE)} <span class="muted">(suppression)</span></dd>
       <dt>Website resolver</dt><dd>{html.escape(s['resolver'])}</dd>
+      <dt>Catch-all policy</dt><dd>{'accept as risky tier' if s['accept_catch_all'] else 'discard'}</dd>
       <dt>LLM provider</dt><dd>{html.escape(config.LLM_PROVIDER)}</dd>
       <dt>CH cap</dt><dd>{config.CH_MAX_REQUESTS_PER_RUN} req/run</dd>
       <dt>Verify cap</dt><dd>{config.MV_MAX_PER_RUN}/run</dd>

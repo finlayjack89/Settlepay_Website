@@ -16,6 +16,13 @@ def _int(name: str, default: int) -> int:
         return default
 
 
+def _bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 # --- connection / schema ---
 DATABASE_URL = os.environ.get("DATABASE_URL")
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "outreach")
@@ -35,6 +42,13 @@ BRAVE_SEARCH_API_KEY = os.environ.get("BRAVE_SEARCH_API_KEY")
 CH_MAX_REQUESTS_PER_RUN = _int("CH_MAX_REQUESTS_PER_RUN", 50)
 MV_MAX_PER_RUN = _int("MV_MAX_PER_RUN", 20)
 SEARCH_MAX_REQUESTS_PER_RUN = _int("SEARCH_MAX_REQUESTS_PER_RUN", 50)
+
+# --- contact verification tiers ---
+# Catch-all mailboxes (MillionVerifier 'catch_all') are deliverable but unconfirmable.
+# Accept them into a 'risky' tier (default on) rather than discarding reachable
+# businesses; sending to them needs a SEPARATE opt-in beyond G-SEND.
+ACCEPT_CATCH_ALL = _bool("ACCEPT_CATCH_ALL", True)
+RISKY_SEND_ENABLED = _bool("RISKY_SEND_ENABLED", False)
 
 # --- LLM provider ---
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")

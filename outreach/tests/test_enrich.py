@@ -182,3 +182,41 @@ def test_guess_falls_back_to_scrape_when_generics_fail(db_rollback, monkeypatch)
     assert res["email"] == "team@acme.co.uk" and res["verified"] is True
     cur.execute("select scraped->>'source' from outreach.enrichment where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "httpx"
+
+
+# ---- catch-all "risky" tier ----
+def test_contact_tier_mapping():
+    assert enrich.contact_tier("ok") == "verified"
+    assert enrich.contact_tier("catch_all", accept_catch_all=True) == "risky"
+    assert enrich.contact_tier("catch_all", accept_catch_all=False) is None
+    assert enrich.contact_tier("invalid") is None
+    assert enrich.contact_tier("verify_error") is None
+
+
+def test_catch_all_accepted_as_risky_tier(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_CA_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich.config, "ACCEPT_CATCH_ALL", True)
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
+                            verifier=lambda e: (False, "catch_all"), guess_generics=False)
+    assert res["tier"] == "risky" and res["email"] == "info@acme.co.uk"
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "enriched"  # reachable, kept (not discarded)
+    cur.execute("select contact_tier, email_verified from outreach.enrichment where company_number=%s", (cn,))
+    tier, verified = cur.fetchone()
+    assert tier == "risky" and verified is False  # risky, not full-confidence verified
+
+
+def test_catch_all_discarded_when_disabled(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn = f"ENR_CAX_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich.config, "ACCEPT_CATCH_ALL", False)
+    res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
+                            verifier=lambda e: (False, "catch_all"), guess_generics=False)
+    assert res["tier"] is None
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discarded"

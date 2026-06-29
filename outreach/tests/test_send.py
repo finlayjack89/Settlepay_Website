@@ -9,7 +9,7 @@ pytestmark = pytest.mark.floor_g
 COMPLIANT = "Hello. FCA-regulated partners handle payments. Reply unsubscribe to opt out. SettlePay"
 
 
-def _seed_approved(cur, *, email=None, sub="corporate"):
+def _seed_approved(cur, *, email=None, sub="corporate", tier=None):
     cn = f"SND_{uuid.uuid4().hex[:8]}"
     email = email or f"info-{uuid.uuid4().hex[:6]}@example.com"
     cur.execute(
@@ -17,7 +17,8 @@ def _seed_approved(cur, *, email=None, sub="corporate"):
         "subscriber_class, state) values (%s,%s,'ltd',%s,'approved')", (cn, cn, sub))
     cur.execute(
         "insert into outreach.enrichment (company_number, website, contact_email, "
-        "email_verified, signal) values (%s,'https://x.co',%s,true,'sig')", (cn, email))
+        "email_verified, contact_tier, signal) values (%s,'https://x.co',%s,%s,%s,'sig')",
+        (cn, email, tier != "risky", tier))
     cur.execute(
         "insert into outreach.drafts (company_number, body_original, body_final, "
         "prompt_version, status, decided_by, decided_at) "
@@ -68,6 +69,22 @@ def test_kill_switch_blocks(db_rollback, monkeypatch):
     monkeypatch.setattr(send.config, "KILL_SWITCH", "1")
     with pytest.raises(send.SendRefused):
         send.send_one(did, mode="dry_run", cur=cur)
+
+
+def test_risky_contact_blocked_without_optin(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn, email, did = _seed_approved(cur, tier="risky")
+    monkeypatch.setattr(send.config, "RISKY_SEND_ENABLED", False)
+    with pytest.raises(send.SendRefused):
+        send.send_one(did, mode="dry_run", cur=cur)  # catch-all needs explicit opt-in
+
+
+def test_risky_contact_allowed_with_optin(db_rollback, monkeypatch):
+    cur = db_rollback.cursor()
+    cn, email, did = _seed_approved(cur, tier="risky")
+    monkeypatch.setattr(send.config, "RISKY_SEND_ENABLED", True)
+    res = send.send_one(did, mode="dry_run", cur=cur)
+    assert res["status"] == "dry_run_ok"
 
 
 def test_per_inbox_daily_cap_enforced(db_rollback, monkeypatch):
