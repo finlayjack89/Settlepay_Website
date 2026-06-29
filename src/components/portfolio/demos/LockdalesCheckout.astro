@@ -67,7 +67,7 @@ import Chrome from '../../previews/Chrome.astro';
         <div class="lkd__bacs-quiet"><dt>IBAN</dt><dd class="lkd__mono">GB•• •••• •••• •••• •••• ••</dd></div>
       </dl>
 
-      <p class="lkd__ref"><Icon name="mail" sw={2} /> Please include your <strong>Name</strong> and <strong>Bidder Number</strong> as the payment reference so Lockdales can match your payment to your invoice.</p>
+      <p class="lkd__ref"><Icon name="mail" sw={2} /><span class="lkd__ref-text">Please include your <strong>Name</strong> and <strong>Bidder Number</strong> as the payment reference so Lockdales can match your payment to your invoice.</span></p>
 
       <div class="lkd__divider"></div>
       <p class="lkd__alt">Prefer to pay by debit or credit card?</p>
@@ -223,6 +223,9 @@ import Chrome from '../../previews/Chrome.astro';
     color: rgba(27, 58, 91, 0.78);
   }
   .lkd__ref svg { width: 14px; height: 14px; color: var(--lk-gold); flex-shrink: 0; margin-top: 2px; }
+  /* Keep the note a single flowing sentence: the text must be ONE flex item beside
+     the icon, otherwise each inline run (and each <strong>) becomes its own column. */
+  .lkd__ref-text { min-width: 0; }
   .lkd__ref strong { color: var(--lk-navy); }
 
   .lkd__divider { height: 1px; background: var(--lk-line); margin: 1rem 0 0.85rem; }
