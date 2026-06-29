@@ -267,6 +267,23 @@ def verify_email(email: str, *, api_key: Optional[str] = None,
             client.close()
 
 
+RISKY_RESULTS = ("catch_all",)  # deliverable but unconfirmable (M365/Workspace catch-all)
+
+
+def contact_tier(result: str, *, accept_catch_all: Optional[bool] = None) -> Optional[str]:
+    """Map a MillionVerifier result to a contact tier:
+      'verified' = 'ok' (confirmed deliverable) — full-confidence contact
+      'risky'    = catch-all (deliverable but unconfirmable), kept only if accepted
+      None       = invalid/unknown/no_email/error — not contactable, discard
+    """
+    if result == "ok":
+        return "verified"
+    accept = config.ACCEPT_CATCH_ALL if accept_catch_all is None else accept_catch_all
+    if result in RISKY_RESULTS and accept:
+        return "risky"
+    return None
+
+
 def _domain_of(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
@@ -321,27 +338,32 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
     """The FAST, DB-only half: write enrichment + advance/discard the lead. Holds
     the connection for milliseconds, never across network I/O."""
     email, verified, result = g["email"], g["verified"], g["result"]
+    tier = contact_tier(result) if email else None   # 'verified' | 'risky' | None
+    acceptable = tier is not None
     scraped = json.dumps({  # provenance for the dashboard
         "source": g["scrape_source"], "emails_found": len(g["candidates"]),
-        "candidates": g["candidates"][:8], "verify_result": result,
+        "candidates": g["candidates"][:8], "verify_result": result, "tier": tier,
     })
     cur.execute(
         "insert into outreach.enrichment "
-        "(company_number, website, contact_email, email_verified, email_verify_result, signal, scraped) "
-        "values (%s,%s,%s,%s,%s,%s,%s::jsonb) "
+        "(company_number, website, contact_email, email_verified, email_verify_result, "
+        " contact_tier, signal, scraped) "
+        "values (%s,%s,%s,%s,%s,%s,%s,%s::jsonb) "
         "on conflict (company_number) do update set "
         "website=excluded.website, contact_email=excluded.contact_email, "
         "email_verified=excluded.email_verified, email_verify_result=excluded.email_verify_result, "
-        "signal=excluded.signal, scraped=excluded.scraped",
-        (company_number, website, email, (verified if email else None), result, signal, scraped),
+        "contact_tier=excluded.contact_tier, signal=excluded.signal, scraped=excluded.scraped",
+        (company_number, website, email, (verified if email else None), result,
+         tier, signal, scraped),
     )
-    if verified:
+    if acceptable:
         cur.execute(
             "update outreach.leads set state='enriched', updated_at=now() "
             "where company_number=%s and state='discovered'", (company_number,))
+        label = "verified" if tier == "verified" else f"risky ({result})"
         audit.record(company_number, "enriched", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
-                     reason=f"verified {email} ({result}) via {g['scrape_source']}", cur=cur)
+                     reason=f"{label} {email} via {g['scrape_source']}", cur=cur)
     else:
         cur.execute(
             "update outreach.leads set state='discarded', updated_at=now() "
@@ -349,7 +371,8 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
         audit.record(company_number, "discarded", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
                      reason=f"unverifiable contact ({result})", cur=cur)
-    return {"company_number": company_number, "email": email, "verified": verified, "result": result}
+    return {"company_number": company_number, "email": email, "verified": verified,
+            "result": result, "tier": tier}
 
 
 def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,

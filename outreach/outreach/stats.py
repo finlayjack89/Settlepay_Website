@@ -37,6 +37,8 @@ def overview(cur) -> dict:
         cur, "select count(*) from outreach.enrichment where contact_email is not null")
     d["emails_verified"] = _scalar(
         cur, "select count(*) from outreach.enrichment where email_verified")
+    d["emails_risky"] = _scalar(
+        cur, "select count(*) from outreach.enrichment where contact_tier='risky'")
     d["discarded"] = _scalar(
         cur, "select count(*) from outreach.leads where state='discarded'")
 

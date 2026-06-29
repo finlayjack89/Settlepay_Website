@@ -8,7 +8,8 @@ EVERY send (dry-run or live) passes ALL guardrails first, in order:
   1. global kill switch          (config.KILL_SWITCH)
   2. individual/unknown block    (only corporate subscribers may be contacted)
   3. check_suppression           (outreach.suppressions ∪ inbound enquirers)
-  4. per-inbox daily cap         (config.PER_INBOX_DAILY_CAP, 3-5)
+  4. risky-tier opt-in           (catch-all contacts need config.RISKY_SEND_ENABLED)
+  5. per-inbox daily cap         (config.PER_INBOX_DAILY_CAP, 3-5)
 What gets sent is body_final (the human-approved text), never body_original.
 """
 from __future__ import annotations
@@ -63,7 +64,7 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
 
     cur.execute(
         "select d.company_number, d.subject, d.body_final, d.status, "
-        "       l.subscriber_class::text, l.state::text, e.contact_email "
+        "       l.subscriber_class::text, l.state::text, e.contact_email, e.contact_tier "
         "from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
         "left join outreach.enrichment e on e.company_number = d.company_number "
@@ -71,7 +72,7 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     row = cur.fetchone()
     if not row:
         raise SendRefused(f"draft {draft_id} not found")
-    cn, subject, body_final, status, sub, lead_state, email = row
+    cn, subject, body_final, status, sub, lead_state, email, tier = row
 
     # only an approved draft with a non-empty body_final may be sent
     if status != "approved":
@@ -88,6 +89,10 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
         raise SendRefused("no contact email")
     if check_suppression(email=email, company_number=cn, cur=cur):
         raise SendRefused("suppressed / existing enquirer")
+    # risky (catch-all) contacts are unconfirmable — sending needs a separate opt-in
+    # on top of G-SEND, so a routine batch never sprays catch-all mailboxes
+    if tier == "risky" and not config.RISKY_SEND_ENABLED:
+        raise SendRefused("risky (catch-all) contact — set RISKY_SEND_ENABLED to send")
     cur.execute(
         "select count(*) from outreach.sends "
         "where from_inbox = %s and created_at::date = current_date "
