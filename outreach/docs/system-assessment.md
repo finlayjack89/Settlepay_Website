@@ -4,21 +4,26 @@
 compliant; the value leaks are mostly in **targeting** and **contact discovery**,
 and the highest-consequence risks sit at the **send** step that isn't live yet.*
 
-## The funnel, as measured
+## The funnel, as measured — two verticals, same machine
 
-Real numbers from the live `outreach` schema (SIC 68310, estate agents — the first
-vertical run):
+Real numbers from the live `outreach` schema. The first run targeted estate agents
+(SIC 68310); this review then ran an identical pass over accountants (SIC 69201) to
+isolate how much of the loss is *targeting* vs *mechanism*:
 
-| Stage | Count | % of discovered |
+| Stage | Estate agents (68310) | Accountants (69201) |
 |---|---|---|
-| Discovered (Companies House) | 50 | 100% |
-| PECR-cleared (corporate) | 50 | 100% |
-| Website resolved | 5 | 10% |
-| Contact email found | 3 | 6% |
-| Email verified (MillionVerifier `ok`) | 3 | 6% |
+| Discovered | 50 | 18 |
+| Website resolved | 5 (10%) | 18 (100%) |
+| Contact email found | 3 | ~13 |
+| **Verified, own-domain contact** | **3 (6%)** | **9 (50%)** |
 
-So **~94% of the work (and API spend) produced nothing contactable.** Everything
-below is ranked by how much of that loss it explains and how cheap it is to fix.
+Same code, same spend per lead — **an ~8× difference in yield purely from the lead
+source.** On estate agents ~94% of the work produced nothing contactable; on
+accountants, half the batch became a real, verified, own-domain contact. That single
+comparison is the headline: **the mechanism is fine; the lead source is the lever.**
+
+Everything below is ranked by how much of the remaining loss it explains and how
+cheap it is to fix.
 
 ---
 
@@ -40,9 +45,9 @@ The spend happens *before* the yield is known.
   NOMINEE`. This is free and removes most of the shells before we spend a credit.
 - **Target SICs that correlate with a web presence and card/invoice payments**
   (accountants, agencies, clinics, trades, hospitality) rather than estate agents,
-  many of whom are appointed-representative SPVs. (This review seeded a second
-  vertical — accountants, SIC 69201 — precisely to measure that; see the dashboard's
-  *Yield by vertical* panel for the side-by-side.)
+  many of whom are appointed-representative SPVs. Proven in this review: accountants
+  yielded **50% verified vs 6%** for estate agents (see the dashboard's *Yield by
+  vertical* panel for the live side-by-side).
 - **Consider a web-first lead source** (a trade-body member directory, Google Maps/
   Places by category+town) where *every* entry has a site by construction. CH then
   becomes the enrichment/verification layer, not the discovery layer.
@@ -57,6 +62,18 @@ Firecrawl fallback. It misses the common cases for small-business sites:
 
 **Cost:** we pay for a search + multiple fetches + a Firecrawl render and still end
 at `no_email → discarded` for businesses that are, in fact, reachable.
+
+**Two real failures caught in the accountants run** (and since hardened):
+- A bookkeeping site exposed only a font designer's `impallari@gmail.com` and a font
+  foundry's `team@latofonts.com` in its markup; the real contact lived on a *second,
+  abbreviated* domain (`…@cardiffbas.com`). The picker grabbed the gmail.
+- For another, the resolver returned a **Latvian company registry** (`nace.lursoft.lv`)
+  instead of the company's own site, so it "found" `info@lursoft.lv`.
+
+Fix applied: `pick_contact_email` now rejects free-mail / third-party domains and,
+when the company's domain is known, accepts **only** that domain (better no contact
+than a wrong one); the registry was added to the resolver skip-list. The deeper fix
+(recognise an abbreviated own-domain, guess-and-verify `info@`) is below.
 
 **Fix:**
 - **Guess-and-verify before scraping:** derive `info@`, `enquiries@`, `hello@` from

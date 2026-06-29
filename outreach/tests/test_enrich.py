@@ -22,6 +22,21 @@ def test_none_when_no_emails():
     assert enrich.pick_contact_email([], prefer_domain="acme.co.uk") is None
 
 
+def test_rejects_freemail_scraped_off_page():
+    # a font author's gmail leaked in markup must never be picked as the contact
+    assert enrich.pick_contact_email(["impallari@gmail.com"], prefer_domain="ellipse.co.uk") is None
+
+
+def test_rejects_off_domain_contact():
+    # an address on a different domain (e.g. a registry) is not the company's own
+    assert enrich.pick_contact_email(["info@lursoft.lv"], prefer_domain="acme.co.uk") is None
+
+
+def test_picks_generic_on_own_domain_only():
+    emails = ["ceo@acme.co.uk", "info@acme.co.uk", "info@partner.com"]
+    assert enrich.pick_contact_email(emails, prefer_domain="acme.co.uk") == "info@acme.co.uk"
+
+
 # ---- verify_email maps MillionVerifier result (fake client) ----
 class _FakeMVResponse:
     def __init__(self, result):
