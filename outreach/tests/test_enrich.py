@@ -1,5 +1,6 @@
 import uuid
 
+import httpx
 import pytest
 
 from outreach import enrich
@@ -61,6 +62,18 @@ class _FakeMVClient:
 def test_verify_email_mapping(result, expected):
     verified, res = enrich.verify_email("x@y.com", api_key="k", client=_FakeMVClient(result))
     assert verified is expected and res == result
+
+
+class _TimeoutMVClient:
+    def get(self, *a, **k):
+        raise httpx.ReadTimeout("boom")
+
+
+def test_verify_email_timeout_is_not_fatal():
+    # a transient verify timeout must degrade to unverifiable, never raise (one slow
+    # verify previously aborted an entire enrichment batch)
+    verified, res = enrich.verify_email("x@y.com", api_key="k", client=_TimeoutMVClient())
+    assert verified is False and res == "verify_error"
 
 
 # ---- enrich_one verified vs discarded (DB, rolled back) ----

@@ -242,18 +242,26 @@ def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None
 
 
 def verify_email(email: str, *, api_key: Optional[str] = None,
-                 client: Optional[httpx.Client] = None) -> tuple[bool, str]:
+                 client: Optional[httpx.Client] = None, retries: int = 1) -> tuple[bool, str]:
     """MillionVerifier single-email check -> (verified, result_string).
-    Verified only when result == 'ok' (conservative: catch_all/unknown are not)."""
+    Verified only when result == 'ok' (conservative: catch_all/unknown are not).
+    A transient HTTP/parse failure is retried once, then returns (False,
+    'verify_error') rather than raising — one slow verify must never abort a batch."""
     api_key = api_key or config.MILLIONVERIFIER_API_KEY
     owns = client is None
-    client = client or httpx.Client(timeout=20)
+    client = client or httpx.Client(timeout=25)
     try:
-        r = client.get("https://api.millionverifier.com/api/v3/",
-                       params={"api": api_key, "email": email})
-        data = r.json()
-        result = str(data.get("result", "error"))
-        return (result == "ok", result)
+        for attempt in range(retries + 1):
+            try:
+                r = client.get("https://api.millionverifier.com/api/v3/",
+                               params={"api": api_key, "email": email})
+                data = r.json()
+                result = str(data.get("result", "error"))
+                return (result == "ok", result)
+            except (httpx.HTTPError, ValueError):
+                if attempt >= retries:
+                    return (False, "verify_error")
+        return (False, "verify_error")
     finally:
         if owns:
             client.close()
