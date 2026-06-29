@@ -106,6 +106,8 @@ export const PORTFOLIO = [
       ],
       background:
         'Harbourside Lettings is a fictional three-person coastal agency of a very real shape: a high-street office, around ninety managed tenancies, and a steady stream of applicants. When an applicant was approved, a staff member emailed over the client-account details, the applicant transferred the holding deposit "when they got home", and the office checked the bank statement the next morning — and the morning after that. Until the money landed, the property was held on a promise.',
+      hook:
+        'An applicant says yes — and the property is held on a promise while the office refreshes the bank statement, waiting for a holding deposit to “land when they get home”.',
       painPoints: [
         'Each deposit collected by transfer meant <strong>25–35 minutes</strong> of emails, statement checks and manual matching, spread across two or three working days',
         'Transfers arrived labelled <strong>"FLAT DEPOSIT"</strong> or a misspelt surname, then someone matched them to the right tenancy by hand in the Excel log',
@@ -501,6 +503,8 @@ export const PORTFOLIO = [
       ],
       background:
         'Marsh & Vale is a fictional one-man plumbing and heating business that already did the right things: invoices raised properly in Xero from the van, sent the same day. Getting paid was the broken half. Customers who wanted to "sort it now" read card numbers down the phone; everyone else got bank details by text and paid when they remembered. Evenings went on matching the bank feed by eye and writing chase messages that felt awkward to send to people he might work for again.',
+      hook:
+        'Every invoice raised properly in Xero — then the money chased by hand: card numbers read down the phone, transfers labelled “BOILER”, and reminders written on his own evenings.',
       painPoints: [
         'About half of UK small-business invoices are paid late (Xero data) — for him that meant <strong>several evenings a month</strong> writing chase texts and matching the bank feed',
         'UK businesses affected by late payment average <strong>86 hours a year</strong> of staff time chasing it (DBT / Small Business Commissioner, 2025) — for a sole trader, those hours are unpaid overtime',
@@ -614,6 +618,8 @@ export const PORTFOLIO = [
       ],
       background:
         'Rowan Physiotherapy is a fictional single-practitioner clinic run on Cliniko: diary, notes and invoicing all in one place, a card machine at the front desk, and a part-time receptionist. New patients were asked to "pop the deposit over by bank transfer" before their assessment, and six-session treatment plans were tracked in a spreadsheet — who had paid which instalment, noticed mostly when something looked wrong. Each morning began by checking transfers against the day’s diary.',
+      hook:
+        'Patients asked to “pop the deposit over by bank transfer”, treatment plans tracked in a spreadsheet, and every morning starting by checking transfers against the day’s diary.',
       painPoints: [
         'No-shows: the NHS alone recorded <strong>8.4 million missed outpatient appointments in 2024–25</strong> — and a missed private slot is unsellable revenue plus a gap in someone’s recovery',
         'An unpaid deposit was only discovered <strong>the morning of the appointment</strong>, when it was too late to refill the slot',
@@ -890,6 +896,8 @@ export const PORTFOLIO = [
       ],
       background:
         'Stillwater Weddings is a fictional photographer whose entire business ran on an inbox, an enquiry spreadsheet and e-signed contracts — which is to say, like most creative sole traders. Every booking meant two payments to shepherd by hand: a deposit to confirm the date, then a balance chased by email about a month before the wedding, landing in the couple’s most stressful fortnight. Fifty hand-written payment conversations a season, each one a small withdrawal from the client relationship.',
+      hook:
+        'Two payments to shepherd by hand for every booking — a deposit to hold the date, then a balance chased by email in the couple’s most stressful fortnight.',
       painPoints: [
         'Two payments per wedding × 25 weddings = <strong>~50 hand-typed payment threads</strong> a season, each needing follow-up, checking and a thank-you',
         'Balance chasing lands <strong>four weeks before the wedding</strong> — precisely when couples are most stretched and goodwill matters most',
@@ -1139,6 +1147,8 @@ export const PORTFOLIO = [
       ],
       background:
         'Whitmore & Co. is a fictional five-person practice of a familiar kind: client work managed in long-serving desktop practice software, the firm’s own books in Xero, and a hundred and twenty retainer clients paying by standing orders the clients themselves had to set up. Standing orders break silently — a client changes bank and the retainer just stops, discovered two months later in a reconciliation. One-off fees went out as invoices and came back as transfers, eventually. A capable team was spending real hours on credit control for predictable, agreed amounts.',
+      hook:
+        'A hundred and twenty retainers paid by standing orders the clients set up themselves — and standing orders break silently, found two months later in a reconciliation.',
       painPoints: [
         '<strong>40% of small accountancy practices</strong> spend over an hour every week chasing overdue invoices (GoCardless × FSB survey, 2025)',
         '<strong>57% sometimes write debts off</strong> rather than keep chasing them (same survey) — forfeiting fees that were never in dispute',
@@ -1404,6 +1414,8 @@ export const PORTFOLIO = [
       ],
       background:
         'Camber & Finch is a fictional fine-art, antiques and collectables auction house — country-house sales, jewellery, silver and pictures. After each sale, hundreds of winning buyers owe an invoice of hammer price plus buyer’s premium. Historically they paid by bank transfer (matched by hand against a bidder number) or read card details down the phone to the saleroom office. The week after every sale was a reconciliation marathon, and nothing could be released or shipped until a payment was found and matched.',
+      hook:
+        'Hundreds of winning buyers after every sale, paying by transfer matched to a bidder number by hand or card details read down the phone — and nothing ships until each one is found.',
       painPoints: [
         'Hundreds of invoices to settle and match by hand against bidder numbers after <strong>every</strong> sale — days of post-sale admin per auction',
         'Card details over the phone are the riskiest way to take payment — remote-purchase fraud cost the UK <strong>nearly £400m in 2024</strong> (UK Finance) — and they pull the saleroom phone line into PCI scope',
@@ -1647,7 +1659,7 @@ export const PORTFOLIO = [
         volumeLabel: 'Buyer invoices a year',
         minutesLabel: 'Minutes matching & chasing each one today',
         rateLabel: 'Your admin hourly rate',
-        volume: { default: 4000, min: 500, max: 12000, step: 250 },
+        volume: { default: 8000, min: 500, max: 16000, step: 250 },
         minutes: { default: 4, min: 1, max: 15, step: 1 },
         rate: { default: 14, min: 11, max: 25, step: 1 },
         lens: 'And lots clear faster: overseas buyers pay by card the moment the sale ends, so items can be released and shipped without waiting days for a transfer to arrive and be matched.',

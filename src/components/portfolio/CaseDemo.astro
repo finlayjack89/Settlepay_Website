@@ -1,0 +1,70 @@
+---
+/* The product section — the interactive branded payment page itself.
+   Extracted so it can lead the page (live client) or follow the hook
+   (modelled cases) without duplicating the markup. `Demo` is the resolved
+   checkout component for this case, passed in from work/[slug].astro. */
+import SectionHeader from '../SectionHeader.astro';
+import DemoBanner from './DemoBanner.astro';
+import CheckoutTemplate from '../previews/CheckoutTemplate.astro';
+import ReconcileTemplate from '../previews/ReconcileTemplate.astro';
+
+const { entry, Demo } = Astro.props;
+---
+<section class="case-demo section-pad">
+  <div class="container">
+    {entry.live && Demo ? (
+      <>
+        <SectionHeader
+          eyebrow="The Page"
+          title="The Real "
+          blue="Lockdales Page"
+          subtitle="A faithful reconstruction of the branded payment page we built for Lockdales — try the card flow below."
+        />
+        <div class="case-demo__stage">
+          <div class="bezel-wrap">
+            <Demo />
+          </div>
+          <p class="case-demo__caption">
+            An illustrative reconstruction of the live Lockdales "Pay Your Invoice" page (bank
+            details masked) — not the live site, and no real payments are taken.
+          </p>
+        </div>
+      </>
+    ) : Demo ? (
+      <>
+        <SectionHeader
+          eyebrow="The Page"
+          title="Try the "
+          blue="Interactive Demo"
+          subtitle={`A working page in the ${entry.name} branding — a fictional brand, running in test mode only.`}
+        />
+        <div class="case-demo__stage">
+          <DemoBanner />
+          <div class="bezel-wrap">
+            <Demo />
+          </div>
+          <p class="case-demo__caption">
+            {entry.name} is a fictional brand created for this demonstration — it is not a
+            SettlePay client and no real payments are taken.
+          </p>
+        </div>
+      </>
+    ) : (
+      <>
+        <SectionHeader
+          eyebrow="The Build"
+          title="Inside the "
+          blue="Build"
+          subtitle="The shape of the checkout behind the case study."
+        />
+        <div class="case-demo__pair">
+          <div class="bezel-wrap"><CheckoutTemplate /></div>
+          <div class="bezel-wrap"><ReconcileTemplate /></div>
+        </div>
+        <p class="case-demo__caption">
+          Illustrative reconstructions — not screenshots of live client data.
+        </p>
+      </>
+    )}
+  </div>
+</section>

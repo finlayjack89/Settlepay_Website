@@ -5,13 +5,11 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import Button from '../../components/Button.astro';
 import Icon from '../../components/Icon.astro';
 import SectionHeader from '../../components/SectionHeader.astro';
-import DemoBanner from '../../components/portfolio/DemoBanner.astro';
+import CaseDemo from '../../components/portfolio/CaseDemo.astro';
 import CaseFlow from '../../components/portfolio/CaseFlow.astro';
 import WorkflowTheatre from '../../components/portfolio/WorkflowTheatre.astro';
 import RoiCalculator from '../../components/portfolio/RoiCalculator.astro';
 import StatTiles from '../../components/portfolio/StatTiles.astro';
-import CheckoutTemplate from '../../components/previews/CheckoutTemplate.astro';
-import ReconcileTemplate from '../../components/previews/ReconcileTemplate.astro';
 import LockdalesCheckout from '../../components/portfolio/demos/LockdalesCheckout.astro';
 import HarboursideCheckout from '../../components/portfolio/demos/HarboursideCheckout.astro';
 import MarshValeCheckout from '../../components/portfolio/demos/MarshValeCheckout.astro';
@@ -94,6 +92,7 @@ const jsonLd = [
             blue="Time Was Going"
             subtitle="A fictional business, drawn from a real and common shape — and the payment admin it was carrying."
           />
+          {cs.hook && <p class="case-hook">{cs.hook}</p>}
           <div class="case-profile" role="list">
             {cs.profile.map((p) => (
               <div class="case-profile__item" role="listitem">
@@ -116,31 +115,7 @@ const jsonLd = [
         </div>
       </section>
 
-      <section class="case-systems section-pad">
-        <div class="container">
-          <SectionHeader
-            eyebrow="Systems & Access"
-            title="What We Could "
-            blue="Realistically Touch"
-            subtitle="An honest map of the existing setup — because what a third-party developer can and cannot access decides what should be promised."
-          />
-          <div class="sys-grid">
-            <div class="sys-col">
-              <h3 class="sys-col__title"><Icon name="cog" sw={1.8} />Already in Place</h3>
-              <ul>{cs.setup.had.map((x) => <li>{x}</li>)}</ul>
-            </div>
-            <div class="sys-col sys-col--access">
-              <h3 class="sys-col__title"><Icon name="check" sw={2} />What We Worked With</h3>
-              <ul>{cs.setup.access.map((x) => <li>{x}</li>)}</ul>
-            </div>
-            <div class="sys-col sys-col--untouched">
-              <h3 class="sys-col__title"><Icon name="lock" sw={1.8} />What Stayed Untouched</h3>
-              <ul>{cs.setup.untouched.map((x) => <li>{x}</li>)}</ul>
-            </div>
-          </div>
-          <p class="sys-note">{cs.setup.note}</p>
-        </div>
-      </section>
+      <CaseDemo entry={entry} Demo={Demo} />
 
       <section class="case-build section-pad">
         <div class="container">
@@ -169,139 +144,118 @@ const jsonLd = [
           )}
         </div>
       </section>
-    </>
-  ) : (
-    <section class="case-story section-pad">
-      <div class="container">
-        <div class="case-story__grid">
-          <div class="case-story__block">
-            <h2 class="case-story__label">The Challenge</h2>
-            <p>{entry.story.challenge}</p>
-          </div>
-          <div class="case-story__block">
-            <h2 class="case-story__label">The Solution</h2>
-            <p>{entry.story.solution}</p>
-          </div>
-          <div class="case-story__block">
-            <h2 class="case-story__label">The Impact</h2>
-            <ul class="use-case__impact">
-              {entry.story.impact.map((x) => (
-                <li><Icon name="check" sw={2.5} />{x}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-  )}
 
-  <section class="case-demo section-pad">
-    <div class="container">
-      {entry.live && Demo ? (
-        <>
-          <SectionHeader
-            eyebrow="The Build"
-            title="The Real "
-            blue="Lockdales Page"
-            subtitle="A faithful reconstruction of the branded payment page we built for Lockdales — try the card flow below."
-          />
-          <div class="case-demo__stage">
-            <div class="bezel-wrap">
-              <Demo />
-            </div>
-            <p class="case-demo__caption">
-              An illustrative reconstruction of the live Lockdales "Pay Your Invoice" page (bank
-              details masked) — not the live site, and no real payments are taken.
-            </p>
-          </div>
-        </>
-      ) : Demo ? (
-        <>
-          <SectionHeader
-            eyebrow="The Demo"
-            title="Try the "
-            blue="Interactive Demo"
-            subtitle={`A working page in the ${entry.name} branding — a fictional brand, running in test mode only.`}
-          />
-          <div class="case-demo__stage">
-            <DemoBanner />
-            <div class="bezel-wrap">
-              <Demo />
-            </div>
-            <p class="case-demo__caption">
-              {entry.name} is a fictional brand created for this demonstration — it is not a
-              SettlePay client and no real payments are taken.
-            </p>
-          </div>
-        </>
-      ) : (
-        <>
-          <SectionHeader
-            eyebrow="The Build"
-            title="Inside the "
-            blue="Build"
-            subtitle="The shape of the checkout behind the case study."
-          />
-          <div class="case-demo__pair">
-            <div class="bezel-wrap"><CheckoutTemplate /></div>
-            <div class="bezel-wrap"><ReconcileTemplate /></div>
-          </div>
-          <p class="case-demo__caption">
-            Illustrative reconstructions — not screenshots of live client data.
-          </p>
-        </>
-      )}
-    </div>
-  </section>
-
-  {cs && (
-    <>
-      <section class="case-outcome section-pad">
+      <section class="case-systems section-pad">
         <div class="container">
           <SectionHeader
-            eyebrow="The Modelled Outcome"
-            title="What That Adds Up To, "
-            blue="Honestly"
-            subtitle="Quantified from published UK industry figures — and labelled as the model it is, not passed off as a client result."
+            eyebrow="Systems & Access"
+            title="What We Could "
+            blue="Realistically Touch"
+            subtitle="An honest map of the existing setup — because what a third-party developer can and cannot access decides what should be promised."
           />
-          <StatTiles outcome={cs.outcome} />
-          {cs.roi && (
-            <div class="case-roi">
-              <h3 class="case-roi__title">Now Try It on Your Own Numbers</h3>
-              <p class="case-roi__lead">Drag the sliders to your business. The figures recompute live, costed against the same UK data.</p>
-              <RoiCalculator roi={cs.roi} accent={entry.brand.accent} />
+          <div class="sys-grid">
+            <div class="sys-col">
+              <h3 class="sys-col__title"><Icon name="cog" sw={1.8} />Already in Place</h3>
+              <ul>{cs.setup.had.map((x) => <li>{x}</li>)}</ul>
             </div>
-          )}
+            <div class="sys-col sys-col--access">
+              <h3 class="sys-col__title"><Icon name="check" sw={2} />What We Worked With</h3>
+              <ul>{cs.setup.access.map((x) => <li>{x}</li>)}</ul>
+            </div>
+            <div class="sys-col sys-col--untouched">
+              <h3 class="sys-col__title"><Icon name="lock" sw={1.8} />What Stayed Untouched</h3>
+              <ul>{cs.setup.untouched.map((x) => <li>{x}</li>)}</ul>
+            </div>
+          </div>
+          <p class="sys-note">{cs.setup.note}</p>
+        </div>
+      </section>
+    </>
+  ) : (
+    <>
+      <CaseDemo entry={entry} Demo={Demo} />
+
+      <section class="case-story section-pad">
+        <div class="container">
+          <div class="case-story__grid">
+            <div class="case-story__block">
+              <h2 class="case-story__label">The Challenge</h2>
+              <p>{entry.story.challenge}</p>
+            </div>
+            <div class="case-story__block">
+              <h2 class="case-story__label">The Solution</h2>
+              <p>{entry.story.solution}</p>
+            </div>
+            <div class="case-story__block">
+              <h2 class="case-story__label">The Impact</h2>
+              <ul class="use-case__impact">
+                {entry.story.impact.map((x) => (
+                  <li><Icon name="check" sw={2.5} />{x}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="case-capabilities section-pad">
+        <div class="container">
+          <SectionHeader
+            eyebrow="Capabilities"
+            title="What This "
+            blue="Demonstrates"
+            subtitle="The patterns in this build that carry over to any business getting paid the hard way today."
+          />
+          <div class="cap-grid">
+            {entry.capabilities.map((c, i) => (
+              <div class="cap-tile">
+                <div class={'cap-tile__icon' + (['', 'green', 'amber', 'purple'][i % 4] ? ' cap-tile__icon--' + ['', 'green', 'amber', 'purple'][i % 4] : '')}>
+                  <Icon name={c.icon} sw={1.5} />
+                </div>
+                <div>
+                  <h3 class="cap-tile__title">{c.title}</h3>
+                  <p class="cap-tile__text">{c.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </>
   )}
 
-  {!cs && (
-    <section class="case-capabilities section-pad">
+  {cs && (
+    <section class="case-outcome section-pad">
       <div class="container">
         <SectionHeader
-          eyebrow="Capabilities"
-          title="What This "
-          blue="Demonstrates"
-          subtitle="The patterns in this build that carry over to any business getting paid the hard way today."
+          eyebrow="The Modelled Outcome"
+          title="What That Adds Up To, "
+          blue="Honestly"
+          subtitle="Quantified from published UK industry figures — and labelled as the model it is, not passed off as a client result."
         />
-        <div class="cap-grid">
-          {entry.capabilities.map((c, i) => (
-            <div class="cap-tile">
-              <div class={'cap-tile__icon' + (['', 'green', 'amber', 'purple'][i % 4] ? ' cap-tile__icon--' + ['', 'green', 'amber', 'purple'][i % 4] : '')}>
-                <Icon name={c.icon} sw={1.5} />
-              </div>
-              <div>
-                <h3 class="cap-tile__title">{c.title}</h3>
-                <p class="cap-tile__text">{c.text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <StatTiles outcome={cs.outcome} />
+        {cs.roi && (
+          <div class="case-roi">
+            <h3 class="case-roi__title">Now Try It on Your Own Numbers</h3>
+            <p class="case-roi__lead">Drag the sliders — or type your own figures — and the savings recompute live, costed against the same UK data. The model fits any scale, from a sole trader to a saleroom settling thousands a month.</p>
+            <RoiCalculator roi={cs.roi} accent={entry.brand.accent} />
+          </div>
+        )}
       </div>
     </section>
   )}
+
+  <section class="case-inline-cta">
+    <div class="container">
+      <div class="case-inline-cta__inner">
+        <p class="case-inline-cta__text">{cs ? 'Curious what this would recover in your own business?' : 'Want a branded payment page like this one?'}</p>
+        <button type="button" class="case-inline-cta__link" data-enquire>
+          Tell us how you get paid today
+          <Icon name="arrow" sw={2.5} />
+        </button>
+      </div>
+    </div>
+  </section>
 
   <section class="case-connect">
     <div class="container">

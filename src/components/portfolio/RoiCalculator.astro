@@ -3,7 +3,12 @@
    Driven by caseStudy.roi (see portfolio.mjs). One honest model used across
    every vertical: volume x minutes-of-admin-per-item x hourly-rate -> hours
    saved per month and money recovered per year. Defaults reproduce the
-   modelled story above it; the visitor drags to their own numbers.
+   modelled story above it.
+
+   Each figure has a slider AND an editable number box: the slider gives a quick
+   feel within the band tuned to this example; the number box lets a visitor type
+   their real figure. Volume may be typed beyond the slider's band so any scale
+   fits the same model — a sole trader on ~30 a month or a saleroom on thousands.
 
    Figures remain illustrative — the disclaimer is load-bearing and always
    renders. Self-contained scoped script; no dependency on SiteScripts. */
@@ -57,7 +62,21 @@ const sliders = [
             aria-label={s.label}
             style={fill(pct(s.cfg.default, s.cfg.min, s.cfg.max))}
           />
-          <span class="roi__value" data-val={s.key}>{s.prefix ?? ''}{s.cfg.default}{s.suffix}</span>
+          <span class="roi__value">
+            {s.prefix && <span class="roi__affix roi__affix--pre">{s.prefix}</span>}
+            <input
+              type="number"
+              class={'roi__num' + (s.prefix ? ' roi__num--pre' : '')}
+              data-num={s.key}
+              value={s.cfg.default}
+              min={s.cfg.min}
+              step={s.cfg.step}
+              inputmode="numeric"
+              aria-label={s.label}
+              style={`width:${s.key === 'volume' ? '5.5ch' : '3.2ch'}`}
+            />
+            {s.suffix && <span class="roi__affix roi__affix--suf">{s.suffix.trim()}</span>}
+          </span>
         </div>
       </div>
     ))}
@@ -150,12 +169,52 @@ const sliders = [
     outline-offset: 4px;
   }
   .roi__value {
-    min-width: 96px;
-    text-align: right;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 0.1rem;
+    min-width: 132px;
     font-size: 0.95rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--color-primary-brand);
+  }
+  .roi__affix {
+    flex-shrink: 0;
+  }
+  .roi__affix--suf {
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.55);
+  }
+  .roi__num {
+    padding: 0.05rem 0.1rem;
+    border: none;
+    border-bottom: 1.5px dashed rgba(15, 23, 42, 0.25);
+    background: transparent;
+    font: inherit;
+    font-weight: 700;
+    text-align: right;
+    color: var(--color-primary-brand);
+    -moz-appearance: textfield;
+    appearance: textfield;
+    cursor: text;
+    transition: border-color var(--ease-out, ease) 0.15s;
+  }
+  .roi__num--pre {
+    text-align: left;
+  }
+  .roi__num::-webkit-outer-spin-button,
+  .roi__num::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .roi__num:hover {
+    border-bottom-color: rgba(15, 23, 42, 0.45);
+  }
+  .roi__num:focus {
+    outline: none;
+    border-bottom-style: solid;
+    border-bottom-color: var(--color-primary-action);
   }
   .roi__results {
     display: grid;
@@ -278,14 +337,9 @@ const sliders = [
     function fill(el) {
       const min = Number(el.min);
       const max = Number(el.max);
-      const p = ((Number(el.value) - min) / (max - min)) * 100;
+      const shown = Math.min(Math.max(Number(el.value), min), max);
+      const p = ((shown - min) / (max - min)) * 100;
       el.style.background = `linear-gradient(to right, var(--color-primary-action) ${p}%, rgba(15,23,42,.1) ${p}%)`;
-    }
-
-    function valueLabel(key, val) {
-      if (key === "rate") return "£" + val;
-      if (key === "minutes") return val + " min";
-      return val + (period === "month" ? " / month" : " / year");
     }
 
     function render() {
@@ -297,13 +351,46 @@ const sliders = [
 
     ranges.forEach((el) => {
       const key = el.dataset.range;
-      const label = root.querySelector(`[data-val="${key}"]`);
+      const num = root.querySelector(`[data-num="${key}"]`);
+      const sMin = Number(el.min);
+      const sMax = Number(el.max);
+      // Volume can exceed the slider's comfortable band (type your real scale —
+      // a sole trader or a saleroom settling thousands a month). Minutes and rate
+      // stay within their sensible caps.
+      const hardMax = key === "volume" ? 1000000 : sMax;
+
+      // Slider moved → write the number, peg state.
       el.addEventListener("input", () => {
         state[key] = Number(el.value);
-        if (label) label.textContent = valueLabel(key, state[key]);
+        if (num) num.value = String(state[key]);
         fill(el);
         render();
       });
+
+      if (num) {
+        // Typed → update live, peg the slider to its band, leave the field as typed.
+        num.addEventListener("input", () => {
+          const v = Number(num.value);
+          if (!Number.isFinite(v) || num.value === "") return;
+          state[key] = Math.min(Math.max(v, sMin), hardMax);
+          el.value = String(Math.min(state[key], sMax));
+          fill(el);
+          render();
+        });
+        // Blur/change → normalise the field text to the clamped value.
+        const normalise = () => {
+          let v = Number(num.value);
+          if (!Number.isFinite(v) || v < sMin) v = sMin;
+          if (v > hardMax) v = hardMax;
+          num.value = String(v);
+          state[key] = v;
+          el.value = String(Math.min(v, sMax));
+          fill(el);
+          render();
+        };
+        num.addEventListener("change", normalise);
+        num.addEventListener("blur", normalise);
+      }
     });
 
     render();
