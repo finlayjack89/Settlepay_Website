@@ -12,8 +12,8 @@ const mPct = ((mins - 2) / (30 - 2)) * 100;
 const fill = (pct) =>
   `background: linear-gradient(to right, var(--color-primary-action) ${pct}%, rgba(15,23,42,.08) ${pct}%)`;
 ---
-<section class="calculator section-pad" id="savings" data-screen-label="ROI calculator">
-  <div class="container">
+<section class="calculator section-pad" data-screen-label="ROI calculator">
+  <div class="container" id="savings">
     <SectionHeader
       eyebrow="See the impact"
       sentence={true}

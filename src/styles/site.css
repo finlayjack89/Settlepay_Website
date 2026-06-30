@@ -41,10 +41,8 @@
   border: 0;
 }
 
-/* Add gentle scroll offset so anchor targets clear the floating nav. */
-:target {
-  scroll-margin-top: 90px;
-}
+/* Anchor-scroll offset is handled globally via `html { scroll-padding-top }`
+   (= --nav-offset), so anchor targets clear the floating nav consistently. */
 
 /* ---- Inner-page header (About / FAQ / legal) ---- */
 .page-header {
@@ -136,7 +134,6 @@
   letter-spacing: -0.02em;
   color: var(--color-primary-brand);
   margin-top: 2.75rem;
-  scroll-margin-top: 90px;
 }
 .prose h3 {
   font-size: 1.15rem;

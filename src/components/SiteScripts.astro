@@ -25,6 +25,26 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Navbar grow→shrink on scroll (full-bleed bar → floating pill)
+  // ---------------------------------------------------------------------------
+  if (nav) {
+    const SCROLL_THRESHOLD = 32;
+    let navTicking = false;
+    const applyNavState = () => {
+      nav.classList.toggle('is-scrolled', window.scrollY > SCROLL_THRESHOLD);
+      navTicking = false;
+    };
+    const onNavScroll = () => {
+      if (!navTicking) {
+        window.requestAnimationFrame(applyNavState);
+        navTicking = true;
+      }
+    };
+    applyNavState(); // set correct state on load (e.g. deep-link with #hash)
+    window.addEventListener('scroll', onNavScroll, { passive: true });
+  }
+
+  // ---------------------------------------------------------------------------
   // Hero checkout mockup — payment-method accordion
   // ---------------------------------------------------------------------------
   const checkout = document.querySelector('[data-checkout]');
