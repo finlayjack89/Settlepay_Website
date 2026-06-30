@@ -77,7 +77,17 @@ def enquiry_update(lead_id: str, status: str = Form(...), notes: str = Form(""))
 
 @app.get("/schedule", response_class=HTMLResponse)
 def schedule():
-    return views.schedule(_side())
+    if not db.db_ok():
+        return views.schedule(_side(), connected=False, upcoming=[], recent=[])
+    try:
+        with db.cursor() as cur:
+            if not db.bookings_exists(cur):
+                return views.schedule(_side(), connected=False, upcoming=[], recent=[])
+            upcoming = db.upcoming_bookings(cur)
+            recent = db.recent_bookings(cur)
+    except Exception:
+        return views.schedule(_side(), connected=False, upcoming=[], recent=[])
+    return views.schedule(_side(), connected=True, upcoming=upcoming, recent=recent)
 
 
 @app.get("/settings", response_class=HTMLResponse)

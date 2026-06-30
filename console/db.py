@@ -93,3 +93,30 @@ def update(cur, lead_id: str, status: str, notes: str) -> None:
     cur.execute(
         f"update {_T} set status = %s, notes = %s where id = %s::uuid",
         (status, notes or None, lead_id))
+
+
+# --- bookings (consultations captured from Cal.com via the cal-webhook function) ---
+
+def bookings_exists(cur) -> bool:
+    """True once the public.bookings migration has been applied."""
+    cur.execute("select to_regclass('public.bookings') is not null as ok")
+    row = cur.fetchone()
+    return bool(row and row["ok"])
+
+
+def upcoming_bookings(cur, limit: int = 100) -> list[dict]:
+    cur.execute(
+        "select id, status, title, start_at, end_at, attendee_name, attendee_email, "
+        "attendee_timezone, join_url, lead_id from public.bookings "
+        "where status <> 'cancelled' and start_at >= now() - interval '1 hour' "
+        "order by start_at asc limit %s", (limit,))
+    return cur.fetchall()
+
+
+def recent_bookings(cur, limit: int = 25) -> list[dict]:
+    cur.execute(
+        "select id, status, title, start_at, attendee_name, attendee_email, join_url, lead_id "
+        "from public.bookings "
+        "where status = 'cancelled' or start_at < now() - interval '1 hour' "
+        "order by start_at desc limit %s", (limit,))
+    return cur.fetchall()

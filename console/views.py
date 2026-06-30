@@ -12,6 +12,7 @@ Routes + DB live in app.py / db.py.
 from __future__ import annotations
 import html
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 NAV = [
     ("/", "Dashboard", "grid"),
@@ -165,6 +166,29 @@ def _badge(status: str) -> str:
     return f'<span class="badge b-{kind}">{html.escape(label)}</span>'
 
 
+_UK = ZoneInfo("Europe/London")
+
+_BOOKING_STATUS = {
+    "confirmed": ("Confirmed", "success"),
+    "rescheduled": ("Rescheduled", "info"),
+    "cancelled": ("Cancelled", "muted"),
+}
+
+
+def _booking_badge(status: str) -> str:
+    label, kind = _BOOKING_STATUS.get(status, (status, "neutral"))
+    return f'<span class="badge b-{kind}">{html.escape(label)}</span>'
+
+
+def _when(dt: datetime | None) -> str:
+    """Format a booking time in UK local time, e.g. 'Tue 01 Jul · 14:00'."""
+    if not dt:
+        return "—"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_UK).strftime("%a %d %b · %H:%M")
+
+
 def _ago(dt: datetime | None) -> str:
     if not dt:
         return ""
@@ -184,9 +208,6 @@ def _ago(dt: datetime | None) -> str:
 def _shell(active: str, title: str, sub: str, body: str, side_status: str) -> str:
     nav = ""
     for href, label, icon in NAV:
-        if label == "Schedule":
-            nav += f'<a class="soon">{_icon(icon)}<span>{label}</span><span class="tag">Soon</span></a>'
-            continue
         cls = "active" if href == active else ""
         nav += f'<a class="{cls}" href="{href}">{_icon(icon)}<span>{label}</span></a>'
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -212,7 +233,7 @@ def _side_status(db_ok: bool, source_table: str) -> str:
     else:
         line = '<span class="dot dot-red"></span>DB not configured'
     return (f"{line}<br><span class=\"muted\" style=\"color:rgba(255,255,255,.45);font-size:.7rem\">"
-            f"Source: public.{html.escape(source_table)} · Schedule: not connected</span>")
+            f"Source: public.{html.escape(source_table)}</span>")
 
 
 # --------------------------------------------------------------------------- #
@@ -332,13 +353,65 @@ def enquiry_detail(lead: dict, side: str, saved: bool = False) -> str:
 
 
 # --------------------------------------------------------------------------- #
-def schedule(side: str) -> str:
-    body = """
-<div class="note">Consultations &amp; bookings will appear here once Microsoft Bookings + the Microsoft Graph
-connection are live. That needs a Teams/Bookings-capable M365 licence and a one-time Entra app registration —
-see <b>Docs/BOOKING-CRM-PLAN.md</b>. Until then this view is a placeholder.</div>
-<div class="panel"><div class="empty">No schedule connected yet.</div></div>"""
-    return _shell("/schedule", "Schedule", "Consultations & bookings (coming soon)", body, side)
+def schedule(side: str, connected: bool, upcoming: list[dict], recent: list[dict]) -> str:
+    if not connected:
+        body = """
+<div class="note">Bookings appear here once the <b>public.bookings</b> table exists
+(<code>supabase&nbsp;db&nbsp;push</code>) and the Cal.com webhook is connected.
+Booking page: <b>cal.eu/settlepay/30min</b> · see <b>Docs/BOOKING-CRM-PLAN.md</b>.</div>
+<div class="panel"><div class="empty">No bookings connected yet.</div></div>"""
+        return _shell("/schedule", "Schedule", "Consultations & bookings", body, side)
+
+    now = datetime.now(timezone.utc)
+    week = sum(1 for b in upcoming
+               if b["start_at"] and (b["start_at"] - now).total_seconds() < 7 * 86400)
+    nxt = _when(upcoming[0]["start_at"]) if upcoming else "—"
+    tiles = [
+        ("accent", len(upcoming), "Upcoming", "confirmed consultations"),
+        ("", week, "This week", "next 7 days"),
+    ]
+    kpis = "".join(
+        f'<div class="tile {cls}"><div class="n">{n}</div><div class="l">{l}</div><div class="s">{s}</div></div>'
+        for cls, n, l, s in tiles)
+
+    def _who(b: dict) -> str:
+        name = html.escape(b.get("attendee_name") or "—")
+        email = b.get("attendee_email") or ""
+        sub = (f'<br><span class="muted" style="font-size:.74rem">{html.escape(email)}</span>'
+               if email else "")
+        if b.get("lead_id"):
+            sub += (f' <a href="/enquiry/{html.escape(str(b["lead_id"]))}" '
+                    f'class="muted" style="font-size:.72rem">· from enquiry</a>')
+        return f'<b>{name}</b>{sub}'
+
+    def _join(b: dict) -> str:
+        u = b.get("join_url")
+        if not u:
+            return '<span class="muted">—</span>'
+        return (f'<a class="btn btn-ghost" style="padding:.32rem .85rem;font-size:.76rem" '
+                f'href="{html.escape(u)}" target="_blank" rel="noopener">Join</a>')
+
+    up = "".join(
+        f'<tr><td>{_when(b["start_at"])}</td><td>{_who(b)}</td>'
+        f'<td>{_join(b)}</td><td>{_booking_badge(b["status"])}</td></tr>'
+        for b in upcoming) or '<tr><td colspan=4 class="empty">No upcoming consultations.</td></tr>'
+
+    body = f"""<div class="kpis">{kpis}</div>
+<div class="panel"><h2>Upcoming consultations</h2>
+  <div class="hint">Booked via cal.eu/settlepay · next up: {html.escape(nxt)}</div>
+  <table><tr><th>When (UK)</th><th>Who</th><th>Link</th><th>Status</th></tr>{up}</table>
+</div>"""
+
+    if recent:
+        rec = "".join(
+            f'<tr><td>{_when(b["start_at"])}</td><td>{_who(b)}</td>'
+            f'<td>{_booking_badge(b["status"])}</td></tr>'
+            for b in recent)
+        body += f"""<div class="panel"><h2>Recent &amp; past</h2>
+  <div class="hint">Completed and cancelled consultations.</div>
+  <table><tr><th>When (UK)</th><th>Who</th><th>Status</th></tr>{rec}</table></div>"""
+
+    return _shell("/schedule", "Schedule", "Consultations booked via Cal.com", body, side)
 
 
 # --------------------------------------------------------------------------- #
@@ -357,8 +430,8 @@ def settings(cfg: dict, side: str) -> str:
     <dl class="kv">
       <dt>Enquiry capture</dt><dd><span class="badge b-success">live</span></dd>
       <dt>Branded emails</dt><dd><span class="badge b-success">live (01/02)</span></dd>
-      <dt>Microsoft Graph</dt><dd><span class="badge b-muted">not configured</span> <span class="muted">(schedule/Teams)</span></dd>
-      <dt>Bookings</dt><dd><span class="badge b-muted">pending licence</span></dd>
+      <dt>Bookings (Cal.com)</dt><dd><span class="badge b-info">webhook deployed</span> <span class="muted">(cal.eu/settlepay)</span></dd>
+      <dt>Video</dt><dd><span class="badge b-muted">Cal Video</span></dd>
     </dl></div>
 </div>
 <div class="note">This console is <b>localhost-only and unauthenticated</b> — do not expose it publicly. It mirrors
