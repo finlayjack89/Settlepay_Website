@@ -37,6 +37,9 @@ export const SITE = {
   // Leave empty to fall back to the no-backend mailto: flow.
   formEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/enquiry',
 
+  // Public booking page (Cal.com EU region) — secondary CTA to the enquiry form.
+  bookingUrl: 'https://cal.eu/settlepay/30min',
+
   // Default SEO
   defaultTitle: 'SettlePay — Bespoke Payment Pages for UK Businesses',
   titleTemplate: '%s · SettlePay',
