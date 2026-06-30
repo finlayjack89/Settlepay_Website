@@ -256,7 +256,7 @@ def _safety() -> dict:
         "kill": bool(config.KILL_SWITCH),
         "cap": config.PER_INBOX_DAILY_CAP,
         "resolver": config.WEBSITE_RESOLVER,
-        "sender": config.GRAPH_SENDER or "(not configured)",
+        "sender": config.GMAIL_SENDER or "(not configured)",
         "accept_catch_all": config.ACCEPT_CATCH_ALL,
         "risky_send": config.RISKY_SEND_ENABLED,
     }
@@ -755,7 +755,7 @@ def settings():
   <div class="panel"><h2>Inbound ingestion</h2>
     <div class="hint">Reply / bounce / unsubscribe feedback loop into suppressions.</div>
     <dl class="kv">
-      <dt>Source</dt><dd>{html.escape(config.INBOUND_SOURCE)} {'<span class="badge b-muted">needs Graph Mail.Read</span>' if config.INBOUND_SOURCE=='graph' else ''}</dd>
+      <dt>Source</dt><dd>{html.escape(config.INBOUND_SOURCE)} {'<span class="badge b-muted">Gmail read — pending</span>' if config.INBOUND_SOURCE!='inline' else ''}</dd>
       <dt>Run</dt><dd class="muted"><code>python -m outreach.inbound</code></dd>
       <dt>Effect</dt><dd>bounce→suppress+bounced · opt-out→suppress · reply→replied</dd>
     </dl></div>

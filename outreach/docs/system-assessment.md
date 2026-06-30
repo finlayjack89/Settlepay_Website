@@ -194,8 +194,8 @@ dental 42%, with catch-all businesses now recovered rather than discarded.
 **Pre-live-send blockers — mechanism now BUILT, provisioning is yours**
 (full scope + go-live checklist in [`pre-send-blockers.md`](pre-send-blockers.md)):
 1. **Reply/bounce/unsubscribe ingestion** — ✅ built (`inbound.py`, migration 0004):
-   classify + idempotent suppression/state writes, swappable mailbox source. Needs a
-   Graph `Mail.Read` mailbox to read live.
+   classify + idempotent suppression/state writes, swappable mailbox source. The live
+   Gmail read (`gmail.readonly`) is a tracked follow-up; feed via `inline` until then.
 2. **Domain warmup + SPF/DKIM/DMARC** — ✅ built: warm-up ramp enforced in `send.py`,
    and `dns_auth.py` verifies SPF/DKIM/DMARC. Needs the dedicated sending domain +
    DNS records provisioned.

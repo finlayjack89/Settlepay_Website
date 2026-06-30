@@ -53,16 +53,22 @@ RISKY_SEND_ENABLED = _bool("RISKY_SEND_ENABLED", False)
 # --- LLM provider ---
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")
 
-# --- inbound ingestion (reply/bounce/unsubscribe): graph (live) | inline (test) ---
-INBOUND_SOURCE = os.environ.get("INBOUND_SOURCE", "graph")
+# --- inbound ingestion (reply/bounce/unsubscribe): inline (default) | gmail (TODO) ---
+# Mailboxes moved to Google Workspace; the Graph reader is retired. Reading replies via
+# Gmail (needs a broader gmail.readonly scope + its own consent) is a tracked follow-up.
+INBOUND_SOURCE = os.environ.get("INBOUND_SOURCE", "inline")
 
-# --- send: Microsoft Graph (phase G), from a SEPARATE warmed domain (never @settlepay.uk) ---
-GRAPH_TENANT_ID = os.environ.get("GRAPH_TENANT_ID")
-GRAPH_CLIENT_ID = os.environ.get("GRAPH_CLIENT_ID")
-GRAPH_CLIENT_SECRET = os.environ.get("GRAPH_CLIENT_SECRET")
-GRAPH_SENDER = os.environ.get("GRAPH_SENDER")
+# --- send: Gmail API (phase G), per-user OAuth from a SEPARATE Google Workspace
+# secondary domain (never @settlepay.uk). The refresh token is mailbox-scoped, so it
+# can only ever send as the one mailbox that consented (no domain-wide delegation). ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN")  # durable; .env only, never commit/log
+GMAIL_SENDER = os.environ.get("GMAIL_SENDER")                  # e.g. finlay@getsettlepay.uk
 
 # --- send guardrails (phase G) ---
+# Google Workspace tolerates a higher cold limit (~18-22/inbox/day) than M365 (3-5);
+# keep the default conservative — raise via env, no code change needed.
 PER_INBOX_DAILY_CAP = _int("PER_INBOX_DAILY_CAP", 5)
 KILL_SWITCH = os.environ.get("KILL_SWITCH")  # truthy => block ALL sends (dry-run included)
 

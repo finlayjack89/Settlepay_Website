@@ -64,7 +64,7 @@ rounds spent (budget: max 2, then leave + report).
   diff captured). states.py: DRAFTED→{approved,rejected,discarded}.
 - Phase G GREEN: send.py hard-gated. send_one runs 4 guards before any send (kill
   switch, individual block, check_suppression, per-inbox cap), then live gate
-  (_graph_send only reachable on mode=live AND send_enabled()). 2 dry-run sends
+  (_gmail_send only reachable on mode=live AND send_enabled()). 2 dry-run sends
   recorded; 0 live. Migration 0002 added sends.from_inbox. Judge: airtight, no bypass.
 - Phase H GREEN: run.py orchestrator (kill switch → classify → dry-run send in
   window), __main__ CLI, sequence_config.json (PLACEHOLDER timing + real graduation

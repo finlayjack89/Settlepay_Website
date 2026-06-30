@@ -48,6 +48,14 @@ def test_live_send_refused_while_gate_unset(db_rollback):
     assert cur.fetchone()[0] == 0                    # nothing sent live
 
 
+def test_gmail_send_refuses_without_credentials(monkeypatch):
+    # the Gmail backend refuses cleanly when OAuth creds are unset (no network)
+    for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "GMAIL_SENDER"):
+        monkeypatch.setattr(send.config, k, None)
+    with pytest.raises(send.SendRefused):
+        send._gmail_send("", "to@example.com", "subject", "body")
+
+
 def test_individual_subscriber_blocked_even_dry_run(db_rollback):
     cur = db_rollback.cursor()
     cn, email, did = _seed_approved(cur, sub="individual")

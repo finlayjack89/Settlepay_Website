@@ -6,7 +6,8 @@ domain reputation), and be unable to compute the bounce rate the graduation poli
 requires.
 
 Mirrors the project's provider pattern (LLMProvider / WebsiteResolver): a swappable
-`MailboxSource` (live Microsoft Graph read, or an inline source for tests/dry-run)
+`MailboxSource` (an inline source for tests/dry-run; the live Gmail read is a tracked
+follow-up — the mailboxes moved to Google Workspace, retiring the old Graph reader)
 feeds deterministic, fully-testable classification + suppression logic. Ingestion is
 idempotent on the provider message id, so re-reading the mailbox is safe.
 
@@ -57,7 +58,7 @@ def classify(msg: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-#  mailbox sources (swappable; inline for tests, Graph for live)
+#  mailbox sources (swappable; inline for tests, Gmail for live — pending)
 # --------------------------------------------------------------------------- #
 class MailboxSource(abc.ABC):
     @abc.abstractmethod
@@ -76,52 +77,26 @@ class InlineMailboxSource(MailboxSource):
         return list(self._messages)
 
 
-class GraphMailboxSource(MailboxSource):
-    """Live read via Microsoft Graph (app-only, needs Mail.Read). Only used when
-    GRAPH_* credentials are configured; never required for the build/tests."""
-
-    def __init__(self, inbox: Optional[str] = None, *, top: int = 50):
-        self.inbox = inbox or config.GRAPH_SENDER
-        self.top = top
+class GmailMailboxSource(MailboxSource):
+    """Live read via the Gmail API — NOT YET MIGRATED. The mailboxes moved to Google
+    Workspace, retiring the old Microsoft Graph reader; reading replies/bounces over
+    Gmail needs a broader scope (gmail.readonly/modify) and its own consent than the
+    send-only token, so it's a tracked follow-up. Classification + ingestion below are
+    backend-agnostic and unchanged — only the source needs wiring. Until then, feed
+    messages via InlineMailboxSource (INBOUND_SOURCE=inline)."""
 
     def fetch(self) -> list[dict]:
-        import httpx
-        tenant, cid, secret = config.GRAPH_TENANT_ID, config.GRAPH_CLIENT_ID, config.GRAPH_CLIENT_SECRET
-        if not all([tenant, cid, secret, self.inbox]):
-            raise RuntimeError("Microsoft Graph credentials / inbox not configured")
-        tok = httpx.post(
-            f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
-            data={"client_id": cid, "client_secret": secret,
-                  "scope": "https://graph.microsoft.com/.default", "grant_type": "client_credentials"},
-            timeout=30)
-        tok.raise_for_status()
-        access = tok.json()["access_token"]
-        r = httpx.get(
-            f"https://graph.microsoft.com/v1.0/users/{self.inbox}/mailFolders/inbox/messages",
-            headers={"Authorization": f"Bearer {access}"},
-            params={"$top": self.top, "$select": "id,subject,from,bodyPreview,toRecipients,receivedDateTime"},
-            timeout=30)
-        r.raise_for_status()
-        out = []
-        for m in r.json().get("value", []):
-            sender = (((m.get("from") or {}).get("emailAddress") or {}).get("address") or "").lower()
-            out.append({
-                "id": m.get("id"),
-                "from_email": sender,
-                "subject": m.get("subject") or "",
-                "body": m.get("bodyPreview") or "",
-                "received_at": m.get("receivedDateTime"),
-                "raw": {"id": m.get("id")},
-            })
-        return out
+        raise RuntimeError(
+            "Gmail inbound reader not implemented yet — set INBOUND_SOURCE=inline and "
+            "supply messages, or implement the gmail.readonly fetch (follow-up).")
 
 
 def get_source(name: Optional[str] = None, **kwargs) -> MailboxSource:
     name = name or config.INBOUND_SOURCE
     if name == "inline":
         return InlineMailboxSource(**kwargs)
-    if name == "graph":
-        return GraphMailboxSource(**kwargs)
+    if name == "gmail":
+        return GmailMailboxSource(**kwargs)
     raise ValueError(f"unknown inbound source: {name!r}")
 
 

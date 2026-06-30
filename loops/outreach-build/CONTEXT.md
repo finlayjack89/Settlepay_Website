@@ -78,9 +78,11 @@ agent returns PASS.
 - **Lead source:** Companies House **Advanced Search API** (free; env
   `COMPANIES_HOUSE_API_KEY`).
 - **Email verify:** **MillionVerifier** (env; small samples only during build).
-- **Send (phase G):** **Microsoft Graph API** from a **SEPARATE warmed domain
-  mailbox** (`settlepayhq.uk` or similar — **TBD**), **never `@settlepay.uk`**.
-  Dry-run only until **G-SEND** clears.
+- **Send (phase G):** **Gmail API** (per-user OAuth + refresh token) from a **SEPARATE
+  Google Workspace secondary domain** (e.g. `getsettlepay.uk`), **never `@settlepay.uk`**.
+  The refresh token is mailbox-scoped (no domain-wide delegation). Dry-run only until
+  **G-SEND** clears. (Was Microsoft Graph; switched because the M365 was GoDaddy-managed
+  without the admin rights the Graph app needed.)
 - **Secrets in `outreach/.env` only, never committed.**
 
 ---

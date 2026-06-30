@@ -1,4 +1,4 @@
-"""Phase G — send (Microsoft Graph). HARD-GATED, OFF by default.
+"""Phase G — send (Gmail API). HARD-GATED, OFF by default.
 
 Live cold sending is DISABLED until a human clears gate G-SEND
 (`config.send_enabled()` == G_SEND truthy). The loop can NEVER set G_SEND. Until
@@ -9,8 +9,12 @@ EVERY send (dry-run or live) passes ALL guardrails first, in order:
   2. individual/unknown block    (only corporate subscribers may be contacted)
   3. check_suppression           (outreach.suppressions ∪ inbound enquirers)
   4. risky-tier opt-in           (catch-all contacts need config.RISKY_SEND_ENABLED)
-  5. per-inbox daily cap         (config.PER_INBOX_DAILY_CAP, 3-5)
+  5. per-inbox daily cap         (config.PER_INBOX_DAILY_CAP; Google tolerates a higher
+                                  cold limit ~18-22/inbox/day than M365's 3-5 — config-driven)
 What gets sent is body_final (the human-approved text), never body_original.
+
+Backend: Gmail API users.messages.send, per-user OAuth (refresh token), from a Google
+Workspace secondary domain. The guardrail wrapper around the backend is unchanged.
 """
 from __future__ import annotations
 import datetime
@@ -29,39 +33,48 @@ def _kill_switch_on() -> bool:
     return str(config.KILL_SWITCH).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _graph_send(inbox: str, to_email: str, subject: str, body: str) -> str:
-    """Real Microsoft Graph sendMail (app-only). Only ever reached on a LIVE send,
-    which itself requires G-SEND cleared — so it never runs during the build.
-    Returns a provider message id."""
+def _gmail_send(sender: str, to_email: str, subject: str, body: str) -> str:
+    """Real Gmail API users.messages.send (per-user OAuth + refresh token). Only ever
+    reached on a LIVE send, which itself requires G-SEND cleared — so it never runs
+    during the build. WHY no service account / domain-wide delegation: the refresh
+    token is inherently mailbox-scoped — it only works for the single mailbox that
+    consented, so cross-mailbox sending is impossible by construction. Returns the
+    Gmail message id."""
+    import base64
+    from email.message import EmailMessage
+
     import httpx
 
-    tenant, client_id, secret = config.GRAPH_TENANT_ID, config.GRAPH_CLIENT_ID, config.GRAPH_CLIENT_SECRET
-    if not all([tenant, client_id, secret, inbox]):
-        raise SendRefused("Microsoft Graph credentials not configured")
+    cid, secret, refresh = config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET, config.GOOGLE_REFRESH_TOKEN
+    sender = sender or config.GMAIL_SENDER
+    if not all([cid, secret, refresh, sender]):
+        raise SendRefused("Gmail API credentials not configured")
+    # refresh token -> short-lived access token, fresh each run
     tok = httpx.post(
-        f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
-        data={"client_id": client_id, "client_secret": secret,
-              "scope": "https://graph.microsoft.com/.default", "grant_type": "client_credentials"},
+        "https://oauth2.googleapis.com/token",
+        data={"client_id": cid, "client_secret": secret,
+              "refresh_token": refresh, "grant_type": "refresh_token"},
         timeout=30,
     )
     tok.raise_for_status()
     access = tok.json()["access_token"]
+    # build an RFC 822 (MIME) message and base64url-encode it
+    msg = EmailMessage()
+    msg["To"], msg["From"], msg["Subject"] = to_email, sender, (subject or "")
+    msg.set_content(body)
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     r = httpx.post(
-        f"https://graph.microsoft.com/v1.0/users/{inbox}/sendMail",
+        f"https://gmail.googleapis.com/gmail/v1/users/{sender}/messages/send",
         headers={"Authorization": f"Bearer {access}"},
-        json={"message": {
-            "subject": subject,
-            "body": {"contentType": "Text", "content": body},
-            "toRecipients": [{"emailAddress": {"address": to_email}}],
-        }, "saveToSentItems": True},
+        json={"raw": raw},
         timeout=30,
     )
     r.raise_for_status()
-    return r.headers.get("request-id", "graph-accepted")
+    return r.json().get("id", "gmail-accepted")
 
 
 def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cur) -> dict:
-    inbox = inbox or config.GRAPH_SENDER or "test@settlepayhq.uk"
+    inbox = inbox or config.GMAIL_SENDER or "test@getsettlepay.uk"
 
     cur.execute(
         "select d.company_number, d.subject, d.body_final, d.status, "
@@ -112,7 +125,7 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     if mode == "live":
         if not config.send_enabled():
             raise SendRefused("live send disabled — gate G-SEND not cleared (G_SEND unset)")
-        provider_id = _graph_send(inbox, email, subject or "", body_final)
+        provider_id = _gmail_send(inbox, email, subject or "", body_final)
         send_mode, send_status = "live", "sent"
     else:
         provider_id, send_mode, send_status = None, "dry_run", "dry_run_ok"
