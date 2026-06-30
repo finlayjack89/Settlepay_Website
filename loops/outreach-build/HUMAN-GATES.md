@@ -70,5 +70,5 @@ than a code-only loop.
 - **Tracking:** there is no project spend-meter in this static-site repo today.
   Before first run, record where outreach spend is tracked (Companies House key
   usage, MillionVerifier credits, Anthropic API once the `api` provider is live,
-  Microsoft Graph). An unregistered paid loop is invisible, mis-attributed cost.
+  Gmail API). An unregistered paid loop is invisible, mis-attributed cost.
   Update STATE's "Spend this run" counters every iteration.

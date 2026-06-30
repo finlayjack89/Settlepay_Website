@@ -31,9 +31,9 @@ def _txt(name: str, *, client=None) -> list[str]:
             client.close()
 
 
-def check_domain(domain: str, *, dkim_selector: str = "selector1", client=None) -> dict:
+def check_domain(domain: str, *, dkim_selector: str = "google", client=None) -> dict:
     """Return SPF/DKIM/DMARC presence for `domain`. `ready` is all three present.
-    DKIM selectors are provider-specific (Microsoft 365 = selector1/selector2)."""
+    DKIM selectors are provider-specific (Google Workspace = `google`)."""
     domain = (domain or "").strip().lower().lstrip("@")
     if not domain:
         return {"domain": domain, "spf": False, "dkim": False, "dmarc": False, "ready": False}
@@ -54,10 +54,10 @@ if __name__ == "__main__":
     import sys
 
     from . import config
-    domain = sys.argv[1] if len(sys.argv) > 1 else domain_of(config.GRAPH_SENDER)
-    selector = sys.argv[2] if len(sys.argv) > 2 else "selector1"
+    domain = sys.argv[1] if len(sys.argv) > 1 else domain_of(config.GMAIL_SENDER)
+    selector = sys.argv[2] if len(sys.argv) > 2 else "google"
     if not domain:
-        print("usage: python -m outreach.dns_auth <domain> [dkim_selector]  (or set GRAPH_SENDER)")
+        print("usage: python -m outreach.dns_auth <domain> [dkim_selector]  (or set GMAIL_SENDER)")
         raise SystemExit(2)
     res = check_domain(domain, dkim_selector=selector)
     for k in ("spf", "dkim", "dmarc"):

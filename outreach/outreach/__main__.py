@@ -4,6 +4,7 @@
   python -m outreach run --stage classify
   python -m outreach run --stage send --dry-run
   python -m outreach run --stage all --live       # live still gated behind G-SEND
+  python -m outreach auth-google                   # one-off: OAuth consent -> GOOGLE_REFRESH_TOKEN
 """
 from __future__ import annotations
 import argparse
@@ -20,10 +21,14 @@ def main(argv=None):
     r.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     r.add_argument("--live", dest="dry_run", action="store_false",
                    help="attempt live send (still refused unless G-SEND is cleared)")
+    sub.add_parser("auth-google", help="one-off: OAuth consent -> print GOOGLE_REFRESH_TOKEN")
     args = p.parse_args(argv)
 
     if args.cmd == "run":
         print(run_mod.run(stage=args.stage, dry_run=args.dry_run))
+    elif args.cmd == "auth-google":
+        from . import auth_google
+        auth_google.run()
 
 
 if __name__ == "__main__":

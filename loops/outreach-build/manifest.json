@@ -113,10 +113,10 @@
     },
     {
       "id": "G",
-      "name": "send (Microsoft Graph) — HARD-GATED, OFF by default",
-      "summary": "send_email (sends body_final) wrapped in check_suppression + per-inbox daily cap (3-5) + individual-subscriber block + global kill switch. Live sending DISABLED behind gate G-SEND; dry-run / test mailbox only until cleared.",
+      "name": "send (Gmail API) — HARD-GATED, OFF by default",
+      "summary": "send_email (sends body_final) wrapped in check_suppression + per-inbox daily cap + individual-subscriber block + global kill switch. Live sending DISABLED behind gate G-SEND; dry-run / test mailbox only until cleared.",
       "builds": [
-        "send_email via Microsoft Graph from a SEPARATE warmed domain mailbox (settlepayhq.uk or similar — TBD), never @settlepay.uk",
+        "send_email via Gmail API (per-user OAuth + refresh token) from a SEPARATE Google Workspace secondary domain (e.g. getsettlepay.uk), never @settlepay.uk",
         "guards: check_suppression before send, per-inbox daily cap (3-5), individual-subscriber block, global kill switch",
         "live send REFUSES while G_SEND env unset; dry-run / test mailbox only"
       ],

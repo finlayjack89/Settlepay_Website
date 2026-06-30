@@ -14,8 +14,10 @@ PECR breach), keep hard-bouncing into a fresh domain (destroying its reputation)
 and have no bounce rate — which the graduation policy requires.
 
 ### ✅ Built (`outreach/inbound.py`, migration 0004) — testable now
-- A swappable `MailboxSource` (project pattern): `GraphMailboxSource` (live read) and
-  `InlineMailboxSource` (tests / dry-run).
+- A swappable `MailboxSource` (project pattern): `InlineMailboxSource` (tests / dry-run)
+  today; the live **Gmail** read is a tracked follow-up (the mailboxes moved to Google
+  Workspace, retiring the old Graph reader — reading needs a broader `gmail.readonly`
+  scope than the send-only token).
 - `classify(msg)` → `bounce | unsubscribe | complaint | reply` (fail-safe: anything
   that reads like a stop request is treated as one).
 - `ingest()` is **idempotent** (dedupes on provider message id) and writes the loop:
@@ -29,12 +31,15 @@ and have no bounce rate — which the graduation policy requires.
 - CLI: `python -m outreach.inbound`
 
 ### 🔧 You provision
-1. A **dedicated sending domain + mailbox** (e.g. `outreach@settlepayhq.uk`) —
-   **never `@settlepay.uk`**.
-2. A **Microsoft Entra app registration** (app-only) with **`Mail.Read`** (to ingest)
-   and **`Mail.Send`** (to send) application permissions, admin-consented.
-3. Put the values in `outreach/.env`: `GRAPH_TENANT_ID`, `GRAPH_CLIENT_ID`,
-   `GRAPH_CLIENT_SECRET`, `GRAPH_SENDER`, and `INBOUND_SOURCE=graph`.
+1. A **dedicated sending domain + mailbox** on **Google Workspace** (a secondary
+   domain, e.g. `finlay@getsettlepay.uk`) — **never `@settlepay.uk`**.
+2. A **Google Cloud OAuth client** ("Internal" in our Workspace — no verification).
+   For sending, consent once with the `gmail.send` scope via
+   `python -m outreach auth-google`. (Reading replies later needs a broader
+   `gmail.readonly`/`modify` scope + its own consent — the inbound follow-up.)
+3. Put the values in `outreach/.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+   `GOOGLE_REFRESH_TOKEN`, `GMAIL_SENDER`. Inbound ingestion stays `INBOUND_SOURCE=inline`
+   (feed messages manually) until the Gmail reader lands.
 
 ### Then operate it
 Run `python -m outreach.inbound` on a schedule (cron / a `/schedule` routine) so
@@ -58,8 +63,9 @@ full volume from day one, lands in spam — wasting the entire funnel at the las
   CLI: `python -m outreach.dns_auth [domain] [dkim_selector]`.
 
 ### 🔧 You provision (DNS for the sending domain)
-- **SPF**  `TXT @  "v=spf1 include:spf.protection.outlook.com -all"`
-- **DKIM**  enable in Microsoft 365 (selector1/selector2 CNAMEs) and publish.
+- **SPF**  `TXT @  "v=spf1 include:_spf.google.com ~all"`
+- **DKIM**  generate in Google Workspace Admin (Apps → Gmail → Authenticate email) and
+  publish the `google._domainkey` TXT it gives you.
 - **DMARC**  `TXT _dmarc  "v=DMARC1; p=quarantine; rua=mailto:dmarc@<domain>"`
   (start at `p=none` to monitor, move to `quarantine`/`reject`).
 - Then confirm with `python -m outreach.dns_auth` (all three → READY yes).
@@ -70,8 +76,8 @@ full volume from day one, lands in spam — wasting the entire funnel at the las
 
 ## Go-live checklist (all must be true before setting `G_SEND`)
 
-- [ ] Dedicated sending domain + mailbox provisioned (not `@settlepay.uk`)
-- [ ] Graph app: `Mail.Read` + `Mail.Send`, admin-consented; creds in `.env`
+- [ ] Dedicated Google Workspace sending domain + mailbox provisioned (not `@settlepay.uk`)
+- [ ] Google OAuth: `gmail.send` consented via `python -m outreach auth-google`; creds in `.env`
 - [ ] `python -m outreach.dns_auth` → SPF + DKIM + DMARC all **READY**
 - [ ] `python -m outreach.inbound` scheduled (opt-outs/bounces honoured continuously)
 - [ ] Warm-up underway; `PER_INBOX_DAILY_CAP` still conservative
