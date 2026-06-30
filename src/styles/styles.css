@@ -304,13 +304,32 @@ body::after {
 .navbar__logo {
   display: flex;
   align-items: center;
+  position: relative; /* stack the two logo layers for the cross-fade */
 }
 
 /* Square monogram mark — legible at nav scale; eases down as the bar collapses. */
 .navbar__logo-img {
   height: calc(48px - 8px * var(--nav-scroll-p, 0));
   width: auto;
-  transition: height 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
+  transition:
+    height 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    opacity 400ms cubic-bezier(0.34, 1, 0.64, 1);
+}
+
+/* Full squircle while the bar is square (p=0); fades out as it rounds off. */
+.navbar__logo-img--squircle {
+  opacity: calc(1 - var(--nav-scroll-p, 0));
+}
+
+/* Bare SP mark (no squircle) fades in as the pill forms, so the icon's corner
+   radius never fights the bar's. Stacked exactly over the squircle (same artwork
+   coords) so only the squircle dissolves — the letters stay put. */
+.navbar__logo-img--bare {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: var(--nav-scroll-p, 0);
 }
 
 /* Reduced motion: keep the scroll-progress response (calc) but snap, no spring. */

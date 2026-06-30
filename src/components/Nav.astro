@@ -13,10 +13,22 @@ import Button from './Button.astro';
   <div class="navbar__inner">
     <div class="container">
       <a href="/" class="navbar__logo" aria-label="SettlePay home">
+        {/* Squircle icon at the top of the page; cross-fades to the bare SP mark
+            as the bar rounds off into the pill (driven by --nav-scroll-p). */}
         <img
           src="/assets/logos/monogram.svg"
-          alt="SettlePay"
-          class="navbar__logo-img"
+          alt=""
+          aria-hidden="true"
+          class="navbar__logo-img navbar__logo-img--squircle"
+          width="48"
+          height="48"
+          decoding="async"
+        />
+        <img
+          src="/assets/logos/monogram-mark.svg"
+          alt=""
+          aria-hidden="true"
+          class="navbar__logo-img navbar__logo-img--bare"
           width="48"
           height="48"
           decoding="async"
