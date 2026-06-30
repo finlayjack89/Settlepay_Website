@@ -6,6 +6,27 @@ Operating guide for any agent working in this repo. Read this, then the design d
 The marketing website for **SettlePay** — bespoke, branded payment-page development & integration for
 small UK businesses. Built with **Astro 5** as a fully static, SEO-first site (zero JS by default).
 
+## 🌳 Branch & worktree discipline (read before your first edit/commit)
+This repo uses git worktrees for parallel work. The full doctrine is in the account-level
+`~/.claude/CLAUDE.md` §1; the repo-specific rules are:
+
+- **The root clone (`Settlepay_Website/`) stays on a clean, up-to-date `main`.** It is the mainline
+  base everyone branches *from* — never park feature work in it. `main` is **merge-only**: never
+  commit directly to it, never push directly to `origin/main`. Work reaches `main` via branch → PR → merge.
+- **Every independent task gets its own worktree**, created off a fresh `main`, living under
+  `../worktrees/<scope>` (siblings: `worktrees/case-funnel`, `worktrees/demo-fit`,
+  `worktrees/outreach-build`). One worktree per task; never check out the same branch in two worktrees;
+  never run two agents in the same working directory.
+  ```bash
+  git -C <root> fetch origin && git -C <root> checkout main && git -C <root> pull --ff-only
+  git -C <root> worktree add ../worktrees/<scope> -b <type>/<scope> main   # type: feat|fix|chore|docs|perf|refactor
+  ```
+- **Pre-work survey first** (5 seconds): `git worktree list && git branch --show-current && git status`.
+  If you're in the root on a feature branch, or `main` is behind `origin/main`, stop and fix the base
+  before editing.
+- **After any merge**, update local `main` (`git checkout main && git pull --ff-only`), pull it into
+  other live worktrees, re-run `npm run build`, and delete the merged branch/worktree.
+
 ## Read these before doing design/UI work
 - **[`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md)** — brand, voice, colour, type, spacing, radii,
   shadows, motion, icons, logos, compliance. The source of truth for *how it looks*.
