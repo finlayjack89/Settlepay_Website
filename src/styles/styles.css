@@ -26,6 +26,10 @@
   --radius-card:   24px;
   --radius-icon:   12px;  /* icon tiles */
 
+  /* Anchor-scroll offset — clears the shrunk floating nav. Keep in sync with the
+     scrolled navbar height + a small gap (see .navbar.is-scrolled). */
+  --nav-offset: 86px;
+
   /* Functional / status colours — icon tints & status badges ONLY, never decoration */
   --color-success: #10B981;
   --color-warning: #F59E0B;
@@ -61,6 +65,7 @@
 html {
   font-size: var(--text-base);
   scroll-behavior: smooth;
+  scroll-padding-top: var(--nav-offset);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -251,21 +256,43 @@ body::after {
 /* ---------------------------------------------------------
    5. Navigation — Change 9: Floating Island Nav
    --------------------------------------------------------- */
+/* Sticky positioning shell — full-width, transparent. The visual bar lives in
+   .navbar__inner so it can morph from a full-bleed frosted bar (top of page) to
+   a floating pill (scrolled) by animating max-width / radius / margin. */
 .navbar {
   position: sticky;
-  top: 12px;
+  top: 0;
   z-index: 100;
+  /* BFC so the scrolled pill's top margin doesn't collapse away when stuck. */
+  display: flow-root;
+}
+
+.navbar__inner {
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: 0;
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  background-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+  transition:
+    max-width 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+/* Scrolled — collapse the bar into the floating pill. */
+.navbar.is-scrolled .navbar__inner {
   max-width: 940px;
-  margin-inline: auto;
+  margin: 12px auto 0;
   border-radius: 100px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  background-color: rgba(255, 255, 255, 0.88);
+  background-color: rgba(255, 255, 255, 0.72);
   box-shadow:
     0 2px 8px rgba(30, 58, 138, 0.06),
     0 8px 32px rgba(30, 58, 138, 0.08),
     inset 0 0 0 1px rgba(15, 23, 42, 0.06);
-  margin-top: -4px;
 }
 
 .navbar .container {
@@ -273,8 +300,14 @@ body::after {
   justify-content: space-between;
   align-items: center;
   padding-block: 0.5rem;
+  padding-inline: 1.5rem;
+  max-width: 1200px;
+  transition: padding 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Pill hugs its content tighter than the full-width bar. */
+.navbar.is-scrolled .container {
   padding-inline: 0.75rem 0.5rem;
-  max-width: none;
 }
 
 .navbar__logo {
@@ -282,10 +315,23 @@ body::after {
   align-items: center;
 }
 
-/* Logo maximised within the pill nav */
+/* Square monogram mark — legible at nav scale; eases down slightly on scroll. */
 .navbar__logo-img {
-  height: 42px;
+  height: 48px;
   width: auto;
+  transition: height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.navbar.is-scrolled .navbar__logo-img {
+  height: 40px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbar__inner,
+  .navbar .container,
+  .navbar__logo-img {
+    transition: none;
+  }
 }
 
 .navbar__links {
@@ -1721,10 +1767,17 @@ body::after {
 
 /* Mobile */
 @media (max-width: 768px) {
-  .navbar {
-    top: 8px;
-    margin-inline: 0.75rem;
+  /* Compact rounded bar in both states (already small on mobile). */
+  .navbar__inner,
+  .navbar.is-scrolled .navbar__inner {
+    max-width: none;
+    margin: 8px 0.75rem 0;
     border-radius: var(--radius-card);
+  }
+
+  .navbar .container,
+  .navbar.is-scrolled .container {
+    padding-inline: 0.75rem 0.5rem;
   }
 
   .navbar__links {
@@ -1735,7 +1788,8 @@ body::after {
     display: flex;
   }
 
-  .navbar__logo-img {
+  .navbar__logo-img,
+  .navbar.is-scrolled .navbar__logo-img {
     height: 36px;
   }
 
