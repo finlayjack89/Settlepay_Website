@@ -43,6 +43,20 @@ const firstUrl = (...vals: unknown[]): string | null => {
   return null;
 };
 
+// Extract the video join link. Cal.com puts it in different fields per provider
+// (Cal Video → videoCallData/metadata; Google Meet → often only on the resolved
+// location / nested references). Try the explicit fields, then fall back to
+// scanning the whole payload for a recognised meeting URL, so a Meet link is
+// found wherever Cal.com places it.
+const VIDEO_URL =
+  /https:\/\/(?:meet\.google\.com|[\w.-]*zoom\.us|[\w.-]*\.daily\.co|cal\.(?:com|eu)\/video)\/[^"\\\s]+/;
+function extractJoinUrl(p: any): string | null {
+  const explicit = firstUrl(p?.metadata?.videoCallUrl, p?.videoCallData?.url, p?.location);
+  if (explicit) return explicit;
+  const m = JSON.stringify(p ?? {}).match(VIDEO_URL);
+  return m ? m[0] : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method-not-allowed' }, 405);
 
@@ -77,7 +91,7 @@ Deno.serve(async (req) => {
   if (event === 'BOOKING_CREATED' || event === 'BOOKING_RESCHEDULED') {
     const attendee = Array.isArray(p?.attendees) ? p.attendees[0] ?? {} : {};
     const email: string = (attendee?.email ?? '').trim();
-    const joinUrl = firstUrl(p?.metadata?.videoCallUrl, p?.videoCallData?.url, p?.location);
+    const joinUrl = extractJoinUrl(p);
 
     // Best-effort link to the originating enquiry (by email). No FK — survives
     // the planned leads -> enquiries rename; ignore errors if the table differs.
