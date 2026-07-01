@@ -49,6 +49,7 @@
   /* Animation */
   --ease-snappy:    0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --ease-cinematic: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring:    400ms cubic-bezier(0.34, 1.25, 0.64, 1); /* overshoots — nav collapse */
 }
 
 /* ---------------------------------------------------------
@@ -182,35 +183,6 @@ body::after {
 }
 
 /* ---------------------------------------------------------
-   Change 6: Scroll Reveal Animations
-   --------------------------------------------------------- */
-.reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition:
-    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.reveal.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.reveal-delay-1 { transition-delay: 0.1s; }
-.reveal-delay-2 { transition-delay: 0.2s; }
-.reveal-delay-3 { transition-delay: 0.25s; }
-.reveal-delay-4 { transition-delay: 0.3s; }
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-}
-
-/* ---------------------------------------------------------
    4. Top Bar (Trust Strip)
    --------------------------------------------------------- */
 .top-bar {
@@ -283,12 +255,12 @@ body::after {
     0 2px 8px rgba(30, 58, 138, calc(0.06 * var(--nav-scroll-p, 0))),
     0 8px 32px rgba(30, 58, 138, calc(0.08 * var(--nav-scroll-p, 0)));
   transition:
-    max-width 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    margin 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    border-color 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    border-radius 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    background-color 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    box-shadow 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
+    max-width var(--ease-spring),
+    margin var(--ease-spring),
+    border-color var(--ease-spring),
+    border-radius var(--ease-spring),
+    background-color var(--ease-spring),
+    box-shadow var(--ease-spring);
 }
 
 .navbar .container {
@@ -298,7 +270,7 @@ body::after {
   padding-block: 0.5rem;
   padding-inline: calc(1.5rem - 0.75rem * var(--nav-scroll-p, 0));
   max-width: 1200px;
-  transition: padding 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
+  transition: padding var(--ease-spring);
 }
 
 .navbar__logo {
@@ -312,7 +284,7 @@ body::after {
   height: calc(48px - 8px * var(--nav-scroll-p, 0));
   width: auto;
   transition:
-    height 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    height var(--ease-spring),
     opacity 400ms cubic-bezier(0.34, 1, 0.64, 1);
 }
 
