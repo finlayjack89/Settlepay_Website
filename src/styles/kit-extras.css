@@ -118,21 +118,31 @@
 /* the category line already had bottom margin — neutralise it inside the new head row */
 .use-case__head .use-case__category { margin-bottom: 0; }
 
-/* ---- Real range slider (calculator) ---- */
+/* ---- Real range slider (calculator) ----
+   The visible track is drawn by the ::track pseudo-element (8px, pill), not the
+   input box, so the global `box-sizing: border-box` can't collapse it. A 44px-tall
+   transparent input gives the touch target; the browser vertically centres the
+   runnable track inside it, and the thumb is centred on that track via margin-top.
+   The blue fill is a gradient positioned by the `--fill` custom property (0–100%),
+   set inline and updated live in JS (see Calculator.astro / SiteScripts). */
 .calculator__range {
   flex: 1;
   -webkit-appearance: none;
   appearance: none;
-  /* 6px visible track + 19px transparent padding top/bottom = 44px touch target.
-     The JS fill gradient is set on the element's own background, so we keep the
-     track ON the input (not a pseudo-element) and clip it to the 6px content box. */
-  height: 6px;
-  padding: 19px 0;
-  background-clip: content-box;
-  border-radius: 100px;
-  background: rgba(15, 23, 42, 0.08);
+  height: 44px;
+  background: transparent;
   cursor: pointer;
   outline: none;
+}
+/* WebKit / Blink — track + thumb */
+.calculator__range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 100px;
+  background: linear-gradient(
+    to right,
+    var(--color-primary-action) var(--fill, 50%),
+    rgba(15, 23, 42, 0.08) var(--fill, 50%)
+  );
 }
 .calculator__range::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -145,9 +155,20 @@
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
   cursor: pointer;
   transition: transform var(--ease-snappy);
-  margin-top: -8px;
+  margin-top: -7px; /* centre 22px thumb on the 8px track: (8 − 22) / 2 */
 }
 .calculator__range::-webkit-slider-thumb:hover { transform: scale(1.12); }
+/* Firefox — track, filled progress, thumb */
+.calculator__range::-moz-range-track {
+  height: 8px;
+  border-radius: 100px;
+  background: rgba(15, 23, 42, 0.08);
+}
+.calculator__range::-moz-range-progress {
+  height: 8px;
+  border-radius: 100px;
+  background: var(--color-primary-action);
+}
 .calculator__range::-moz-range-thumb {
   width: 22px; height: 22px; border-radius: 50%;
   background: var(--color-pure-white);
@@ -155,7 +176,8 @@
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
   cursor: pointer;
 }
-.calculator__range:focus-visible { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
+.calculator__range:focus-visible::-webkit-slider-runnable-track { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
+.calculator__range:focus-visible::-moz-range-track { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
 
 /* ---- Enquire modal ---- */
 .sp-modal-overlay {

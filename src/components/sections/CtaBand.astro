@@ -1,5 +1,7 @@
 ---
 import Button from '../Button.astro';
+import Icon from '../Icon.astro';
+import { SITE } from '../../data/site.mjs';
 ---
 <section class="cta-section" id="enquire" data-screen-label="CTA band">
   <div class="container">
@@ -10,6 +12,15 @@ import Button from '../Button.astro';
         you exactly how a bespoke checkout page, with payments processed by an FCA-regulated processor, can eliminate the
         admin.
       </p>
+      {/* Reassurance beat at the risk-anxiety peak — for the already-sold, right before the ask. */}
+      <ul class="cta-section__trust" aria-label="Why businesses trust SettlePay">
+        {SITE.trustPoints.map((t) => (
+          <li class="cta-section__trust-item">
+            <Icon name={t.icon} sw={1.75} />
+            <span>{t.title}</span>
+          </li>
+        ))}
+      </ul>
       <div class="cta-section__actions">
         <Button variant="primary" size="large" icon="arrow" enquire>Book a Free Consultation</Button>
         <Button variant="secondary" onDark href="/work/">See Our Work</Button>
@@ -17,3 +28,35 @@ import Button from '../Button.astro';
     </div>
   </div>
 </section>
+
+<style>
+  /* Compact, light-on-dark reassurance strip — deliberately quieter than the top
+     TrustBar (no tinted tiles), so it reassures without competing with the CTA. */
+  .cta-section__trust {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem 1.75rem;
+    max-width: 660px;
+    margin: 0 auto 2.25rem;
+    padding: 0;
+    list-style: none;
+  }
+  .cta-section__trust-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+  }
+  .cta-section__trust-item svg {
+    width: 15px;
+    height: 15px;
+    color: rgba(255, 255, 255, 0.5);
+    flex-shrink: 0;
+  }
+  @media (max-width: 480px) {
+    .cta-section__trust { gap: 0.55rem 1.1rem; justify-content: flex-start; text-align: left; }
+  }
+</style>

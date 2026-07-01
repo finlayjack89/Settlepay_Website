@@ -83,6 +83,36 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Mobile sticky booking bar — slides in after the hero, hides whenever the
+  // final CTA band or footer is on screen so it never doubles up. Homepage only
+  // (the bar is only rendered there). Per-element Map because the IO callback
+  // reports only the entries whose intersection actually changed.
+  // ---------------------------------------------------------------------------
+  const stickyCta = document.querySelector('[data-sticky-cta]');
+  if (stickyCta) {
+    const hero = document.getElementById('hero');
+    // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
+    // selector here if consent UI is ever added.)
+    const suppressors = ['.cta-section', '.footer']
+      .map((s) => document.querySelector(s))
+      .filter((el): el is Element => el !== null);
+    const watched = [hero, ...suppressors].filter((el): el is Element => el !== null);
+    const intersecting = new Map<Element, boolean>();
+    watched.forEach((el) => intersecting.set(el, true));
+    const syncSticky = () => {
+      const heroGone = hero ? !intersecting.get(hero) : true;
+      const suppressed = suppressors.some((el) => intersecting.get(el));
+      stickyCta.classList.toggle('is-visible', heroGone && !suppressed);
+    };
+    const stickyIo = new IntersectionObserver((entries) => {
+      entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+      syncSticky();
+    }, { threshold: 0 });
+    watched.forEach((el) => stickyIo.observe(el));
+    syncSticky();
+  }
+
+  // ---------------------------------------------------------------------------
   // Hero checkout mockup — payment-method accordion
   // ---------------------------------------------------------------------------
   const checkout = document.querySelector('[data-checkout]');
@@ -116,28 +146,38 @@
   if (calc) {
     const pEl = calc.querySelector('[data-range="payments"]') as HTMLInputElement | null;
     const mEl = calc.querySelector('[data-range="mins"]') as HTMLInputElement | null;
+    const rEl = calc.querySelector('[data-range="rate"]') as HTMLInputElement | null;
     const pVal = calc.querySelector('[data-val="payments"]');
     const mVal = calc.querySelector('[data-val="mins"]');
+    const rVal = calc.querySelector('[data-val="rate"]');
     const hoursOut = calc.querySelector('[data-out="hours"]');
+    const costOut = calc.querySelector('[data-out="cost"]');
     const matchedOut = calc.querySelector('[data-out="matched"]');
     if (pEl && mEl) {
       const fill = (el: HTMLInputElement) => {
         const pct = ((Number(el.value) - Number(el.min)) / (Number(el.max) - Number(el.min))) * 100;
-        el.style.background = `linear-gradient(to right, var(--color-primary-action) ${pct}%, rgba(15,23,42,.08) ${pct}%)`;
+        // `--fill` drives the track gradient in CSS (see .calculator__range).
+        el.style.setProperty('--fill', pct + '%');
       };
       const update = () => {
         const payments = Number(pEl.value);
         const mins = Number(mEl.value);
+        const rate = rEl ? Number(rEl.value) : 30;
         const hours = Math.round((payments * mins) / 60);
+        const cost = hours * rate;
         fill(pEl);
         fill(mEl);
+        if (rEl) fill(rEl);
         if (pVal) pVal.textContent = String(payments);
         if (mVal) mVal.textContent = mins + ' min';
+        if (rVal) rVal.textContent = '£' + rate;
         if (hoursOut) hoursOut.textContent = hours.toLocaleString() + ' hrs';
+        if (costOut) costOut.textContent = '£' + cost.toLocaleString();
         if (matchedOut) matchedOut.textContent = payments.toLocaleString();
       };
       pEl.addEventListener('input', update);
       mEl.addEventListener('input', update);
+      if (rEl) rEl.addEventListener('input', update);
       update();
     }
   }
