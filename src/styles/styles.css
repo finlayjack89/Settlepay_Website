@@ -76,10 +76,17 @@ body {
   color: var(--color-primary-brand);
   background-color: var(--color-pure-white);
   line-height: 1.6;
-  /* clip, NOT hidden: `overflow: hidden` makes <body> a scroll container, which
-     neutralises the sticky navbar's backdrop-filter (it can't sample the page
-     behind it). `clip` contains overflow without establishing a scrollport, so
-     the frosted-glass blur actually renders. */
+  /* No overflow clip here: ANY overflow clip/hidden in the sticky nav's ancestor
+     chain (html → body → nav) kills its backdrop-filter, so the frost never
+     paints. The horizontal-overflow guard lives on <main> instead (a sibling of
+     <nav>) — see below. */
+}
+
+/* Contain full-bleed section overflow WITHOUT clipping the nav's ancestor chain.
+   <main> is a sibling of the sticky <nav>, so clipping here leaves the nav's
+   backdrop-filter intact. `clip` (not hidden) keeps <main> a non-scroll container,
+   so vertical sticky/shadows are unaffected. */
+main {
   overflow-x: clip;
 }
 
@@ -253,10 +260,15 @@ body::after {
   border: 1px solid rgba(15, 23, 42, calc(0.07 * var(--nav-scroll-p, 0)));
   border-radius: calc(100px * var(--nav-scroll-p, 0));
   background-color: rgba(255, 255, 255, calc(0.72 + 0.16 * var(--nav-scroll-p, 0)));
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  /* Definition so the bar reads as a frosted-glass surface even over the white
+     hero (where the blur alone has nothing behind it to soften):
+     1) a bottom hairline at the top state that fades as it collapses to a pill,
+     2) an always-on soft lift shadow, 3) the deep pill shadow when scrolled. */
   box-shadow:
-    0 2px 8px rgba(30, 58, 138, calc(0.06 * var(--nav-scroll-p, 0))),
+    0 1px 0 rgba(15, 23, 42, calc(0.07 * (1 - var(--nav-scroll-p, 0)))),
+    0 4px 20px rgba(15, 23, 42, calc(0.05 + 0.03 * var(--nav-scroll-p, 0))),
     0 8px 32px rgba(30, 58, 138, calc(0.08 * var(--nav-scroll-p, 0)));
   transition:
     max-width var(--ease-spring),
