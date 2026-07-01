@@ -1,0 +1,63 @@
+---
+import '../../styles/portfolio.css';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Button from '../../components/Button.astro';
+import PreviewStudio from '../../components/preview/PreviewStudio.astro';
+import { SITE } from '../../data/site.mjs';
+import seoData from '../../data/content/seo.json';
+import { webPage, breadcrumbs } from '../../data/structuredData.mjs';
+
+const path = '/preview/';
+const seo = seoData.find((p) => p.path === path) ?? {};
+const crumbs = [{ name: 'Home', path: '/' }, { name: 'See Your Page', path }];
+
+const jsonLd = [
+  webPage({ path, title: 'See Your Payment Page', description: seo.description }),
+  breadcrumbs(crumbs),
+];
+---
+<BaseLayout
+  title={seo.title}
+  description={seo.description}
+  keywords={seo.keywords}
+  ogTitle={seo.ogTitle}
+  ogDescription={seo.ogDescription}
+  canonical={path}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <div class="section-badge">See Your Page</div>
+      <h1 class="page-header__title">See Your Payment Page, <span>In Your Brand</span></h1>
+      <p class="page-header__lead">
+        Paste your website address and we'll sketch a SettlePay checkout in your own colours, logo
+        and name — a quick, illustrative preview of what a bespoke payment page could look like for
+        your business. It's a starting point, not the finished article.
+      </p>
+    </div>
+  </header>
+
+  <section class="bs-section section-pad" id="build-your-preview">
+    <div class="container">
+      <PreviewStudio />
+    </div>
+  </section>
+
+  <section class="mini-cta">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">Like What You See?</h2>
+        <p class="mini-cta__text">
+          This is just a sketch. Book a free consultation and we'll design the real thing — built
+          around how your business actually gets paid, and wired to an FCA-regulated processor.
+        </p>
+        <div class="mini-cta__actions">
+          <Button variant="primary" icon="arrow" href={SITE.bookingUrl} target="_blank" rel="noopener">Book a Consultation</Button>
+          <Button variant="secondary" enquire>Enquire</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

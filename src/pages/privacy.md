@@ -82,6 +82,7 @@ The categories of processors and recipients we use include:
 
 - **Website hosting and content delivery (CDN) provider** — to host the website, serve its content, and keep it fast and secure.
 - **Form and email delivery provider** — to receive enquiry-form submissions and to send and receive email correspondence.
+- **Brand-lookup and text-generation providers (the "See Your Page" preview tool)** — if you choose to use the optional preview tool, the website address you enter is sent to a brand-lookup provider to read that site's publicly available branding (such as its logo, colours and name), and that public information may be passed to an AI text provider to draft sample wording for the illustrative mock-up. The address you enter is processed to generate your preview and may be briefly cached to speed up repeat lookups; we do not use it for marketing.
 - **Accounting, productivity and communication tools** — to manage projects, keep proper financial records, and communicate with you (for example, accounting software, email and document tools).
 - **Professional advisers** — such as an accountant, where reasonably necessary, who are themselves bound by confidentiality.
 - **Authorities or third parties where required by law** — for example, if we are legally obliged to disclose information, or to establish, exercise or defend legal claims.
