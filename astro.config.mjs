@@ -16,6 +16,9 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
+      // /book/ is a noindex conversion endpoint (third-party calendar embed) —
+      // keep it out of the sitemap.
+      filter: (page) => !/\/book\/$/.test(page),
       // Legal pages stay in the sitemap but we mark them lower priority.
       serialize(item) {
         if (/\/(privacy|cookies|terms)\/$/.test(item.url)) {
