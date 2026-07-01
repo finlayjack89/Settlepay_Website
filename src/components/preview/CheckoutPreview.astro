@@ -1,0 +1,193 @@
+---
+/**
+ * Shared mockup checkout (mockup-world, 4–8px radii) used by both BrandStudio
+ * (manual, /work/) and PreviewStudio (URL-driven, /preview/).
+ *
+ * The brand colour is driven by the inherited `--bs-accent` / `--bs-on-accent`
+ * custom properties set on an ancestor; the optional `--bs-font` overrides the
+ * display typeface. Additive hooks — the logo <img>, the subcopy line and the
+ * font var — stay inert until a consumer populates them, so the manual
+ * BrandStudio renders exactly as before.
+ *
+ * Illustrative only; no real payments. Any accent (including blue) is legitimate
+ * here because this is the prospect's brand world, not SettlePay's chrome.
+ */
+import Icon from '../Icon.astro';
+import Chrome from '../previews/Chrome.astro';
+
+const {
+  name = 'Your Business',
+  mono = 'YB',
+  headline = 'Pay Your Invoice',
+  amount = '480.00',
+  paylabel = 'Pay £480.00',
+  url = 'pay.your-business.co.uk/checkout',
+} = Astro.props;
+---
+<div class="mok bs-checkout" data-checkout>
+  <Chrome url={url} />
+  <div class="bs-checkout__body">
+    <div class="bs-checkout__brand" data-bs-brand>
+      <span class="bs-checkout__mark" data-bs-mono>{mono}</span>
+      <img class="bs-checkout__logo" data-bs-logo alt="" hidden />
+      <span class="bs-checkout__name" data-bs-display>{name}</span>
+    </div>
+    <div class="bs-checkout__headline" data-bs-headline>{headline}</div>
+    <p class="bs-checkout__subcopy" data-bs-subcopy hidden></p>
+    <div class="bs-checkout__amount">£<span data-bs-amount>{amount}</span></div>
+    <div class="bs-checkout__field">
+      <span class="bs-checkout__flabel">Card number</span>
+      <div class="bs-checkout__fauxinput">
+        <Icon name="card" sw={1.6} />
+        <span class="bs-checkout__dots">•••• •••• •••• 4242</span>
+      </div>
+    </div>
+    <div class="bs-checkout__split">
+      <div class="bs-checkout__field"><span class="bs-checkout__flabel">Expiry</span><div class="bs-checkout__fauxinput bs-checkout__fauxinput--sm">12 / 28</div></div>
+      <div class="bs-checkout__field"><span class="bs-checkout__flabel">CVC</span><div class="bs-checkout__fauxinput bs-checkout__fauxinput--sm">•••</div></div>
+    </div>
+    <button class="bs-checkout__pay" type="button" tabindex="-1" aria-hidden="true" data-bs-paylabel>{paylabel}</button>
+    <div class="bs-checkout__foot">
+      <Icon name="lock" sw={1.8} />
+      Illustrative demo — no real payments are taken
+    </div>
+  </div>
+</div>
+
+<style>
+  /* ---- preview checkout (mockup-world, 4-8px radii) ---- */
+  .bs-checkout {
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+  }
+  .bs-checkout__body {
+    padding: 1.6rem 1.6rem 1.4rem;
+    background: var(--color-pure-white);
+  }
+  .bs-checkout__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1.3rem;
+  }
+  .bs-checkout__mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--bs-accent);
+    color: var(--bs-on-accent);
+    display: grid;
+    place-items: center;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  /* Logo replaces the monogram once a consumer marks the brand row .has-logo. */
+  .bs-checkout__logo {
+    height: 40px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  .bs-checkout__logo[hidden] { display: none; }
+  .bs-checkout__brand.has-logo .bs-checkout__mark { display: none; }
+  .bs-checkout__name {
+    font-family: var(--bs-font, inherit);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1b2330;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bs-checkout__headline {
+    font-family: var(--bs-font, inherit);
+    font-size: 0.95rem;
+    color: rgba(15, 23, 42, 0.6);
+    margin-bottom: 0.2rem;
+  }
+  .bs-checkout__subcopy {
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: rgba(15, 23, 42, 0.55);
+    margin: 0 0 1rem;
+  }
+  .bs-checkout__subcopy[hidden] { display: none; }
+  .bs-checkout__amount {
+    font-size: 2.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #1b2330;
+    margin-bottom: 1.3rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .bs-checkout__field {
+    margin-bottom: 0.9rem;
+  }
+  .bs-checkout__flabel {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.5);
+    margin-bottom: 0.35rem;
+  }
+  .bs-checkout__fauxinput {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 6px;
+    padding: 0.7rem 0.8rem;
+    color: rgba(15, 23, 42, 0.55);
+    font-size: 0.92rem;
+  }
+  .bs-checkout__fauxinput svg {
+    width: 18px;
+    height: 18px;
+    color: rgba(15, 23, 42, 0.4);
+  }
+  .bs-checkout__fauxinput--sm {
+    font-variant-numeric: tabular-nums;
+  }
+  .bs-checkout__split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+  }
+  .bs-checkout__dots {
+    letter-spacing: 0.08em;
+  }
+  .bs-checkout__pay {
+    width: 100%;
+    margin-top: 0.6rem;
+    border: 0;
+    border-radius: 8px;
+    background: var(--bs-accent);
+    color: var(--bs-on-accent);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.9rem;
+    cursor: default;
+    transition: background 0.25s var(--ease-snappy);
+  }
+  .bs-checkout__foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 1.1rem;
+    font-size: 0.74rem;
+    color: rgba(15, 23, 42, 0.45);
+  }
+  .bs-checkout__foot svg {
+    width: 13px;
+    height: 13px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bs-checkout__pay { transition: none; }
+  }
+</style>

@@ -32,6 +32,14 @@
     "ogDescription": "One live client and five fictional, fully-modelled case studies — each replacing bank transfers and phone payments with a branded payment system that runs itself."
   },
   {
+    "path": "/preview/",
+    "title": "See Your Payment Page | SettlePay Preview Tool",
+    "description": "Paste your website and see an illustrative SettlePay checkout in your own brand — your colours, logo and name. A quick sketch of what a bespoke payment page could look like for your business.",
+    "keywords": "payment page preview, branded checkout mockup, see your payment page, custom checkout demo, payment page in my brand, SettlePay preview tool, branded payment page generator UK",
+    "ogTitle": "See Your Payment Page in Your Own Brand | SettlePay",
+    "ogDescription": "Enter your website address and we'll sketch a branded SettlePay checkout in your colours, logo and name — an illustrative preview, no real payments taken."
+  },
+  {
     "path": "/work/lockdales-auctioneers/",
     "title": "Lockdales Auctioneers | SettlePay Case Study",
     "description": "How SettlePay built Lockdales Auctioneers a bespoke, branded Stripe checkout that matches buyer payments back to winning lots automatically after every sale.",
