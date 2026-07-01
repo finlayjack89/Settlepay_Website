@@ -248,9 +248,9 @@ body::after {
   margin: calc(12px * var(--nav-scroll-p, 0)) auto 0;
   border: 1px solid rgba(15, 23, 42, calc(0.07 * var(--nav-scroll-p, 0)));
   border-radius: calc(100px * var(--nav-scroll-p, 0));
-  background-color: rgba(255, 255, 255, calc(0.6 + 0.14 * var(--nav-scroll-p, 0)));
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  background-color: rgba(255, 255, 255, calc(0.68 + 0.14 * var(--nav-scroll-p, 0)));
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
   box-shadow:
     0 2px 8px rgba(30, 58, 138, calc(0.06 * var(--nav-scroll-p, 0))),
     0 8px 32px rgba(30, 58, 138, calc(0.08 * var(--nav-scroll-p, 0)));

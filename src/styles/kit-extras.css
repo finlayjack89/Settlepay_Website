@@ -124,13 +124,17 @@
   -webkit-appearance: none;
   appearance: none;
   /* 6px visible track + 19px transparent padding top/bottom = 44px touch target.
-     The JS fill gradient is set on the element's own background, so we keep the
-     track ON the input (not a pseudo-element) and clip it to the 6px content box. */
+     box-sizing MUST be content-box here — the global reset is border-box, which
+     would collapse the 6px track under the padding into one fat bar. The fill is
+     applied via background-IMAGE (see Calculator.astro / SiteScripts), never the
+     `background` shorthand, so `background-clip: content-box` survives and only the
+     6px content strip shows. */
+  box-sizing: content-box;
   height: 6px;
   padding: 19px 0;
-  background-clip: content-box;
   border-radius: 100px;
-  background: rgba(15, 23, 42, 0.08);
+  background-color: rgba(15, 23, 42, 0.08);
+  background-clip: content-box;
   cursor: pointer;
   outline: none;
 }
