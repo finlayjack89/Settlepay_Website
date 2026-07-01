@@ -1,14 +1,15 @@
 ---
 /**
- * StickyCta — mobile-only sticky booking bar. Opens the enquiry modal (the site's
- * primary booking action). Shown/hidden by SiteScripts via IntersectionObserver:
- * slides in once the hero has scrolled away, and hides whenever the final CTA band
- * or footer is on screen so it never doubles up on the real button. Homepage only.
+ * StickyCta — mobile-only sticky booking bar. Links to /book/ (the calendar),
+ * matching every other "Book a Free Consultation" CTA so booking is one path.
+ * Shown/hidden by SiteScripts via IntersectionObserver: slides in once the hero
+ * has scrolled away, and hides whenever the final CTA band or footer is on screen
+ * so it never doubles up on the real button. Homepage only.
  */
 import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
-  <Button variant="primary" size="large" icon="arrow" enquire>Book a Free Consultation</Button>
+  <Button variant="primary" size="large" icon="arrow" href="/book/">Book a Free Consultation</Button>
 </div>
 
 <style>

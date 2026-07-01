@@ -250,8 +250,11 @@
         const data = Object.fromEntries(fd.entries()) as Record<string, string>;
         const endpoint = form.dataset.endpoint;
         const mailto = form.dataset.mailto || 'hello@settlepay.uk';
-        const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
+        const submitBtn = form.querySelector('[data-submit-btn]') as HTMLButtonElement;
+        const submitLabel = submitBtn.innerHTML;
         submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.innerHTML = 'Sending…';
         try {
           if (endpoint) {
             const res = await fetch(endpoint, {
@@ -277,8 +280,11 @@
         } catch {
           errEl.textContent = `Sorry — something went wrong. Please email us directly at ${mailto}.`;
           errEl.hidden = false;
+          errEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         } finally {
           submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+          submitBtn.innerHTML = submitLabel;
         }
       });
     }

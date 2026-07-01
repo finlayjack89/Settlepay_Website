@@ -1,0 +1,166 @@
+---
+/**
+ * /book/ — pick a time directly. Embeds the Cal.com (EU) booking calendar inline
+ * so visitors can self-schedule the free consultation without leaving the site.
+ *
+ * The third-party embed script (app.cal.eu) loads ONLY on this page — every other
+ * route stays JS-free and cookie-clean. Inline mode (not a popup) is used because
+ * it has no click-timing race and degrades gracefully to a plain link if the
+ * iframe is blocked.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Button from '../components/Button.astro';
+import Icon from '../components/Icon.astro';
+import { SITE } from '../data/site.mjs';
+import { webPage, breadcrumbs } from '../data/structuredData.mjs';
+
+const path = '/book/';
+const crumbs = [{ name: 'Home', path: '/' }, { name: 'Book a Consultation', path }];
+const jsonLd = [
+  webPage({ path, title: 'Book a Free Consultation', description: 'Pick a time for your free, no-obligation SettlePay consultation.' }),
+  breadcrumbs(crumbs),
+];
+
+const checklist = [
+  'How you take payments today — and where the admin piles up',
+  'How your bookings, bookkeeping and invoicing fit together',
+  'What a bespoke checkout would look like for your business',
+];
+---
+<BaseLayout
+  title="Book a Free Consultation"
+  description="Pick a time for your free, no-obligation SettlePay consultation. 30 minutes, online, no pressure."
+  canonical={path}
+  noindex={true}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <div class="section-badge">Free Consultation</div>
+      <h1 class="page-header__title">Book Your <span>Free Consultation</span></h1>
+      <p class="page-header__lead">
+        Thirty minutes, online, no obligation. Pick a time that suits you below and you'll get a
+        calendar invite with a video link straight away. Prefer to send a message first?
+        <a href="#book-message">Enquire instead</a>.
+      </p>
+    </div>
+  </header>
+
+  <section class="book-section">
+    <div class="container book-grid">
+      <aside class="book-aside">
+        <h2 class="book-aside__title">What We'll Cover</h2>
+        <ul class="book-aside__list">
+          {checklist.map((item) => (
+            <li><Icon name="check" sw={2.5} /><span>{item}</span></li>
+          ))}
+        </ul>
+        <p class="book-aside__note">
+          It helps to have a rough idea of how your systems hang together — your booking or database
+          setup, and how you currently handle bookkeeping and invoicing. No prep required, though.
+        </p>
+      </aside>
+
+      <div class="book-main">
+        <div id="settlepay-cal" class="book-embed" aria-label="Booking calendar">
+          <p class="book-embed__loading">
+            Loading the calendar…
+            <a href={SITE.bookingUrl} target="_blank" rel="noopener">Open it in a new tab</a>
+            if it doesn't appear.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mini-cta" id="book-message">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">Rather Not Pick a Time Yet?</h2>
+        <p class="mini-cta__text">
+          Send a few details and Finlay will reply within one working day — no jargon, no pressure.
+        </p>
+        <div class="mini-cta__actions">
+          <Button variant="primary" icon="arrow" enquire>Send a Message</Button>
+          <Button variant="secondary" href="/work/">See Our Work</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<!-- Cal.com (EU) inline embed — loads only on this page. -->
+<script is:inline>
+  (function (C, A, L) {
+    let p = function (a, ar) { a.q.push(ar); };
+    let d = C.document;
+    C.Cal = C.Cal || function () {
+      let cal = C.Cal; let ar = arguments;
+      if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement('script')).src = A; cal.loaded = true; }
+      if (ar[0] === L) {
+        const api = function () { p(api, arguments); };
+        const namespace = ar[1];
+        api.q = api.q || [];
+        if (typeof namespace === 'string') { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ['initNamespace', namespace]); }
+        else p(cal, ar);
+        return;
+      }
+      p(cal, ar);
+    };
+  })(window, 'https://app.cal.eu/embed/embed.js', 'init');
+
+  Cal('init', 'consult', { origin: 'https://app.cal.eu' });
+  Cal.ns.consult('inline', {
+    elementOrSelector: '#settlepay-cal',
+    config: { layout: 'month_view', theme: 'light' },
+    calLink: 'settlepay/30min',
+  });
+  Cal.ns.consult('ui', {
+    hideEventTypeDetails: false,
+    layout: 'month_view',
+    cssVarsPerTheme: { light: { 'cal-brand': '#3B82F6' }, dark: { 'cal-brand': '#3B82F6' } },
+  });
+</script>
+
+<style>
+  .book-section { padding: 0 0 5rem; }
+  .book-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+  .book-aside { position: sticky; top: calc(var(--nav-offset) + 1rem); }
+  .book-aside__title {
+    font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
+    margin: 0 0 1rem;
+  }
+  .book-aside__list { list-style: none; margin: 0 0 1.25rem; padding: 0; display: grid; gap: 0.85rem; }
+  .book-aside__list li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.92rem; line-height: 1.5; }
+  .book-aside__list svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.15rem; color: var(--color-primary-action); }
+  .book-aside__note {
+    font-size: 0.82rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6;
+    padding-top: 1rem; border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+
+  .book-main {
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-md);
+    padding: 0.5rem;
+    overflow: hidden;
+  }
+  .book-embed { width: 100%; min-height: 640px; }
+  .book-embed__loading {
+    text-align: center; padding: 5rem 1.5rem; font-size: 0.92rem;
+    color: var(--color-primary-brand); opacity: 0.6;
+  }
+
+  @media (max-width: 860px) {
+    .book-grid { grid-template-columns: 1fr; gap: 1.75rem; }
+    .book-aside { position: static; }
+  }
+</style>

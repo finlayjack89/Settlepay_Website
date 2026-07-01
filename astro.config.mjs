@@ -16,8 +16,9 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
-      // Share pages (/p/) are unlisted-by-design: noindex + robots-disallowed.
-      filter: (page) => !page.includes('/p/'),
+      // Unlisted-by-design pages: share pages (/p/, noindex + robots-disallowed)
+      // and /book/ (noindex conversion endpoint with a third-party calendar embed).
+      filter: (page) => !page.includes('/p/') && !/\/book\/$/.test(page),
       // Legal pages stay in the sitemap but we mark them lower priority.
       serialize(item) {
         if (/\/(privacy|cookies|terms)\/$/.test(item.url)) {
