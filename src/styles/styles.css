@@ -76,7 +76,11 @@ body {
   color: var(--color-primary-brand);
   background-color: var(--color-pure-white);
   line-height: 1.6;
-  overflow-x: hidden;
+  /* clip, NOT hidden: `overflow: hidden` makes <body> a scroll container, which
+     neutralises the sticky navbar's backdrop-filter (it can't sample the page
+     behind it). `clip` contains overflow without establishing a scrollport, so
+     the frosted-glass blur actually renders. */
+  overflow-x: clip;
 }
 
 img, svg {
@@ -248,9 +252,9 @@ body::after {
   margin: calc(12px * var(--nav-scroll-p, 0)) auto 0;
   border: 1px solid rgba(15, 23, 42, calc(0.07 * var(--nav-scroll-p, 0)));
   border-radius: calc(100px * var(--nav-scroll-p, 0));
-  background-color: rgba(255, 255, 255, calc(0.68 + 0.14 * var(--nav-scroll-p, 0)));
-  backdrop-filter: blur(40px) saturate(1.8);
-  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  background-color: rgba(255, 255, 255, calc(0.72 + 0.16 * var(--nav-scroll-p, 0)));
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   box-shadow:
     0 2px 8px rgba(30, 58, 138, calc(0.06 * var(--nav-scroll-p, 0))),
     0 8px 32px rgba(30, 58, 138, calc(0.08 * var(--nav-scroll-p, 0)));
@@ -1545,15 +1549,21 @@ body::after {
 /* ---------------------------------------------------------
    12. CTA Section
    --------------------------------------------------------- */
+/* Light band so the dark CTA reads as a contained card that lifts off the page —
+   and, crucially, sits apart from the equally-dark footer below it. */
 .cta-section {
-  background: var(--color-primary-brand);
+  background: var(--color-secondary-bg);
   padding-block: 5rem;
 }
 
 .cta-section__inner {
   text-align: center;
-  max-width: 650px;
+  max-width: 780px;
   margin-inline: auto;
+  background: var(--color-primary-brand);
+  border-radius: var(--radius-card);
+  padding: 3.5rem clamp(1.5rem, 5vw, 4rem);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.20);
 }
 
 .cta-section__title {

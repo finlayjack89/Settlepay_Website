@@ -156,8 +156,8 @@
     if (pEl && mEl) {
       const fill = (el: HTMLInputElement) => {
         const pct = ((Number(el.value) - Number(el.min)) / (Number(el.max) - Number(el.min))) * 100;
-        // background-IMAGE (not the shorthand) so the CSS `background-clip: content-box` survives.
-        el.style.backgroundImage = `linear-gradient(to right, var(--color-primary-action) ${pct}%, rgba(15,23,42,.08) ${pct}%)`;
+        // `--fill` drives the track gradient in CSS (see .calculator__range).
+        el.style.setProperty('--fill', pct + '%');
       };
       const update = () => {
         const payments = Number(pEl.value);
