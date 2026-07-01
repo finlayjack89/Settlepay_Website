@@ -73,6 +73,15 @@ export const SITE = {
     { label: 'Terms of Service', href: '/terms/' },
   ],
 
+  // Trust points — reused by the top TrustBar and the reassurance beat above the
+  // final CTA. Copy stays within compliance (processors are FCA-regulated, not us).
+  trustPoints: [
+    { icon: 'card', tone: '', title: 'Modern Processors', text: 'FCA-regulated: Stripe, Adyen & more' },
+    { icon: 'shield', tone: 'green', title: 'We Never Hold Funds', text: 'They settle straight to your bank' },
+    { icon: 'lock', tone: 'purple', title: 'Security, Handled', text: 'PCI DSS via your processor' },
+    { icon: 'check', tone: 'amber', title: 'No Lock-In, Ever', text: 'You own your account and page' },
+  ],
+
   social: {
     // Add real profiles here when available (used in Organization JSON-LD sameAs).
   },

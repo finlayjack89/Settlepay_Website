@@ -83,6 +83,36 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Mobile sticky booking bar — slides in after the hero, hides whenever the
+  // final CTA band or footer is on screen so it never doubles up. Homepage only
+  // (the bar is only rendered there). Per-element Map because the IO callback
+  // reports only the entries whose intersection actually changed.
+  // ---------------------------------------------------------------------------
+  const stickyCta = document.querySelector('[data-sticky-cta]');
+  if (stickyCta) {
+    const hero = document.getElementById('hero');
+    // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
+    // selector here if consent UI is ever added.)
+    const suppressors = ['.cta-section', '.footer']
+      .map((s) => document.querySelector(s))
+      .filter((el): el is Element => el !== null);
+    const watched = [hero, ...suppressors].filter((el): el is Element => el !== null);
+    const intersecting = new Map<Element, boolean>();
+    watched.forEach((el) => intersecting.set(el, true));
+    const syncSticky = () => {
+      const heroGone = hero ? !intersecting.get(hero) : true;
+      const suppressed = suppressors.some((el) => intersecting.get(el));
+      stickyCta.classList.toggle('is-visible', heroGone && !suppressed);
+    };
+    const stickyIo = new IntersectionObserver((entries) => {
+      entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+      syncSticky();
+    }, { threshold: 0 });
+    watched.forEach((el) => stickyIo.observe(el));
+    syncSticky();
+  }
+
+  // ---------------------------------------------------------------------------
   // Hero checkout mockup — payment-method accordion
   // ---------------------------------------------------------------------------
   const checkout = document.querySelector('[data-checkout]');

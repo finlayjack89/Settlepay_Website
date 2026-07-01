@@ -1,12 +1,8 @@
 ---
 import Icon from '../Icon.astro';
+import { SITE } from '../../data/site.mjs';
 
-const trust = [
-  { icon: 'card', tone: '', title: 'Modern Processors', text: 'FCA-regulated: Stripe, Adyen & more' },
-  { icon: 'shield', tone: 'green', title: 'We Never Hold Funds', text: 'They settle straight to your bank' },
-  { icon: 'lock', tone: 'purple', title: 'Security, Handled', text: 'PCI DSS via your processor' },
-  { icon: 'check', tone: 'amber', title: 'No Lock-In, Ever', text: 'You own your account and page' },
-];
+const trust = SITE.trustPoints;
 ---
 <section class="trust section-pad" data-screen-label="Trust bar">
   <div class="container">

@@ -1,0 +1,59 @@
+---
+/**
+ * StickyCta — mobile-only sticky booking bar. Opens the enquiry modal (the site's
+ * primary booking action). Shown/hidden by SiteScripts via IntersectionObserver:
+ * slides in once the hero has scrolled away, and hides whenever the final CTA band
+ * or footer is on screen so it never doubles up on the real button. Homepage only.
+ */
+import Button from './Button.astro';
+---
+<div class="sticky-cta" data-sticky-cta>
+  <Button variant="primary" size="large" icon="arrow" enquire>Book a Free Consultation</Button>
+</div>
+
+<style>
+  .sticky-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90; /* below the nav (100) and modal overlay */
+    display: none; /* desktop: never */
+    justify-content: center;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow:
+      0 -1px 0 rgba(15, 23, 42, 0.06),
+      0 -8px 24px rgba(15, 23, 42, 0.08);
+    /* Off-screen + non-focusable until shown; visibility flips after the slide-out. */
+    transform: translateY(130%);
+    visibility: hidden;
+    transition:
+      transform 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+      visibility 0s linear 400ms;
+  }
+
+  @media (max-width: 768px) {
+    .sticky-cta { display: flex; }
+  }
+
+  .sticky-cta.is-visible {
+    transform: translateY(0);
+    visibility: visible;
+    transition:
+      transform 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+      visibility 0s;
+  }
+
+  .sticky-cta :global(.btn-primary) {
+    width: 100%;
+    max-width: 420px;
+    justify-content: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sticky-cta { transition: visibility 0s; }
+  }
+</style>
