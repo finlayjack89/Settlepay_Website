@@ -257,42 +257,38 @@ body::after {
    5. Navigation — Change 9: Floating Island Nav
    --------------------------------------------------------- */
 /* Sticky positioning shell — full-width, transparent. The visual bar lives in
-   .navbar__inner so it can morph from a full-bleed frosted bar (top of page) to
-   a floating pill (scrolled) by animating max-width / radius / margin. */
+   .navbar__inner, which collapses CONTINUOUSLY from a full-bleed frosted bar
+   (scroll progress 0) to a centered floating pill (1). Progress is --nav-scroll-p,
+   written by SiteScripts over the first 150px of scroll; every transformed
+   property is a calc() off it, so the whole bar moves as one coordinated gesture.
+   The springy 400ms transition (cubic-bezier with 1.25 > 1 overshoots) smooths the
+   quantized progress steps into physical, non-sharp motion. */
 .navbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  /* BFC so the scrolled pill's top margin doesn't collapse away when stuck. */
+  /* BFC so the pill's top margin doesn't collapse away when stuck. */
   display: flow-root;
 }
 
 .navbar__inner {
-  max-width: 100%;
-  margin: 0 auto;
-  border-radius: 0;
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  background-color: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
-  transition:
-    max-width 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    margin 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.35s ease,
-    box-shadow 0.35s ease;
-}
-
-/* Scrolled — collapse the bar into the floating pill. */
-.navbar.is-scrolled .navbar__inner {
-  max-width: 940px;
-  margin: 12px auto 0;
-  border-radius: 100px;
-  background-color: rgba(255, 255, 255, 0.72);
+  max-width: calc(100% - (100% - 940px) * var(--nav-scroll-p, 0));
+  margin: calc(12px * var(--nav-scroll-p, 0)) auto 0;
+  border: 1px solid rgba(15, 23, 42, calc(0.07 * var(--nav-scroll-p, 0)));
+  border-radius: calc(100px * var(--nav-scroll-p, 0));
+  background-color: rgba(255, 255, 255, calc(0.6 + 0.14 * var(--nav-scroll-p, 0)));
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
   box-shadow:
-    0 2px 8px rgba(30, 58, 138, 0.06),
-    0 8px 32px rgba(30, 58, 138, 0.08),
-    inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+    0 2px 8px rgba(30, 58, 138, calc(0.06 * var(--nav-scroll-p, 0))),
+    0 8px 32px rgba(30, 58, 138, calc(0.08 * var(--nav-scroll-p, 0)));
+  transition:
+    max-width 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    margin 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    border-color 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    border-radius 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    background-color 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    box-shadow 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
 }
 
 .navbar .container {
@@ -300,32 +296,43 @@ body::after {
   justify-content: space-between;
   align-items: center;
   padding-block: 0.5rem;
-  padding-inline: 1.5rem;
+  padding-inline: calc(1.5rem - 0.75rem * var(--nav-scroll-p, 0));
   max-width: 1200px;
-  transition: padding 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Pill hugs its content tighter than the full-width bar. */
-.navbar.is-scrolled .container {
-  padding-inline: 0.75rem 0.5rem;
+  transition: padding 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
 }
 
 .navbar__logo {
   display: flex;
   align-items: center;
+  position: relative; /* stack the two logo layers for the cross-fade */
 }
 
-/* Square monogram mark — legible at nav scale; eases down slightly on scroll. */
+/* Square monogram mark — legible at nav scale; eases down as the bar collapses. */
 .navbar__logo-img {
-  height: 48px;
+  height: calc(48px - 8px * var(--nav-scroll-p, 0));
   width: auto;
-  transition: height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    height 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    opacity 400ms cubic-bezier(0.34, 1, 0.64, 1);
 }
 
-.navbar.is-scrolled .navbar__logo-img {
-  height: 40px;
+/* Full squircle while the bar is square (p=0); fades out as it rounds off. */
+.navbar__logo-img--squircle {
+  opacity: calc(1 - var(--nav-scroll-p, 0));
 }
 
+/* Bare SP mark (no squircle) fades in as the pill forms, so the icon's corner
+   radius never fights the bar's. Stacked exactly over the squircle (same artwork
+   coords) so only the squircle dissolves — the letters stay put. */
+.navbar__logo-img--bare {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: var(--nav-scroll-p, 0);
+}
+
+/* Reduced motion: keep the scroll-progress response (calc) but snap, no spring. */
 @media (prefers-reduced-motion: reduce) {
   .navbar__inner,
   .navbar .container,
@@ -1767,16 +1774,15 @@ body::after {
 
 /* Mobile */
 @media (max-width: 768px) {
-  /* Compact rounded bar in both states (already small on mobile). */
-  .navbar__inner,
-  .navbar.is-scrolled .navbar__inner {
+  /* Stay a compact rounded bar on mobile — ignore the scroll-progress collapse
+     (only the subtle border/background lift from --nav-scroll-p carries over). */
+  .navbar__inner {
     max-width: none;
     margin: 8px 0.75rem 0;
     border-radius: var(--radius-card);
   }
 
-  .navbar .container,
-  .navbar.is-scrolled .container {
+  .navbar .container {
     padding-inline: 0.75rem 0.5rem;
   }
 
@@ -1788,8 +1794,7 @@ body::after {
     display: flex;
   }
 
-  .navbar__logo-img,
-  .navbar.is-scrolled .navbar__logo-img {
+  .navbar__logo-img {
     height: 36px;
   }
 
