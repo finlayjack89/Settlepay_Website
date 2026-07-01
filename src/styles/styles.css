@@ -67,6 +67,9 @@ html {
   font-size: var(--text-base);
   scroll-behavior: smooth;
   scroll-padding-top: var(--nav-offset);
+  /* Reserve the scrollbar gutter so locking body scroll (modal open) never
+     shifts the page or the fixed nav sideways. */
+  scrollbar-gutter: stable;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
