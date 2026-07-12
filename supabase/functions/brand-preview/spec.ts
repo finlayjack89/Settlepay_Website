@@ -272,6 +272,77 @@ function fromHsl(h: number, s: number, l: number): string {
   return '#' + x(r) + x(g) + x(b);
 }
 
+function rgbDist(a: string, b: string): number {
+  const ca = a.replace('#', '');
+  const cb = b.replace('#', '');
+  let sum = 0;
+  for (let i = 0; i < 6; i += 2) {
+    const d = parseInt(ca.slice(i, i + 2), 16) - parseInt(cb.slice(i, i + 2), 16);
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
+}
+
+/**
+ * Colour census from the site's rendered HTML: every #hex / rgb() in inline
+ * styles and style blocks, neutrals dropped, near-duplicates merged, ranked by
+ * frequency. This is ground truth for what the site ACTUALLY paints with —
+ * unlike brand-API colours, which are often sampled from logo artwork.
+ */
+export function harvestColours(html: string): { hex: string; count: number }[] {
+  const counts = new Map<string, number>();
+  const add = (hex: string) => counts.set(hex, (counts.get(hex) ?? 0) + 1);
+  for (const m of String(html || '').matchAll(/#([0-9a-fA-F]{6})\b/g)) add('#' + m[1].toLowerCase());
+  for (const m of String(html || '').matchAll(/rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/g)) {
+    const [r, g, b] = [m[1], m[2], m[3]].map((v) => Math.min(255, Number(v)));
+    add('#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join(''));
+  }
+  const items = [...counts.entries()]
+    .map(([hex, count]) => ({ hex, count }))
+    .filter((c) => {
+      const { s } = toHsl(c.hex);
+      const L = relLum(c.hex);
+      return s >= 0.15 && L > 0.02 && L < 0.9; // real chroma, not page furniture
+    })
+    .sort((a, b) => b.count - a.count);
+  const merged: { hex: string; count: number }[] = [];
+  for (const c of items) {
+    const near = merged.find((m) => rgbDist(m.hex, c.hex) < 30);
+    if (near) near.count += c.count;
+    else merged.push({ ...c });
+  }
+  return merged.slice(0, 10);
+}
+
+/**
+ * Snap the model's ACCENT seed to the site's own hex when the census carries a
+ * hue-matching colour (≤20°): the model picks the colour family, the site's
+ * stylesheet supplies the exact value. The primary is deliberately NOT snapped —
+ * census hues often contain link/heading tints of the same hue family that
+ * would corrupt the structural colour (and primary is derived into shades
+ * anyway). Returns true when a snap happened (for logging).
+ */
+export function snapAccent(design: Brief['design'], census: { hex: string; count: number }[]): boolean {
+  if (!design.accent || !census.length) return false;
+  const own = toHsl(design.accent);
+  if (own.s < 0.15) return false;
+  let best: { hex: string; count: number } | null = null;
+  let bestDelta = 21;
+  for (const c of census) {
+    const ch = toHsl(c.hex);
+    if (ch.s < 0.15) continue;
+    let d = Math.abs(own.h - ch.h) * 360;
+    if (d > 180) d = 360 - d;
+    if (d <= 20 && (!best || c.count > best.count || (c.count === best.count && d < bestDelta))) {
+      best = c;
+      bestDelta = d;
+    }
+  }
+  if (!best || best.hex === design.accent) return false;
+  design.accent = best.hex;
+  return true;
+}
+
 /**
  * Dark-theme tone lift, hue-aware and saturation-preserving (HSL lightness
  * steps, not white-mixing — white-mix turns brand reds pink). Sunny hues
@@ -650,9 +721,10 @@ export const DESIGN_SYSTEM = [
   '',
   'Design guidance:',
   '- The "accent" seed must be the highlight colour as it actually APPEARS ON THE SITE —',
-  '  buttons, links, headings in the screenshot. The listed brand colours are candidates',
-  '  only: they are often sampled from logo artwork and read too dark as UI colours.',
-  '  "primary" is the structural colour you see in headers, footers and text.',
+  '  buttons, links, headings in the screenshot. When a "stylesheet colours" list is',
+  '  provided, prefer its hexes: those are the values the site really paints with. The',
+  '  brand-API colours are candidates only — often sampled from logo artwork, which reads',
+  '  too dark as a UI colour. "primary" is the structural colour of headers/footers/text.',
   '- You choose brand SEEDS, not palettes: "primary" is the brand’s structural colour,',
   '  "accent" its highlight. A design-token system derives the full light AND dark',
   '  renditions from them deterministically (the exemplar’s navy primary + gold accent',
@@ -690,6 +762,7 @@ export function briefUserPrompt(b: {
   colors: BrandColour[];
   font: string | null;
   markdown: string | null;
+  cssColours?: { hex: string; count: number }[];
   imageNote: string;
 }): string {
   const parts = [
@@ -704,6 +777,12 @@ export function briefUserPrompt(b: {
         font: b.font,
       }),
   ];
+  if (b.cssColours && b.cssColours.length) {
+    parts.push(
+      'Stylesheet colours — hexes the site really paints with, most frequent first: ' +
+        b.cssColours.map((c) => c.hex + ' (x' + c.count + ')').join(', '),
+    );
+  }
   if (b.markdown) parts.push('Excerpt of their homepage copy:\n' + b.markdown);
   if (b.imageNote) parts.push(b.imageNote);
   return parts.join('\n\n');

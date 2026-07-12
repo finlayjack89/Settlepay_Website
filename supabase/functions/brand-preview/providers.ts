@@ -60,7 +60,9 @@ export function activeProviders(): ProviderKey[] {
 
 export interface PromptInputs {
   userText: string;
-  imageUrls: string[]; // screenshot, banner, logo — pre-flighted, max 3
+  // screenshot, banner, logo — pre-flighted, max 3. `hi` = worth full detail
+  // (the screenshot: at low detail the GPT legs are nearly colour-blind).
+  images: { url: string; hi?: boolean }[];
 }
 
 interface LegSeed {
@@ -79,9 +81,9 @@ function normaliseUsage(u: any, vendor: ProviderDef['vendor']) {
 async function callAnthropic(seed: LegSeed, inputs: PromptInputs, key: string, signal: AbortSignal): Promise<Leg> {
   const { def } = seed;
   const started = performance.now();
-  const content: any[] = inputs.imageUrls.map((url) => ({
+  const content: any[] = inputs.images.map((img) => ({
     type: 'image',
-    source: { type: 'url', url },
+    source: { type: 'url', url: img.url },
   }));
   content.push({ type: 'text', text: inputs.userText });
 
@@ -150,7 +152,9 @@ async function callOpenAI(seed: LegSeed, inputs: PromptInputs, key: string, sign
   const started = performance.now();
   const parts: any[] = [{ type: 'text', text: inputs.userText }];
   // detail:'low' keeps each image at a small flat token cost — plenty for palette/mood.
-  for (const url of inputs.imageUrls) parts.push({ type: 'image_url', image_url: { url, detail: 'low' } });
+  for (const img of inputs.images) {
+    parts.push({ type: 'image_url', image_url: { url: img.url, detail: img.hi ? 'high' : 'low' } });
+  }
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

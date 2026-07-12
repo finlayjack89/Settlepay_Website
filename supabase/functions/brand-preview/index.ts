@@ -28,7 +28,9 @@ import {
   briefUserPrompt,
   deriveLogo,
   deriveTokens,
+  harvestColours,
   pickColour,
+  snapAccent,
   validateSpec,
 } from './spec.ts';
 import { activeProviders, PROVIDERS, runDesigners } from './providers.ts';
@@ -156,9 +158,14 @@ function pickBanner(images: any[]): string | null {
 
 // ---- Firecrawl (screenshot + homepage copy — best-effort) --------------------
 
-async function fetchSite(domain: string): Promise<{ screenshotUrl: string | null; markdown: string | null }> {
+async function fetchSite(domain: string): Promise<{
+  screenshotUrl: string | null;
+  markdown: string | null;
+  cssColours: { hex: string; count: number }[];
+}> {
+  const none = { screenshotUrl: null, markdown: null, cssColours: [] };
   const key = Deno.env.get('FIRECRAWL_API_KEY');
-  if (!key) return { screenshotUrl: null, markdown: null };
+  if (!key) return none;
   try {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 20_000);
@@ -167,45 +174,54 @@ async function fetchSite(domain: string): Promise<{ screenshotUrl: string | null
       headers: { Authorization: 'Bearer ' + key, 'content-type': 'application/json' },
       body: JSON.stringify({
         url: 'https://' + domain,
-        formats: ['screenshot', 'markdown'],
-        screenshot: { fullPage: false, viewport: { width: 1280, height: 800 } },
+        // html rides along free on the same scrape — it feeds the colour census.
+        // NB v2 wants screenshot options INSIDE the formats array; a top-level
+        // `screenshot` key is rejected with a 400 (verified live).
+        formats: [
+          'markdown',
+          'html',
+          { type: 'screenshot', fullPage: false, viewport: { width: 1280, height: 800 } },
+        ],
       }),
       signal: ctl.signal,
     });
     clearTimeout(timer);
     if (!res.ok) {
       console.warn('firecrawl error', res.status, (await res.text().catch(() => '')).slice(0, 200));
-      return { screenshotUrl: null, markdown: null };
+      return none;
     }
     const body = await res.json();
     const md = typeof body?.data?.markdown === 'string' ? body.data.markdown : null;
     return {
       screenshotUrl: typeof body?.data?.screenshot === 'string' ? body.data.screenshot : null,
       markdown: md ? md.replace(/\s+/g, ' ').slice(0, 1500) : null,
+      cssColours: harvestColours(body?.data?.html || ''),
     };
   } catch (e) {
     console.warn('firecrawl failed', e);
-    return { screenshotUrl: null, markdown: null };
+    return none;
   }
 }
 
 /** Drop image URLs the vision APIs couldn't fetch (a dead CDN link 400s a whole leg). */
-async function preflightImages(urls: (string | null)[]): Promise<string[]> {
-  const candidates = urls.filter((u): u is string => !!u).slice(0, 3);
+async function preflightImages(
+  items: { url: string | null; hi?: boolean }[],
+): Promise<{ url: string; hi?: boolean }[]> {
+  const candidates = items.filter((i): i is { url: string; hi?: boolean } => !!i.url).slice(0, 3);
   const checks = await Promise.all(
-    candidates.map(async (u) => {
+    candidates.map(async (i) => {
       try {
         const ctl = new AbortController();
         const timer = setTimeout(() => ctl.abort(), 4_000);
-        const res = await fetch(u, { method: 'HEAD', signal: ctl.signal });
+        const res = await fetch(i.url, { method: 'HEAD', signal: ctl.signal });
         clearTimeout(timer);
-        return res.ok ? u : null;
+        return res.ok ? i : null;
       } catch {
         return null;
       }
     }),
   );
-  return checks.filter((u): u is string => !!u);
+  return checks.filter((i): i is { url: string; hi?: boolean } => !!i);
 }
 
 // ---- handler ---------------------------------------------------------------
@@ -336,6 +352,7 @@ Deno.serve(async (req) => {
         .slice(0, 3),
       markdown: site.markdown,
       screenshotUrl: site.screenshotUrl,
+      cssColours: site.cssColours,
     };
   }
 
@@ -347,12 +364,16 @@ Deno.serve(async (req) => {
 
   // Vision inputs: screenshot beats banner beats logo; max 3, all pre-flighted
   // (a cached Firecrawl screenshot URL may have expired — the pre-flight drops it).
-  const imageUrls = await preflightImages([extract.screenshotUrl, bannerUrl, logos.logoRasterUrl]);
-  const imageNote = imageUrls.length
+  const images = await preflightImages([
+    { url: extract.screenshotUrl, hi: true },
+    { url: bannerUrl },
+    { url: logos.logoRasterUrl },
+  ]);
+  const imageNote = images.length
     ? 'Images attached in order: ' +
       [extract.screenshotUrl && 'homepage screenshot', bannerUrl && 'brand banner', logos.logoRasterUrl && 'logo']
         .filter(Boolean)
-        .slice(0, imageUrls.length)
+        .slice(0, images.length)
         .join(', ') +
       '.'
     : '';
@@ -365,14 +386,20 @@ Deno.serve(async (req) => {
     colors,
     font,
     markdown: extract.markdown,
+    cssColours: extract.cssColours || [],
     imageNote,
   });
 
-  const legs = await runDesigners(activeProviders(), { userText, imageUrls });
+  const legs = await runDesigners(activeProviders(), { userText, images });
 
   const brandLogos = { logoUrl: logos.logoUrl, logoDarkUrl: logos.logoDarkUrl };
   const variants = legs.map((leg) => {
     const brief = leg.brief ? validateSpec(leg.brief, { name, colors, font }) : null;
+    // Ground the accent in the site's own stylesheet: models tend to echo the
+    // brand-API hex (logo-sampled) even when the site paints with another tone.
+    if (brief && snapAccent(brief.design, extract.cssColours || [])) {
+      console.log('brand-preview accent snapped', JSON.stringify({ key: leg.key, accent: brief.design.accent }));
+    }
     // Materialise the design system: both renditions derive from the brief's
     // seeds by fixed formulas, so light/dark stay consistent with each other.
     const tokens = brief
