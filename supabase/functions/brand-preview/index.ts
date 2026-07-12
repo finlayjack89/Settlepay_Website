@@ -234,6 +234,8 @@ Deno.serve(async (req) => {
     url?: string;
     fresh?: boolean; // deliberate re-roll: skip the cache read (the write still happens)
     vote?: { domain?: string; key?: string; model?: string };
+    createShare?: { domain?: string }; // snapshot the cached design → { slug }
+    share?: { slug?: string }; // fetch a share snapshot for the /p/ page
   };
   try {
     payload = await req.json();
@@ -269,6 +271,69 @@ Deno.serve(async (req) => {
       return json({ error: 'vote-failed' }, 500);
     }
     return json({ ok: true });
+  }
+
+  // ---- share branches ----------------------------------------------------------
+  // Create: snapshot the SERVER-side cached design (never client-supplied JSON —
+  // the /p/ page must only ever render pipeline-validated content).
+  if (payload.createShare) {
+    const shareDomain = toDomain(payload.createShare.domain || '');
+    if (!shareDomain) return json({ error: 'invalid-domain' }, 400);
+    if (!supabase) return json({ error: 'share-unavailable' }, 503);
+    try {
+      const { data: cached } = await supabase
+        .from('brand_previews')
+        .select('profile, fetched_at')
+        .eq('domain', shareDomain)
+        .maybeSingle();
+      const profile = cached?.profile;
+      const fresh =
+        cached?.fetched_at && Date.now() - new Date(cached.fetched_at).getTime() < CACHE_TTL_HOURS * 3_600_000;
+      const variant = profile?.v === 4 && fresh ? (profile.variants || []).find((v: any) => v.brief && v.tokens) : null;
+      if (!variant) return json({ error: 'nothing-to-share' }, 404);
+
+      // Unguessable slug: 12 chars over a 31-symbol alphabet ≈ 59 bits.
+      const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+      const bytes = crypto.getRandomValues(new Uint8Array(12));
+      const slug = [...bytes].map((b) => alphabet[b % alphabet.length]).join('');
+
+      const snapshot = {
+        name: profile.name,
+        domain: profile.domain,
+        brand: profile.brand,
+        variant: { brief: variant.brief, tokens: variant.tokens, logo: variant.logo },
+      };
+      const { error } = await supabase.from('brand_preview_shares').insert({ slug, domain: shareDomain, snapshot });
+      if (error) throw new Error(error.message);
+      return json({ slug });
+    } catch (e) {
+      console.error('createShare failed', e);
+      return json({ error: 'share-failed' }, 500);
+    }
+  }
+
+  // Fetch: the /p/ page loads a snapshot by slug.
+  if (payload.share) {
+    const slug = String(payload.share.slug || '').toLowerCase();
+    if (!/^[a-z0-9]{8,16}$/.test(slug)) return json({ error: 'invalid-share' }, 400);
+    if (!supabase) return json({ error: 'share-unavailable' }, 503);
+    try {
+      const { data: row } = await supabase
+        .from('brand_preview_shares')
+        .select('snapshot, expires_at, views')
+        .eq('slug', slug)
+        .maybeSingle();
+      if (!row) return json({ error: 'share-not-found' }, 404);
+      if (new Date(row.expires_at).getTime() < Date.now()) return json({ error: 'share-expired' }, 404);
+      await supabase.rpc('bump_share_views', { share_slug: slug }).then(
+        () => {},
+        () => {}, // view counting is best-effort
+      );
+      return json({ v: 4, share: true, views: (row.views ?? 0) + 1, ...row.snapshot });
+    } catch (e) {
+      console.error('share fetch failed', e);
+      return json({ error: 'share-failed' }, 500);
+    }
   }
 
   // ---- generate branch ---------------------------------------------------------

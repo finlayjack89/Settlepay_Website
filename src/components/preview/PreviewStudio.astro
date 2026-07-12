@@ -702,8 +702,23 @@ const CARDS = [0, 1, 2, 3];
     );
 
     if (shareBtn) {
+      // A share mints a view-only /p/<slug> page from a server-side snapshot of
+      // this generation — the recipient sees the page (plus a booking CTA),
+      // never the tool. Falls back to a plain ?url= deep link if minting fails.
       shareBtn.addEventListener('click', async () => {
-        const link = location.origin + location.pathname + '?url=' + encodeURIComponent(state.domain);
+        if (shareLabel) shareLabel.textContent = 'Creating Link…';
+        let link = location.origin + location.pathname + '?url=' + encodeURIComponent(state.domain);
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ createShare: { domain: state.domain } }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data && data.slug) link = location.origin + '/p/' + data.slug;
+        } catch {
+          /* fall back to the deep link */
+        }
         try {
           await navigator.clipboard.writeText(link);
           if (shareLabel) shareLabel.textContent = 'Link Copied';
