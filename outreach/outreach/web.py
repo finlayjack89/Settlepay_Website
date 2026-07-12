@@ -19,6 +19,7 @@ behind G-SEND. Run:
 from __future__ import annotations
 import html
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -31,7 +32,10 @@ app = FastAPI(title="SettlePay — operations console")
 # Grouped sidebar: one unified surface over inbound (enquiries) + outbound (outreach).
 NAV_GROUPS = [
     (None, [("/", "Dashboard", "grid")]),
-    ("Inbound", [("/enquiries", "Enquiries", "inbox")]),
+    ("Inbound", [
+        ("/enquiries", "Enquiries", "inbox"),
+        ("/schedule", "Schedule", "calendar"),
+    ]),
     ("Outbound", [
         ("/outreach", "Outreach", "megaphone"),
         ("/outreach/queue", "Approval queue", "clipboard"),
@@ -43,6 +47,7 @@ NAV_GROUPS = [
 ICONS = {
     "grid": "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
     "inbox": "M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z",
+    "calendar": "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5",
     "megaphone": "M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535",
     "clipboard": "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z",
     "users": "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
@@ -97,6 +102,29 @@ def _ago(dt) -> str:
     if secs < 7 * 86400:
         return f"{int(secs // 86400)}d ago"
     return dt.strftime("%d %b %Y")
+
+
+_UK = ZoneInfo("Europe/London")
+# booking status -> (label, semantic colour key)
+_BOOKING_STYLE = {
+    "confirmed": ("Confirmed", "success"),
+    "rescheduled": ("Rescheduled", "info"),
+    "cancelled": ("Cancelled", "muted"),
+}
+
+
+def _booking_badge(status: str) -> str:
+    label, kind = _BOOKING_STYLE.get(status, (status, "neutral"))
+    return f'<span class="badge b-{kind}">{html.escape(label)}</span>'
+
+
+def _when(dt) -> str:
+    """Format a booking time in UK local time, e.g. 'Tue 01 Jul · 14:00'."""
+    if not dt:
+        return "—"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_UK).strftime("%a %d %b · %H:%M")
 
 
 _STYLE = """
@@ -767,11 +795,12 @@ def settings():
       <dt>Database</dt><dd>{'<span class="badge b-success">connected</span>' if db_ok else '<span class="badge b-error">not reachable</span>'}</dd>
       <dt>Enquiries table</dt><dd>public.{html.escape(config.ENQUIRY_SOURCE_TABLE)}</dd>
       <dt>Capture</dt><dd><span class="badge b-success">live</span> <span class="muted">(website form → Supabase)</span></dd>
+      <dt>Consultations</dt><dd>public.bookings <span class="muted">(Cal.com webhook → Schedule)</span></dd>
     </dl></div>
   <div class="panel"><h2>Console</h2>
     <div class="hint">This unified operations surface.</div>
     <dl class="kv">
-      <dt>Sections</dt><dd>Inbound (Enquiries) + Outbound (Outreach)</dd>
+      <dt>Sections</dt><dd>Inbound (Enquiries · Schedule) + Outbound (Outreach)</dd>
       <dt>Access</dt><dd>localhost only · no auth</dd>
     </dl></div>
 </div>
@@ -872,3 +901,77 @@ def enquiry_update(lead_id: str, status: str = Form(...), notes: str = Form(""))
     except Exception:
         return RedirectResponse(f"/enquiry/{lead_id}", status_code=303)
     return RedirectResponse(f"/enquiry/{lead_id}?saved=1", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Schedule (inbound) — consultations booked via Cal.com
+# --------------------------------------------------------------------------- #
+@app.get("/schedule", response_class=HTMLResponse)
+def schedule():
+    connected, upcoming, recent = False, [], []
+    try:
+        with db.dict_cursor() as cur:
+            if enquiries.bookings_exists(cur):
+                connected = True
+                upcoming = enquiries.upcoming_bookings(cur)
+                recent = enquiries.recent_bookings(cur)
+    except Exception:
+        connected, upcoming, recent = False, [], []
+
+    if not connected:
+        body = """
+<div class="note">Consultations appear here once the <b>public.bookings</b> table exists
+(<code>supabase&nbsp;db&nbsp;push</code>) and the Cal.com webhook is connected.</div>
+<div class="panel"><div class="empty">No bookings connected yet.</div></div>"""
+        return _shell("/schedule", "Schedule", "Consultations & bookings", body)
+
+    now = datetime.now(timezone.utc)
+    week = sum(1 for b in upcoming
+               if b["start_at"] and (b["start_at"] - now).total_seconds() < 7 * 86400)
+    nxt = _when(upcoming[0]["start_at"]) if upcoming else "—"
+    tiles = [
+        ("accent", len(upcoming), "Upcoming", "confirmed consultations"),
+        ("", week, "This week", "next 7 days"),
+    ]
+    kpis = "".join(
+        f'<div class="tile {cls}"><div class="n">{n}</div><div class="l">{l}</div><div class="s">{s}</div></div>'
+        for cls, n, l, s in tiles)
+
+    def _who(b: dict) -> str:
+        name = html.escape(b.get("attendee_name") or "—")
+        email = b.get("attendee_email") or ""
+        sub = (f'<br><span class="muted" style="font-size:.74rem">{html.escape(email)}</span>'
+               if email else "")
+        if b.get("lead_id"):
+            sub += (f' <a href="/enquiry/{html.escape(str(b["lead_id"]))}" '
+                    f'class="muted" style="font-size:.72rem">· from enquiry</a>')
+        return f'<b>{name}</b>{sub}'
+
+    def _join(b: dict) -> str:
+        u = b.get("join_url")
+        if not u:
+            return '<span class="muted">—</span>'
+        return (f'<a class="btn btn-ghost" style="padding:.32rem .85rem;font-size:.76rem" '
+                f'href="{html.escape(u)}" target="_blank" rel="noopener">Join</a>')
+
+    up = "".join(
+        f'<tr><td>{_when(b["start_at"])}</td><td>{_who(b)}</td>'
+        f'<td>{_join(b)}</td><td>{_booking_badge(b["status"])}</td></tr>'
+        for b in upcoming) or '<tr><td colspan=4 class="empty">No upcoming consultations.</td></tr>'
+
+    body = f"""<div class="kpis">{kpis}</div>
+<div class="panel"><h2>Upcoming consultations</h2>
+  <div class="hint">Booked via Cal.com · next up: {html.escape(nxt)}</div>
+  <table><tr><th>When (UK)</th><th>Who</th><th>Link</th><th>Status</th></tr>{up}</table>
+</div>"""
+
+    if recent:
+        rec = "".join(
+            f'<tr><td>{_when(b["start_at"])}</td><td>{_who(b)}</td>'
+            f'<td>{_booking_badge(b["status"])}</td></tr>'
+            for b in recent)
+        body += f"""<div class="panel"><h2>Recent &amp; past</h2>
+  <div class="hint">Completed and cancelled consultations.</div>
+  <table><tr><th>When (UK)</th><th>Who</th><th>Status</th></tr>{rec}</table></div>"""
+
+    return _shell("/schedule", "Schedule", "Consultations booked via Cal.com", body)

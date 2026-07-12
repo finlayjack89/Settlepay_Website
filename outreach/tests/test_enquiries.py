@@ -29,3 +29,12 @@ def test_list_enquiries_is_read_only_list():
         rows = enquiries.list_enquiries(cur)
         counts = enquiries.status_counts(cur)
     assert isinstance(rows, list) and isinstance(counts, dict)
+
+
+def test_bookings_reader_is_read_only():
+    with db.dict_cursor() as cur:
+        exists = enquiries.bookings_exists(cur)
+        assert isinstance(exists, bool)
+        if exists:  # public.bookings only present once main's migration is applied
+            assert isinstance(enquiries.upcoming_bookings(cur), list)
+            assert isinstance(enquiries.recent_bookings(cur), list)

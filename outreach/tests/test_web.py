@@ -47,6 +47,18 @@ def test_enquiries_renders():
     assert "your CRM" in r.text
 
 
+def test_schedule_renders():
+    r = client.get("/schedule")
+    assert r.status_code == 200
+    # both the connected view and the "no bookings yet" fallback mention consultations
+    assert "Consultations" in r.text
+
+
+def test_schedule_in_sidebar():
+    r = client.get("/")
+    assert "/schedule" in r.text  # Schedule nav entry present under Inbound
+
+
 def test_settings_renders():
     r = client.get("/settings")
     assert r.status_code == 200
