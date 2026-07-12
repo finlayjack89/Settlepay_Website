@@ -1,27 +1,27 @@
 ---
 /* PreviewStudio — "See your payment page" URL-driven brand customiser.
 
-   The visitor pastes their website address; the `brand-preview` Edge Function
-   reads their public brand (Brandfetch: colours, themed logos, banner, font;
-   Firecrawl: homepage screenshot + copy) and asks each active model for a full
-   DESIGN BRIEF — palette, layout sections, typography feel and industry-authentic
-   content. Every brief is rendered as a complete branded payment page
-   (PaymentPagePreview + paymentPage.mjs painter).
+   Guided flow: (1) the visitor pastes their website address → the
+   `brand-preview` Edge Function reads their public brand (Brandfetch: colours,
+   themed logos, banner, font; Firecrawl: homepage screenshot, copy and a
+   stylesheet colour census) and has the production model draft a DESIGN BRIEF —
+   brand seeds, layout sections, typography feel and industry-authentic content —
+   materialised server-side into light+dark design-token sets and rendered as a
+   complete branded payment page (PaymentPagePreview + paymentPage.mjs painter).
+   (2) "Make it yours": name/colour/scenario tweaks plus device and appearance
+   toggles re-render instantly from the same brief. (3) An in-flow CTA to book a
+   consultation appears once the page exists. Entirely user-facing — no model
+   identifiers anywhere; per-leg telemetry stays server-side.
 
-   Model split test: with several DESIGN_PROVIDERS active the response carries
-   up to four variants; we render one full page per model, side by side, each
-   labelled with model + latency + tokens, plus a "prefer this design" vote
-   that's tallied server-side. Single-provider mode renders one page.
-
-   Manual fallback: if extraction fails the controls still drive a neutral
-   default brief — never a dead end. Manual colour/scenario tweaks override
-   across ALL cards (the brand world changes, each model's layout stays its own).
+   The markup keeps four SSR'd cards so a multi-variant response (if a split
+   test is ever re-enabled via DESIGN_PROVIDERS) still renders; production mode
+   uses card 0 only. Manual fallback: if extraction fails the controls still
+   drive a neutral default brief — never a dead end.
 
    Mockup-world: the prospect's own colour drives the demo pages, so any colour —
    including blue — is legitimate inside them. The SettlePay chrome around them
-   keeps the reserved-blue rules (the single primary action is "Generate
-   Preview"). Illustrative only; no real payments; not affiliated with any brand
-   whose URL is entered. */
+   keeps the reserved-blue rules. Illustrative only; no real payments; not
+   affiliated with any brand whose URL is entered. */
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
 import PaymentPagePreview from './PaymentPagePreview.astro';
@@ -47,7 +47,7 @@ const CARDS = [0, 1, 2, 3];
 >
   <!-- Fast path: paste a URL -->
   <form class="ps__urlbar" data-ps-form novalidate>
-    <label class="ps__url-label" for="ps-url">Your website address</label>
+    <label class="ps__url-label" for="ps-url"><span class="ps__step" aria-hidden="true">1</span> Your Website Address</label>
     <div class="ps__url-row">
       <span class="ps__url-globe" aria-hidden="true"><Icon name="globe" sw={1.8} /></span>
       <input
@@ -67,13 +67,14 @@ const CARDS = [0, 1, 2, 3];
       Paste your site and we'll design a payment page in your brand — in seconds.
     </p>
     <button type="button" class="ps__fresh" data-ps-fresh hidden>
-      <Icon name="refresh" sw={2} /> Generate Fresh Designs
+      <Icon name="refresh" sw={2} /> Try a Fresh Take
     </button>
   </form>
 
   <div class="ps__grid">
     <!-- Controls (SettlePay UI) — also the manual fallback -->
     <div class="ps__controls">
+      <h3 class="ps__zone-title"><span class="ps__step" aria-hidden="true">2</span> Make It Yours</h3>
       <div class="ps__field">
         <label class="ps__label" for="ps-name">Business name</label>
         <input
@@ -117,11 +118,6 @@ const CARDS = [0, 1, 2, 3];
         </div>
       </div>
 
-      <p class="ps__abnote" data-ps-abnote hidden>
-        Split test — one brand, a full payment page from each model. Compare the designs and
-        mark your favourite.
-      </p>
-
       <button type="button" class="ps__share" data-ps-share hidden>
         <Icon name="globe" sw={1.8} />
         <span data-ps-share-label>Copy a Shareable Link</span>
@@ -155,18 +151,27 @@ const CARDS = [0, 1, 2, 3];
       <div class="ps__cards" data-ps-cards>
         {CARDS.map((i) => (
           <div class="ps__card" data-ps-card hidden={i > 0}>
-            <span class="ps__card-label" data-ps-card-label hidden></span>
             <div class="ps__card-frame">
               <PaymentPagePreview />
               <div class="ps__skeleton" data-ps-skeleton hidden aria-hidden="true">
                 <span></span><span></span><span></span><span></span><span></span>
               </div>
             </div>
-            <button type="button" class="ps__vote" data-ps-vote hidden>
-              <Icon name="check" sw={2.2} /> Prefer This Design
-            </button>
           </div>
         ))}
+      </div>
+
+      <!-- In-flow CTA — revealed once a page has been generated -->
+      <div class="ps__cta" data-ps-cta hidden>
+        <p class="ps__cta-text">
+          <span class="ps__step" aria-hidden="true">3</span>
+          Like what you see? This is a sketch — we design and build the real thing around how
+          your business actually gets paid.
+        </p>
+        <div class="ps__cta-actions">
+          <Button variant="primary" icon="arrow" href={SITE.bookingUrl} target="_blank" rel="noopener">Book a Free Consultation</Button>
+          <Button variant="secondary" enquire>Enquire</Button>
+        </div>
       </div>
     </div>
   </div>
@@ -351,13 +356,6 @@ const CARDS = [0, 1, 2, 3];
     box-shadow: var(--shadow-sm);
   }
   .ps__seg-btn:focus-visible { outline: 2px solid var(--color-primary-action); outline-offset: 2px; }
-  .ps__abnote {
-    margin: 0 0 1.2rem;
-    font-size: 0.8rem;
-    line-height: 1.5;
-    color: var(--color-primary-action);
-  }
-  .ps__abnote[hidden] { display: none; }
   .ps__share {
     display: inline-flex;
     align-items: center;
@@ -426,20 +424,6 @@ const CARDS = [0, 1, 2, 3];
   }
   .ps__card[hidden] { display: none; }
   .ps__card-frame { position: relative; }
-  .ps__card-label {
-    align-self: flex-start;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-primary-brand);
-    background: var(--color-secondary-bg);
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    border-radius: var(--radius-button);
-    padding: 0.3rem 0.75rem;
-  }
-  .ps__card-label[hidden] { display: none; }
-  .ps__card-label.is-empty { color: rgba(15, 23, 42, 0.45); }
 
   /* ---- loading skeleton ---- */
   .ps__skeleton {
@@ -473,34 +457,54 @@ const CARDS = [0, 1, 2, 3];
     100% { background-position: -200% 0; }
   }
 
-  /* ---- vote ---- */
-  .ps__vote {
-    display: inline-flex;
+  /* ---- guided-flow chrome ---- */
+  .ps__step {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--color-primary-brand);
+    color: var(--color-pure-white);
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-right: 0.45rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .ps__zone-title {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    align-self: center;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--color-primary-brand);
-    background: var(--color-pure-white);
-    border: 1px solid rgba(15, 23, 42, 0.16);
-    border-radius: var(--radius-button);
-    padding: 0.55rem 1.1rem;
-    cursor: pointer;
-    transition: background var(--ease-snappy), transform var(--ease-snappy);
+    margin: 0 0 1.4rem;
   }
-  .ps__vote[hidden] { display: none; }
-  .ps__vote:hover:not(:disabled) { background: var(--color-secondary-bg); }
-  .ps__vote:active:not(:disabled) { transform: scale(0.98); }
-  .ps__vote:disabled { cursor: default; opacity: 0.6; }
-  .ps__vote.is-chosen {
-    color: #1f8a5d;
-    border-color: rgba(31, 138, 93, 0.4);
-    opacity: 1;
+  .ps__cta {
+    margin-top: 2rem;
+    padding: 1.4rem 1.6rem;
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2rem;
+    flex-wrap: wrap;
   }
-  .ps__vote svg { width: 15px; height: 15px; color: #1f8a5d; }
+  .ps__cta[hidden] { display: none; }
+  .ps__cta-text {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--color-primary-brand);
+    flex: 1 1 320px;
+  }
+  .ps__cta-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
   @media (max-width: 980px) {
     .ps.is-multi .ps__cards { grid-template-columns: minmax(0, 480px); }
@@ -511,7 +515,7 @@ const CARDS = [0, 1, 2, 3];
     .ps__preview { order: 1; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .ps__swatch, .ps__share, .ps__vote { transition: none; }
+    .ps__swatch, .ps__share { transition: none; }
     .ps__skeleton span { animation: none; }
   }
 </style>
@@ -558,14 +562,6 @@ const CARDS = [0, 1, 2, 3];
     document.head.appendChild(link);
   }
 
-  function variantLabel(v) {
-    if (!v) return '';
-    const secs = v.ms ? (v.ms / 1000).toFixed(1) + 's' : null;
-    const toks = v.usage && v.usage.output_tokens ? v.usage.output_tokens + ' tok' : null;
-    const cost = typeof v.cost === 'number' ? '$' + v.cost.toFixed(3) : null;
-    return [v.label || v.model, secs, toks, cost].filter(Boolean).join(' · ');
-  }
-
   document.querySelectorAll('[data-ps]').forEach((root) => {
     if (root.dataset.psBound) return;
     root.dataset.psBound = '1';
@@ -585,12 +581,10 @@ const CARDS = [0, 1, 2, 3];
     const shareBtn = root.querySelector('[data-ps-share]');
     const shareLabel = root.querySelector('[data-ps-share-label]');
     const disclaimerEl = root.querySelector('[data-ps-disclaimer]');
-    const abNote = root.querySelector('[data-ps-abnote]');
+    const ctaEl = root.querySelector('[data-ps-cta]');
 
     const cardEls = Array.from(root.querySelectorAll('[data-ps-card]'));
-    const cardLabels = cardEls.map((c) => c.querySelector('[data-ps-card-label]'));
     const skeletons = cardEls.map((c) => c.querySelector('[data-ps-skeleton]'));
-    const voteBtns = cardEls.map((c) => c.querySelector('[data-ps-vote]'));
 
     // Button renders "<text node>Generate Preview</text><svg icon/>" — toggle the
     // text node so the trailing icon survives the loading state.
@@ -611,7 +605,6 @@ const CARDS = [0, 1, 2, 3];
         device: window.matchMedia('(max-width: 860px)').matches ? 'mobile' : 'desktop',
         theme: 'light',
       },
-      voted: false,
     };
 
     const setStatus = (msg, kind) => {
@@ -672,22 +665,11 @@ const CARDS = [0, 1, 2, 3];
       root.classList.toggle('is-desktop', state.overrides.device === 'desktop');
     }
 
-    function setCardLabel(i, text, hasBrief) {
-      const el = cardLabels[i];
-      if (!el) return;
-      if (!text) { el.hidden = true; return; }
-      el.textContent = hasBrief ? text : text + ' — no design returned';
-      el.classList.toggle('is-empty', !hasBrief);
-      el.hidden = false;
-    }
-
     function setSkeletons(on) {
-      const count = on ? cardEls.length : 0;
       cardEls.forEach((card, i) => {
-        if (on) card.hidden = false;
-        if (skeletons[i]) skeletons[i].hidden = i >= count;
-        if (on && cardLabels[i]) cardLabels[i].hidden = true;
-        if (on && voteBtns[i]) voteBtns[i].hidden = true;
+        // Loading shows a single working card — production is one designer.
+        if (on) card.hidden = i > 0;
+        if (skeletons[i]) skeletons[i].hidden = !on || i > 0;
       });
     }
 
@@ -726,38 +708,13 @@ const CARDS = [0, 1, 2, 3];
       });
     }
 
-    // ---- votes ("prefer this design") ----
-    voteBtns.forEach((btn, i) => {
-      if (!btn) return;
-      btn.addEventListener('click', async () => {
-        const variant = state.variants[i];
-        if (!variant || state.voted || !endpoint) return;
-        btn.disabled = true;
-        try {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ vote: { domain: state.domain, key: variant.key, model: variant.model } }),
-          });
-          if (!res.ok) throw new Error('vote-failed');
-          state.voted = true;
-          btn.classList.add('is-chosen');
-          btn.lastChild.textContent = ' Noted — Thanks';
-          voteBtns.forEach((b) => { if (b) b.disabled = true; });
-        } catch {
-          btn.disabled = false;
-          btn.lastChild.textContent = " Couldn't Save Vote";
-        }
-      });
-    });
-
-    // ---- apply a fetched v2 profile ----
+    // ---- apply a fetched profile ----
     function applyProfile(p) {
       if (p.name) { state.name = p.name; nameInput.value = p.name.slice(0, 32); }
       state.brand = p.brand || {};
       loadBrandFont(state.brand.font || '');
-      // Keep the visitor's device; open in the renditions most models say match
-      // the brand's real site.
+      // Keep the visitor's device; open in the rendition that matches the
+      // brand's real site.
       const prefs = (p.variants || []).filter((v) => v.brief).map((v) => v.brief.design.preferred);
       const darkWins = prefs.filter((x) => x === 'dark').length > prefs.length / 2;
       state.overrides = {
@@ -766,24 +723,11 @@ const CARDS = [0, 1, 2, 3];
         device: state.overrides.device,
         theme: darkWins ? 'dark' : 'light',
       };
-      state.voted = false;
       syncToggles();
       selectSwatch(null);
       planBtns.forEach((x) => { x.classList.remove('is-selected'); x.setAttribute('aria-checked', 'false'); });
 
-      const variants = Array.isArray(p.variants) ? p.variants.slice(0, cardEls.length) : [];
-      state.variants = variants;
-      const multi = variants.length > 1;
-      variants.forEach((v, i) => {
-        setCardLabel(i, multi ? variantLabel(v) : '', !!v.brief);
-        if (cardLabels[i] && v.brief && v.brief.rationale) cardLabels[i].title = v.brief.rationale;
-        if (voteBtns[i]) voteBtns[i].hidden = !(multi && v.brief);
-      });
-      for (let i = variants.length; i < cardEls.length; i += 1) {
-        setCardLabel(i, '', false);
-        if (voteBtns[i]) voteBtns[i].hidden = true;
-      }
-      if (abNote) abNote.hidden = !multi;
+      state.variants = Array.isArray(p.variants) ? p.variants.slice(0, cardEls.length) : [];
 
       render();
 
@@ -795,12 +739,29 @@ const CARDS = [0, 1, 2, 3];
         disclaimerEl.hidden = false;
       }
       if (shareBtn) shareBtn.hidden = !state.domain;
+      if (ctaEl) ctaEl.hidden = !state.variants.some((v) => v.brief);
     }
 
     // ---- generate from a URL ----
     const freshBtn = root.querySelector('[data-ps-fresh]');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // Honest-but-alive loading copy, staged to roughly match the real pipeline.
+    const STAGES = [
+      ['Reading your site…', 0],
+      ['Capturing your homepage and brand…', 3000],
+      ['Designing your payment page…', 7000],
+      ['Applying your colours, logo and type…', 12000],
+    ];
     let inFlight = false;
-    let stageTimer = null;
+    let stageTimers = [];
+    const clearStages = () => { stageTimers.forEach(clearTimeout); stageTimers = []; };
+
+    function scrollToPreview() {
+      const target = cardEls[0];
+      if (!target) return;
+      target.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    }
+
     async function generate(rawUrl, fresh) {
       const u = normaliseUrl(rawUrl);
       if (!u) {
@@ -818,12 +779,12 @@ const CARDS = [0, 1, 2, 3];
       inFlight = true;
       if (generateBtn) generateBtn.disabled = true;
       if (freshBtn) freshBtn.hidden = true;
+      if (ctaEl) ctaEl.hidden = true;
       setBtnLabel('Designing…');
-      setStatus('Reading ' + state.domain + '…', 'working');
       setSkeletons(true);
-      stageTimer = setTimeout(() => {
-        setStatus('Designing your page — each model drafts its own take, give it ~15 seconds…', 'working');
-      }, 4000);
+      STAGES.forEach(([msg, delay]) => {
+        stageTimers.push(setTimeout(() => setStatus(msg, 'working'), delay));
+      });
 
       try {
         const res = await fetch(endpoint, {
@@ -835,25 +796,24 @@ const CARDS = [0, 1, 2, 3];
         if (!res.ok || !data || data.error || data.v !== 4) {
           throw new Error((data && data.error) || 'extract-failed');
         }
+        clearStages();
         setSkeletons(false);
         applyProfile(data);
         const good = (data.variants || []).filter((v) => v.brief).length;
         const who = data.name || state.domain;
-        if (freshBtn) freshBtn.hidden = !data.cached;
+        if (freshBtn) freshBtn.hidden = !good;
         setStatus(
-          data.cached && good
-            ? 'Served instantly — your earlier designs for ' + who + '. Want different takes? Generate fresh ones below.'
-            : good > 1
-              ? good + ' payment-page designs for ' + who + ' — compare them and mark your favourite.'
-              : good === 1
-                ? "Here's " + who + "'s payment page. Tweak the colour or scenario below."
-                : "The designers couldn't draft a page this time — set your brand by hand below.",
+          good
+            ? "Here's " + who + "'s payment page — flip device or appearance, make it yours, then book a free consultation."
+            : "We couldn't design a page this time — set your name, colour and scenario by hand below.",
           good ? null : 'error',
         );
+        if (good) scrollToPreview();
       } catch (err) {
         // Graceful fallback to manual entry — no dead end.
         state.domain = '';
         state.variants = [];
+        clearStages();
         setSkeletons(false);
         cardEls.forEach((c, i) => { c.hidden = i > 0; });
         root.classList.remove('is-multi');
@@ -861,7 +821,7 @@ const CARDS = [0, 1, 2, 3];
         setStatus("We couldn't read that site automatically. No problem — set your name, colour and scenario by hand below.", 'error');
       } finally {
         inFlight = false;
-        clearTimeout(stageTimer);
+        clearStages();
         if (generateBtn) generateBtn.disabled = false;
         setBtnLabel(genLabel);
       }
@@ -880,8 +840,6 @@ const CARDS = [0, 1, 2, 3];
     }
 
     // ---- initial paint + hydrate from a shared ?url= link ----
-    // (?url= re-generates on load; while several DESIGN_PROVIDERS are active
-    // that re-bills every leg — acceptable at this volume.)
     syncToggles();
     render();
     const params = new URLSearchParams(location.search);
@@ -889,6 +847,9 @@ const CARDS = [0, 1, 2, 3];
     if (sharedUrl) {
       urlInput.value = sharedUrl;
       generate(sharedUrl);
+    } else if (!window.matchMedia('(max-width: 860px)').matches) {
+      // Desktop lands ready to type; on phones autofocus would yank the viewport.
+      urlInput.focus();
     }
   });
 </script>
