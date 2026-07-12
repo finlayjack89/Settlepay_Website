@@ -3,10 +3,16 @@
 
    The visitor pastes their website address; we call the `brand-preview` Edge
    Function, which reads their public brand (name, logo, colour, font) via
-   Brandfetch and drafts compliant microcopy via Claude. The detected brand is
-   poured into the same mockup checkout used on /work/, then the visitor can
-   tweak colour / scenario / name by hand. If extraction fails (or the backend
-   isn't reachable yet) the controls still work as a manual fallback.
+   Brandfetch and drafts compliant microcopy. The detected brand is poured into
+   the same mockup checkout used on /work/, then the visitor can tweak colour /
+   scenario / name by hand. If extraction fails (or the backend isn't reachable
+   yet) the controls still work as a manual fallback.
+
+   A/B split-test: when the backend runs in COPY_PROVIDER=both mode it returns a
+   `copyAB` object with a Claude variant and an OpenAI variant. In that case we
+   render TWO payment pages side by side — same brand (logo, colour, font), the
+   only difference is the microcopy — each labelled with its model, so you can
+   compare the two pages directly.
 
    Mockup-world: the prospect's own colour drives the demo brand, so any colour —
    including blue — is legitimate inside the checkout. The SettlePay page chrome
@@ -105,6 +111,10 @@ const defaultHex = swatches[0].hex;
         </div>
       </div>
 
+      <p class="ps__abnote" data-ps-abnote hidden>
+        Split test — the same page, two microcopy writers. Compare the wording and pick a winner.
+      </p>
+
       <button type="button" class="ps__share" data-ps-share hidden>
         <Icon name="globe" sw={1.8} />
         <span data-ps-share-label>Copy a Shareable Link</span>
@@ -113,9 +123,18 @@ const defaultHex = swatches[0].hex;
       <p class="ps__disclaimer" data-ps-disclaimer hidden></p>
     </div>
 
-    <!-- Live preview (mockup-world) -->
+    <!-- Live preview (mockup-world). Second card revealed only in A/B mode. -->
     <div class="ps__preview">
-      <CheckoutPreview />
+      <div class="ps__cards" data-ps-cards>
+        <div class="ps__card" data-ps-card>
+          <span class="ps__card-label" data-ps-card-label hidden></span>
+          <CheckoutPreview />
+        </div>
+        <div class="ps__card" data-ps-card hidden>
+          <span class="ps__card-label" data-ps-card-label hidden></span>
+          <CheckoutPreview />
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -190,6 +209,12 @@ const defaultHex = swatches[0].hex;
     grid-template-columns: 0.85fr 1.15fr;
     gap: 2.5rem;
     align-items: center;
+  }
+  /* A/B mode: stack controls above two full-width cards */
+  .ps.is-ab .ps__grid {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 2rem;
   }
 
   /* ---- controls ---- */
@@ -274,6 +299,13 @@ const defaultHex = swatches[0].hex;
     box-shadow: var(--shadow-sm);
   }
   .ps__seg-btn:focus-visible { outline: 2px solid var(--color-primary-action); outline-offset: 2px; }
+  .ps__abnote {
+    margin: 0 0 1.2rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-primary-action);
+  }
+  .ps__abnote[hidden] { display: none; }
   .ps__share {
     display: inline-flex;
     align-items: center;
@@ -301,11 +333,48 @@ const defaultHex = swatches[0].hex;
   }
   .ps__disclaimer[hidden] { display: none; }
 
-  .ps__preview { display: flex; justify-content: center; }
+  /* ---- preview cards ---- */
+  .ps__preview { display: block; }
+  .ps__cards {
+    display: grid;
+    grid-template-columns: minmax(0, 420px);
+    justify-content: center;
+    gap: 1.5rem 1.75rem;
+  }
+  .ps.is-ab .ps__cards {
+    grid-template-columns: repeat(2, minmax(0, 420px));
+    justify-content: center;
+    align-items: start;
+  }
+  .ps__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+  .ps__card[hidden] { display: none; }
+  .ps__card-label {
+    align-self: flex-start;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-primary-brand);
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: var(--radius-button);
+    padding: 0.3rem 0.75rem;
+  }
+  .ps__card-label[hidden] { display: none; }
+  .ps__card-label.is-empty { color: rgba(15, 23, 42, 0.45); }
 
   @media (max-width: 860px) {
     .ps__grid { grid-template-columns: 1fr; gap: 2rem; }
     .ps__controls { order: 2; }
+    .ps__preview { order: 1; }
+  }
+  @media (max-width: 760px) {
+    .ps.is-ab .ps__cards { grid-template-columns: minmax(0, 420px); }
   }
   @media (prefers-reduced-motion: reduce) {
     .ps__swatch, .ps__share { transition: none; }
@@ -331,9 +400,7 @@ const defaultHex = swatches[0].hex;
     }
   }
 
-  function registrableDomain(hostname) {
-    return hostname.replace(/^www\./i, '');
-  }
+  const registrableDomain = (hostname) => hostname.replace(/^www\./i, '');
 
   // Best-effort web-font load. If the family isn't on Google Fonts the link
   // simply 404s and the CSS fallback renders — never blocks the preview.
@@ -349,6 +416,11 @@ const defaultHex = swatches[0].hex;
       encodeURIComponent(family).replace(/%20/g, '+') +
       ':wght@400;600;700&display=swap';
     document.head.appendChild(link);
+  }
+
+  // Friendly provider label from a model id.
+  function providerLabel(who, model) {
+    return (who === 'openai' ? 'OpenAI' : 'Claude') + ' · ' + (model || who);
   }
 
   document.querySelectorAll('[data-ps]').forEach((root) => {
@@ -370,18 +442,12 @@ const defaultHex = swatches[0].hex;
     const shareBtn = root.querySelector('[data-ps-share]');
     const shareLabel = root.querySelector('[data-ps-share-label]');
     const disclaimerEl = root.querySelector('[data-ps-disclaimer]');
+    const abNote = root.querySelector('[data-ps-abnote]');
 
-    // Preview hooks (inside CheckoutPreview)
-    const elBrand = root.querySelector('[data-bs-brand]');
-    const elMono = root.querySelector('[data-bs-mono]');
-    const elLogo = root.querySelector('[data-bs-logo]');
-    const elDisplay = root.querySelector('[data-bs-display]');
-    const elHeadline = root.querySelector('[data-bs-headline]');
-    const elSubcopy = root.querySelector('[data-bs-subcopy]');
-    const elAmount = root.querySelector('[data-bs-amount]');
-    const elPay = root.querySelector('[data-bs-paylabel]');
-    const elUrl = root.querySelector('.mok__url');
-    const urlIcon = elUrl ? elUrl.querySelector('svg') : null;
+    // Two preview cards; the second is revealed only in A/B mode.
+    const cardEls = Array.from(root.querySelectorAll('[data-ps-card]'));
+    const checkouts = cardEls.map((c) => c.querySelector('[data-checkout]'));
+    const cardLabels = cardEls.map((c) => c.querySelector('[data-ps-card-label]'));
 
     // Button renders "<text node>Generate Preview</text><svg icon/>" — toggle the
     // text node so the trailing icon survives the loading state.
@@ -394,8 +460,9 @@ const defaultHex = swatches[0].hex;
       colour: defColour,
       plan: 'invoice',
       domain: '',
-      headlineOverride: '',
-      subcopy: '',
+      logoUrl: '',
+      scenarioTouched: false,
+      ab: { active: false, primary: null, secondary: null },
     };
 
     const setStatus = (msg, kind) => {
@@ -404,6 +471,20 @@ const defaultHex = swatches[0].hex;
       statusEl.classList.toggle('is-error', kind === 'error');
       statusEl.classList.toggle('is-working', kind === 'working');
     };
+
+    function checkoutParts(checkout) {
+      return {
+        mono: checkout.querySelector('[data-bs-mono]'),
+        logo: checkout.querySelector('[data-bs-logo]'),
+        brand: checkout.querySelector('[data-bs-brand]'),
+        display: checkout.querySelector('[data-bs-display]'),
+        headline: checkout.querySelector('[data-bs-headline]'),
+        subcopy: checkout.querySelector('[data-bs-subcopy]'),
+        amount: checkout.querySelector('[data-bs-amount]'),
+        pay: checkout.querySelector('[data-bs-paylabel]'),
+        url: checkout.querySelector('.mok__url'),
+      };
+    }
 
     function applyColour(hex) {
       state.colour = hex;
@@ -417,59 +498,82 @@ const defaultHex = swatches[0].hex;
       if (customInput && /^#[0-9a-fA-F]{6}$/.test(hex)) customInput.value = hex;
     }
 
-    function applyLogo(url) {
-      if (!elLogo || !elBrand) return;
-      if (!url) {
-        elLogo.hidden = true;
-        elBrand.classList.remove('has-logo');
-        return;
+    // Brand fields shared by every visible card (logo, mono, name, amount, url).
+    function paintShared() {
+      const name = state.name.trim() || defName;
+      const plan = SCENARIOS[state.plan];
+      const host = state.domain || slugify(state.name) + '.co.uk';
+      checkouts.forEach((checkout) => {
+        if (!checkout) return;
+        const p = checkoutParts(checkout);
+        if (p.mono) p.mono.textContent = initials(state.name);
+        if (p.display) p.display.textContent = name;
+        if (p.amount) p.amount.textContent = plan.amount;
+        if (p.pay) p.pay.textContent = plan.pay(plan.amount);
+        if (p.url) {
+          const icon = p.url.querySelector('svg');
+          p.url.textContent = 'pay.' + host + '/' + plan.path;
+          if (icon) p.url.prepend(icon);
+        }
+        if (p.logo && p.brand) {
+          if (state.logoUrl) {
+            p.logo.alt = name + ' logo';
+            if (p.logo.getAttribute('src') !== state.logoUrl) {
+              p.logo.onload = () => { p.logo.hidden = false; p.brand.classList.add('has-logo'); };
+              p.logo.onerror = () => { p.logo.hidden = true; p.brand.classList.remove('has-logo'); };
+              p.logo.src = state.logoUrl;
+            } else if (p.logo.complete && p.logo.naturalWidth) {
+              p.logo.hidden = false;
+              p.brand.classList.add('has-logo');
+            }
+          } else {
+            p.logo.hidden = true;
+            p.brand.classList.remove('has-logo');
+          }
+        }
+      });
+    }
+
+    // Per-card microcopy (the only thing that differs between A and B).
+    function paintCopy(checkout, copy) {
+      if (!checkout) return;
+      const p = checkoutParts(checkout);
+      const plan = SCENARIOS[state.plan];
+      const headline = copy && copy.headline && !state.scenarioTouched ? copy.headline : plan.headline;
+      if (p.headline) p.headline.textContent = headline;
+      if (p.subcopy) {
+        if (copy && copy.subcopy) {
+          p.subcopy.textContent = copy.subcopy;
+          p.subcopy.hidden = false;
+        } else {
+          p.subcopy.hidden = true;
+        }
       }
-      elLogo.onload = () => {
-        elLogo.hidden = false;
-        elBrand.classList.add('has-logo');
-      };
-      elLogo.onerror = () => {
-        elLogo.hidden = true;
-        elBrand.classList.remove('has-logo');
-      };
-      elLogo.src = url;
     }
 
     function render() {
-      const name = state.name.trim() || defName;
-      const plan = SCENARIOS[state.plan];
-      if (elMono) elMono.textContent = initials(state.name);
-      if (elLogo) elLogo.alt = name + ' logo';
-      if (elDisplay) elDisplay.textContent = name;
-      if (elHeadline) elHeadline.textContent = state.headlineOverride || plan.headline;
-      if (elSubcopy) {
-        if (state.subcopy) {
-          elSubcopy.textContent = state.subcopy;
-          elSubcopy.hidden = false;
-        } else {
-          elSubcopy.hidden = true;
-        }
-      }
-      if (elAmount) elAmount.textContent = plan.amount;
-      if (elPay) elPay.textContent = plan.pay(plan.amount);
-      if (elUrl) {
-        const host = state.domain || slugify(state.name) + '.co.uk';
-        elUrl.textContent = 'pay.' + host + '/' + plan.path;
-        if (urlIcon) elUrl.prepend(urlIcon);
-      }
+      paintShared();
+      paintCopy(checkouts[0], state.ab.primary);
+      if (state.ab.active) paintCopy(checkouts[1], state.ab.secondary);
+    }
+
+    function setCardLabel(i, text, hasCopy) {
+      const el = cardLabels[i];
+      if (!el) return;
+      if (!text) { el.hidden = true; return; }
+      el.textContent = hasCopy ? text : text + ' — no copy returned';
+      el.classList.toggle('is-empty', !hasCopy);
+      el.hidden = false;
     }
 
     // ---- manual controls (always live; the fallback if extraction fails) ----
     nameInput.addEventListener('input', () => { state.name = nameInput.value; render(); });
-    swatchEls.forEach((s) =>
-      s.addEventListener('click', () => applyColour(s.dataset.psSwatch))
-    );
-    if (customInput)
-      customInput.addEventListener('input', () => applyColour(customInput.value));
+    swatchEls.forEach((s) => s.addEventListener('click', () => applyColour(s.dataset.psSwatch)));
+    if (customInput) customInput.addEventListener('input', () => applyColour(customInput.value));
     planBtns.forEach((b) =>
       b.addEventListener('click', () => {
         state.plan = b.dataset.psPlan;
-        state.headlineOverride = ''; // choosing a scenario specialises the headline
+        state.scenarioTouched = true; // choosing a scenario specialises the headline for both cards
         planBtns.forEach((x) => {
           const on = x === b;
           x.classList.toggle('is-selected', on);
@@ -496,13 +600,32 @@ const defaultHex = swatches[0].hex;
     function applyProfile(p) {
       if (p.name) { state.name = p.name; nameInput.value = p.name.slice(0, 32); }
       if (p.colors && /^#[0-9a-fA-F]{6}$/.test(p.colors.primary || '')) applyColour(p.colors.primary);
-      state.headlineOverride = (p.copy && p.copy.headline) || '';
-      state.subcopy = (p.copy && p.copy.subcopy) || '';
-      applyLogo(p.logoUrl || '');
+      state.logoUrl = p.logoUrl || '';
       loadBrandFont(p.font || '');
       if (p.font) root.style.setProperty('--bs-font', `'${p.font}', system-ui, -apple-system, sans-serif`);
       else root.style.removeProperty('--bs-font');
+      state.scenarioTouched = false;
+
+      if (p.copyAB) {
+        // A/B split test — two cards, one per microcopy writer.
+        const models = p.copyAB.models || {};
+        state.ab = { active: true, primary: p.copyAB.anthropic || null, secondary: p.copyAB.openai || null };
+        setCardLabel(0, providerLabel('anthropic', models.anthropic), !!p.copyAB.anthropic);
+        setCardLabel(1, providerLabel('openai', models.openai), !!p.copyAB.openai);
+        if (cardEls[1]) cardEls[1].hidden = false;
+        root.classList.add('is-ab');
+        if (abNote) abNote.hidden = false;
+      } else {
+        // Single provider — one card, no labels.
+        state.ab = { active: false, primary: p.copy || null, secondary: null };
+        setCardLabel(0, '', false);
+        if (cardEls[1]) cardEls[1].hidden = true;
+        root.classList.remove('is-ab');
+        if (abNote) abNote.hidden = true;
+      }
+
       render();
+
       if (disclaimerEl) {
         const who = p.name || 'this business';
         disclaimerEl.textContent =
@@ -545,7 +668,13 @@ const defaultHex = swatches[0].hex;
           throw new Error((data && data.error) || 'extract-failed');
         }
         applyProfile(data);
-        setStatus("Here's a sketch of " + (data.name || state.domain) + " in your brand. Tweak the colour or scenario below.", null);
+        const who = data.name || state.domain;
+        setStatus(
+          data.copyAB
+            ? "Two payment pages for " + who + ", same brand — compare the microcopy and tweak below."
+            : "Here's a sketch of " + who + " in your brand. Tweak the colour or scenario below.",
+          null,
+        );
       } catch (err) {
         // Graceful fallback to manual entry — no dead end.
         state.domain = '';
