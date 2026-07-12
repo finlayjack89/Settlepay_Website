@@ -16,12 +16,15 @@ const LEG_TIMEOUT_MS = 40_000;
 // Models that rejected output_config this instance — skip the doomed first call.
 const noSchema = new Set<string>();
 
-export type ProviderKey = 'haiku' | 'sonnet' | 'luna' | 'terra';
+export type ProviderKey = 'haiku' | 'sonnet' | 'luna' | 'terra' | 'sol' | 'opus';
 
 export interface ProviderDef {
   vendor: 'anthropic' | 'openai';
   model: string;
   label: string;
+  // USD per 1M tokens — pinned from provider pricing pages (see ~/.claude/
+  // LLM_MODELS.md). Used for the per-leg cost telemetry; update when prices move.
+  price: { in: number; out: number };
 }
 
 export interface Leg {
@@ -38,14 +41,17 @@ export interface Leg {
 
 // Fixed registry order → stable grid positions across runs (fair comparison).
 export const PROVIDERS: Record<ProviderKey, ProviderDef> = {
-  haiku: { vendor: 'anthropic', model: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  haiku: { vendor: 'anthropic', model: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', price: { in: 1, out: 5 } },
   sonnet: {
     vendor: 'anthropic',
     model: Deno.env.get('SONNET_MODEL') ?? 'claude-sonnet-5',
     label: 'Claude Sonnet 5',
+    price: { in: 2, out: 10 }, // intro pricing through 2026-08-31; then $3/$15
   },
-  luna: { vendor: 'openai', model: 'gpt-5.6-luna', label: 'GPT-5.6 Luna' },
-  terra: { vendor: 'openai', model: 'gpt-5.6-terra', label: 'GPT-5.6 Terra' },
+  luna: { vendor: 'openai', model: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', price: { in: 1, out: 6 } },
+  terra: { vendor: 'openai', model: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', price: { in: 2.5, out: 15 } },
+  sol: { vendor: 'openai', model: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', price: { in: 5, out: 30 } },
+  opus: { vendor: 'anthropic', model: 'claude-opus-4-8', label: 'Claude Opus 4.8', price: { in: 5, out: 25 } },
 };
 
 /** Active legs from DESIGN_PROVIDERS (comma list). One leg = production mode. */
@@ -75,7 +81,15 @@ function normaliseUsage(u: any, vendor: ProviderDef['vendor']) {
   if (vendor === 'anthropic') {
     return { input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0 };
   }
-  return { input_tokens: u.prompt_tokens ?? 0, output_tokens: u.completion_tokens ?? 0 };
+  // OpenAI: completion_tokens INCLUDES reasoning tokens (both bill as output);
+  // the breakdown is kept for telemetry insight.
+  return {
+    input_tokens: u.prompt_tokens ?? 0,
+    output_tokens: u.completion_tokens ?? 0,
+    ...(u.completion_tokens_details?.reasoning_tokens != null
+      ? { reasoning_tokens: u.completion_tokens_details.reasoning_tokens }
+      : {}),
+  };
 }
 
 async function callAnthropic(seed: LegSeed, inputs: PromptInputs, key: string, signal: AbortSignal): Promise<Leg> {
@@ -95,9 +109,11 @@ async function callAnthropic(seed: LegSeed, inputs: PromptInputs, key: string, s
   };
   const useSchema = !noSchema.has(def.model);
   if (useSchema) body.output_config = { format: { type: 'json_schema', schema: BRIEF_JSON_SCHEMA } };
-  // Sonnet 5 defaults to adaptive thinking — slower and pricier than we need for
-  // a design brief. Haiku 4.5 has no adaptive default; leave it untouched.
-  if (def.model.startsWith('claude-sonnet')) body.thinking = { type: 'disabled' };
+  // Sonnet 5 / Opus 4.8 default to adaptive thinking — slower and pricier than
+  // we need for a design brief. Haiku 4.5 has no adaptive default; leave it be.
+  if (def.model.startsWith('claude-sonnet') || def.model.startsWith('claude-opus')) {
+    body.thinking = { type: 'disabled' };
+  }
 
   const post = (b: Record<string, unknown>) =>
     fetch('https://api.anthropic.com/v1/messages', {
@@ -109,13 +125,14 @@ async function callAnthropic(seed: LegSeed, inputs: PromptInputs, key: string, s
 
   let note: string | undefined;
   let res = await post(body);
-  if (useSchema && res.status === 400) {
-    // Structured-output wire shape rejected (model/API drift) → prompt-and-parse.
+  if (res.status === 400) {
+    // Wire-shape rejection (structured outputs or the thinking param on a model
+    // that dislikes it) → retry bare: prompt-and-parse, provider defaults.
     const errText = await res.text().catch(() => '');
-    console.warn('anthropic structured-output fallback', def.model, errText.slice(0, 300));
-    noSchema.add(def.model);
+    console.warn('anthropic wire-shape fallback', def.model, errText.slice(0, 300));
+    if (useSchema) noSchema.add(def.model);
     note = 'prompt-parse-fallback';
-    const { output_config: _drop, ...rest } = body;
+    const { output_config: _drop, thinking: _t, ...rest } = body;
     res = await post(rest);
   }
   if (!res.ok) {

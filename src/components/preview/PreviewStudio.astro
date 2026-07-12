@@ -562,7 +562,8 @@ const CARDS = [0, 1, 2, 3];
     if (!v) return '';
     const secs = v.ms ? (v.ms / 1000).toFixed(1) + 's' : null;
     const toks = v.usage && v.usage.output_tokens ? v.usage.output_tokens + ' tok' : null;
-    return [v.label || v.model, secs, toks].filter(Boolean).join(' · ');
+    const cost = typeof v.cost === 'number' ? '$' + v.cost.toFixed(3) : null;
+    return [v.label || v.model, secs, toks, cost].filter(Boolean).join(' · ');
   }
 
   document.querySelectorAll('[data-ps]').forEach((root) => {

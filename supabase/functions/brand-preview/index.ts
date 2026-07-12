@@ -408,11 +408,15 @@ Deno.serve(async (req) => {
     const logo = tokens
       ? { light: deriveLogo(tokens.light, brandLogos), dark: deriveLogo(tokens.dark, brandLogos) }
       : null;
+    // Cost tracking: tokens x the pinned per-model price, logged AND persisted.
+    const price = PROVIDERS[leg.key].price;
+    const cost = leg.usage
+      ? Math.round((leg.usage.input_tokens * price.in + leg.usage.output_tokens * price.out)) / 1_000_000
+      : null;
     if (leg.usage) {
-      // Cost tracking: per-leg spend attribution for this feature.
       console.log(
         'brand-preview design usage',
-        JSON.stringify({ key: leg.key, model: leg.model, ms: Math.round(leg.ms), ...leg.usage }),
+        JSON.stringify({ key: leg.key, model: leg.model, ms: Math.round(leg.ms), cost_usd: cost, ...leg.usage }),
       );
     }
     return {
@@ -425,10 +429,33 @@ Deno.serve(async (req) => {
       logo,
       ms: Math.round(leg.ms),
       usage: leg.usage,
+      cost,
       ...(leg.note ? { note: leg.note } : {}),
       ...(leg.error ? { error: leg.error } : brief ? {} : { error: 'invalid-brief' }),
     };
   });
+
+  // Durable telemetry: one row per billed leg (stdout logs rotate; this doesn't).
+  let usageRecorded = 0;
+  if (supabase) {
+    const rows = variants
+      .filter((v) => v.usage)
+      .map((v) => ({
+        domain,
+        variant_key: v.key,
+        model: v.model,
+        input_tokens: v.usage!.input_tokens,
+        output_tokens: v.usage!.output_tokens,
+        reasoning_tokens: (v.usage as any).reasoning_tokens ?? null,
+        ms: v.ms,
+        cost_usd: v.cost,
+      }));
+    if (rows.length) {
+      const { data: inserted, error } = await supabase.from('brand_preview_usage').insert(rows).select('id');
+      if (error) console.error('usage insert failed', error.message);
+      else usageRecorded = inserted?.length ?? 0;
+    }
+  }
 
   const profile = {
     v: 4,
@@ -462,5 +489,7 @@ Deno.serve(async (req) => {
   }
 
   const { extract: _hidden, ...body } = profile;
-  return json(body);
+  // usageRecorded rides on the live response only (not the cache) — it lets the
+  // caller confirm telemetry rows actually landed for THIS generation.
+  return json({ ...body, usageRecorded });
 });
