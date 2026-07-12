@@ -1,27 +1,30 @@
 ---
 /* PreviewStudio — "See your payment page" URL-driven brand customiser.
 
-   The visitor pastes their website address; we call the `brand-preview` Edge
-   Function, which reads their public brand (name, logo, colour, font) via
-   Brandfetch and drafts compliant microcopy. The detected brand is poured into
-   the same mockup checkout used on /work/, then the visitor can tweak colour /
-   scenario / name by hand. If extraction fails (or the backend isn't reachable
-   yet) the controls still work as a manual fallback.
+   The visitor pastes their website address; the `brand-preview` Edge Function
+   reads their public brand (Brandfetch: colours, themed logos, banner, font;
+   Firecrawl: homepage screenshot + copy) and asks each active model for a full
+   DESIGN BRIEF — palette, layout sections, typography feel and industry-authentic
+   content. Every brief is rendered as a complete branded payment page
+   (PaymentPagePreview + paymentPage.mjs painter).
 
-   A/B split-test: when the backend runs in COPY_PROVIDER=both mode it returns a
-   `copyAB` object with a Claude variant and an OpenAI variant. In that case we
-   render TWO payment pages side by side — same brand (logo, colour, font), the
-   only difference is the microcopy — each labelled with its model, so you can
-   compare the two pages directly.
+   Model split test: with several DESIGN_PROVIDERS active the response carries
+   up to four variants; we render one full page per model, side by side, each
+   labelled with model + latency + tokens, plus a "prefer this design" vote
+   that's tallied server-side. Single-provider mode renders one page.
 
-   Mockup-world: the prospect's own colour drives the demo brand, so any colour —
-   including blue — is legitimate inside the checkout. The SettlePay page chrome
-   around it keeps the reserved-blue rules (the single primary action here is
-   "Generate Preview"). Illustrative only; no real payments; not affiliated with
-   any brand whose URL is entered. */
+   Manual fallback: if extraction fails the controls still drive a neutral
+   default brief — never a dead end. Manual colour/scenario tweaks override
+   across ALL cards (the brand world changes, each model's layout stays its own).
+
+   Mockup-world: the prospect's own colour drives the demo pages, so any colour —
+   including blue — is legitimate inside them. The SettlePay chrome around them
+   keeps the reserved-blue rules (the single primary action is "Generate
+   Preview"). Illustrative only; no real payments; not affiliated with any brand
+   whose URL is entered. */
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
-import CheckoutPreview from './CheckoutPreview.astro';
+import PaymentPagePreview from './PaymentPagePreview.astro';
 import { SITE } from '../../data/site.mjs';
 
 const swatches = [
@@ -33,6 +36,7 @@ const swatches = [
   { id: 'slate', hex: '#0F172A' },
 ];
 const defaultHex = swatches[0].hex;
+const CARDS = [0, 1, 2, 3];
 ---
 <div
   class="ps"
@@ -40,7 +44,6 @@ const defaultHex = swatches[0].hex;
   data-default-name="Your Business"
   data-default-colour={defaultHex}
   data-endpoint={SITE.previewEndpoint}
-  style={`--bs-accent:${defaultHex};--bs-on-accent:#ffffff`}
 >
   <!-- Fast path: paste a URL -->
   <form class="ps__urlbar" data-ps-form novalidate>
@@ -61,7 +64,7 @@ const defaultHex = swatches[0].hex;
       <Button variant="primary" type="submit" icon="arrow" data-ps-generate>Generate Preview</Button>
     </div>
     <p class="ps__status" id="ps-status" data-ps-status aria-live="polite">
-      Paste your site and we'll sketch a payment page in your brand — in seconds.
+      Paste your site and we'll design a payment page in your brand — in seconds.
     </p>
   </form>
 
@@ -105,14 +108,15 @@ const defaultHex = swatches[0].hex;
       <div class="ps__field">
         <span class="ps__label" id="ps-plan-label">What are you collecting?</span>
         <div class="ps__seg" role="radiogroup" aria-labelledby="ps-plan-label">
-          <button type="button" class="ps__seg-btn is-selected" data-ps-plan="invoice" role="radio" aria-checked="true">An invoice</button>
+          <button type="button" class="ps__seg-btn" data-ps-plan="invoice" role="radio" aria-checked="false">An invoice</button>
           <button type="button" class="ps__seg-btn" data-ps-plan="deposit" role="radio" aria-checked="false">A deposit</button>
           <button type="button" class="ps__seg-btn" data-ps-plan="membership" role="radio" aria-checked="false">A membership</button>
         </div>
       </div>
 
       <p class="ps__abnote" data-ps-abnote hidden>
-        Split test — the same page, two microcopy writers. Compare the wording and pick a winner.
+        Split test — one brand, a full payment page from each model. Compare the designs and
+        mark your favourite.
       </p>
 
       <button type="button" class="ps__share" data-ps-share hidden>
@@ -123,17 +127,23 @@ const defaultHex = swatches[0].hex;
       <p class="ps__disclaimer" data-ps-disclaimer hidden></p>
     </div>
 
-    <!-- Live preview (mockup-world). Second card revealed only in A/B mode. -->
+    <!-- Live previews (mockup-world). Cards 2-4 revealed only in split-test mode. -->
     <div class="ps__preview">
       <div class="ps__cards" data-ps-cards>
-        <div class="ps__card" data-ps-card>
-          <span class="ps__card-label" data-ps-card-label hidden></span>
-          <CheckoutPreview />
-        </div>
-        <div class="ps__card" data-ps-card hidden>
-          <span class="ps__card-label" data-ps-card-label hidden></span>
-          <CheckoutPreview />
-        </div>
+        {CARDS.map((i) => (
+          <div class="ps__card" data-ps-card hidden={i > 0}>
+            <span class="ps__card-label" data-ps-card-label hidden></span>
+            <div class="ps__card-frame">
+              <PaymentPagePreview />
+              <div class="ps__skeleton" data-ps-skeleton hidden aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <button type="button" class="ps__vote" data-ps-vote hidden>
+              <Icon name="check" sw={2.2} /> Prefer This Design
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   </div>
@@ -210,8 +220,8 @@ const defaultHex = swatches[0].hex;
     gap: 2.5rem;
     align-items: center;
   }
-  /* A/B mode: stack controls above two full-width cards */
-  .ps.is-ab .ps__grid {
+  /* Split-test mode: stack controls above the card grid */
+  .ps.is-multi .ps__grid {
     grid-template-columns: 1fr;
     align-items: stretch;
     gap: 2rem;
@@ -337,12 +347,12 @@ const defaultHex = swatches[0].hex;
   .ps__preview { display: block; }
   .ps__cards {
     display: grid;
-    grid-template-columns: minmax(0, 420px);
+    grid-template-columns: minmax(0, 480px);
     justify-content: center;
-    gap: 1.5rem 1.75rem;
+    gap: 2rem 1.75rem;
   }
-  .ps.is-ab .ps__cards {
-    grid-template-columns: repeat(2, minmax(0, 420px));
+  .ps.is-multi .ps__cards {
+    grid-template-columns: repeat(2, minmax(0, 480px));
     justify-content: center;
     align-items: start;
   }
@@ -353,6 +363,7 @@ const defaultHex = swatches[0].hex;
     min-width: 0;
   }
   .ps__card[hidden] { display: none; }
+  .ps__card-frame { position: relative; }
   .ps__card-label {
     align-self: flex-start;
     font-size: 0.7rem;
@@ -368,23 +379,90 @@ const defaultHex = swatches[0].hex;
   .ps__card-label[hidden] { display: none; }
   .ps__card-label.is-empty { color: rgba(15, 23, 42, 0.45); }
 
+  /* ---- loading skeleton ---- */
+  .ps__skeleton {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: 18px;
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    padding: 2.4rem 1.4rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    overflow: hidden;
+  }
+  .ps__skeleton[hidden] { display: none; }
+  .ps__skeleton span {
+    display: block;
+    border-radius: 8px;
+    background: linear-gradient(100deg, rgba(15, 23, 42, 0.06) 40%, rgba(15, 23, 42, 0.12) 50%, rgba(15, 23, 42, 0.06) 60%);
+    background-size: 200% 100%;
+    animation: ps-shimmer 1.4s ease-in-out infinite;
+  }
+  .ps__skeleton span:nth-child(1) { height: 34px; width: 55%; }
+  .ps__skeleton span:nth-child(2) { height: 56px; }
+  .ps__skeleton span:nth-child(3) { height: 90px; }
+  .ps__skeleton span:nth-child(4) { height: 44px; width: 80%; }
+  .ps__skeleton span:nth-child(5) { height: 44px; }
+  @keyframes ps-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ---- vote ---- */
+  .ps__vote {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    align-self: center;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-button);
+    padding: 0.55rem 1.1rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .ps__vote[hidden] { display: none; }
+  .ps__vote:hover:not(:disabled) { background: var(--color-secondary-bg); }
+  .ps__vote:active:not(:disabled) { transform: scale(0.98); }
+  .ps__vote:disabled { cursor: default; opacity: 0.6; }
+  .ps__vote.is-chosen {
+    color: #1f8a5d;
+    border-color: rgba(31, 138, 93, 0.4);
+    opacity: 1;
+  }
+  .ps__vote svg { width: 15px; height: 15px; color: #1f8a5d; }
+
+  @media (max-width: 980px) {
+    .ps.is-multi .ps__cards { grid-template-columns: minmax(0, 480px); }
+  }
   @media (max-width: 860px) {
     .ps__grid { grid-template-columns: 1fr; gap: 2rem; }
     .ps__controls { order: 2; }
     .ps__preview { order: 1; }
   }
-  @media (max-width: 760px) {
-    .ps.is-ab .ps__cards { grid-template-columns: minmax(0, 420px); }
-  }
   @media (prefers-reduced-motion: reduce) {
-    .ps__swatch, .ps__share { transition: none; }
+    .ps__swatch, .ps__share, .ps__vote { transition: none; }
+    .ps__skeleton span { animation: none; }
   }
 </style>
 
 <script>
-  import { readable, initials, slugify, SCENARIOS } from '../../scripts/brandReskin.mjs';
+  import { slugify } from '../../scripts/brandReskin.mjs';
+  import { defaultBrief, resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
 
   const FONT_LINK_ID = 'ps-brand-font';
+  // Brandfetch occasionally returns scraping garbage as a font name — never let
+  // it near a Google Fonts URL or a CSS value (the server filters too).
+  const FONT_OK = (f) =>
+    typeof f === 'string' && /^[A-Za-z0-9][A-Za-z0-9 '\-]{1,39}$/.test(f.trim()) && !/var|--|[(),;]/.test(f);
 
   function normaliseUrl(raw) {
     let v = String(raw || '').trim();
@@ -407,7 +485,7 @@ const defaultHex = swatches[0].hex;
   function loadBrandFont(family) {
     const existing = document.getElementById(FONT_LINK_ID);
     if (existing) existing.remove();
-    if (!family) return;
+    if (!family || !FONT_OK(family)) return;
     const link = document.createElement('link');
     link.id = FONT_LINK_ID;
     link.rel = 'stylesheet';
@@ -418,9 +496,11 @@ const defaultHex = swatches[0].hex;
     document.head.appendChild(link);
   }
 
-  // Friendly provider label from a model id.
-  function providerLabel(who, model) {
-    return (who === 'openai' ? 'OpenAI' : 'Claude') + ' · ' + (model || who);
+  function variantLabel(v) {
+    if (!v) return '';
+    const secs = v.ms ? (v.ms / 1000).toFixed(1) + 's' : null;
+    const toks = v.usage && v.usage.output_tokens ? v.usage.output_tokens + ' tok' : null;
+    return [v.label || v.model, secs, toks].filter(Boolean).join(' · ');
   }
 
   document.querySelectorAll('[data-ps]').forEach((root) => {
@@ -444,10 +524,10 @@ const defaultHex = swatches[0].hex;
     const disclaimerEl = root.querySelector('[data-ps-disclaimer]');
     const abNote = root.querySelector('[data-ps-abnote]');
 
-    // Two preview cards; the second is revealed only in A/B mode.
     const cardEls = Array.from(root.querySelectorAll('[data-ps-card]'));
-    const checkouts = cardEls.map((c) => c.querySelector('[data-checkout]'));
     const cardLabels = cardEls.map((c) => c.querySelector('[data-ps-card-label]'));
+    const skeletons = cardEls.map((c) => c.querySelector('[data-ps-skeleton]'));
+    const voteBtns = cardEls.map((c) => c.querySelector('[data-ps-vote]'));
 
     // Button renders "<text node>Generate Preview</text><svg icon/>" — toggle the
     // text node so the trailing icon survives the loading state.
@@ -457,12 +537,12 @@ const defaultHex = swatches[0].hex;
 
     const state = {
       name: defName,
-      colour: defColour,
-      plan: 'invoice',
+      manualAccent: defColour,      // base accent for the neutral default brief
       domain: '',
-      logoUrl: '',
-      scenarioTouched: false,
-      ab: { active: false, primary: null, secondary: null },
+      brand: {},                    // { logoUrl, logoDarkUrl, bannerUrl, font } from the response
+      variants: [],                 // [{ key, model, label, brief|null, ms, usage }]
+      overrides: { accent: null, scenario: null },
+      voted: false,
     };
 
     const setStatus = (msg, kind) => {
@@ -472,108 +552,66 @@ const defaultHex = swatches[0].hex;
       statusEl.classList.toggle('is-working', kind === 'working');
     };
 
-    function checkoutParts(checkout) {
-      return {
-        mono: checkout.querySelector('[data-bs-mono]'),
-        logo: checkout.querySelector('[data-bs-logo]'),
-        brand: checkout.querySelector('[data-bs-brand]'),
-        display: checkout.querySelector('[data-bs-display]'),
-        headline: checkout.querySelector('[data-bs-headline]'),
-        subcopy: checkout.querySelector('[data-bs-subcopy]'),
-        amount: checkout.querySelector('[data-bs-amount]'),
-        pay: checkout.querySelector('[data-bs-paylabel]'),
-        url: checkout.querySelector('.mok__url'),
-      };
-    }
-
-    function applyColour(hex) {
-      state.colour = hex;
-      root.style.setProperty('--bs-accent', hex);
-      root.style.setProperty('--bs-on-accent', readable(hex));
+    function selectSwatch(hex) {
       swatchEls.forEach((s) => {
-        const on = s.dataset.psSwatch.toLowerCase() === hex.toLowerCase();
+        const on = !!hex && s.dataset.psSwatch.toLowerCase() === hex.toLowerCase();
         s.classList.toggle('is-selected', on);
         s.setAttribute('aria-checked', on ? 'true' : 'false');
       });
-      if (customInput && /^#[0-9a-fA-F]{6}$/.test(hex)) customInput.value = hex;
+      if (customInput && hex && /^#[0-9a-fA-F]{6}$/.test(hex)) customInput.value = hex;
     }
 
-    // Brand fields shared by every visible card (logo, mono, name, amount, url).
-    function paintShared() {
-      const name = state.name.trim() || defName;
-      const plan = SCENARIOS[state.plan];
-      const host = state.domain || slugify(state.name) + '.co.uk';
-      checkouts.forEach((checkout) => {
-        if (!checkout) return;
-        const p = checkoutParts(checkout);
-        if (p.mono) p.mono.textContent = initials(state.name);
-        if (p.display) p.display.textContent = name;
-        if (p.amount) p.amount.textContent = plan.amount;
-        if (p.pay) p.pay.textContent = plan.pay(plan.amount);
-        if (p.url) {
-          const icon = p.url.querySelector('svg');
-          p.url.textContent = 'pay.' + host + '/' + plan.path;
-          if (icon) p.url.prepend(icon);
-        }
-        if (p.logo && p.brand) {
-          if (state.logoUrl) {
-            p.logo.alt = name + ' logo';
-            if (p.logo.getAttribute('src') !== state.logoUrl) {
-              p.logo.onload = () => { p.logo.hidden = false; p.brand.classList.add('has-logo'); };
-              p.logo.onerror = () => { p.logo.hidden = true; p.brand.classList.remove('has-logo'); };
-              p.logo.src = state.logoUrl;
-            } else if (p.logo.complete && p.logo.naturalWidth) {
-              p.logo.hidden = false;
-              p.brand.classList.add('has-logo');
-            }
-          } else {
-            p.logo.hidden = true;
-            p.brand.classList.remove('has-logo');
-          }
-        }
-      });
-    }
-
-    // Per-card microcopy (the only thing that differs between A and B).
-    function paintCopy(checkout, copy) {
-      if (!checkout) return;
-      const p = checkoutParts(checkout);
-      const plan = SCENARIOS[state.plan];
-      const headline = copy && copy.headline && !state.scenarioTouched ? copy.headline : plan.headline;
-      if (p.headline) p.headline.textContent = headline;
-      if (p.subcopy) {
-        if (copy && copy.subcopy) {
-          p.subcopy.textContent = copy.subcopy;
-          p.subcopy.hidden = false;
-        } else {
-          p.subcopy.hidden = true;
-        }
-      }
+    function visibleCount() {
+      return state.variants.length || 1;
     }
 
     function render() {
-      paintShared();
-      paintCopy(checkouts[0], state.ab.primary);
-      if (state.ab.active) paintCopy(checkouts[1], state.ab.secondary);
+      const name = state.name.trim() || defName;
+      const host = state.domain || slugify(name) + '.co.uk';
+      const shared = { name, host };
+      const count = visibleCount();
+      cardEls.forEach((card, i) => {
+        card.hidden = i >= count;
+        if (i >= count) return;
+        const variant = state.variants[i] || null;
+        const brief = (variant && variant.brief) || defaultBrief(state.manualAccent);
+        paintBrief(card, resolveBrief(brief, state.brand, state.overrides), shared);
+      });
+      root.classList.toggle('is-multi', count > 1);
     }
 
-    function setCardLabel(i, text, hasCopy) {
+    function setCardLabel(i, text, hasBrief) {
       const el = cardLabels[i];
       if (!el) return;
       if (!text) { el.hidden = true; return; }
-      el.textContent = hasCopy ? text : text + ' — no copy returned';
-      el.classList.toggle('is-empty', !hasCopy);
+      el.textContent = hasBrief ? text : text + ' — no design returned';
+      el.classList.toggle('is-empty', !hasBrief);
       el.hidden = false;
+    }
+
+    function setSkeletons(on) {
+      const count = on ? cardEls.length : 0;
+      cardEls.forEach((card, i) => {
+        if (on) card.hidden = false;
+        if (skeletons[i]) skeletons[i].hidden = i >= count;
+        if (on && cardLabels[i]) cardLabels[i].hidden = true;
+        if (on && voteBtns[i]) voteBtns[i].hidden = true;
+      });
     }
 
     // ---- manual controls (always live; the fallback if extraction fails) ----
     nameInput.addEventListener('input', () => { state.name = nameInput.value; render(); });
-    swatchEls.forEach((s) => s.addEventListener('click', () => applyColour(s.dataset.psSwatch)));
-    if (customInput) customInput.addEventListener('input', () => applyColour(customInput.value));
+    const applyAccent = (hex) => {
+      state.manualAccent = hex;
+      state.overrides.accent = hex;
+      selectSwatch(hex);
+      render();
+    };
+    swatchEls.forEach((s) => s.addEventListener('click', () => applyAccent(s.dataset.psSwatch)));
+    if (customInput) customInput.addEventListener('input', () => applyAccent(customInput.value));
     planBtns.forEach((b) =>
       b.addEventListener('click', () => {
-        state.plan = b.dataset.psPlan;
-        state.scenarioTouched = true; // choosing a scenario specialises the headline for both cards
+        state.overrides.scenario = b.dataset.psPlan;
         planBtns.forEach((x) => {
           const on = x === b;
           x.classList.toggle('is-selected', on);
@@ -596,33 +634,54 @@ const defaultHex = swatches[0].hex;
       });
     }
 
-    // ---- apply a fetched brand profile ----
+    // ---- votes ("prefer this design") ----
+    voteBtns.forEach((btn, i) => {
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        const variant = state.variants[i];
+        if (!variant || state.voted || !endpoint) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ vote: { domain: state.domain, key: variant.key, model: variant.model } }),
+          });
+          if (!res.ok) throw new Error('vote-failed');
+          state.voted = true;
+          btn.classList.add('is-chosen');
+          btn.lastChild.textContent = ' Noted — Thanks';
+          voteBtns.forEach((b) => { if (b) b.disabled = true; });
+        } catch {
+          btn.disabled = false;
+          btn.lastChild.textContent = " Couldn't Save Vote";
+        }
+      });
+    });
+
+    // ---- apply a fetched v2 profile ----
     function applyProfile(p) {
       if (p.name) { state.name = p.name; nameInput.value = p.name.slice(0, 32); }
-      if (p.colors && /^#[0-9a-fA-F]{6}$/.test(p.colors.primary || '')) applyColour(p.colors.primary);
-      state.logoUrl = p.logoUrl || '';
-      loadBrandFont(p.font || '');
-      if (p.font) root.style.setProperty('--bs-font', `'${p.font}', system-ui, -apple-system, sans-serif`);
-      else root.style.removeProperty('--bs-font');
-      state.scenarioTouched = false;
+      state.brand = p.brand || {};
+      loadBrandFont(state.brand.font || '');
+      state.overrides = { accent: null, scenario: null };
+      state.voted = false;
+      selectSwatch(null);
+      planBtns.forEach((x) => { x.classList.remove('is-selected'); x.setAttribute('aria-checked', 'false'); });
 
-      if (p.copyAB) {
-        // A/B split test — two cards, one per microcopy writer.
-        const models = p.copyAB.models || {};
-        state.ab = { active: true, primary: p.copyAB.anthropic || null, secondary: p.copyAB.openai || null };
-        setCardLabel(0, providerLabel('anthropic', models.anthropic), !!p.copyAB.anthropic);
-        setCardLabel(1, providerLabel('openai', models.openai), !!p.copyAB.openai);
-        if (cardEls[1]) cardEls[1].hidden = false;
-        root.classList.add('is-ab');
-        if (abNote) abNote.hidden = false;
-      } else {
-        // Single provider — one card, no labels.
-        state.ab = { active: false, primary: p.copy || null, secondary: null };
-        setCardLabel(0, '', false);
-        if (cardEls[1]) cardEls[1].hidden = true;
-        root.classList.remove('is-ab');
-        if (abNote) abNote.hidden = true;
+      const variants = Array.isArray(p.variants) ? p.variants.slice(0, cardEls.length) : [];
+      state.variants = variants;
+      const multi = variants.length > 1;
+      variants.forEach((v, i) => {
+        setCardLabel(i, multi ? variantLabel(v) : '', !!v.brief);
+        if (cardLabels[i] && v.brief && v.brief.rationale) cardLabels[i].title = v.brief.rationale;
+        if (voteBtns[i]) voteBtns[i].hidden = !(multi && v.brief);
+      });
+      for (let i = variants.length; i < cardEls.length; i += 1) {
+        setCardLabel(i, '', false);
+        if (voteBtns[i]) voteBtns[i].hidden = true;
       }
+      if (abNote) abNote.hidden = !multi;
 
       render();
 
@@ -638,6 +697,7 @@ const defaultHex = swatches[0].hex;
 
     // ---- generate from a URL ----
     let inFlight = false;
+    let stageTimer = null;
     async function generate(rawUrl) {
       const u = normaliseUrl(rawUrl);
       if (!u) {
@@ -654,8 +714,12 @@ const defaultHex = swatches[0].hex;
 
       inFlight = true;
       if (generateBtn) generateBtn.disabled = true;
-      setBtnLabel('Reading your site…');
+      setBtnLabel('Designing…');
       setStatus('Reading ' + state.domain + '…', 'working');
+      setSkeletons(true);
+      stageTimer = setTimeout(() => {
+        setStatus('Designing your page — each model drafts its own take, give it ~15 seconds…', 'working');
+      }, 4000);
 
       try {
         const res = await fetch(endpoint, {
@@ -664,23 +728,33 @@ const defaultHex = swatches[0].hex;
           body: JSON.stringify({ url: u.href }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data || data.error) {
+        if (!res.ok || !data || data.error || data.v !== 2) {
           throw new Error((data && data.error) || 'extract-failed');
         }
+        setSkeletons(false);
         applyProfile(data);
+        const good = (data.variants || []).filter((v) => v.brief).length;
         const who = data.name || state.domain;
         setStatus(
-          data.copyAB
-            ? "Two payment pages for " + who + ", same brand — compare the microcopy and tweak below."
-            : "Here's a sketch of " + who + " in your brand. Tweak the colour or scenario below.",
-          null,
+          good > 1
+            ? good + ' payment-page designs for ' + who + ' — compare them and mark your favourite.'
+            : good === 1
+              ? "Here's " + who + "'s payment page. Tweak the colour or scenario below."
+              : "The designers couldn't draft a page this time — set your brand by hand below.",
+          good ? null : 'error',
         );
       } catch (err) {
         // Graceful fallback to manual entry — no dead end.
         state.domain = '';
+        state.variants = [];
+        setSkeletons(false);
+        cardEls.forEach((c, i) => { c.hidden = i > 0; });
+        root.classList.remove('is-multi');
+        render();
         setStatus("We couldn't read that site automatically. No problem — set your name, colour and scenario by hand below.", 'error');
       } finally {
         inFlight = false;
+        clearTimeout(stageTimer);
         if (generateBtn) generateBtn.disabled = false;
         setBtnLabel(genLabel);
       }
@@ -693,11 +767,12 @@ const defaultHex = swatches[0].hex;
       });
     }
 
-    // ---- hydrate from a shared ?url= link ----
+    // ---- initial paint + hydrate from a shared ?url= link ----
+    // (?url= re-generates on load; while several DESIGN_PROVIDERS are active
+    // that re-bills every leg — acceptable at this volume.)
+    render();
     const params = new URLSearchParams(location.search);
     const sharedUrl = params.get('url');
-    applyColour(defColour);
-    render();
     if (sharedUrl) {
       urlInput.value = sharedUrl;
       generate(sharedUrl);

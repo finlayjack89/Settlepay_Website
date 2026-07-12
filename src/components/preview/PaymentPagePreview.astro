@@ -1,0 +1,471 @@
+---
+/**
+ * PaymentPagePreview — the full-page mockup payment page driven by an
+ * AI-generated design brief (mockup-world, 2–14px radii via --pp-radius).
+ *
+ * Structure mirrors the hand-built Lockdales reconstruction: utility strip →
+ * brand header → optional banner → step indicator → headline/summary/BACS/
+ * reference note → card fields + pay button → reassurance → branded footer.
+ *
+ * EVERYTHING dynamic is a data-pp-* hook that the painter (paymentPage.mjs)
+ * fills with textContent, toggles with `hidden`, or themes by setting --pp-*
+ * custom properties ON THIS ROOT. The painter never creates nodes — Astro's
+ * scoped styles only exist on server-rendered markup, which is also why the
+ * order summary pre-renders four rows and hides the unused ones.
+ *
+ * Illustrative only; no real payments. Any accent (including blue) is
+ * legitimate here because this is the prospect's brand world, not SettlePay's
+ * chrome. The disclaimer line in the footer is fixed and never model-written.
+ */
+import Icon from '../Icon.astro';
+import Chrome from '../previews/Chrome.astro';
+
+const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
+---
+<div class="mok pp" data-pp>
+  <Chrome url={url} />
+
+  <div class="pp__page">
+    <!-- utility strip -->
+    <div class="pp__strip" data-pp-strip>
+      <span class="pp__strip-item" data-pp-phone-wrap hidden>
+        <Icon name="phone" sw={2} /><span data-pp-phone></span>
+      </span>
+      <span class="pp__strip-item pp__strip-ssl">
+        <Icon name="lock" sw={2} /> Secure 256-bit SSL Encrypted Payment
+      </span>
+    </div>
+
+    <!-- brand header -->
+    <header class="pp__header">
+      <div class="pp__brand" data-pp-brand>
+        <span class="pp__mono" data-pp-mono>YB</span>
+        <img class="pp__logo" data-pp-logo alt="" hidden />
+        <div class="pp__wordmark">
+          <span class="pp__name" data-pp-name>Your Business</span>
+          <span class="pp__tagline" data-pp-tagline hidden></span>
+        </div>
+      </div>
+      <nav class="pp__nav" data-pp-nav hidden aria-hidden="true">
+        <span class="pp__nav-item" data-pp-nav-item hidden></span>
+        <span class="pp__nav-item" data-pp-nav-item hidden></span>
+        <span class="pp__nav-item" data-pp-nav-item hidden></span>
+      </nav>
+      <span class="pp__verified" data-pp-verified hidden>
+        <Icon name="shield" sw={2} /> Verified Merchant
+      </span>
+    </header>
+
+    <!-- brand banner image -->
+    <div class="pp__banner" data-pp-banner hidden></div>
+
+    <!-- step indicator -->
+    <div class="pp__steps" data-pp-steps>
+      <div class="pp__track"><span class="pp__track-fill"></span></div>
+      <div class="pp__step-labels">
+        <span class="is-on" data-pp-step></span>
+        <span data-pp-step></span>
+        <span data-pp-step></span>
+      </div>
+    </div>
+
+    <div class="pp__view">
+      <div class="pp__view-head">
+        <div class="pp__view-lead">
+          <h3 class="pp__h" data-pp-headline>Pay Your Invoice</h3>
+          <p class="pp__lede" data-pp-subcopy hidden></p>
+        </div>
+        <div class="pp__view-side">
+          <span class="pp__amount" data-pp-total-top>£480.00</span>
+          <span class="pp__refchip" data-pp-ref hidden></span>
+        </div>
+      </div>
+
+      <!-- order / invoice summary (4 pre-rendered rows, unused stay hidden) -->
+      <div class="pp__summary" data-pp-summary>
+        <div class="pp__row" data-pp-item hidden>
+          <span class="pp__row-label" data-pp-item-label></span><span class="pp__row-amount" data-pp-item-amount></span>
+        </div>
+        <div class="pp__row" data-pp-item hidden>
+          <span class="pp__row-label" data-pp-item-label></span><span class="pp__row-amount" data-pp-item-amount></span>
+        </div>
+        <div class="pp__row" data-pp-item hidden>
+          <span class="pp__row-label" data-pp-item-label></span><span class="pp__row-amount" data-pp-item-amount></span>
+        </div>
+        <div class="pp__row" data-pp-item hidden>
+          <span class="pp__row-label" data-pp-item-label></span><span class="pp__row-amount" data-pp-item-amount></span>
+        </div>
+        <div class="pp__row pp__row--total">
+          <span class="pp__row-label">Total</span><span class="pp__row-amount" data-pp-total>£480.00</span>
+        </div>
+      </div>
+
+      <!-- alternative payment method (BACS) -->
+      <div class="pp__method" data-pp-method hidden>
+        <div class="pp__method-head">
+          <span class="pp__method-ic"><Icon name="scale" sw={1.8} /></span>
+          <div>
+            <div class="pp__method-title" data-pp-method-title>Pay by Bank Transfer (BACS)</div>
+            <div class="pp__method-note" data-pp-method-note>No fees — preferred payment method</div>
+          </div>
+        </div>
+        <dl class="pp__bacs">
+          <div><dt>Account Name</dt><dd data-pp-bacs-name>Your Business</dd></div>
+          <div><dt>Sort Code</dt><dd class="pp__mono-txt">••–••–••</dd></div>
+          <div><dt>Account No.</dt><dd class="pp__mono-txt">••••••••</dd></div>
+        </dl>
+      </div>
+
+      <!-- payment-reference note -->
+      <p class="pp__note" data-pp-note hidden>
+        <Icon name="mail" sw={2} /><span class="pp__note-text" data-pp-note-text></span>
+      </p>
+
+      <!-- card fields -->
+      <label class="pp__flabel">Card number</label>
+      <div class="pp__input">
+        <Icon name="card" sw={1.6} /><span class="pp__dots">•••• •••• •••• 4242</span>
+      </div>
+      <div class="pp__split">
+        <div><label class="pp__flabel">Expiry</label><div class="pp__input pp__input--sm">12 / 28</div></div>
+        <div><label class="pp__flabel">CVC</label><div class="pp__input pp__input--sm">•••</div></div>
+      </div>
+
+      <button class="pp__pay" type="button" tabindex="-1" aria-hidden="true" data-pp-pay>Pay £480.00</button>
+
+      <div class="pp__reassure" data-pp-reassure hidden>
+        <Icon name="lock" sw={1.8} /><span data-pp-reassure-text></span>
+      </div>
+    </div>
+
+    <!-- branded footer: strapline is per-brief, the disclaimer is fixed -->
+    <div class="pp__foot" data-pp-footer>
+      <span class="pp__foot-line" data-pp-footer-text hidden></span>
+      <span class="pp__foot-legal">
+        <Icon name="lock" sw={1.8} /> Illustrative demo — no real payments are taken
+      </span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .pp {
+    /* Theming contract — the painter overrides these per design brief. */
+    --pp-accent: #0f766e;
+    --pp-on-accent: #ffffff;
+    --pp-accent2: #0f766e;
+    --pp-page-bg: #ffffff;
+    --pp-header-bg: #ffffff;
+    --pp-on-header: #1b2330;
+    --pp-surface: #ffffff;
+    --pp-ink: #1b2330;
+    --pp-muted: rgba(15, 23, 42, 0.6);
+    --pp-line: rgba(15, 23, 42, 0.14);
+    --pp-strip-bg: #10151f;
+    --pp-on-strip: rgba(255, 255, 255, 0.78);
+    --pp-strip-ic: rgba(255, 255, 255, 0.6);
+    --pp-radius: 8px;
+    --pp-display-font: inherit;
+    --pp-banner: none;
+    --pp-pad: 1.2rem;
+
+    width: 100%;
+    max-width: 480px;
+    box-shadow: var(--shadow-lg);
+  }
+  .pp--compact { --pp-pad: 0.95rem; }
+  /* Long pay-URLs must clip inside the fixed-width chrome pill. */
+  .pp :global(.mok__url) { overflow: hidden; white-space: nowrap; min-width: 0; }
+
+  .pp__page { background: var(--pp-page-bg); color: var(--pp-ink); }
+
+  /* ---- utility strip ---- */
+  .pp__strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    background: var(--pp-strip-bg);
+    color: var(--pp-on-strip);
+    font-size: 0.64rem;
+    padding: 0.42rem var(--pp-pad);
+  }
+  .pp__strip[hidden] { display: none; }
+  .pp__strip-item { display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; }
+  .pp__strip-item[hidden] { display: none; }
+  .pp__strip-item svg { width: 11px; height: 11px; color: var(--pp-strip-ic); flex-shrink: 0; }
+  .pp__strip-ssl { margin-left: auto; }
+
+  /* ---- brand header ---- */
+  .pp__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    background: var(--pp-header-bg);
+    color: var(--pp-on-header);
+    padding: 0.8rem var(--pp-pad);
+    border-bottom: 1px solid var(--pp-line);
+  }
+  .pp__brand { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .pp__mono {
+    width: 36px;
+    height: 36px;
+    border-radius: calc(var(--pp-radius) * 0.75);
+    background: var(--pp-accent);
+    color: var(--pp-on-accent);
+    display: grid;
+    place-items: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  .pp__logo { height: 34px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; }
+  .pp__logo[hidden] { display: none; }
+  .pp__brand.has-logo .pp__mono { display: none; }
+  .pp__brand.has-logo .pp__name { display: none; }
+  .pp__wordmark { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+  .pp__name {
+    font-family: var(--pp-display-font);
+    font-size: 1.08rem;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pp--upper .pp__name { text-transform: uppercase; letter-spacing: 0.06em; }
+  .pp__tagline {
+    font-size: 0.55rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--pp-accent2);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pp__tagline[hidden] { display: none; }
+  .pp__nav { display: flex; align-items: center; gap: 0.85rem; flex-shrink: 0; }
+  .pp__nav[hidden] { display: none; }
+  .pp__nav-item { font-size: 0.7rem; font-weight: 600; color: var(--pp-on-header); opacity: 0.72; white-space: nowrap; }
+  .pp__nav-item[hidden] { display: none; }
+  .pp__verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    font-size: 0.64rem;
+    font-weight: 600;
+    color: var(--pp-on-header);
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+  .pp__verified[hidden] { display: none; }
+  .pp__verified svg { width: 13px; height: 13px; color: #1f8a5d; }
+
+  /* ---- banner ---- */
+  .pp__banner {
+    height: 56px;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)), var(--pp-banner);
+    background-size: cover;
+    background-position: center;
+  }
+  .pp__banner[hidden] { display: none; }
+
+  /* ---- steps ---- */
+  .pp__steps { padding: 0.9rem var(--pp-pad) 0.35rem; }
+  .pp__steps[hidden] { display: none; }
+  .pp__track { height: 4px; border-radius: 2px; background: var(--pp-line); overflow: hidden; }
+  .pp__track-fill { display: block; height: 100%; width: 33%; background: var(--pp-accent); border-radius: 2px; }
+  .pp__step-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--pp-muted);
+    margin-top: 0.45rem;
+  }
+  .pp__step-labels .is-on { color: var(--pp-ink); }
+
+  /* ---- main view ---- */
+  .pp__view { padding: 0.85rem var(--pp-pad) var(--pp-pad); }
+  .pp__view-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 0.85rem;
+  }
+  .pp__view-lead { min-width: 0; }
+  .pp__h {
+    font-family: var(--pp-display-font);
+    font-size: 1.22rem;
+    font-weight: 700;
+    color: var(--pp-ink);
+    margin: 0;
+  }
+  .pp__lede { font-size: 0.75rem; line-height: 1.5; color: var(--pp-muted); margin: 0.25rem 0 0; }
+  .pp__lede[hidden] { display: none; }
+  .pp__view-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
+  .pp__amount { font-size: 1.2rem; font-weight: 700; color: var(--pp-ink); font-variant-numeric: tabular-nums; }
+  .pp__refchip {
+    background: var(--pp-accent);
+    color: var(--pp-on-accent);
+    font-size: 0.6rem;
+    font-weight: 600;
+    border-radius: calc(var(--pp-radius) * 0.75);
+    padding: 4px 9px;
+    white-space: nowrap;
+  }
+  .pp__refchip[hidden] { display: none; }
+
+  /* ---- summary ---- */
+  .pp__summary {
+    background: var(--pp-surface);
+    border: 1px solid var(--pp-line);
+    border-radius: var(--pp-radius);
+    padding: 0.15rem 0.85rem;
+    margin-bottom: 0.85rem;
+  }
+  .pp__summary[hidden] { display: none; }
+  .pp__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.48rem 0;
+    border-bottom: 1px solid var(--pp-line);
+  }
+  .pp__row[hidden] { display: none; }
+  .pp__row:last-child { border-bottom: 0; }
+  .pp__row-label { font-size: 0.74rem; color: var(--pp-muted); min-width: 0; }
+  .pp__row-amount { font-size: 0.8rem; font-weight: 600; color: var(--pp-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pp__row--total .pp__row-label { font-weight: 700; color: var(--pp-ink); }
+  .pp__row--total .pp__row-amount { font-size: 0.92rem; font-weight: 700; }
+
+  /* ---- BACS method ---- */
+  .pp__method { margin-bottom: 0.85rem; }
+  .pp__method[hidden] { display: none; }
+  .pp__method-head { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.6rem; }
+  .pp__method-ic {
+    width: 34px;
+    height: 34px;
+    border-radius: calc(var(--pp-radius) * 0.75);
+    flex-shrink: 0;
+    background: var(--pp-accent);
+    color: var(--pp-on-accent);
+    display: grid;
+    place-items: center;
+  }
+  .pp__method-ic svg { width: 17px; height: 17px; }
+  .pp__method-title { font-size: 0.88rem; font-weight: 700; color: var(--pp-ink); }
+  .pp__method-note { font-size: 0.66rem; color: #1f8a5d; font-weight: 600; }
+  .pp__bacs {
+    background: var(--pp-surface);
+    border: 1px solid var(--pp-line);
+    border-radius: var(--pp-radius);
+    padding: 0.2rem 0.85rem;
+    margin: 0;
+  }
+  .pp__bacs > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.42rem 0;
+    border-bottom: 1px solid var(--pp-line);
+  }
+  .pp__bacs > div:last-child { border-bottom: 0; }
+  .pp__bacs dt { font-size: 0.7rem; color: var(--pp-muted); }
+  .pp__bacs dd { font-size: 0.78rem; font-weight: 700; color: var(--pp-ink); margin: 0; }
+  .pp__mono-txt { font-family: var(--font-mono); letter-spacing: 0.04em; }
+
+  /* ---- reference note ---- */
+  .pp__note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    background: color-mix(in srgb, var(--pp-accent2) 12%, var(--pp-page-bg));
+    border: 1px solid color-mix(in srgb, var(--pp-accent2) 32%, transparent);
+    border-radius: var(--pp-radius);
+    padding: 0.6rem 0.75rem;
+    margin: 0 0 0.85rem;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: var(--pp-ink);
+  }
+  .pp__note[hidden] { display: none; }
+  .pp__note svg { width: 13px; height: 13px; color: var(--pp-accent2); flex-shrink: 0; margin-top: 2px; }
+  /* One flowing sentence beside the icon (single flex item — see Lockdales note). */
+  .pp__note-text { min-width: 0; }
+
+  /* ---- card fields ---- */
+  .pp__flabel {
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--pp-muted);
+    margin: 0 0 0.3rem;
+  }
+  .pp__input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--pp-surface);
+    border: 1px solid var(--pp-line);
+    border-radius: calc(var(--pp-radius) * 0.75);
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--pp-muted);
+  }
+  .pp__input svg { width: 16px; height: 16px; color: var(--pp-muted); }
+  .pp__input--sm { display: block; font-variant-numeric: tabular-nums; }
+  .pp__split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .pp__dots { letter-spacing: 0.08em; }
+
+  /* ---- pay button ---- */
+  .pp__pay {
+    width: 100%;
+    margin-top: 0.35rem;
+    border: 0;
+    border-radius: var(--pp-radius);
+    background: var(--pp-accent);
+    color: var(--pp-on-accent);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 0.85rem;
+    cursor: default;
+  }
+
+  .pp__reassure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+    font-size: 0.68rem;
+    color: var(--pp-muted);
+  }
+  .pp__reassure[hidden] { display: none; }
+  .pp__reassure svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+  /* ---- footer ---- */
+  .pp__foot {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    background: var(--pp-strip-bg);
+    color: var(--pp-on-strip);
+    font-size: 0.64rem;
+    line-height: 1.45;
+    padding: 0.65rem var(--pp-pad);
+  }
+  .pp__foot[hidden] { display: none; }
+  .pp__foot-line { font-weight: 600; }
+  .pp__foot-line[hidden] { display: none; }
+  .pp__foot-legal { display: inline-flex; align-items: center; gap: 0.4rem; opacity: 0.75; }
+  .pp__foot-legal svg { width: 12px; height: 12px; color: var(--pp-strip-ic); flex-shrink: 0; }
+</style>

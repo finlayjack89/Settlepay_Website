@@ -1,41 +1,43 @@
 // `brand-preview` Edge Function — powers the /preview/ "see your payment page" tool.
 //
-// Takes a visitor's website URL, reads their public brand via Brandfetch (logo,
-// brand colour, display font, name) and drafts short, compliance-bounded
-// microcopy via Claude Haiku. Returns a JSON brand profile the front-end pours
-// into the mockup checkout. The front-end falls back to manual entry on any
-// error, so this endpoint must always return a clean JSON envelope — never hang.
+// v2: takes a visitor's website URL, reads their public brand via Brandfetch
+// (all colours, themed logos, banner, font, description) plus a Firecrawl
+// homepage screenshot + copy excerpt, then asks each active model (see
+// providers.ts) for a full DESIGN BRIEF — palette, layout sections, typography
+// feel and industry-authentic content — validated by spec.ts before it ships.
+// The front-end renders one full payment page per returned brief; in
+// split-test mode all legs render side by side.
 //
-// Public endpoint: deploy with `--no-verify-jwt` (the anonymous form POST carries
-// no Supabase auth header), exactly like the `enquiry` function.
+// Also accepts `{vote:{domain,key,model}}` — the "prefer this design" tally.
 //
-// Env (set as function secrets — see .env.example):
-//   BRANDFETCH_API_KEY   Brandfetch Brand API key (required for live previews)
-//   ANTHROPIC_API_KEY    Anthropic API key for microcopy (optional; omit = deterministic copy)
-//   ALLOWED_ORIGIN       CORS origin (default "*"; set to https://settlepay.uk in prod)
-//   RATE_LIMIT_PER_MIN   max requests per IP per minute (default 10)
-//   CACHE_TTL_HOURS      brand-profile cache lifetime in hours (default 168 = 7 days)
-// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically and used
-// only for best-effort caching + rate-limiting; if the tables are absent the
-// function still works (cache/limit simply skipped).
+// Public endpoint: deploy with `--no-verify-jwt` (anonymous POST), exactly like
+// the `enquiry` function. Always returns a clean JSON envelope — the front-end
+// falls back to manual entry on any error.
+//
+// Env (function secrets — see .env.example):
+//   BRANDFETCH_API_KEY   required for live previews
+//   FIRECRAWL_API_KEY    optional homepage screenshot + markdown (degrades gracefully)
+//   ANTHROPIC_API_KEY    Claude legs        OPENAI_API_KEY  GPT legs
+//   DESIGN_PROVIDERS     comma list of haiku,sonnet,luna,terra (1 = production+cache)
+//   SONNET_MODEL / OPENAI_REASONING_EFFORT / ALLOWED_ORIGIN
+//   RATE_LIMIT_PER_MIN / RATE_LIMIT_PER_DAY / CACHE_TTL_HOURS
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  type BrandColour,
+  briefUserPrompt,
+  pickColour,
+  validateSpec,
+} from './spec.ts';
+import { activeProviders, PROVIDERS, runDesigners } from './providers.ts';
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
-const RATE_LIMIT_PER_MIN = Number(Deno.env.get('RATE_LIMIT_PER_MIN') ?? '10');
+const MULTI = activeProviders().length > 1;
+// Each request bills every active leg (+ Firecrawl + Brandfetch) — throttle
+// harder while the split test runs.
+const RATE_LIMIT_PER_MIN = Number(Deno.env.get('RATE_LIMIT_PER_MIN') ?? (MULTI ? '5' : '10'));
+const RATE_LIMIT_PER_DAY = Number(Deno.env.get('RATE_LIMIT_PER_DAY') ?? '60');
 const CACHE_TTL_HOURS = Number(Deno.env.get('CACHE_TTL_HOURS') ?? '168');
-
-// Anthropic API version header (request version, NOT a model id — keep as-is).
-const ANTHROPIC_VERSION = '2023-06-01';
-const HAIKU_MODEL = 'claude-haiku-4-5';
-
-// Microcopy provider selection for the A/B test:
-//   COPY_PROVIDER = 'anthropic' (default) | 'openai' | 'both'
-// In 'both' mode the function calls BOTH providers and returns each variant in
-// `copyAB` for side-by-side comparison (and bypasses the cache so every call is
-// live). OPENAI_COPY_MODEL is a verified id from the account's /v1/models list.
-const COPY_PROVIDER = (Deno.env.get('COPY_PROVIDER') ?? 'anthropic').toLowerCase();
-const OPENAI_COPY_MODEL = Deno.env.get('OPENAI_COPY_MODEL') ?? 'gpt-5.6-luna';
 
 const cors = {
   'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
@@ -48,20 +50,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...cors, 'content-type': 'application/json' },
   });
-}
-
-type Copy = { headline: string; subcopy: string };
-
-interface BrandProfile {
-  name: string;
-  domain: string;
-  logoUrl: string | null;
-  colors: { primary: string; onPrimary: string } | null;
-  font: string | null;
-  copy: Copy | null;
-  // Present only in COPY_PROVIDER='both' mode — both variants for A/B comparison.
-  copyAB?: { anthropic: Copy | null; openai: Copy | null; models: { anthropic: string; openai: string } };
-  source: string;
 }
 
 // ---- helpers ---------------------------------------------------------------
@@ -80,78 +68,6 @@ function toDomain(raw: string): string | null {
   } catch {
     return null;
   }
-}
-
-/** WCAG-ish: ink or paper that reads on top of a brand hex (mirrors readable()). */
-function onColour(hex: string): string {
-  const c = hex.replace('#', '');
-  if (c.length !== 6) return '#ffffff';
-  const r = parseInt(c.slice(0, 2), 16) / 255;
-  const g = parseInt(c.slice(2, 4), 16) / 255;
-  const b = parseInt(c.slice(4, 6), 16) / 255;
-  const lin = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.42 ? '#0f172a' : '#ffffff';
-}
-
-function relLum(hex: string): number {
-  const c = hex.replace('#', '');
-  if (c.length !== 6) return 0.5;
-  const r = parseInt(c.slice(0, 2), 16) / 255;
-  const g = parseInt(c.slice(2, 4), 16) / 255;
-  const b = parseInt(c.slice(4, 6), 16) / 255;
-  const lin = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-const isHex = (s: unknown): s is string => typeof s === 'string' && /^#[0-9a-fA-F]{6}$/.test(s);
-
-/** Choose a brand colour: accent first, then brand, then the most "branded"
- *  (mid-luminance, not near-white/near-black) of whatever's offered. */
-function pickColour(colors: any[]): string | null {
-  const valid = (colors || []).filter((c) => isHex(c?.hex));
-  if (!valid.length) return null;
-  const byType = (t: string) => valid.find((c) => String(c.type).toLowerCase() === t);
-  const accent = byType('accent') || byType('brand');
-  if (accent) return accent.hex;
-  // Otherwise prefer a colour with real presence (avoid near-white/near-black).
-  const mid = valid
-    .map((c) => ({ hex: c.hex, l: relLum(c.hex) }))
-    .filter((c) => c.l > 0.05 && c.l < 0.85)
-    .sort((a, b) => Math.abs(0.4 - a.l) - Math.abs(0.4 - b.l));
-  return (mid[0] || valid[0]).hex;
-}
-
-/** Choose a logo: a full logo on a light background reads best on the white
- *  checkout; fall back to symbol/icon, then anything with a usable raster/svg. */
-function pickLogo(logos: any[]): string | null {
-  const all = (logos || []).filter((l) => Array.isArray(l?.formats) && l.formats.length);
-  if (!all.length) return null;
-  const fmtSrc = (l: any) => {
-    const f =
-      l.formats.find((x: any) => x.format === 'svg') ||
-      l.formats.find((x: any) => x.format === 'png') ||
-      l.formats[0];
-    return f?.src || null;
-  };
-  const order = (l: any) => {
-    const type = String(l.type).toLowerCase();
-    const theme = String(l.theme).toLowerCase();
-    let score = 0;
-    if (type === 'logo') score += 4;
-    else if (type === 'symbol' || type === 'icon') score += 2;
-    if (theme === 'light' || theme === '') score += 1; // light/neutral suits white bg
-    return score;
-  };
-  const best = [...all].sort((a, b) => order(b) - order(a))[0];
-  return fmtSrc(best);
-}
-
-function pickFont(fonts: any[]): string | null {
-  const valid = (fonts || []).filter((f) => typeof f?.name === 'string' && f.name.trim());
-  if (!valid.length) return null;
-  const title = valid.find((f) => String(f.type).toLowerCase() === 'title');
-  return (title || valid[0]).name.trim();
 }
 
 async function hashIp(ip: string): Promise<string> {
@@ -174,140 +90,120 @@ async function fetchBrand(domain: string, key: string) {
   return { data: await res.json() };
 }
 
-// ---- Claude microcopy (compliance-bounded) ---------------------------------
+/** First usable src for a logo entry. `raster` skips SVG (vision APIs reject it). */
+function fmtSrc(entry: any, raster = false): string | null {
+  const formats: any[] = Array.isArray(entry?.formats) ? entry.formats : [];
+  const order = raster ? ['png', 'jpeg', 'webp'] : ['svg', 'png', 'jpeg', 'webp'];
+  for (const fmt of order) {
+    const f = formats.find((x) => x?.format === fmt && x?.src);
+    if (f) return f.src;
+  }
+  return raster ? null : formats.find((x) => x?.src)?.src ?? null;
+}
 
-const COPY_SYSTEM = [
-  'You write one short headline and one short reassurance line for an ILLUSTRATIVE',
-  'mock payment page used by SettlePay, a UK developer of bespoke branded checkouts.',
-  'Voice: UK English, plain, confident, no hype. Title Case headline of at most 8 words.',
-  'Subcopy: one calm sentence, at most 18 words, about paying this business securely on a',
-  'page that looks like them.',
-  'HARD RULES — never break: do NOT claim the business or SettlePay is "FCA authorised",',
-  '"FCA regulated", "PCI compliant" or "PCI DSS compliant"; do NOT invent statistics,',
-  'testimonials, prices, awards or client relationships; no emoji; no exclamation marks.',
-  'Return ONLY minified JSON: {"headline":"...","subcopy":"..."} and nothing else.',
-].join(' ');
+/**
+ * Themed logo picks. Brandfetch `theme` describes the ARTWORK: 'dark' = dark
+ * marks for light backgrounds, 'light' = white marks for dark backgrounds
+ * (verified against github.com — the v1 comment had it backwards).
+ */
+function pickLogos(logos: any[]) {
+  const all = (logos || []).filter((l) => Array.isArray(l?.formats) && l.formats.length);
+  const byScore = (want: 'dark' | 'light') =>
+    [...all]
+      .filter((l) => ['logo', 'symbol', 'icon'].includes(String(l.type).toLowerCase()))
+      .sort((a, b) => score(b, want) - score(a, want))[0] ?? null;
+  const score = (l: any, want: 'dark' | 'light') => {
+    const type = String(l.type).toLowerCase();
+    const theme = String(l.theme ?? '').toLowerCase();
+    let s = 0;
+    if (type === 'logo') s += 4;
+    else if (type === 'symbol' || type === 'icon') s += 2;
+    if (theme === want) s += 3;
+    else if (theme === '') s += 1;
+    return s;
+  };
+  const forLight = byScore('dark'); // dark artwork reads on light headers
+  const forDark = byScore('light');
+  const icon = all.find((l) => ['icon', 'symbol'].includes(String(l.type).toLowerCase()));
+  return {
+    logoUrl: forLight ? fmtSrc(forLight) : null,
+    logoDarkUrl: forDark && String(forDark.theme).toLowerCase() === 'light' ? fmtSrc(forDark) : null,
+    iconUrl: icon ? fmtSrc(icon) : null,
+    logoRasterUrl: forLight ? fmtSrc(forLight, true) : null,
+  };
+}
 
-function copyPrompt(name: string, context: string): string {
-  return (
-    'Business name: ' + name + '\n' +
-    'What they do (may be empty): ' + (context || 'unknown') + '\n' +
-    'Write the headline and subcopy JSON.'
+/** Brandfetch font names can be scraping garbage (`var(--ricos-font-family`). */
+function pickFont(fonts: any[]): string | null {
+  const sane = (name: unknown) =>
+    typeof name === 'string' &&
+    /^[A-Za-z0-9][A-Za-z0-9 '\-]{1,39}$/.test(name.trim()) &&
+    !/var|--|[(),;]/.test(name);
+  const valid = (fonts || []).filter((f) => sane(f?.name));
+  if (!valid.length) return null;
+  const title = valid.find((f) => String(f.type).toLowerCase() === 'title');
+  return (title || valid[0]).name.trim();
+}
+
+function pickBanner(images: any[]): string | null {
+  const banner = (images || []).find(
+    (i) => String(i?.type).toLowerCase() === 'banner' && Array.isArray(i?.formats) && i.formats.length,
   );
+  return banner ? fmtSrc(banner, true) : null;
 }
 
-function parseCopy(text: string): Copy | null {
-  const match = String(text || '').match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try {
-    const parsed = JSON.parse(match[0]);
-    const headline = String(parsed.headline || '').trim();
-    const subcopy = String(parsed.subcopy || '').trim();
-    if (!headline && !subcopy) return null;
-    return { headline, subcopy };
-  } catch {
-    return null;
-  }
-}
+// ---- Firecrawl (screenshot + homepage copy — best-effort) --------------------
 
-async function draftCopyAnthropic(name: string, context: string, key: string): Promise<Copy | null> {
+async function fetchSite(domain: string): Promise<{ screenshotUrl: string | null; markdown: string | null }> {
+  const key = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!key) return { screenshotUrl: null, markdown: null };
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': ANTHROPIC_VERSION,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: HAIKU_MODEL,
-        max_tokens: 200,
-        system: COPY_SYSTEM,
-        messages: [{ role: 'user', content: copyPrompt(name, context) }],
-      }),
-    });
-    if (!res.ok) {
-      console.error('anthropic error', res.status, await res.text().catch(() => ''));
-      return null;
-    }
-    const body = await res.json();
-    // Cost tracking: log token usage so spend can be attributed to this feature.
-    if (body?.usage) {
-      console.log('brand-preview anthropic usage', JSON.stringify({ model: HAIKU_MODEL, ...body.usage }));
-    }
-    const text: string = (body?.content || [])
-      .filter((b: any) => b.type === 'text')
-      .map((b: any) => b.text)
-      .join('');
-    return parseCopy(text);
-  } catch (e) {
-    console.error('draftCopyAnthropic failed', e);
-    return null;
-  }
-}
-
-// OpenAI microcopy (GPT-5.6 Luna by default). The model id is verified against
-// the account's /v1/models list. Chat Completions with `max_completion_tokens`
-// (the newer models reject `max_tokens`), low reasoning effort, and JSON mode.
-// NOTE: coded but NOT verified end-to-end at wiring time — the OpenAI account
-// returned `insufficient_quota`. Run one live call after adding billing to
-// confirm the request shape before trusting the A/B numbers.
-async function draftCopyOpenAI(name: string, context: string, key: string, model: string): Promise<Copy | null> {
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 20_000);
+    const res = await fetch('https://api.firecrawl.dev/v2/scrape', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + key, 'content-type': 'application/json' },
       body: JSON.stringify({
-        model,
-        max_completion_tokens: 800,
-        reasoning_effort: 'low',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: COPY_SYSTEM },
-          { role: 'user', content: copyPrompt(name, context) },
-        ],
+        url: 'https://' + domain,
+        formats: ['screenshot', 'markdown'],
+        screenshot: { fullPage: false, viewport: { width: 1280, height: 800 } },
       }),
+      signal: ctl.signal,
     });
+    clearTimeout(timer);
     if (!res.ok) {
-      console.error('openai error', res.status, await res.text().catch(() => ''));
-      return null;
+      console.warn('firecrawl error', res.status, (await res.text().catch(() => '')).slice(0, 200));
+      return { screenshotUrl: null, markdown: null };
     }
     const body = await res.json();
-    if (body?.usage) {
-      console.log('brand-preview openai usage', JSON.stringify({ model, ...body.usage }));
-    }
-    const text: string = body?.choices?.[0]?.message?.content ?? '';
-    return parseCopy(text);
+    const md = typeof body?.data?.markdown === 'string' ? body.data.markdown : null;
+    return {
+      screenshotUrl: typeof body?.data?.screenshot === 'string' ? body.data.screenshot : null,
+      markdown: md ? md.replace(/\s+/g, ' ').slice(0, 1500) : null,
+    };
   } catch (e) {
-    console.error('draftCopyOpenAI failed', e);
-    return null;
+    console.warn('firecrawl failed', e);
+    return { screenshotUrl: null, markdown: null };
   }
 }
 
-// Honours COPY_PROVIDER. In 'both' mode runs the two providers in parallel and
-// returns each variant in copyAB for A/B comparison; the live `copy` stays
-// Anthropic-primary so the preview UI is deterministic while you evaluate.
-async function generateCopy(
-  name: string,
-  context: string,
-): Promise<{ copy: Copy | null; copyAB?: BrandProfile['copyAB'] }> {
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-  const openaiKey = Deno.env.get('OPENAI_API_KEY');
-  const wantA = COPY_PROVIDER === 'anthropic' || COPY_PROVIDER === 'both';
-  const wantO = COPY_PROVIDER === 'openai' || COPY_PROVIDER === 'both';
-
-  const [a, o] = await Promise.all([
-    wantA && anthropicKey ? draftCopyAnthropic(name, context, anthropicKey) : Promise.resolve(null),
-    wantO && openaiKey ? draftCopyOpenAI(name, context, openaiKey, OPENAI_COPY_MODEL) : Promise.resolve(null),
-  ]);
-
-  if (COPY_PROVIDER === 'both') {
-    return {
-      copy: a ?? o,
-      copyAB: { anthropic: a, openai: o, models: { anthropic: HAIKU_MODEL, openai: OPENAI_COPY_MODEL } },
-    };
-  }
-  return { copy: COPY_PROVIDER === 'openai' ? o : a };
+/** Drop image URLs the vision APIs couldn't fetch (a dead CDN link 400s a whole leg). */
+async function preflightImages(urls: (string | null)[]): Promise<string[]> {
+  const candidates = urls.filter((u): u is string => !!u).slice(0, 3);
+  const checks = await Promise.all(
+    candidates.map(async (u) => {
+      try {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 4_000);
+        const res = await fetch(u, { method: 'HEAD', signal: ctl.signal });
+        clearTimeout(timer);
+        return res.ok ? u : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return checks.filter((u): u is string => !!u);
 }
 
 // ---- handler ---------------------------------------------------------------
@@ -316,23 +212,14 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'method-not-allowed' }, 405);
 
-  let payload: { url?: string };
+  let payload: { url?: string; vote?: { domain?: string; key?: string; model?: string } };
   try {
     payload = await req.json();
   } catch {
     return json({ error: 'invalid-json' }, 400);
   }
 
-  const domain = toDomain(payload.url || '');
-  if (!domain) return json({ error: 'invalid-url' }, 400);
-
-  const brandKey = Deno.env.get('BRANDFETCH_API_KEY');
-  if (!brandKey) {
-    console.warn('BRANDFETCH_API_KEY not set — live previews disabled.');
-    return json({ error: 'not-configured' }, 503);
-  }
-
-  // Best-effort Supabase client for cache + rate-limit. Any failure is non-fatal.
+  // Best-effort Supabase client for cache + rate-limit + votes.
   let supabase: ReturnType<typeof createClient> | null = null;
   try {
     const sbUrl = Deno.env.get('SUPABASE_URL');
@@ -342,19 +229,52 @@ Deno.serve(async (req) => {
     supabase = null;
   }
 
-  // Rate-limit by IP (best-effort).
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
-  if (supabase && RATE_LIMIT_PER_MIN > 0) {
+  const ipHash = await hashIp(ip);
+
+  // ---- vote branch -----------------------------------------------------------
+  if (payload.vote) {
+    const domain = toDomain(payload.vote.domain || '');
+    const key = String(payload.vote.key || '');
+    const model = String(payload.vote.model || '').slice(0, 64);
+    if (!domain || !(key in PROVIDERS)) return json({ error: 'invalid-vote' }, 400);
+    if (!supabase) return json({ error: 'vote-unavailable' }, 503);
+    const { error } = await supabase
+      .from('brand_preview_votes')
+      .insert({ domain, variant_key: key, model, ip_hash: ipHash });
+    if (error) {
+      console.error('vote insert failed', error.message);
+      return json({ error: 'vote-failed' }, 500);
+    }
+    return json({ ok: true });
+  }
+
+  // ---- generate branch ---------------------------------------------------------
+  const domain = toDomain(payload.url || '');
+  if (!domain) return json({ error: 'invalid-url' }, 400);
+
+  const brandKey = Deno.env.get('BRANDFETCH_API_KEY');
+  if (!brandKey) {
+    console.warn('BRANDFETCH_API_KEY not set — live previews disabled.');
+    return json({ error: 'not-configured' }, 503);
+  }
+
+  // Rate-limit by hashed IP: per-minute and per-day windows on the same table.
+  if (supabase && (RATE_LIMIT_PER_MIN > 0 || RATE_LIMIT_PER_DAY > 0)) {
     try {
-      const ipHash = await hashIp(ip);
-      const since = new Date(Date.now() - 60_000).toISOString();
-      const { count } = await supabase
-        .from('brand_preview_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('ip_hash', ipHash)
-        .gte('created_at', since);
-      if ((count ?? 0) >= RATE_LIMIT_PER_MIN) {
-        return json({ error: 'rate-limited' }, 429);
+      const windows: Array<[number, number]> = [
+        [RATE_LIMIT_PER_MIN, 60_000],
+        [RATE_LIMIT_PER_DAY, 86_400_000],
+      ];
+      for (const [limit, ms] of windows) {
+        if (limit <= 0) continue;
+        const since = new Date(Date.now() - ms).toISOString();
+        const { count } = await supabase
+          .from('brand_preview_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('ip_hash', ipHash)
+          .gte('created_at', since);
+        if ((count ?? 0) >= limit) return json({ error: 'rate-limited' }, 429);
       }
       await supabase.from('brand_preview_requests').insert({ ip_hash: ipHash, domain });
     } catch (_) {
@@ -362,10 +282,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  // In A/B ('both') mode, bypass the cache so every call runs both providers live.
-  const useCache = COPY_PROVIDER !== 'both';
-
-  // Cache lookup (best-effort).
+  // Cache only in single-provider (production) mode, and only v2-shaped rows.
+  const useCache = !MULTI;
   if (supabase && useCache) {
     try {
       const { data: cached } = await supabase
@@ -373,47 +291,97 @@ Deno.serve(async (req) => {
         .select('profile, fetched_at')
         .eq('domain', domain)
         .maybeSingle();
-      if (cached?.profile && cached.fetched_at) {
+      if (cached?.profile?.v === 2 && cached.fetched_at) {
         const ageMs = Date.now() - new Date(cached.fetched_at).getTime();
-        if (ageMs < CACHE_TTL_HOURS * 3_600_000) {
-          return json(cached.profile);
-        }
+        if (ageMs < CACHE_TTL_HOURS * 3_600_000) return json(cached.profile);
       }
     } catch (_) {
       /* cache miss path */
     }
   }
 
-  // Extract brand.
-  const brand = await fetchBrand(domain, brandKey);
+  // Brand extraction and site capture are independent — run them together.
+  const [brand, site] = await Promise.all([fetchBrand(domain, brandKey), fetchSite(domain)]);
   if ('notFound' in brand) return json({ error: 'brand-not-found', domain }, 404);
   if ('error' in brand) return json({ error: 'extract-failed' }, 502);
 
   const d = brand.data || {};
   const name: string = (d.name && String(d.name).trim()) || domain;
-  const colourHex = pickColour(d.colors);
-  const logoUrl = pickLogo(d.logos);
+  const colors: BrandColour[] = (d.colors || []).filter((c: any) => typeof c?.hex === 'string');
+  const logos = pickLogos(d.logos);
   const font = pickFont(d.fonts);
-
-  // Microcopy is optional enrichment — never fails the request.
-  const context = [d.description, (d.industries || []).map((i: any) => i?.name).filter(Boolean).join(', ')]
+  const bannerUrl = pickBanner(d.images);
+  const description: string = String(d.description || '').slice(0, 400);
+  const industries: string[] = (d.company?.industries || d.industries || [])
+    .map((i: any) => (typeof i === 'string' ? i : i?.name))
     .filter(Boolean)
-    .join(' — ');
-  const { copy, copyAB } = await generateCopy(name, context);
+    .slice(0, 3);
 
-  const profile: BrandProfile = {
+  // Vision inputs: screenshot beats banner beats logo; max 3, all pre-flighted.
+  const imageUrls = await preflightImages([site.screenshotUrl, bannerUrl, logos.logoRasterUrl]);
+  const imageNote = imageUrls.length
+    ? 'Images attached in order: ' +
+      [site.screenshotUrl && 'homepage screenshot', bannerUrl && 'brand banner', logos.logoRasterUrl && 'logo']
+        .filter(Boolean)
+        .slice(0, imageUrls.length)
+        .join(', ') +
+      '.'
+    : '';
+
+  const userText = briefUserPrompt({
     name,
     domain,
-    logoUrl,
-    colors: colourHex ? { primary: colourHex, onPrimary: onColour(colourHex) } : null,
+    description,
+    industries,
+    colors,
     font,
-    copy,
-    ...(copyAB ? { copyAB } : {}),
+    markdown: site.markdown,
+    imageNote,
+  });
+
+  const legs = await runDesigners(activeProviders(), { userText, imageUrls });
+
+  const variants = legs.map((leg) => {
+    const brief = leg.brief ? validateSpec(leg.brief, { name, colors, font }) : null;
+    if (leg.usage) {
+      // Cost tracking: per-leg spend attribution for this feature.
+      console.log(
+        'brand-preview design usage',
+        JSON.stringify({ key: leg.key, model: leg.model, ms: Math.round(leg.ms), ...leg.usage }),
+      );
+    }
+    return {
+      key: leg.key,
+      vendor: leg.vendor,
+      model: leg.model,
+      label: leg.label,
+      brief,
+      ms: Math.round(leg.ms),
+      usage: leg.usage,
+      ...(leg.note ? { note: leg.note } : {}),
+      ...(leg.error ? { error: leg.error } : brief ? {} : { error: 'invalid-brief' }),
+    };
+  });
+
+  const profile = {
+    v: 2,
+    name,
+    domain,
+    brand: {
+      palette: colors,
+      accent: pickColour(colors),
+      logoUrl: logos.logoUrl,
+      logoDarkUrl: logos.logoDarkUrl,
+      iconUrl: logos.iconUrl,
+      bannerUrl,
+      font,
+      description,
+    },
+    variants,
     source: 'brandfetch',
   };
 
-  // Store in cache (best-effort). Skipped in A/B mode so results stay live.
-  if (supabase && useCache) {
+  if (supabase && useCache && variants.some((v) => v.brief)) {
     try {
       await supabase
         .from('brand_previews')
