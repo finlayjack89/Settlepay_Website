@@ -230,6 +230,74 @@ function guardOn(colour: string, surface: string, min: number): string {
   return out;
 }
 
+function toHsl(hex: string): { h: number; s: number; l: number } {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h /= 6;
+  }
+  return { h, s, l };
+}
+
+function fromHsl(h: number, s: number, l: number): string {
+  const hue = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  let r: number, g: number, b: number;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue(p, q, h + 1 / 3);
+    g = hue(p, q, h);
+    b = hue(p, q, h - 1 / 3);
+  }
+  const x = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0');
+  return '#' + x(r) + x(g) + x(b);
+}
+
+/**
+ * Dark-theme tone lift, hue-aware and saturation-preserving (HSL lightness
+ * steps, not white-mixing — white-mix turns brand reds pink). Sunny hues
+ * (golds/greens, 40–190°) also get a tone floor because they read muddy at low
+ * luminance even when contrast passes (logo-sampled golds like Lockdales'
+ * #94821b); low-luma hues (reds/blues) lift only until they clear contrast on
+ * the actual surface — a punchy red physically cannot reach high luminance
+ * without going pastel. Already-light colours pass through untouched.
+ */
+function liftTone(colour: string, surface: string): string {
+  const hsl = toHsl(colour);
+  const sunny = hsl.h * 360 >= 40 && hsl.h * 360 <= 190;
+  let out = colour;
+  let L = hsl.l;
+  let S = hsl.s;
+  let tries = 0;
+  const ok = () => contrastRatio(out, surface) >= 2.5 && (!sunny || relLum(out) >= 0.32);
+  while (!ok() && tries < 12) {
+    L = Math.min(0.82, L + 0.05);
+    S = S * 0.97;
+    out = fromHsl(hsl.h, S, L);
+    tries += 1;
+  }
+  return out;
+}
+
 export function deriveTokens(design: Brief['design'], theme: 'light' | 'dark'): ThemeTokens {
   const { primary, pageStyle, headerStyle } = design;
   const accent = design.accent || primary;
@@ -257,7 +325,8 @@ export function deriveTokens(design: Brief['design'], theme: 'light' | 'dark'): 
       accent2,
       stripBg,
       onStrip: 'rgba(255, 255, 255, 0.78)',
-      stripIc: relLum(accent) >= 0.12 ? accent : 'rgba(255, 255, 255, 0.6)',
+      // Strip icons sit on the dark band even in light mode — lift them too.
+      stripIc: liftTone(accent, stripBg),
       noteBg: mixHex(accent2, page, 0.88),
       noteBorder: mixHex(accent2, page, 0.68),
     };
@@ -268,11 +337,15 @@ export function deriveTokens(design: Brief['design'], theme: 'light' | 'dark'): 
   const surface = mixHex(page, '#ffffff', 0.07);
   const header = headerStyle === 'brand' ? mixHex(primary, '#05070c', 0.55) : mixHex(page, '#ffffff', 0.04);
   const ink = mixHex('#ffffff', primary, 0.08);
-  // The accent takes over as the action colour where it reads; a too-dark
-  // primary is lightened instead (the Lockdales navy→gold judgement, encoded).
+  // The accent is lifted to a dark-theme tone first, then takes over as the
+  // action colour where it reads; a too-dark primary is lightened instead
+  // (the Lockdales navy→gold judgement, encoded).
+  const accentTone = liftTone(accent, surface);
   const action =
-    contrastRatio(accent, surface) >= 2.5 ? accent : guardOn(mixHex(primary, '#ffffff', 0.35), surface, 2.5);
-  const accent2 = guardOn(accent, surface, 1.8);
+    contrastRatio(accentTone, surface) >= 2.5
+      ? accentTone
+      : guardOn(mixHex(primary, '#ffffff', 0.35), surface, 2.5);
+  const accent2 = guardOn(accentTone, surface, 1.8);
   return {
     page,
     header,
@@ -576,8 +649,10 @@ export const DESIGN_SYSTEM = [
   FIELD_GUIDE,
   '',
   'Design guidance:',
-  '- Prefer colours from the brand’s real world; you may use hexes you observe in the',
-  '  images, not only the listed ones.',
+  '- The "accent" seed must be the highlight colour as it actually APPEARS ON THE SITE —',
+  '  buttons, links, headings in the screenshot. The listed brand colours are candidates',
+  '  only: they are often sampled from logo artwork and read too dark as UI colours.',
+  '  "primary" is the structural colour you see in headers, footers and text.',
   '- You choose brand SEEDS, not palettes: "primary" is the brand’s structural colour,',
   '  "accent" its highlight. A design-token system derives the full light AND dark',
   '  renditions from them deterministically (the exemplar’s navy primary + gold accent',
