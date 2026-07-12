@@ -29,6 +29,14 @@ const CACHE_TTL_HOURS = Number(Deno.env.get('CACHE_TTL_HOURS') ?? '168');
 const ANTHROPIC_VERSION = '2023-06-01';
 const HAIKU_MODEL = 'claude-haiku-4-5';
 
+// Microcopy provider selection for the A/B test:
+//   COPY_PROVIDER = 'anthropic' (default) | 'openai' | 'both'
+// In 'both' mode the function calls BOTH providers and returns each variant in
+// `copyAB` for side-by-side comparison (and bypasses the cache so every call is
+// live). OPENAI_COPY_MODEL is a verified id from the account's /v1/models list.
+const COPY_PROVIDER = (Deno.env.get('COPY_PROVIDER') ?? 'anthropic').toLowerCase();
+const OPENAI_COPY_MODEL = Deno.env.get('OPENAI_COPY_MODEL') ?? 'gpt-5.6-luna';
+
 const cors = {
   'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -42,13 +50,17 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+type Copy = { headline: string; subcopy: string };
+
 interface BrandProfile {
   name: string;
   domain: string;
   logoUrl: string | null;
   colors: { primary: string; onPrimary: string } | null;
   font: string | null;
-  copy: { headline: string; subcopy: string } | null;
+  copy: Copy | null;
+  // Present only in COPY_PROVIDER='both' mode — both variants for A/B comparison.
+  copyAB?: { anthropic: Copy | null; openai: Copy | null; models: { anthropic: string; openai: string } };
   source: string;
 }
 
@@ -176,11 +188,29 @@ const COPY_SYSTEM = [
   'Return ONLY minified JSON: {"headline":"...","subcopy":"..."} and nothing else.',
 ].join(' ');
 
-async function draftCopy(
-  name: string,
-  context: string,
-  key: string,
-): Promise<{ headline: string; subcopy: string } | null> {
+function copyPrompt(name: string, context: string): string {
+  return (
+    'Business name: ' + name + '\n' +
+    'What they do (may be empty): ' + (context || 'unknown') + '\n' +
+    'Write the headline and subcopy JSON.'
+  );
+}
+
+function parseCopy(text: string): Copy | null {
+  const match = String(text || '').match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]);
+    const headline = String(parsed.headline || '').trim();
+    const subcopy = String(parsed.subcopy || '').trim();
+    if (!headline && !subcopy) return null;
+    return { headline, subcopy };
+  } catch {
+    return null;
+  }
+}
+
+async function draftCopyAnthropic(name: string, context: string, key: string): Promise<Copy | null> {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -193,15 +223,7 @@ async function draftCopy(
         model: HAIKU_MODEL,
         max_tokens: 200,
         system: COPY_SYSTEM,
-        messages: [
-          {
-            role: 'user',
-            content:
-              'Business name: ' + name + '\n' +
-              'What they do (may be empty): ' + (context || 'unknown') + '\n' +
-              'Write the headline and subcopy JSON.',
-          },
-        ],
+        messages: [{ role: 'user', content: copyPrompt(name, context) }],
       }),
     });
     if (!res.ok) {
@@ -211,27 +233,81 @@ async function draftCopy(
     const body = await res.json();
     // Cost tracking: log token usage so spend can be attributed to this feature.
     if (body?.usage) {
-      console.log(
-        'brand-preview anthropic usage',
-        JSON.stringify({ model: HAIKU_MODEL, ...body.usage }),
-      );
+      console.log('brand-preview anthropic usage', JSON.stringify({ model: HAIKU_MODEL, ...body.usage }));
     }
     const text: string = (body?.content || [])
       .filter((b: any) => b.type === 'text')
       .map((b: any) => b.text)
-      .join('')
-      .trim();
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    const parsed = JSON.parse(match[0]);
-    const headline = String(parsed.headline || '').trim();
-    const subcopy = String(parsed.subcopy || '').trim();
-    if (!headline && !subcopy) return null;
-    return { headline, subcopy };
+      .join('');
+    return parseCopy(text);
   } catch (e) {
-    console.error('draftCopy failed', e);
+    console.error('draftCopyAnthropic failed', e);
     return null;
   }
+}
+
+// OpenAI microcopy (GPT-5.6 Luna by default). The model id is verified against
+// the account's /v1/models list. Chat Completions with `max_completion_tokens`
+// (the newer models reject `max_tokens`), low reasoning effort, and JSON mode.
+// NOTE: coded but NOT verified end-to-end at wiring time — the OpenAI account
+// returned `insufficient_quota`. Run one live call after adding billing to
+// confirm the request shape before trusting the A/B numbers.
+async function draftCopyOpenAI(name: string, context: string, key: string, model: string): Promise<Copy | null> {
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + key, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        max_completion_tokens: 800,
+        reasoning_effort: 'low',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: COPY_SYSTEM },
+          { role: 'user', content: copyPrompt(name, context) },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.error('openai error', res.status, await res.text().catch(() => ''));
+      return null;
+    }
+    const body = await res.json();
+    if (body?.usage) {
+      console.log('brand-preview openai usage', JSON.stringify({ model, ...body.usage }));
+    }
+    const text: string = body?.choices?.[0]?.message?.content ?? '';
+    return parseCopy(text);
+  } catch (e) {
+    console.error('draftCopyOpenAI failed', e);
+    return null;
+  }
+}
+
+// Honours COPY_PROVIDER. In 'both' mode runs the two providers in parallel and
+// returns each variant in copyAB for A/B comparison; the live `copy` stays
+// Anthropic-primary so the preview UI is deterministic while you evaluate.
+async function generateCopy(
+  name: string,
+  context: string,
+): Promise<{ copy: Copy | null; copyAB?: BrandProfile['copyAB'] }> {
+  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
+  const wantA = COPY_PROVIDER === 'anthropic' || COPY_PROVIDER === 'both';
+  const wantO = COPY_PROVIDER === 'openai' || COPY_PROVIDER === 'both';
+
+  const [a, o] = await Promise.all([
+    wantA && anthropicKey ? draftCopyAnthropic(name, context, anthropicKey) : Promise.resolve(null),
+    wantO && openaiKey ? draftCopyOpenAI(name, context, openaiKey, OPENAI_COPY_MODEL) : Promise.resolve(null),
+  ]);
+
+  if (COPY_PROVIDER === 'both') {
+    return {
+      copy: a ?? o,
+      copyAB: { anthropic: a, openai: o, models: { anthropic: HAIKU_MODEL, openai: OPENAI_COPY_MODEL } },
+    };
+  }
+  return { copy: COPY_PROVIDER === 'openai' ? o : a };
 }
 
 // ---- handler ---------------------------------------------------------------
@@ -286,8 +362,11 @@ Deno.serve(async (req) => {
     }
   }
 
+  // In A/B ('both') mode, bypass the cache so every call runs both providers live.
+  const useCache = COPY_PROVIDER !== 'both';
+
   // Cache lookup (best-effort).
-  if (supabase) {
+  if (supabase && useCache) {
     try {
       const { data: cached } = await supabase
         .from('brand_previews')
@@ -317,11 +396,10 @@ Deno.serve(async (req) => {
   const font = pickFont(d.fonts);
 
   // Microcopy is optional enrichment — never fails the request.
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
   const context = [d.description, (d.industries || []).map((i: any) => i?.name).filter(Boolean).join(', ')]
     .filter(Boolean)
     .join(' — ');
-  const copy = anthropicKey ? await draftCopy(name, context, anthropicKey) : null;
+  const { copy, copyAB } = await generateCopy(name, context);
 
   const profile: BrandProfile = {
     name,
@@ -330,11 +408,12 @@ Deno.serve(async (req) => {
     colors: colourHex ? { primary: colourHex, onPrimary: onColour(colourHex) } : null,
     font,
     copy,
+    ...(copyAB ? { copyAB } : {}),
     source: 'brandfetch',
   };
 
-  // Store in cache (best-effort).
-  if (supabase) {
+  // Store in cache (best-effort). Skipped in A/B mode so results stay live.
+  if (supabase && useCache) {
     try {
       await supabase
         .from('brand_previews')
