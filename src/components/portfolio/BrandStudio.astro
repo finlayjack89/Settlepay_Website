@@ -9,7 +9,7 @@
    any colour (including blue) is legitimate here — the SettlePay chrome around
    it still uses the reserved-blue rules. Illustrative only; no real payments. */
 import Icon from '../Icon.astro';
-import Chrome from '../previews/Chrome.astro';
+import CheckoutPreview from '../preview/CheckoutPreview.astro';
 
 const swatches = [
   { id: 'teal', hex: '#0F766E' },
@@ -85,33 +85,7 @@ const defaultHex = swatches[0].hex;
 
     <!-- Live preview (mockup-world) -->
     <div class="bs__preview">
-      <div class="mok bs-checkout">
-        <Chrome url="pay.your-business.co.uk/checkout" />
-        <div class="bs-checkout__body">
-          <div class="bs-checkout__brand">
-            <span class="bs-checkout__mark" data-bs-mono>YB</span>
-            <span class="bs-checkout__name" data-bs-display>Your Business</span>
-          </div>
-          <div class="bs-checkout__headline" data-bs-headline>Pay Your Invoice</div>
-          <div class="bs-checkout__amount">£<span data-bs-amount>480.00</span></div>
-          <div class="bs-checkout__field">
-            <span class="bs-checkout__flabel">Card number</span>
-            <div class="bs-checkout__fauxinput">
-              <Icon name="card" sw={1.6} />
-              <span class="bs-checkout__dots">•••• •••• •••• 4242</span>
-            </div>
-          </div>
-          <div class="bs-checkout__split">
-            <div class="bs-checkout__field"><span class="bs-checkout__flabel">Expiry</span><div class="bs-checkout__fauxinput bs-checkout__fauxinput--sm">12 / 28</div></div>
-            <div class="bs-checkout__field"><span class="bs-checkout__flabel">CVC</span><div class="bs-checkout__fauxinput bs-checkout__fauxinput--sm">•••</div></div>
-          </div>
-          <button class="bs-checkout__pay" type="button" tabindex="-1" aria-hidden="true" data-bs-paylabel>Pay £480.00</button>
-          <div class="bs-checkout__foot">
-            <Icon name="lock" sw={1.8} />
-            Illustrative demo — no real payments are taken
-          </div>
-        </div>
-      </div>
+      <CheckoutPreview />
     </div>
   </div>
 </div>
@@ -276,119 +250,6 @@ const defaultHex = swatches[0].hex;
     display: flex;
     justify-content: center;
   }
-  .bs-checkout {
-    width: 100%;
-    max-width: 420px;
-    box-shadow: var(--shadow-lg);
-  }
-  .bs-checkout__body {
-    padding: 1.6rem 1.6rem 1.4rem;
-    background: var(--color-pure-white);
-  }
-  .bs-checkout__brand {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    margin-bottom: 1.3rem;
-  }
-  .bs-checkout__mark {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: var(--bs-accent);
-    color: var(--bs-on-accent);
-    display: grid;
-    place-items: center;
-    font-size: 0.92rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-  }
-  .bs-checkout__name {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #1b2330;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .bs-checkout__headline {
-    font-size: 0.95rem;
-    color: rgba(15, 23, 42, 0.6);
-    margin-bottom: 0.2rem;
-  }
-  .bs-checkout__amount {
-    font-size: 2.1rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #1b2330;
-    margin-bottom: 1.3rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .bs-checkout__field {
-    margin-bottom: 0.9rem;
-  }
-  .bs-checkout__flabel {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: rgba(15, 23, 42, 0.5);
-    margin-bottom: 0.35rem;
-  }
-  .bs-checkout__fauxinput {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    border: 1px solid rgba(15, 23, 42, 0.14);
-    border-radius: 6px;
-    padding: 0.7rem 0.8rem;
-    color: rgba(15, 23, 42, 0.55);
-    font-size: 0.92rem;
-  }
-  .bs-checkout__fauxinput svg {
-    width: 18px;
-    height: 18px;
-    color: rgba(15, 23, 42, 0.4);
-  }
-  .bs-checkout__fauxinput--sm {
-    font-variant-numeric: tabular-nums;
-  }
-  .bs-checkout__split {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
-  }
-  .bs-checkout__dots {
-    letter-spacing: 0.08em;
-  }
-  .bs-checkout__pay {
-    width: 100%;
-    margin-top: 0.6rem;
-    border: 0;
-    border-radius: 8px;
-    background: var(--bs-accent);
-    color: var(--bs-on-accent);
-    font: inherit;
-    font-size: 1rem;
-    font-weight: 700;
-    padding: 0.9rem;
-    cursor: default;
-    transition: background 0.25s var(--ease-snappy);
-  }
-  .bs-checkout__foot {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    margin-top: 1.1rem;
-    font-size: 0.74rem;
-    color: rgba(15, 23, 42, 0.45);
-  }
-  .bs-checkout__foot svg {
-    width: 13px;
-    height: 13px;
-  }
-
   @media (max-width: 860px) {
     .bs__grid {
       grid-template-columns: 1fr;
@@ -400,42 +261,14 @@ const defaultHex = swatches[0].hex;
   }
   @media (prefers-reduced-motion: reduce) {
     .bs__swatch,
-    .bs__share,
-    .bs-checkout__pay {
+    .bs__share {
       transition: none;
     }
   }
 </style>
 
 <script>
-  const PLANS = {
-    invoice: { headline: "Pay Your Invoice", amount: "480.00", pay: (a) => "Pay £" + a, url: "pay.{slug}.co.uk/checkout" },
-    deposit: { headline: "Pay Your Deposit", amount: "150.00", pay: () => "Pay Deposit", url: "pay.{slug}.co.uk/deposit" },
-    membership: { headline: "Start Your Membership", amount: "29.00", pay: () => "Start Membership", url: "pay.{slug}.co.uk/join" },
-  };
-
-  function readable(hex) {
-    const c = hex.replace("#", "");
-    if (c.length !== 6) return "#ffffff";
-    const r = parseInt(c.slice(0, 2), 16) / 255;
-    const g = parseInt(c.slice(2, 4), 16) / 255;
-    const b = parseInt(c.slice(4, 6), 16) / 255;
-    const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-    const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    return L > 0.42 ? "#0f172a" : "#ffffff";
-  }
-
-  function initials(name) {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "YB";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-
-  function slugify(name) {
-    const s = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    return s || "your-business";
-  }
+  import { readable, initials, slugify, SCENARIOS } from "../../scripts/brandReskin.mjs";
 
   document.querySelectorAll("[data-bs]").forEach((root) => {
     if (root.dataset.bsBound) return;
@@ -474,14 +307,14 @@ const defaultHex = swatches[0].hex;
 
     function render(pushUrl) {
       const name = state.name.trim() || defName;
-      const plan = PLANS[state.plan];
+      const plan = SCENARIOS[state.plan];
       elMono.textContent = initials(state.name);
       elDisplay.textContent = name;
       elHeadline.textContent = plan.headline;
       elAmount.textContent = plan.amount;
       elPay.textContent = plan.pay(plan.amount);
       if (elUrl) {
-        elUrl.textContent = plan.url.replace("{slug}", slugify(state.name));
+        elUrl.textContent = "pay." + slugify(state.name) + ".co.uk/" + plan.path;
         if (urlIcon) elUrl.prepend(urlIcon);
       }
       if (pushUrl) {
@@ -531,7 +364,7 @@ const defaultHex = swatches[0].hex;
     if (c && /^#?[0-9a-fA-F]{6}$/.test(c)) applyColour(c.startsWith("#") ? c : "#" + c);
     else applyColour(defColour);
     const p = params.get("plan");
-    if (p && PLANS[p]) {
+    if (p && SCENARIOS[p]) {
       state.plan = p;
       planBtns.forEach((x) => {
         const on = x.dataset.bsPlan === p;

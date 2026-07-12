@@ -37,6 +37,14 @@ export const SITE = {
   // Leave empty to fall back to the no-backend mailto: flow.
   formEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/enquiry',
 
+  // "See your payment page" preview — the Supabase `brand-preview` Edge Function
+  // (same project as the enquiry endpoint). Reads a visitor's public brand via
+  // Brandfetch and drafts microcopy via Claude. Requires the function to be
+  // deployed and BRANDFETCH_API_KEY / ANTHROPIC_API_KEY set as function secrets;
+  // until then the /preview/ tool degrades to manual entry. Leave empty to force
+  // manual-only mode.
+  previewEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/brand-preview',
+
   // Public booking page (Cal.com EU region) — secondary CTA to the enquiry form.
   bookingUrl: 'https://cal.eu/settlepay/30min',
 
@@ -56,6 +64,7 @@ export const SITE = {
   nav: [
     { label: 'How It Works', href: '/#integration' },
     { label: 'Our Work', href: '/work/' },
+    { label: 'See Your Page', href: '/preview/' },
     { label: 'About', href: '/about/' },
     { label: 'Time Saved', href: '/#savings' },
     { label: 'FAQ', href: '/faq/' },
@@ -65,6 +74,7 @@ export const SITE = {
   footerLinks: [
     { label: 'About', href: '/about/' },
     { label: 'Our Work', href: '/work/' },
+    { label: 'See Your Page', href: '/preview/' },
     { label: 'How It Works', href: '/#integration' },
     { label: 'Time Saved', href: '/#savings' },
     { label: 'FAQ', href: '/faq/' },
