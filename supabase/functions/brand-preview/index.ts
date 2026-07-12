@@ -26,6 +26,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   type BrandColour,
   briefUserPrompt,
+  deriveLogo,
+  deriveTokens,
   pickColour,
   validateSpec,
 } from './spec.ts';
@@ -212,7 +214,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'method-not-allowed' }, 405);
 
-  let payload: { url?: string; vote?: { domain?: string; key?: string; model?: string } };
+  let payload: {
+    url?: string;
+    fresh?: boolean; // deliberate re-roll: skip the cache read (the write still happens)
+    vote?: { domain?: string; key?: string; model?: string };
+  };
   try {
     payload = await req.json();
   } catch {
@@ -282,46 +288,69 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Cache only in single-provider (production) mode, and only v2-shaped rows.
-  const useCache = !MULTI;
-  if (supabase && useCache) {
+  // ---- cache: two levels, active in every mode ---------------------------------
+  // Level 1: same domain + same provider set → return the stored response whole
+  // (design systems + pages), zero model/Firecrawl spend. Level 2: provider set
+  // changed → reuse the stored brand extraction, re-run only the model legs.
+  const providersSig = activeProviders().join(',');
+  let extract: any = null;
+  if (supabase && !payload.fresh) {
     try {
       const { data: cached } = await supabase
         .from('brand_previews')
         .select('profile, fetched_at')
         .eq('domain', domain)
         .maybeSingle();
-      if (cached?.profile?.v === 3 && cached.fetched_at) {
+      if (cached?.profile?.v === 4 && cached.fetched_at) {
         const ageMs = Date.now() - new Date(cached.fetched_at).getTime();
-        if (ageMs < CACHE_TTL_HOURS * 3_600_000) return json(cached.profile);
+        if (ageMs < CACHE_TTL_HOURS * 3_600_000) {
+          if (cached.profile.providers === providersSig) {
+            const { extract: _hidden, ...body } = cached.profile;
+            return json({ ...body, cached: true });
+          }
+          extract = cached.profile.extract ?? null;
+        }
       }
     } catch (_) {
       /* cache miss path */
     }
   }
 
-  // Brand extraction and site capture are independent — run them together.
-  const [brand, site] = await Promise.all([fetchBrand(domain, brandKey), fetchSite(domain)]);
-  if ('notFound' in brand) return json({ error: 'brand-not-found', domain }, 404);
-  if ('error' in brand) return json({ error: 'extract-failed' }, 502);
+  if (!extract) {
+    // Brand extraction and site capture are independent — run them together.
+    const [brand, site] = await Promise.all([fetchBrand(domain, brandKey), fetchSite(domain)]);
+    if ('notFound' in brand) return json({ error: 'brand-not-found', domain }, 404);
+    if ('error' in brand) return json({ error: 'extract-failed' }, 502);
 
-  const d = brand.data || {};
-  const name: string = (d.name && String(d.name).trim()) || domain;
-  const colors: BrandColour[] = (d.colors || []).filter((c: any) => typeof c?.hex === 'string');
-  const logos = pickLogos(d.logos);
-  const font = pickFont(d.fonts);
-  const bannerUrl = pickBanner(d.images);
-  const description: string = String(d.description || '').slice(0, 400);
-  const industries: string[] = (d.company?.industries || d.industries || [])
-    .map((i: any) => (typeof i === 'string' ? i : i?.name))
-    .filter(Boolean)
-    .slice(0, 3);
+    const d = brand.data || {};
+    extract = {
+      name: (d.name && String(d.name).trim()) || domain,
+      colors: (d.colors || []).filter((c: any) => typeof c?.hex === 'string'),
+      logos: pickLogos(d.logos),
+      font: pickFont(d.fonts),
+      bannerUrl: pickBanner(d.images),
+      description: String(d.description || '').slice(0, 400),
+      industries: (d.company?.industries || d.industries || [])
+        .map((i: any) => (typeof i === 'string' ? i : i?.name))
+        .filter(Boolean)
+        .slice(0, 3),
+      markdown: site.markdown,
+      screenshotUrl: site.screenshotUrl,
+    };
+  }
 
-  // Vision inputs: screenshot beats banner beats logo; max 3, all pre-flighted.
-  const imageUrls = await preflightImages([site.screenshotUrl, bannerUrl, logos.logoRasterUrl]);
+  const name: string = extract.name;
+  const colors: BrandColour[] = extract.colors;
+  const logos = extract.logos as ReturnType<typeof pickLogos>;
+  const font: string | null = extract.font;
+  const bannerUrl: string | null = extract.bannerUrl;
+
+  // Vision inputs: screenshot beats banner beats logo; max 3, all pre-flighted
+  // (a cached Firecrawl screenshot URL may have expired — the pre-flight drops it).
+  const imageUrls = await preflightImages([extract.screenshotUrl, bannerUrl, logos.logoRasterUrl]);
   const imageNote = imageUrls.length
     ? 'Images attached in order: ' +
-      [site.screenshotUrl && 'homepage screenshot', bannerUrl && 'brand banner', logos.logoRasterUrl && 'logo']
+      [extract.screenshotUrl && 'homepage screenshot', bannerUrl && 'brand banner', logos.logoRasterUrl && 'logo']
         .filter(Boolean)
         .slice(0, imageUrls.length)
         .join(', ') +
@@ -331,18 +360,27 @@ Deno.serve(async (req) => {
   const userText = briefUserPrompt({
     name,
     domain,
-    description,
-    industries,
+    description: extract.description,
+    industries: extract.industries,
     colors,
     font,
-    markdown: site.markdown,
+    markdown: extract.markdown,
     imageNote,
   });
 
   const legs = await runDesigners(activeProviders(), { userText, imageUrls });
 
+  const brandLogos = { logoUrl: logos.logoUrl, logoDarkUrl: logos.logoDarkUrl };
   const variants = legs.map((leg) => {
     const brief = leg.brief ? validateSpec(leg.brief, { name, colors, font }) : null;
+    // Materialise the design system: both renditions derive from the brief's
+    // seeds by fixed formulas, so light/dark stay consistent with each other.
+    const tokens = brief
+      ? { light: deriveTokens(brief.design, 'light'), dark: deriveTokens(brief.design, 'dark') }
+      : null;
+    const logo = tokens
+      ? { light: deriveLogo(tokens.light, brandLogos), dark: deriveLogo(tokens.dark, brandLogos) }
+      : null;
     if (leg.usage) {
       // Cost tracking: per-leg spend attribution for this feature.
       console.log(
@@ -356,6 +394,8 @@ Deno.serve(async (req) => {
       model: leg.model,
       label: leg.label,
       brief,
+      tokens,
+      logo,
       ms: Math.round(leg.ms),
       usage: leg.usage,
       ...(leg.note ? { note: leg.note } : {}),
@@ -364,7 +404,8 @@ Deno.serve(async (req) => {
   });
 
   const profile = {
-    v: 3,
+    v: 4,
+    providers: providersSig,
     name,
     domain,
     brand: {
@@ -375,13 +416,15 @@ Deno.serve(async (req) => {
       iconUrl: logos.iconUrl,
       bannerUrl,
       font,
-      description,
+      description: extract.description,
     },
     variants,
     source: 'brandfetch',
+    // Stored for provider-set changes (level-2 reuse); stripped from responses.
+    extract,
   };
 
-  if (supabase && useCache && variants.some((v) => v.brief)) {
+  if (supabase && variants.some((v) => v.brief)) {
     try {
       await supabase
         .from('brand_previews')
@@ -391,5 +434,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json(profile);
+  const { extract: _hidden, ...body } = profile;
+  return json(body);
 });

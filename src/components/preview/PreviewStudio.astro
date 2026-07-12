@@ -66,6 +66,9 @@ const CARDS = [0, 1, 2, 3];
     <p class="ps__status" id="ps-status" data-ps-status aria-live="polite">
       Paste your site and we'll design a payment page in your brand — in seconds.
     </p>
+    <button type="button" class="ps__fresh" data-ps-fresh hidden>
+      <Icon name="refresh" sw={2} /> Generate Fresh Designs
+    </button>
   </form>
 
   <div class="ps__grid">
@@ -232,6 +235,25 @@ const CARDS = [0, 1, 2, 3];
   }
   .ps__status.is-error { color: #b42318; }
   .ps__status.is-working { color: var(--color-primary-action); }
+  .ps__fresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.8rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-button);
+    padding: 0.5rem 1.05rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy);
+  }
+  .ps__fresh[hidden] { display: none; }
+  .ps__fresh:hover { background: var(--color-secondary-bg); }
+  .ps__fresh svg { width: 15px; height: 15px; color: var(--color-primary-action); }
 
   /* ---- grid ---- */
   .ps__grid {
@@ -496,7 +518,7 @@ const CARDS = [0, 1, 2, 3];
 
 <script>
   import { slugify } from '../../scripts/brandReskin.mjs';
-  import { defaultBrief, resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
+  import { defaultVariant, resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
 
   const FONT_LINK_ID = 'ps-brand-font';
   // Brandfetch occasionally returns scraping garbage as a font name — never let
@@ -641,9 +663,9 @@ const CARDS = [0, 1, 2, 3];
       cardEls.forEach((card, i) => {
         card.hidden = i >= count;
         if (i >= count) return;
-        const variant = state.variants[i] || null;
-        const brief = (variant && variant.brief) || defaultBrief(state.manualAccent);
-        paintBrief(card, resolveBrief(brief, state.brand, state.overrides), shared);
+        const variant = state.variants[i];
+        const v = variant && variant.brief && variant.tokens ? variant : defaultVariant(state.manualAccent);
+        paintBrief(card, resolveBrief(v, state.brand, state.overrides), shared);
       });
       root.classList.toggle('is-multi', count > 1);
       root.classList.toggle('is-desktop', state.overrides.device === 'desktop');
@@ -735,7 +757,7 @@ const CARDS = [0, 1, 2, 3];
       loadBrandFont(state.brand.font || '');
       // Keep the visitor's device; open in the renditions most models say match
       // the brand's real site.
-      const prefs = (p.variants || []).filter((v) => v.brief).map((v) => v.brief.palette.preferred);
+      const prefs = (p.variants || []).filter((v) => v.brief).map((v) => v.brief.design.preferred);
       const darkWins = prefs.filter((x) => x === 'dark').length > prefs.length / 2;
       state.overrides = {
         accent: null,
@@ -775,9 +797,10 @@ const CARDS = [0, 1, 2, 3];
     }
 
     // ---- generate from a URL ----
+    const freshBtn = root.querySelector('[data-ps-fresh]');
     let inFlight = false;
     let stageTimer = null;
-    async function generate(rawUrl) {
+    async function generate(rawUrl, fresh) {
       const u = normaliseUrl(rawUrl);
       if (!u) {
         setStatus('Enter a valid website address, e.g. yourbusiness.co.uk', 'error');
@@ -793,6 +816,7 @@ const CARDS = [0, 1, 2, 3];
 
       inFlight = true;
       if (generateBtn) generateBtn.disabled = true;
+      if (freshBtn) freshBtn.hidden = true;
       setBtnLabel('Designing…');
       setStatus('Reading ' + state.domain + '…', 'working');
       setSkeletons(true);
@@ -804,22 +828,25 @@ const CARDS = [0, 1, 2, 3];
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ url: u.href }),
+          body: JSON.stringify({ url: u.href, ...(fresh ? { fresh: true } : {}) }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data || data.error || data.v !== 3) {
+        if (!res.ok || !data || data.error || data.v !== 4) {
           throw new Error((data && data.error) || 'extract-failed');
         }
         setSkeletons(false);
         applyProfile(data);
         const good = (data.variants || []).filter((v) => v.brief).length;
         const who = data.name || state.domain;
+        if (freshBtn) freshBtn.hidden = !data.cached;
         setStatus(
-          good > 1
-            ? good + ' payment-page designs for ' + who + ' — compare them and mark your favourite.'
-            : good === 1
-              ? "Here's " + who + "'s payment page. Tweak the colour or scenario below."
-              : "The designers couldn't draft a page this time — set your brand by hand below.",
+          data.cached && good
+            ? 'Served instantly — your earlier designs for ' + who + '. Want different takes? Generate fresh ones below.'
+            : good > 1
+              ? good + ' payment-page designs for ' + who + ' — compare them and mark your favourite.'
+              : good === 1
+                ? "Here's " + who + "'s payment page. Tweak the colour or scenario below."
+                : "The designers couldn't draft a page this time — set your brand by hand below.",
           good ? null : 'error',
         );
       } catch (err) {
@@ -842,7 +869,12 @@ const CARDS = [0, 1, 2, 3];
     if (form) {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (!inFlight) generate(urlInput.value);
+        if (!inFlight) generate(urlInput.value, false);
+      });
+    }
+    if (freshBtn) {
+      freshBtn.addEventListener('click', () => {
+        if (!inFlight) generate(urlInput.value, true);
       });
     }
 

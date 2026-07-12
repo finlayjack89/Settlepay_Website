@@ -1,17 +1,19 @@
 /**
- * Painter for PaymentPagePreview — turns a validated design brief (from the
- * brand-preview function) plus manual overrides into CSS custom properties and
- * data-pp-* slot fills on ONE server-rendered card.
+ * Painter for PaymentPagePreview — applies a variant's materialised design
+ * system (tokens derived server-side from the brief's brand seeds) plus manual
+ * overrides to ONE server-rendered card.
  *
- * Pure resolve step (resolveBrief) is separated from the DOM step (paintBrief)
- * so overrides re-render without re-fetching. The painter never creates nodes —
- * Astro's scoped styles only exist on server-rendered markup — and only ever
- * writes textContent, `hidden` and custom properties ON THE CARD ROOT (never a
- * shared ancestor: each card carries its own brief's palette).
+ * The server is the single source of colour truth: both renditions of a brand
+ * are derived there by fixed formulas, so light and dark stay consistent with
+ * each other and across retries. The client only picks a rendition, applies
+ * overrides, and fills slots. The painter never creates nodes — Astro's scoped
+ * styles only exist on server-rendered markup — and only ever writes
+ * textContent, `hidden` and custom properties ON THE CARD ROOT (never a shared
+ * ancestor: each card carries its own design system).
  */
 import { readable, initials } from './brandReskin.mjs';
 
-/** Deterministic content used by the manual scenario override + fallback brief. */
+/** Deterministic content used by the manual scenario override + fallback variant. */
 export const SCENARIO_CONTENT = {
   invoice: { headline: 'Pay Your Invoice', amount: '£480.00', payLabel: 'Pay £480.00', item: 'Invoice total', path: 'checkout' },
   deposit: { headline: 'Pay Your Deposit', amount: '£150.00', payLabel: 'Pay Deposit', item: 'Booking deposit', path: 'deposit' },
@@ -22,81 +24,79 @@ export const SCENARIO_CONTENT = {
 
 const RADII = { sharp: '2px', soft: '8px', round: '14px' };
 
-function lum(hex) {
-  const c = String(hex || '').replace('#', '');
-  if (c.length !== 6) return 0.5;
-  const r = parseInt(c.slice(0, 2), 16) / 255;
-  const g = parseInt(c.slice(2, 4), 16) / 255;
-  const b = parseInt(c.slice(4, 6), 16) / 255;
-  const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-function rgba(hex, alpha) {
-  const c = String(hex || '').replace('#', '');
-  if (c.length !== 6) return 'rgba(15, 23, 42, ' + alpha + ')';
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
-}
-
 function fontStack(display, brandFont) {
   if (display === 'serif') return "Georgia, 'Times New Roman', serif";
   if (display === 'brand' && brandFont) return "'" + brandFont.replace(/'/g, '') + "', system-ui, sans-serif";
   return "var(--font-primary, 'Satoshi'), system-ui, sans-serif";
 }
 
-/** Neutral brief for manual mode and failed legs — always renders something honest. */
-export function defaultBrief(accentHex) {
+/**
+ * Neutral variant for manual mode and failed legs. Hand-written token sets (not
+ * derived) — the server's token engine is the source of truth for real brands;
+ * this is just an honest placeholder in SettlePay-neutral colours.
+ */
+export function defaultVariant(accentHex) {
   const s = SCENARIO_CONTENT.invoice;
+  const on = readable(accentHex);
   return {
-    rationale: '',
-    palette: {
-      preferred: 'light',
-      light: { pageBg: '#ffffff', headerBg: '#ffffff', surface: '#ffffff', accent: accentHex, accent2: null, ink: null },
-      dark: { pageBg: '#10151f', headerBg: '#0b0f16', surface: '#1a2230', accent: accentHex, accent2: null, ink: null },
+    brief: {
+      rationale: '',
+      design: { primary: accentHex, accent: null, pageStyle: 'paper', headerStyle: 'paper', preferred: 'light' },
+      desktop: { layout: 'centered', summarySide: 'left' },
+      style: { display: 'sans', wordmarkCase: 'normal', radius: 'soft', density: 'regular' },
+      header: { tagline: '', nav: [], verified: true },
+      sections: {
+        utilityStrip: true, phone: null, banner: false, steps: true,
+        stepLabels: ['Your Details', 'Payment', 'Confirmation'],
+        summary: true, altPayment: 'none', referenceNote: false, footer: true,
+      },
+      content: {
+        scenario: 'invoice', headline: s.headline, subcopy: '', reference: '',
+        lineItems: [{ label: s.item, amount: s.amount }], total: s.amount, payLabel: s.payLabel,
+        methodTitle: 'Pay by Bank Transfer (BACS)', methodNote: 'No fees — preferred payment method',
+        referenceNoteText: 'Please include your name and reference so we can match your payment.',
+        reassurance: 'A receipt is emailed to you automatically.', footerLine: '',
+      },
     },
-    desktop: { layout: 'centered', summarySide: 'left' },
-    style: { display: 'sans', wordmarkCase: 'normal', radius: 'soft', density: 'regular' },
-    header: { tagline: '', nav: [], verified: true },
-    sections: {
-      utilityStrip: true, phone: null, banner: false, steps: true,
-      stepLabels: ['Your Details', 'Payment', 'Confirmation'],
-      summary: true, altPayment: 'none', referenceNote: false, footer: true,
+    tokens: {
+      light: {
+        page: '#ffffff', header: '#ffffff', onHeader: '#1b2330', surface: '#ffffff',
+        ink: '#1b2330', muted: 'rgba(15, 23, 42, 0.62)', line: 'rgba(15, 23, 42, 0.16)',
+        action: accentHex, onAction: on, accent2: accentHex,
+        stripBg: '#10151f', onStrip: 'rgba(255, 255, 255, 0.78)', stripIc: 'rgba(255, 255, 255, 0.6)',
+        noteBg: '#f1f5f9', noteBorder: 'rgba(15, 23, 42, 0.16)',
+      },
+      dark: {
+        page: '#10151f', header: '#151c29', onHeader: '#eef1f6', surface: '#1a2230',
+        ink: '#eef1f6', muted: 'rgba(238, 241, 246, 0.62)', line: 'rgba(238, 241, 246, 0.16)',
+        action: accentHex, onAction: on, accent2: accentHex,
+        stripBg: '#0b0f16', onStrip: 'rgba(255, 255, 255, 0.78)', stripIc: 'rgba(255, 255, 255, 0.6)',
+        noteBg: '#1d2635', noteBorder: 'rgba(238, 241, 246, 0.2)',
+      },
     },
-    content: {
-      scenario: 'invoice', headline: s.headline, subcopy: '', reference: '',
-      lineItems: [{ label: s.item, amount: s.amount }], total: s.amount, payLabel: s.payLabel,
-      methodTitle: 'Pay by Bank Transfer (BACS)', methodNote: 'No fees — preferred payment method',
-      referenceNoteText: 'Please include your name and reference so we can match your payment.',
-      reassurance: 'A receipt is emailed to you automatically.', footerLine: '',
+    logo: {
+      light: { src: null, chip: null },
+      dark: { src: null, chip: null },
     },
   };
 }
 
 /**
- * brief (+ brand assets, + manual overrides) → flat render model.
- * brand: { logoUrl, logoDarkUrl, bannerUrl, font } from the v3 response.
- * overrides: { accent, scenario, device: 'mobile'|'desktop', theme: 'light'|'dark'|null }
- * from the manual controls. theme null = the brief's own preferred rendition.
+ * variant ({brief, tokens, logo}) + brand assets + manual overrides → flat
+ * render model. overrides: { accent, scenario, device: 'mobile'|'desktop',
+ * theme: 'light'|'dark'|null } — theme null = the brief's preferred rendition.
  */
-export function resolveBrief(brief, brand, overrides) {
-  const theme = overrides.theme || brief.palette.preferred || 'light';
-  const p = brief.palette[theme] || brief.palette.light;
+export function resolveBrief(variant, brand, overrides) {
+  const { brief } = variant;
+  const theme = overrides.theme || brief.design.preferred || 'light';
+  const t = variant.tokens[theme] || variant.tokens.light;
+  const logo = (variant.logo && variant.logo[theme]) || { src: null, chip: null };
   const desktop = overrides.device === 'desktop';
-  const accent = overrides.accent || p.accent;
-  const ink = p.ink || readable(p.pageBg);
-  const accent2 = p.accent2 || accent;
 
-  // The strip/footer band is always a dark surface: first sufficiently dark
-  // brand colour wins, with a neutral charcoal fallback.
-  const stripBg = [p.headerBg, accent, p.pageBg].find((h) => lum(h) <= 0.25) || '#10151f';
-
-  // Brandfetch theme = the artwork's own colour: dark marks for light headers,
-  // light (white) marks for dark headers. Wrong variant ⇒ monogram, never invisible.
-  const headerLight = lum(p.headerBg) > 0.42;
-  const logoUrl = (headerLight ? brand.logoUrl : brand.logoDarkUrl) || null;
+  // Manual accent override swaps the ACTION colour only — the rest of the
+  // design system (its neutrals, header, strip) stays the model's design.
+  const action = overrides.accent || t.action;
+  const onAction = overrides.accent ? readable(action) : t.onAction;
 
   let content = brief.content;
   if (overrides.scenario && overrides.scenario !== content.scenario) {
@@ -114,18 +114,22 @@ export function resolveBrief(brief, brand, overrides) {
 
   return {
     vars: {
-      '--pp-accent': accent,
-      '--pp-on-accent': readable(accent),
-      '--pp-accent2': accent2,
-      '--pp-page-bg': p.pageBg,
-      '--pp-header-bg': p.headerBg,
-      '--pp-on-header': readable(p.headerBg),
-      '--pp-surface': p.surface,
-      '--pp-ink': ink,
-      '--pp-muted': rgba(ink, 0.62),
-      '--pp-line': rgba(ink, 0.16),
-      '--pp-strip-bg': stripBg,
-      '--pp-strip-ic': lum(accent2) >= 0.12 ? accent2 : 'rgba(255, 255, 255, 0.6)',
+      '--pp-accent': action,
+      '--pp-on-accent': onAction,
+      '--pp-accent2': t.accent2,
+      '--pp-page-bg': t.page,
+      '--pp-header-bg': t.header,
+      '--pp-on-header': t.onHeader,
+      '--pp-surface': t.surface,
+      '--pp-ink': t.ink,
+      '--pp-muted': t.muted,
+      '--pp-line': t.line,
+      '--pp-strip-bg': t.stripBg,
+      '--pp-on-strip': t.onStrip,
+      '--pp-strip-ic': t.stripIc,
+      '--pp-note-bg': t.noteBg,
+      '--pp-note-border': t.noteBorder,
+      '--pp-logo-chip': logo.chip || 'transparent',
       '--pp-radius': RADII[brief.style.radius] || RADII.soft,
       '--pp-display-font': fontStack(brief.style.display, brand.font),
       '--pp-banner': brief.sections.banner && brand.bannerUrl ? 'url("' + encodeURI(brand.bannerUrl) + '")' : 'none',
@@ -138,7 +142,8 @@ export function resolveBrief(brief, brand, overrides) {
     // Mobile hides the nav via CSS, so the chip can stand in; on desktop the
     // nav wins the header's right-hand slot.
     showVerified: brief.header.verified && (!desktop || !(brief.header.nav || []).length),
-    logoUrl,
+    logoUrl: logo.src,
+    logoChip: !!logo.chip,
     header: brief.header,
     sections: brief.sections,
     content,
@@ -149,7 +154,7 @@ const q = (root, sel) => root.querySelector(sel);
 const qa = (root, sel) => Array.from(root.querySelectorAll(sel));
 
 /**
- * Apply one resolved brief to one SSR'd card.
+ * Apply one resolved variant to one SSR'd card.
  * shared: { name, host } — the brand fields identical across cards.
  */
 export function paintBrief(cardRoot, r, shared) {
@@ -202,6 +207,7 @@ export function paintBrief(cardRoot, r, shared) {
   const brandRow = q(el, '[data-pp-brand]');
   const logo = q(el, '[data-pp-logo]');
   if (brandRow && logo) {
+    logo.classList.toggle('pp__logo--chip', r.logoChip);
     if (r.logoUrl) {
       logo.alt = shared.name + ' logo';
       if (logo.getAttribute('src') !== r.logoUrl) {

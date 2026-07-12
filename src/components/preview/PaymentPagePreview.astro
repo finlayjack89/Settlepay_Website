@@ -170,6 +170,9 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
     --pp-strip-bg: #10151f;
     --pp-on-strip: rgba(255, 255, 255, 0.78);
     --pp-strip-ic: rgba(255, 255, 255, 0.6);
+    --pp-note-bg: #f1f5f9;
+    --pp-note-border: rgba(15, 23, 42, 0.16);
+    --pp-logo-chip: transparent;
     --pp-radius: 8px;
     --pp-display-font: inherit;
     --pp-banner: none;
@@ -255,6 +258,15 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
   }
   .pp__logo { height: 34px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; }
   .pp__logo[hidden] { display: none; }
+  /* Chip treatment: when only the wrong-theme artwork exists, back it with a
+     contrasting chip (set via --pp-logo-chip) instead of losing the logo. */
+  .pp__logo--chip {
+    background: var(--pp-logo-chip);
+    padding: 3px 8px;
+    height: 28px;
+    border-radius: calc(var(--pp-radius) * 0.6);
+    box-sizing: content-box;
+  }
   .pp__brand.has-logo .pp__mono { display: none; }
   .pp__brand.has-logo .pp__name { display: none; }
   .pp__wordmark { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
@@ -418,8 +430,8 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
     display: flex;
     align-items: flex-start;
     gap: 0.45rem;
-    background: color-mix(in srgb, var(--pp-accent2) 12%, var(--pp-page-bg));
-    border: 1px solid color-mix(in srgb, var(--pp-accent2) 32%, transparent);
+    background: var(--pp-note-bg);
+    border: 1px solid var(--pp-note-border);
     border-radius: var(--pp-radius);
     padding: 0.6rem 0.75rem;
     margin: 0 0 0.85rem;

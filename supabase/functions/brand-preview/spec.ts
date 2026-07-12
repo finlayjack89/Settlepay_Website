@@ -14,19 +14,44 @@ export interface LineItem {
   amount: string;
 }
 
-export interface Palette {
-  pageBg: string;
-  headerBg: string;
+/**
+ * The materialised design system for one rendition — every colour the template
+ * consumes, derived deterministically from the brief's design seeds so light
+ * and dark stay consistent with each other and across regenerations.
+ */
+export interface ThemeTokens {
+  page: string;
+  header: string;
+  onHeader: string;
   surface: string;
-  accent: string;
-  accent2: string | null;
-  ink: string | null;
+  ink: string;
+  muted: string;
+  line: string;
+  action: string;
+  onAction: string;
+  accent2: string;
+  stripBg: string;
+  onStrip: string;
+  stripIc: string;
+  noteBg: string;
+  noteBorder: string;
+}
+
+export interface LogoToken {
+  src: string | null; // null → monogram chip
+  chip: string | null; // backing chip colour when the artwork clashes with the header
 }
 
 export interface Brief {
   rationale: string;
-  // Two renditions of the same brand; `preferred` = the one matching their real site.
-  palette: { preferred: 'light' | 'dark'; light: Palette; dark: Palette };
+  // Brand seeds — the model's design DECISIONS. Both renditions derive from these.
+  design: {
+    primary: string;
+    accent: string | null;
+    pageStyle: 'paper' | 'tinted';
+    headerStyle: 'paper' | 'brand';
+    preferred: 'light' | 'dark';
+  };
   desktop: { layout: 'split' | 'centered'; summarySide: 'left' | 'right' };
   style: {
     display: 'serif' | 'sans' | 'brand';
@@ -181,75 +206,108 @@ function cleanPhone(v: unknown): string | null {
   return /^[+()0-9 .\-]{7,24}$/.test(s) ? s : null;
 }
 
-// ---- contrast guard -----------------------------------------------------------
+// ---- token engine ---------------------------------------------------------------
+// ONE set of brand seeds → BOTH renditions, by fixed formulas. This is what keeps
+// the accent identical across modes, the neutrals consistent between retries, and
+// the guard rails deterministic (no per-mode model hexes to drift).
 
-/** Theme-appropriate page background when the model's choice is out of window. */
-function fallbackPageBg(theme: 'light' | 'dark', accent: string, colors: BrandColour[]): string {
-  if (theme === 'dark') {
-    const dark = (colors || [])
-      .filter((c) => isHex(c?.hex))
-      .map((c) => c.hex)
-      .filter((h) => relLum(h) <= 0.16);
-    return dark[0] || '#10151f';
+const rgba = (hex: string, alpha: number): string => {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+};
+
+/** Nudge a colour toward legibility on a surface until it clears `min`. */
+function guardOn(colour: string, surface: string, min: number): string {
+  let out = colour;
+  let tries = 0;
+  while (contrastRatio(out, surface) < min && tries < 6) {
+    out = mixHex(out, onColour(surface), 0.22);
+    tries += 1;
   }
-  // Soft brand tint — covers both paper-white and cream-tinted light worlds.
-  return mixHex(accent, '#ffffff', 0.94);
+  return out;
+}
+
+export function deriveTokens(design: Brief['design'], theme: 'light' | 'dark'): ThemeTokens {
+  const { primary, pageStyle, headerStyle } = design;
+  const accent = design.accent || primary;
+
+  if (theme === 'light') {
+    // The tint derives from the ACCENT — it carries the brand's warmth (gold →
+    // cream); a primary-derived tint reads as generic cool grey.
+    const page = pageStyle === 'tinted' ? mixHex(accent, '#ffffff', 0.93) : '#ffffff';
+    const surface = '#ffffff';
+    const header = headerStyle === 'brand' ? primary : '#ffffff';
+    const ink = relLum(primary) <= 0.35 ? primary : mixHex(primary, '#0f172a', 0.6);
+    const action = guardOn(primary, surface, 2.5);
+    const accent2 = guardOn(accent, surface, 1.6);
+    const stripBg = relLum(primary) <= 0.25 ? primary : mixHex(primary, '#05070c', 0.65);
+    return {
+      page,
+      header,
+      onHeader: onColour(header),
+      surface,
+      ink,
+      muted: rgba(ink, 0.62),
+      line: rgba(ink, 0.16),
+      action,
+      onAction: onColour(action),
+      accent2,
+      stripBg,
+      onStrip: 'rgba(255, 255, 255, 0.78)',
+      stripIc: relLum(accent) >= 0.12 ? accent : 'rgba(255, 255, 255, 0.6)',
+      noteBg: mixHex(accent2, page, 0.88),
+      noteBorder: mixHex(accent2, page, 0.68),
+    };
+  }
+
+  // Dark rendition: a deep shade of the brand primary, never plain black.
+  const page = mixHex(primary, '#05070c', 0.68);
+  const surface = mixHex(page, '#ffffff', 0.07);
+  const header = headerStyle === 'brand' ? mixHex(primary, '#05070c', 0.55) : mixHex(page, '#ffffff', 0.04);
+  const ink = mixHex('#ffffff', primary, 0.08);
+  // The accent takes over as the action colour where it reads; a too-dark
+  // primary is lightened instead (the Lockdales navy→gold judgement, encoded).
+  const action =
+    contrastRatio(accent, surface) >= 2.5 ? accent : guardOn(mixHex(primary, '#ffffff', 0.35), surface, 2.5);
+  const accent2 = guardOn(accent, surface, 1.8);
+  return {
+    page,
+    header,
+    onHeader: onColour(header),
+    surface,
+    ink,
+    muted: rgba(ink, 0.62),
+    line: rgba(ink, 0.16),
+    action,
+    onAction: onColour(action),
+    accent2,
+    stripBg: mixHex(primary, '#05070c', 0.9),
+    onStrip: 'rgba(255, 255, 255, 0.78)',
+    stripIc: accent2,
+    noteBg: mixHex(accent2, page, 0.86),
+    noteBorder: mixHex(accent2, page, 0.62),
+  };
 }
 
 /**
- * Deterministic safety net over model-chosen hexes: luminance window per theme,
- * legible surface, accent nudged until it reads against the surface. Text
- * colours are derived client-side with readable(); this guard only has to make
- * that derivation safe.
+ * Per-theme logo choice. Brandfetch `theme` = the ARTWORK's colour: dark marks
+ * for light headers, light marks for dark headers. When only the wrong variant
+ * exists, back it with a contrasting chip (like real sites do) instead of
+ * dropping straight to a monogram; no logo at all → monogram (src null).
  */
-function guardPalette(p: Palette, theme: 'light' | 'dark', colors: BrandColour[]): Palette {
-  const L = relLum(p.pageBg);
-  const inWindow = theme === 'light' ? L >= 0.45 : L <= 0.22;
-  if (!inWindow) p.pageBg = fallbackPageBg(theme, p.accent, colors);
-
-  // Surface must sit visibly on the page in dark worlds; default paper otherwise.
-  if (theme === 'dark') {
-    if (relLum(p.surface) > 0.35 || Math.abs(relLum(p.surface) - relLum(p.pageBg)) < 0.03) {
-      p.surface = mixHex(p.pageBg, '#ffffff', 0.08);
-    }
-  } else if (relLum(p.surface) < 0.6) {
-    p.surface = '#ffffff';
-  }
-
-  // Never trust the model's button colour blind.
-  let tries = 0;
-  while (contrastRatio(p.accent, p.surface) < 2.5 && tries < 4) {
-    p.accent = mixHex(p.accent, onColour(p.surface), 0.25);
-    tries += 1;
-  }
-
-  // A provided ink must actually read on the page; otherwise let the client derive it.
-  if (p.ink && contrastRatio(p.ink, p.pageBg) < 4) p.ink = null;
-
-  return p;
-}
-
-/** Build + guard one theme's palette from raw model output (or nothing). */
-function validatePalette(
-  raw: any,
-  theme: 'light' | 'dark',
-  accentFallback: string,
-  colors: BrandColour[],
-): Palette {
-  const accent = cleanHex(raw?.accent) || accentFallback;
-  const pageBg = cleanHex(raw?.pageBg) || fallbackPageBg(theme, accent, colors);
-  return guardPalette(
-    {
-      pageBg,
-      headerBg: cleanHex(raw?.headerBg) || (theme === 'light' ? '#ffffff' : pageBg),
-      surface: cleanHex(raw?.surface) || (theme === 'light' ? '#ffffff' : mixHex(pageBg, '#ffffff', 0.07)),
-      accent,
-      accent2: cleanHex(raw?.accent2),
-      ink: cleanHex(raw?.ink),
-    },
-    theme,
-    colors,
-  );
+export function deriveLogo(
+  tokens: ThemeTokens,
+  brand: { logoUrl: string | null; logoDarkUrl: string | null },
+): LogoToken {
+  const headerIsLight = relLum(tokens.header) > 0.42;
+  const wanted = headerIsLight ? brand.logoUrl : brand.logoDarkUrl;
+  if (wanted) return { src: wanted, chip: null };
+  const other = headerIsLight ? brand.logoDarkUrl : brand.logoUrl;
+  if (other) return { src: other, chip: headerIsLight ? tokens.stripBg : '#ffffff' };
+  return { src: null, chip: null };
 }
 
 // ---- validateSpec ---------------------------------------------------------------
@@ -262,19 +320,24 @@ export function validateSpec(
   const r = raw as Record<string, any>;
   const accentFallback = pickColour(ctx.colors) || '#0f766e';
 
-  // Two renditions of one brand. A missing dark rendition is synthesised from
-  // the light accent so the theme toggle always has something honest to show.
-  const light = validatePalette(r.palette?.light, 'light', accentFallback, ctx.colors);
-  const dark = validatePalette(
-    r.palette?.dark ?? { accent: light.accent, accent2: light.accent2 },
-    'dark',
-    light.accent,
-    ctx.colors,
-  );
-  const palette: Brief['palette'] = {
-    preferred: cleanEnum(r.palette?.preferred, ['light', 'dark'] as const, 'light'),
-    light,
-    dark,
+  // Brand seeds. The primary anchors BOTH renditions, so it must be a colour
+  // with structural weight — a too-light pick is pulled toward ink.
+  const darkest = (ctx.colors || [])
+    .filter((c) => isHex(c?.hex))
+    .map((c) => c.hex)
+    .sort((a, b) => relLum(a) - relLum(b))[0];
+  let primary = cleanHex(r.design?.primary) || (darkest && relLum(darkest) <= 0.4 ? darkest : accentFallback);
+  let tries = 0;
+  while (relLum(primary) > 0.5 && tries < 4) {
+    primary = mixHex(primary, '#0f172a', 0.35);
+    tries += 1;
+  }
+  const design: Brief['design'] = {
+    primary,
+    accent: cleanHex(r.design?.accent),
+    pageStyle: cleanEnum(r.design?.pageStyle, ['paper', 'tinted'] as const, 'paper'),
+    headerStyle: cleanEnum(r.design?.headerStyle, ['paper', 'brand'] as const, 'paper'),
+    preferred: cleanEnum(r.design?.preferred, ['light', 'dark'] as const, 'light'),
   };
 
   const desktop: Brief['desktop'] = {
@@ -353,7 +416,7 @@ export function validateSpec(
     footerLine: cleanStr(r.content?.footerLine, 90) || ctx.name,
   };
 
-  return { rationale: cleanStr(r.rationale, 120) || '', palette, desktop, style, header, sections, content };
+  return { rationale: cleanStr(r.rationale, 120) || '', design, desktop, style, header, sections, content };
 }
 
 /** Pull the first JSON object out of a model response (fences tolerated). */
@@ -380,21 +443,18 @@ const obj = (properties: Record<string, unknown>, required: string[]) => ({
   additionalProperties: false,
 });
 
-const PALETTE_SCHEMA = obj(
-  { pageBg: str, headerBg: str, surface: str, accent: str, accent2: strOrNull, ink: strOrNull },
-  ['pageBg', 'headerBg', 'surface', 'accent', 'accent2', 'ink'],
-);
-
 export const BRIEF_JSON_SCHEMA = obj(
   {
     rationale: str,
-    palette: obj(
+    design: obj(
       {
+        primary: str,
+        accent: strOrNull,
+        pageStyle: { type: 'string', enum: ['paper', 'tinted'] },
+        headerStyle: { type: 'string', enum: ['paper', 'brand'] },
         preferred: { type: 'string', enum: ['light', 'dark'] },
-        light: PALETTE_SCHEMA,
-        dark: PALETTE_SCHEMA,
       },
-      ['preferred', 'light', 'dark'],
+      ['primary', 'accent', 'pageStyle', 'headerStyle', 'preferred'],
     ),
     desktop: obj(
       {
@@ -454,22 +514,19 @@ export const BRIEF_JSON_SCHEMA = obj(
       ],
     ),
   },
-  ['rationale', 'palette', 'style', 'header', 'sections', 'content'],
+  ['rationale', 'design', 'desktop', 'style', 'header', 'sections', 'content'],
 );
 
 // ---- prompts -------------------------------------------------------------------
 
 const FIELD_GUIDE = `{
   "rationale": "one line of design intent (<=120 chars)",
-  "palette": {
-    "preferred": "light | dark                // the rendition matching their REAL site",
-    "light": {                                 // light rendition (paper-white or soft brand tint)
-      "pageBg": "#rrggbb", "headerBg": "#rrggbb", "surface": "#rrggbb  // panels/cards",
-      "accent": "#rrggbb                      // buttons, step fill, method tile",
-      "accent2": "#rrggbb or null             // secondary accent (tinted notes, tagline); null = derived",
-      "ink": "#rrggbb or null                 // heading colour; null = derived from pageBg"
-    },
-    "dark": { same shape                       // the SAME brand as a dark UI; accent must read on the dark surface — switch to a lighter brand colour if needed }
+  "design": {                                  // brand SEEDS — light and dark renditions are DERIVED from these automatically
+    "primary": "#rrggbb                       // the brand's structural colour: headers, buttons, ink, the dark rendition's world",
+    "accent": "#rrggbb or null                // the brand's highlight colour (gold, coral…); null = derived from primary",
+    "pageStyle": "paper | tinted              // light rendition page: pure white vs a soft brand-tinted wash (e.g. cream)",
+    "headerStyle": "paper | brand             // white header with dark wordmark vs a primary-coloured header band",
+    "preferred": "light | dark                // the rendition matching their REAL site"
   },
   "desktop": {
     "layout": "split | centered               // split = summary/brand pane beside the payment form; centered = one narrow column on the page",
@@ -502,7 +559,7 @@ const FIELD_GUIDE = `{
 
 const EXEMPLAR_INPUT = `{"name":"Lockdales","domain":"lockdales.com","description":"Suffolk's leading specialist auctioneers and dealers in jewellery, watches, coins and militaria.","industries":["Jewellery and Luxury Products"],"colors":[{"hex":"#102d42","type":"dark"},{"hex":"#ffffff","type":"light"},{"hex":"#94821b","type":"accent"}],"font":null}`;
 
-const EXEMPLAR_OUTPUT = `{"rationale":"Heritage auction house: cream page, white header with serif upper wordmark, navy actions with gold secondary accents, BACS-first invoice.","palette":{"preferred":"light","light":{"pageBg":"#f7f3ea","headerBg":"#ffffff","surface":"#ffffff","accent":"#1b3a5b","accent2":"#c2a24e","ink":"#1b3a5b"},"dark":{"pageBg":"#0c1826","headerBg":"#102d42","surface":"#152e47","accent":"#c2a24e","accent2":"#c2a24e","ink":"#f3ede0"}},"desktop":{"layout":"split","summarySide":"left"},"style":{"display":"serif","wordmarkCase":"upper","radius":"soft","density":"regular"},"header":{"tagline":"Auctioneers & Valuers","nav":["Auctions","Valuations","Contact"],"verified":true},"sections":{"utilityStrip":true,"phone":"+44 (0)1473 627110","banner":false,"steps":true,"stepLabels":["Payment Method","Card Details","Confirmation"],"summary":true,"altPayment":"bacs","referenceNote":true,"footer":true},"content":{"scenario":"invoice","headline":"Pay Your Invoice","subcopy":"Settle your auction invoice by bank transfer or card.","reference":"Bidder 318","lineItems":[{"label":"Hammer price","amount":"£1,000.00"},{"label":"Buyer's premium (24%)","amount":"£240.00"}],"total":"£1,240.00","payLabel":"Pay £1,240.00","methodTitle":"Pay by Bank Transfer (BACS)","methodNote":"No fees — preferred payment method","referenceNoteText":"Please include your name and bidder number as the payment reference so we can match your payment to your invoice.","reassurance":"A receipt is emailed to you as soon as payment is received.","footerLine":"Lockdales Auctioneers & Valuers — Suffolk"}}`;
+const EXEMPLAR_OUTPUT = `{"rationale":"Heritage auction house: cream-tinted page, white header with serif upper wordmark, navy structure with gold highlights, BACS-first invoice.","design":{"primary":"#102d42","accent":"#94821b","pageStyle":"tinted","headerStyle":"paper","preferred":"light"},"desktop":{"layout":"split","summarySide":"left"},"style":{"display":"serif","wordmarkCase":"upper","radius":"soft","density":"regular"},"header":{"tagline":"Auctioneers & Valuers","nav":["Auctions","Valuations","Contact"],"verified":true},"sections":{"utilityStrip":true,"phone":"+44 (0)1473 627110","banner":false,"steps":true,"stepLabels":["Payment Method","Card Details","Confirmation"],"summary":true,"altPayment":"bacs","referenceNote":true,"footer":true},"content":{"scenario":"invoice","headline":"Pay Your Invoice","subcopy":"Settle your auction invoice by bank transfer or card.","reference":"Bidder 318","lineItems":[{"label":"Hammer price","amount":"£1,000.00"},{"label":"Buyer's premium (24%)","amount":"£240.00"}],"total":"£1,240.00","payLabel":"Pay £1,240.00","methodTitle":"Pay by Bank Transfer (BACS)","methodNote":"No fees — preferred payment method","referenceNoteText":"Please include your name and bidder number as the payment reference so we can match your payment to your invoice.","reassurance":"A receipt is emailed to you as soon as payment is received.","footerLine":"Lockdales Auctioneers & Valuers — Suffolk"}}`;
 
 export const DESIGN_SYSTEM = [
   'You are a senior brand designer at SettlePay, a UK studio that builds bespoke branded',
@@ -521,10 +578,11 @@ export const DESIGN_SYSTEM = [
   'Design guidance:',
   '- Prefer colours from the brand’s real world; you may use hexes you observe in the',
   '  images, not only the listed ones.',
-  '- Design BOTH renditions of the same brand: a light one and a dark one. In the dark',
-  '  rendition keep the accent readable on the dark surface — switch to a lighter brand',
-  '  colour (as the exemplar flips navy to gold). Set "preferred" to whichever rendition',
-  '  matches their real site.',
+  '- You choose brand SEEDS, not palettes: "primary" is the brand’s structural colour,',
+  '  "accent" its highlight. A design-token system derives the full light AND dark',
+  '  renditions from them deterministically (the exemplar’s navy primary + gold accent',
+  '  yields a cream light page and a navy-shaded dark page with gold actions). Set',
+  '  "preferred" to whichever rendition matches their real site.',
   '- Desktop layout: "split" (summary/brand pane beside the form, like modern hosted',
   '  checkouts) suits businesses with itemised orders; "centered" suits simple single',
   '  payments. Choose what this business would ship.',
