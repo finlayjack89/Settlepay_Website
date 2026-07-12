@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
         .select('profile, fetched_at')
         .eq('domain', domain)
         .maybeSingle();
-      if (cached?.profile?.v === 2 && cached.fetched_at) {
+      if (cached?.profile?.v === 3 && cached.fetched_at) {
         const ageMs = Date.now() - new Date(cached.fetched_at).getTime();
         if (ageMs < CACHE_TTL_HOURS * 3_600_000) return json(cached.profile);
       }
@@ -364,7 +364,7 @@ Deno.serve(async (req) => {
   });
 
   const profile = {
-    v: 2,
+    v: 3,
     name,
     domain,
     brand: {

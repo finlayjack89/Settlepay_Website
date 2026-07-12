@@ -52,7 +52,12 @@ export function defaultBrief(accentHex) {
   const s = SCENARIO_CONTENT.invoice;
   return {
     rationale: '',
-    palette: { mode: 'light', pageBg: '#ffffff', headerBg: '#ffffff', surface: '#ffffff', accent: accentHex, accent2: null, ink: null },
+    palette: {
+      preferred: 'light',
+      light: { pageBg: '#ffffff', headerBg: '#ffffff', surface: '#ffffff', accent: accentHex, accent2: null, ink: null },
+      dark: { pageBg: '#10151f', headerBg: '#0b0f16', surface: '#1a2230', accent: accentHex, accent2: null, ink: null },
+    },
+    desktop: { layout: 'centered', summarySide: 'left' },
     style: { display: 'sans', wordmarkCase: 'normal', radius: 'soft', density: 'regular' },
     header: { tagline: '', nav: [], verified: true },
     sections: {
@@ -72,11 +77,14 @@ export function defaultBrief(accentHex) {
 
 /**
  * brief (+ brand assets, + manual overrides) → flat render model.
- * brand: { logoUrl, logoDarkUrl, bannerUrl, font } from the v2 response.
- * overrides: { accent: hex|null, scenario: key|null } from the manual controls.
+ * brand: { logoUrl, logoDarkUrl, bannerUrl, font } from the v3 response.
+ * overrides: { accent, scenario, device: 'mobile'|'desktop', theme: 'light'|'dark'|null }
+ * from the manual controls. theme null = the brief's own preferred rendition.
  */
 export function resolveBrief(brief, brand, overrides) {
-  const p = brief.palette;
+  const theme = overrides.theme || brief.palette.preferred || 'light';
+  const p = brief.palette[theme] || brief.palette.light;
+  const desktop = overrides.device === 'desktop';
   const accent = overrides.accent || p.accent;
   const ink = p.ink || readable(p.pageBg);
   const accent2 = p.accent2 || accent;
@@ -124,6 +132,12 @@ export function resolveBrief(brief, brand, overrides) {
     },
     upper: brief.style.wordmarkCase === 'upper',
     compact: brief.style.density === 'compact',
+    desktop,
+    centered: (brief.desktop || {}).layout !== 'split',
+    summaryRight: (brief.desktop || {}).summarySide === 'right',
+    // Mobile hides the nav via CSS, so the chip can stand in; on desktop the
+    // nav wins the header's right-hand slot.
+    showVerified: brief.header.verified && (!desktop || !(brief.header.nav || []).length),
     logoUrl,
     header: brief.header,
     sections: brief.sections,
@@ -145,6 +159,9 @@ export function paintBrief(cardRoot, r, shared) {
   for (const [k, v] of Object.entries(r.vars)) el.style.setProperty(k, v);
   el.classList.toggle('pp--upper', r.upper);
   el.classList.toggle('pp--compact', r.compact);
+  el.classList.toggle('pp--desktop', r.desktop);
+  el.classList.toggle('pp--centered', r.centered);
+  el.classList.toggle('pp--summary-right', r.summaryRight);
 
   const setText = (sel, text) => {
     const n = q(el, sel);
@@ -180,7 +197,7 @@ export function paintBrief(cardRoot, r, shared) {
     n.hidden = !nav[i];
     n.textContent = nav[i] || '';
   });
-  toggle('[data-pp-verified]', r.header.verified && !nav.length);
+  toggle('[data-pp-verified]', r.showVerified);
 
   const brandRow = q(el, '[data-pp-brand]');
   const logo = q(el, '[data-pp-logo]');

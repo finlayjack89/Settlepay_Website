@@ -14,17 +14,20 @@ export interface LineItem {
   amount: string;
 }
 
+export interface Palette {
+  pageBg: string;
+  headerBg: string;
+  surface: string;
+  accent: string;
+  accent2: string | null;
+  ink: string | null;
+}
+
 export interface Brief {
   rationale: string;
-  palette: {
-    mode: 'light' | 'dark' | 'tinted';
-    pageBg: string;
-    headerBg: string;
-    surface: string;
-    accent: string;
-    accent2: string | null;
-    ink: string | null;
-  };
+  // Two renditions of the same brand; `preferred` = the one matching their real site.
+  palette: { preferred: 'light' | 'dark'; light: Palette; dark: Palette };
+  desktop: { layout: 'split' | 'centered'; summarySide: 'left' | 'right' };
   style: {
     display: 'serif' | 'sans' | 'brand';
     wordmarkCase: 'normal' | 'upper';
@@ -180,32 +183,35 @@ function cleanPhone(v: unknown): string | null {
 
 // ---- contrast guard -----------------------------------------------------------
 
-/** Mode-appropriate page background when the model's choice is out of window. */
-function fallbackPageBg(mode: Brief['palette']['mode'], accent: string, colors: BrandColour[]): string {
-  const valid = (colors || []).filter((c) => isHex(c?.hex));
-  if (mode === 'dark') {
-    const dark = valid.map((c) => c.hex).filter((h) => relLum(h) <= 0.16);
+/** Theme-appropriate page background when the model's choice is out of window. */
+function fallbackPageBg(theme: 'light' | 'dark', accent: string, colors: BrandColour[]): string {
+  if (theme === 'dark') {
+    const dark = (colors || [])
+      .filter((c) => isHex(c?.hex))
+      .map((c) => c.hex)
+      .filter((h) => relLum(h) <= 0.16);
     return dark[0] || '#10151f';
   }
-  if (mode === 'tinted') return mixHex(accent, '#ffffff', 0.93);
-  return '#ffffff';
+  // Soft brand tint — covers both paper-white and cream-tinted light worlds.
+  return mixHex(accent, '#ffffff', 0.94);
 }
 
 /**
- * Deterministic safety net over model-chosen hexes: luminance windows per mode,
+ * Deterministic safety net over model-chosen hexes: luminance window per theme,
  * legible surface, accent nudged until it reads against the surface. Text
  * colours are derived client-side with readable(); this guard only has to make
  * that derivation safe.
  */
-function guardPalette(p: Brief['palette'], colors: BrandColour[]): Brief['palette'] {
+function guardPalette(p: Palette, theme: 'light' | 'dark', colors: BrandColour[]): Palette {
   const L = relLum(p.pageBg);
-  const inWindow =
-    p.mode === 'light' ? L >= 0.72 : p.mode === 'dark' ? L <= 0.16 : L >= 0.45 && L <= 0.92;
-  if (!inWindow) p.pageBg = fallbackPageBg(p.mode, p.accent, colors);
+  const inWindow = theme === 'light' ? L >= 0.45 : L <= 0.22;
+  if (!inWindow) p.pageBg = fallbackPageBg(theme, p.accent, colors);
 
   // Surface must sit visibly on the page in dark worlds; default paper otherwise.
-  if (p.mode === 'dark') {
-    if (Math.abs(relLum(p.surface) - relLum(p.pageBg)) < 0.03) p.surface = mixHex(p.pageBg, '#ffffff', 0.08);
+  if (theme === 'dark') {
+    if (relLum(p.surface) > 0.35 || Math.abs(relLum(p.surface) - relLum(p.pageBg)) < 0.03) {
+      p.surface = mixHex(p.pageBg, '#ffffff', 0.08);
+    }
   } else if (relLum(p.surface) < 0.6) {
     p.surface = '#ffffff';
   }
@@ -223,6 +229,29 @@ function guardPalette(p: Brief['palette'], colors: BrandColour[]): Brief['palett
   return p;
 }
 
+/** Build + guard one theme's palette from raw model output (or nothing). */
+function validatePalette(
+  raw: any,
+  theme: 'light' | 'dark',
+  accentFallback: string,
+  colors: BrandColour[],
+): Palette {
+  const accent = cleanHex(raw?.accent) || accentFallback;
+  const pageBg = cleanHex(raw?.pageBg) || fallbackPageBg(theme, accent, colors);
+  return guardPalette(
+    {
+      pageBg,
+      headerBg: cleanHex(raw?.headerBg) || (theme === 'light' ? '#ffffff' : pageBg),
+      surface: cleanHex(raw?.surface) || (theme === 'light' ? '#ffffff' : mixHex(pageBg, '#ffffff', 0.07)),
+      accent,
+      accent2: cleanHex(raw?.accent2),
+      ink: cleanHex(raw?.ink),
+    },
+    theme,
+    colors,
+  );
+}
+
 // ---- validateSpec ---------------------------------------------------------------
 
 export function validateSpec(
@@ -233,20 +262,25 @@ export function validateSpec(
   const r = raw as Record<string, any>;
   const accentFallback = pickColour(ctx.colors) || '#0f766e';
 
-  const mode = cleanEnum(r.palette?.mode, ['light', 'dark', 'tinted'] as const, 'light');
-  const accent = cleanHex(r.palette?.accent) || accentFallback;
-  const palette = guardPalette(
-    {
-      mode,
-      pageBg: cleanHex(r.palette?.pageBg) || fallbackPageBg(mode, accent, ctx.colors),
-      headerBg: cleanHex(r.palette?.headerBg) || '#ffffff',
-      surface: cleanHex(r.palette?.surface) || '#ffffff',
-      accent,
-      accent2: cleanHex(r.palette?.accent2),
-      ink: cleanHex(r.palette?.ink),
-    },
+  // Two renditions of one brand. A missing dark rendition is synthesised from
+  // the light accent so the theme toggle always has something honest to show.
+  const light = validatePalette(r.palette?.light, 'light', accentFallback, ctx.colors);
+  const dark = validatePalette(
+    r.palette?.dark ?? { accent: light.accent, accent2: light.accent2 },
+    'dark',
+    light.accent,
     ctx.colors,
   );
+  const palette: Brief['palette'] = {
+    preferred: cleanEnum(r.palette?.preferred, ['light', 'dark'] as const, 'light'),
+    light,
+    dark,
+  };
+
+  const desktop: Brief['desktop'] = {
+    layout: cleanEnum(r.desktop?.layout, ['split', 'centered'] as const, 'centered'),
+    summarySide: cleanEnum(r.desktop?.summarySide, ['left', 'right'] as const, 'left'),
+  };
 
   let display = cleanEnum(r.style?.display, ['serif', 'sans', 'brand'] as const, 'sans');
   if (display === 'brand' && !ctx.font) display = 'sans';
@@ -319,7 +353,7 @@ export function validateSpec(
     footerLine: cleanStr(r.content?.footerLine, 90) || ctx.name,
   };
 
-  return { rationale: cleanStr(r.rationale, 120) || '', palette, style, header, sections, content };
+  return { rationale: cleanStr(r.rationale, 120) || '', palette, desktop, style, header, sections, content };
 }
 
 /** Pull the first JSON object out of a model response (fences tolerated). */
@@ -346,20 +380,28 @@ const obj = (properties: Record<string, unknown>, required: string[]) => ({
   additionalProperties: false,
 });
 
+const PALETTE_SCHEMA = obj(
+  { pageBg: str, headerBg: str, surface: str, accent: str, accent2: strOrNull, ink: strOrNull },
+  ['pageBg', 'headerBg', 'surface', 'accent', 'accent2', 'ink'],
+);
+
 export const BRIEF_JSON_SCHEMA = obj(
   {
     rationale: str,
     palette: obj(
       {
-        mode: { type: 'string', enum: ['light', 'dark', 'tinted'] },
-        pageBg: str,
-        headerBg: str,
-        surface: str,
-        accent: str,
-        accent2: strOrNull,
-        ink: strOrNull,
+        preferred: { type: 'string', enum: ['light', 'dark'] },
+        light: PALETTE_SCHEMA,
+        dark: PALETTE_SCHEMA,
       },
-      ['mode', 'pageBg', 'headerBg', 'surface', 'accent', 'accent2', 'ink'],
+      ['preferred', 'light', 'dark'],
+    ),
+    desktop: obj(
+      {
+        layout: { type: 'string', enum: ['split', 'centered'] },
+        summarySide: { type: 'string', enum: ['left', 'right'] },
+      },
+      ['layout', 'summarySide'],
     ),
     style: obj(
       {
@@ -420,11 +462,18 @@ export const BRIEF_JSON_SCHEMA = obj(
 const FIELD_GUIDE = `{
   "rationale": "one line of design intent (<=120 chars)",
   "palette": {
-    "mode": "light | dark | tinted            // page-body world; tinted = soft brand-washed page (e.g. cream)",
-    "pageBg": "#rrggbb", "headerBg": "#rrggbb", "surface": "#rrggbb  // panels/cards",
-    "accent": "#rrggbb                        // buttons, step fill, method tile",
-    "accent2": "#rrggbb or null               // secondary accent (tinted notes, tagline); null = derived",
-    "ink": "#rrggbb or null                   // heading colour; null = derived from pageBg"
+    "preferred": "light | dark                // the rendition matching their REAL site",
+    "light": {                                 // light rendition (paper-white or soft brand tint)
+      "pageBg": "#rrggbb", "headerBg": "#rrggbb", "surface": "#rrggbb  // panels/cards",
+      "accent": "#rrggbb                      // buttons, step fill, method tile",
+      "accent2": "#rrggbb or null             // secondary accent (tinted notes, tagline); null = derived",
+      "ink": "#rrggbb or null                 // heading colour; null = derived from pageBg"
+    },
+    "dark": { same shape                       // the SAME brand as a dark UI; accent must read on the dark surface — switch to a lighter brand colour if needed }
+  },
+  "desktop": {
+    "layout": "split | centered               // split = summary/brand pane beside the payment form; centered = one narrow column on the page",
+    "summarySide": "left | right              // which side the summary pane sits on in split layout"
   },
   "style": {
     "display": "serif | sans | brand          // 'brand' uses their detected web font when available",
@@ -453,7 +502,7 @@ const FIELD_GUIDE = `{
 
 const EXEMPLAR_INPUT = `{"name":"Lockdales","domain":"lockdales.com","description":"Suffolk's leading specialist auctioneers and dealers in jewellery, watches, coins and militaria.","industries":["Jewellery and Luxury Products"],"colors":[{"hex":"#102d42","type":"dark"},{"hex":"#ffffff","type":"light"},{"hex":"#94821b","type":"accent"}],"font":null}`;
 
-const EXEMPLAR_OUTPUT = `{"rationale":"Heritage auction house: cream page, white header with serif upper wordmark, navy actions with gold secondary accents, BACS-first invoice.","palette":{"mode":"tinted","pageBg":"#f7f3ea","headerBg":"#ffffff","surface":"#ffffff","accent":"#1b3a5b","accent2":"#c2a24e","ink":"#1b3a5b"},"style":{"display":"serif","wordmarkCase":"upper","radius":"soft","density":"regular"},"header":{"tagline":"Auctioneers & Valuers","nav":["Auctions","Valuations","Contact"],"verified":true},"sections":{"utilityStrip":true,"phone":"+44 (0)1473 627110","banner":false,"steps":true,"stepLabels":["Payment Method","Card Details","Confirmation"],"summary":true,"altPayment":"bacs","referenceNote":true,"footer":true},"content":{"scenario":"invoice","headline":"Pay Your Invoice","subcopy":"Settle your auction invoice by bank transfer or card.","reference":"Bidder 318","lineItems":[{"label":"Hammer price","amount":"£1,000.00"},{"label":"Buyer's premium (24%)","amount":"£240.00"}],"total":"£1,240.00","payLabel":"Pay £1,240.00","methodTitle":"Pay by Bank Transfer (BACS)","methodNote":"No fees — preferred payment method","referenceNoteText":"Please include your name and bidder number as the payment reference so we can match your payment to your invoice.","reassurance":"A receipt is emailed to you as soon as payment is received.","footerLine":"Lockdales Auctioneers & Valuers — Suffolk"}}`;
+const EXEMPLAR_OUTPUT = `{"rationale":"Heritage auction house: cream page, white header with serif upper wordmark, navy actions with gold secondary accents, BACS-first invoice.","palette":{"preferred":"light","light":{"pageBg":"#f7f3ea","headerBg":"#ffffff","surface":"#ffffff","accent":"#1b3a5b","accent2":"#c2a24e","ink":"#1b3a5b"},"dark":{"pageBg":"#0c1826","headerBg":"#102d42","surface":"#152e47","accent":"#c2a24e","accent2":"#c2a24e","ink":"#f3ede0"}},"desktop":{"layout":"split","summarySide":"left"},"style":{"display":"serif","wordmarkCase":"upper","radius":"soft","density":"regular"},"header":{"tagline":"Auctioneers & Valuers","nav":["Auctions","Valuations","Contact"],"verified":true},"sections":{"utilityStrip":true,"phone":"+44 (0)1473 627110","banner":false,"steps":true,"stepLabels":["Payment Method","Card Details","Confirmation"],"summary":true,"altPayment":"bacs","referenceNote":true,"footer":true},"content":{"scenario":"invoice","headline":"Pay Your Invoice","subcopy":"Settle your auction invoice by bank transfer or card.","reference":"Bidder 318","lineItems":[{"label":"Hammer price","amount":"£1,000.00"},{"label":"Buyer's premium (24%)","amount":"£240.00"}],"total":"£1,240.00","payLabel":"Pay £1,240.00","methodTitle":"Pay by Bank Transfer (BACS)","methodNote":"No fees — preferred payment method","referenceNoteText":"Please include your name and bidder number as the payment reference so we can match your payment to your invoice.","reassurance":"A receipt is emailed to you as soon as payment is received.","footerLine":"Lockdales Auctioneers & Valuers — Suffolk"}}`;
 
 export const DESIGN_SYSTEM = [
   'You are a senior brand designer at SettlePay, a UK studio that builds bespoke branded',
@@ -471,7 +520,14 @@ export const DESIGN_SYSTEM = [
   '',
   'Design guidance:',
   '- Prefer colours from the brand’s real world; you may use hexes you observe in the',
-  '  images, not only the listed ones. Use "dark" mode only if their own site is genuinely dark.',
+  '  images, not only the listed ones.',
+  '- Design BOTH renditions of the same brand: a light one and a dark one. In the dark',
+  '  rendition keep the accent readable on the dark surface — switch to a lighter brand',
+  '  colour (as the exemplar flips navy to gold). Set "preferred" to whichever rendition',
+  '  matches their real site.',
+  '- Desktop layout: "split" (summary/brand pane beside the form, like modern hosted',
+  '  checkouts) suits businesses with itemised orders; "centered" suits simple single',
+  '  payments. Choose what this business would ship.',
   '- Choose the sections a business like this would actually have: an auction house wants an',
   '  invoice summary, BACS panel and a payment-reference note; a gym wants a simple membership',
   '  start; a trades business wants a deposit with a booking reference.',

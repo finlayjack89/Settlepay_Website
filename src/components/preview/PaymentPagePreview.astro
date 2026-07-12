@@ -70,6 +70,8 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
     </div>
 
     <div class="pp__view">
+      <!-- info pane: headline, summary, BACS, note — sits beside the form on desktop split -->
+      <div class="pp__pane pp__pane--info">
       <div class="pp__view-head">
         <div class="pp__view-lead">
           <h3 class="pp__h" data-pp-headline>Pay Your Invoice</h3>
@@ -120,7 +122,10 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
       <p class="pp__note" data-pp-note hidden>
         <Icon name="mail" sw={2} /><span class="pp__note-text" data-pp-note-text></span>
       </p>
+      </div>
 
+      <!-- form pane -->
+      <div class="pp__pane pp__pane--form">
       <!-- card fields -->
       <label class="pp__flabel">Card number</label>
       <div class="pp__input">
@@ -135,6 +140,7 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
 
       <div class="pp__reassure" data-pp-reassure hidden>
         <Icon name="lock" sw={1.8} /><span data-pp-reassure-text></span>
+      </div>
       </div>
     </div>
 
@@ -174,6 +180,32 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
     box-shadow: var(--shadow-lg);
   }
   .pp--compact { --pp-pad: 0.95rem; }
+
+  /* ---- desktop rendition (painter toggles pp--desktop / pp--centered / pp--summary-right) ---- */
+  .pp--desktop { max-width: 100%; --pp-pad: 1.5rem; }
+  .pp--desktop .pp__banner { height: 88px; }
+  .pp--desktop .pp__view {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1.6rem;
+    align-items: start;
+    padding-top: 1.1rem;
+    padding-bottom: 1.5rem;
+  }
+  .pp--desktop.pp--summary-right .pp__pane--info { order: 2; }
+  .pp--desktop.pp--centered .pp__view {
+    display: block;
+    max-width: 430px;
+    margin-inline: auto;
+  }
+  .pp--desktop.pp--centered .pp__steps {
+    max-width: 430px;
+    margin-inline: auto;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  /* Real sites collapse their nav on phones — the mobile rendition does too. */
+  .pp:not(.pp--desktop) .pp__nav { display: none; }
   /* Long pay-URLs must clip inside the fixed-width chrome pill. */
   .pp :global(.mok__url) { overflow: hidden; white-space: nowrap; min-width: 0; }
 

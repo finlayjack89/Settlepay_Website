@@ -129,6 +129,26 @@ const CARDS = [0, 1, 2, 3];
 
     <!-- Live previews (mockup-world). Cards 2-4 revealed only in split-test mode. -->
     <div class="ps__preview">
+      <!-- Device + appearance switches: every brief carries both renditions, so
+           toggling is instant and free (no re-generation). -->
+      <div class="ps__viewbar">
+        <div class="ps__seg ps__seg--mini" role="radiogroup" aria-label="Device">
+          <button type="button" class="ps__seg-btn" data-ps-device="mobile" role="radio" aria-checked="false">
+            <Icon name="mobile" sw={1.8} /> Mobile
+          </button>
+          <button type="button" class="ps__seg-btn" data-ps-device="desktop" role="radio" aria-checked="false">
+            <Icon name="desktop" sw={1.8} /> Desktop
+          </button>
+        </div>
+        <div class="ps__seg ps__seg--mini" role="radiogroup" aria-label="Appearance">
+          <button type="button" class="ps__seg-btn" data-ps-theme="light" role="radio" aria-checked="false">
+            <Icon name="sun" sw={1.8} /> Light
+          </button>
+          <button type="button" class="ps__seg-btn" data-ps-theme="dark" role="radio" aria-checked="false">
+            <Icon name="moon" sw={1.8} /> Dark
+          </button>
+        </div>
+      </div>
       <div class="ps__cards" data-ps-cards>
         {CARDS.map((i) => (
           <div class="ps__card" data-ps-card hidden={i > 0}>
@@ -345,6 +365,21 @@ const CARDS = [0, 1, 2, 3];
 
   /* ---- preview cards ---- */
   .ps__preview { display: block; }
+  .ps__viewbar {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.4rem;
+  }
+  .ps__seg--mini .ps__seg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    padding: 0.42rem 0.85rem;
+  }
+  .ps__seg--mini .ps__seg-btn :global(svg) { width: 15px; height: 15px; }
   .ps__cards {
     display: grid;
     grid-template-columns: minmax(0, 480px);
@@ -355,6 +390,11 @@ const CARDS = [0, 1, 2, 3];
     grid-template-columns: repeat(2, minmax(0, 480px));
     justify-content: center;
     align-items: start;
+  }
+  /* Desktop rendition: wide pages stack in one column, single or split test. */
+  .ps.is-desktop .ps__cards,
+  .ps.is-multi.is-desktop .ps__cards {
+    grid-template-columns: minmax(0, 820px);
   }
   .ps__card {
     display: flex;
@@ -541,7 +581,13 @@ const CARDS = [0, 1, 2, 3];
       domain: '',
       brand: {},                    // { logoUrl, logoDarkUrl, bannerUrl, font } from the response
       variants: [],                 // [{ key, model, label, brief|null, ms, usage }]
-      overrides: { accent: null, scenario: null },
+      overrides: {
+        accent: null,
+        scenario: null,
+        // Default to the visitor's own device; they can flip it any time.
+        device: window.matchMedia('(max-width: 860px)').matches ? 'mobile' : 'desktop',
+        theme: 'light',
+      },
       voted: false,
     };
 
@@ -561,6 +607,28 @@ const CARDS = [0, 1, 2, 3];
       if (customInput && hex && /^#[0-9a-fA-F]{6}$/.test(hex)) customInput.value = hex;
     }
 
+    const deviceBtns = root.querySelectorAll('[data-ps-device]');
+    const themeBtns = root.querySelectorAll('[data-ps-theme]');
+
+    function syncToggles() {
+      deviceBtns.forEach((b) => {
+        const on = b.dataset.psDevice === state.overrides.device;
+        b.classList.toggle('is-selected', on);
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      themeBtns.forEach((b) => {
+        const on = b.dataset.psTheme === state.overrides.theme;
+        b.classList.toggle('is-selected', on);
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+    }
+    deviceBtns.forEach((b) =>
+      b.addEventListener('click', () => { state.overrides.device = b.dataset.psDevice; syncToggles(); render(); })
+    );
+    themeBtns.forEach((b) =>
+      b.addEventListener('click', () => { state.overrides.theme = b.dataset.psTheme; syncToggles(); render(); })
+    );
+
     function visibleCount() {
       return state.variants.length || 1;
     }
@@ -578,6 +646,7 @@ const CARDS = [0, 1, 2, 3];
         paintBrief(card, resolveBrief(brief, state.brand, state.overrides), shared);
       });
       root.classList.toggle('is-multi', count > 1);
+      root.classList.toggle('is-desktop', state.overrides.device === 'desktop');
     }
 
     function setCardLabel(i, text, hasBrief) {
@@ -664,8 +733,18 @@ const CARDS = [0, 1, 2, 3];
       if (p.name) { state.name = p.name; nameInput.value = p.name.slice(0, 32); }
       state.brand = p.brand || {};
       loadBrandFont(state.brand.font || '');
-      state.overrides = { accent: null, scenario: null };
+      // Keep the visitor's device; open in the renditions most models say match
+      // the brand's real site.
+      const prefs = (p.variants || []).filter((v) => v.brief).map((v) => v.brief.palette.preferred);
+      const darkWins = prefs.filter((x) => x === 'dark').length > prefs.length / 2;
+      state.overrides = {
+        accent: null,
+        scenario: null,
+        device: state.overrides.device,
+        theme: darkWins ? 'dark' : 'light',
+      };
       state.voted = false;
+      syncToggles();
       selectSwatch(null);
       planBtns.forEach((x) => { x.classList.remove('is-selected'); x.setAttribute('aria-checked', 'false'); });
 
@@ -728,7 +807,7 @@ const CARDS = [0, 1, 2, 3];
           body: JSON.stringify({ url: u.href }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data || data.error || data.v !== 2) {
+        if (!res.ok || !data || data.error || data.v !== 3) {
           throw new Error((data && data.error) || 'extract-failed');
         }
         setSkeletons(false);
@@ -770,6 +849,7 @@ const CARDS = [0, 1, 2, 3];
     // ---- initial paint + hydrate from a shared ?url= link ----
     // (?url= re-generates on load; while several DESIGN_PROVIDERS are active
     // that re-bills every leg — acceptable at this volume.)
+    syncToggles();
     render();
     const params = new URLSearchParams(location.search);
     const sharedUrl = params.get('url');
