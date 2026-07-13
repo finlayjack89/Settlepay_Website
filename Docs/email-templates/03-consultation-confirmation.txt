@@ -2,13 +2,13 @@ Your Consultation Is Booked
 
 Hi {{first_name}},
 
-Your consultation with me is confirmed. There's a calendar invitation
-attached, and I'll email your join link in a reminder shortly before we
-speak.
+Your consultation with me is confirmed — the date, time and your join
+link are all below. I'll send a short reminder before we speak, too.
 
 Date:   {{date}}
 Time:   {{time}} (UK time)
-Where:  Online video call — join link to follow (or I can call you, just say)
+Where:  Online video call (or I can call you, just say)
+Join:   {{join_url}}
 
 WHAT WE'LL COVER
 - How you take payments today, and where it's costing you time
@@ -22,7 +22,7 @@ CRM. Knowing what's already in place helps me work out what we could
 realistically connect to, so the ideas on the day are practical rather
 than generic.
 
-Need to change the time? Reschedule: {{reschedule_url}}
+Need to change the time? Just reply to this email and I'll sort it.
 
 Speak soon,
 Finlay

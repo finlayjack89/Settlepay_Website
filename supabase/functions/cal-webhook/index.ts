@@ -8,10 +8,14 @@
 // Zoom, Meet…), so nothing here is tied to Microsoft/Teams.
 //
 // Env (function secrets):
-//   CAL_WEBHOOK_SECRET   the same secret set on the Cal.com webhook (required)
+//   CAL_WEBHOOK_SECRET     the same secret set on the Cal.com webhook (required)
+//   RESEND_API_KEY         Resend key for the branded confirmation email (optional)
+//   BOOKING_CONFIRM_FROM   verified sender, e.g. "SettlePay <hello@settlepay.uk>"
+//                          (falls back to LEAD_AUTOREPLY_FROM; unset = no email)
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { renderBookingConfirmation } from './templates.ts';
 
 const SECRET = Deno.env.get('CAL_WEBHOOK_SECRET') ?? '';
 const enc = new TextEncoder();
@@ -57,6 +61,56 @@ function extractJoinUrl(p: any): string | null {
   return m ? m[0] : null;
 }
 
+// --- Branded confirmation email (best-effort; never fails the webhook) --------
+async function sendViaResend(payload: Record<string, unknown>): Promise<void> {
+  const key = Deno.env.get('RESEND_API_KEY');
+  if (!key) { console.warn('RESEND_API_KEY not set — no booking email sent.'); return; }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.error('booking email send failed:', res.status, await res.text());
+  } catch (e) {
+    console.error('booking email error:', e);
+  }
+}
+
+// Format an ISO instant as UK-local date + time for the email body.
+function formatWhen(iso: string | null): { date: string; time: string } {
+  if (!iso) return { date: '', time: '' };
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London',
+  }).format(d);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London',
+  }).format(d);
+  return { date, time };
+}
+
+async function sendBookingConfirmation(
+  args: { email: string; name?: string | null; startAt: string | null; joinUrl: string | null; uid: string },
+): Promise<void> {
+  const from = Deno.env.get('BOOKING_CONFIRM_FROM') ?? Deno.env.get('LEAD_AUTOREPLY_FROM');
+  if (!from) { console.warn('No booking-email sender set — skipping confirmation.'); return; }
+  const { date, time } = formatWhen(args.startAt);
+  const firstName = (args.name ?? '').trim().split(/\s+/)[0] || 'there';
+  // Fall back to the Cal booking page if no video link is present yet.
+  const joinForEmail = args.joinUrl ?? `https://cal.eu/booking/${args.uid}`;
+  const { html, text } = renderBookingConfirmation({
+    first_name: firstName, date, time, join_url: joinForEmail,
+  });
+  await sendViaResend({
+    from,
+    to: [args.email],
+    subject: 'Your SettlePay consultation is confirmed',
+    html,
+    text,
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method-not-allowed' }, 405);
 
@@ -92,6 +146,12 @@ Deno.serve(async (req) => {
     const attendee = Array.isArray(p?.attendees) ? p.attendees[0] ?? {} : {};
     const email: string = (attendee?.email ?? '').trim();
     const joinUrl = extractJoinUrl(p);
+    const startAt: string | null = p?.startTime ?? null;
+
+    // Existing row? Used for idempotency: only email on a genuinely new or
+    // re-timed booking so Cal.com webhook retries don't re-send.
+    const { data: existing } = await supabase.from('bookings')
+      .select('start_at').eq('cal_uid', uid).maybeSingle();
 
     // Best-effort link to the originating enquiry (by email). No FK — survives
     // the planned leads -> enquiries rename; ignore errors if the table differs.
@@ -107,7 +167,7 @@ Deno.serve(async (req) => {
       cal_uid: uid,
       status: 'confirmed',
       title: p?.title ?? null,
-      start_at: p?.startTime ?? null,
+      start_at: startAt,
       end_at: p?.endTime ?? null,
       attendee_name: attendee?.name ?? null,
       attendee_email: email || null,
@@ -122,6 +182,12 @@ Deno.serve(async (req) => {
     if (error) {
       console.error('booking upsert failed:', error);
       return json({ error: 'store-failed' }, 500);
+    }
+
+    // Branded SettlePay confirmation (replaces Cal.com's default email). Only on
+    // a new or re-timed booking; never fails the request.
+    if (email && (!existing || existing.start_at !== startAt)) {
+      await sendBookingConfirmation({ email, name: attendee?.name, startAt, joinUrl, uid });
     }
     return json({ ok: true, event, uid });
   }
