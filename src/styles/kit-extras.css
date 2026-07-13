@@ -197,7 +197,9 @@
   background: var(--color-pure-white);
   border-radius: var(--radius-card);
   padding: 2.25rem;
-  width: 100%; max-width: 440px;
+  /* 500px on desktop reads as a proper dialog, not a phone-width column; on
+     narrow screens width:100% (minus the overlay padding) makes it full-width. */
+  width: 100%; max-width: 500px;
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
   animation: spRise 0.35s var(--ease-cinematic);
   /* Never exceed the viewport — the content scrolls inside instead of being
