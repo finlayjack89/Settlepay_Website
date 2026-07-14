@@ -158,14 +158,70 @@ function pickBanner(images: any[]): string | null {
 
 // ---- Firecrawl (screenshot + homepage copy — best-effort) --------------------
 
+/** Resolve a possibly-relative URL against the site origin; http(s) only. */
+function absUrl(u: unknown, origin: string): string | null {
+  if (typeof u !== 'string' || !u.trim()) return null;
+  try {
+    const abs = new URL(u.trim(), origin);
+    return abs.protocol === 'http:' || abs.protocol === 'https:' ? abs.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The brand MARK from the site's own <head> — the icon a business already uses
+ * as its favicon / touch icon (usually its logo mark). Prefers apple-touch-icon
+ * (typically a clean 180px PNG) and SVGs (scalable); a bare low-res favicon.ico
+ * is skipped in favour of a monogram, which reads cleaner than a blurry 16px
+ * icon. Firecrawl's metadata.favicon is the fallback when no <link> is parsed.
+ */
+function harvestMark(html: string, favicon: string | null, origin: string): string | null {
+  const cands: { url: string; score: number }[] = [];
+  const push = (href: unknown, score: number) => {
+    const abs = absUrl(href, origin);
+    if (abs) cands.push({ url: abs, score });
+  };
+  for (const tag of html.match(/<link\b[^>]*>/gi) || []) {
+    const rel = (tag.match(/rel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+    if (!rel.includes('icon')) continue;
+    const href = tag.match(/href=["']([^"']+)["']/i)?.[1];
+    if (!href) continue;
+    const dim = parseInt(tag.match(/sizes=["'](\d+)/i)?.[1] || '0', 10);
+    const svg = /\.svg(\?|$)/i.test(href);
+    const ico = /\.ico(\?|$)/i.test(href);
+    if (ico && dim < 48) continue; // blurry — monogram wins
+    let score = 0;
+    if (rel.includes('apple-touch-icon')) score += 50;
+    if (svg) score += 45;
+    score += Math.min(dim, 512) / 10;
+    push(href, score);
+  }
+  if (favicon) {
+    const svg = /\.svg(\?|$)/i.test(favicon);
+    const ico = /\.ico(\?|$)/i.test(favicon);
+    if (!(ico)) push(favicon, svg ? 45 : 8);
+  }
+  cands.sort((a, b) => b.score - a.score);
+  return cands[0]?.url ?? null;
+}
+
 async function fetchSite(domain: string): Promise<{
   screenshotUrl: string | null;
   markdown: string | null;
   cssColours: { hex: string; count: number }[];
   title: string | null;
   metaDescription: string | null;
+  markUrl: string | null;
 }> {
-  const none = { screenshotUrl: null, markdown: null, cssColours: [], title: null, metaDescription: null };
+  const none = {
+    screenshotUrl: null,
+    markdown: null,
+    cssColours: [],
+    title: null,
+    metaDescription: null,
+    markUrl: null,
+  };
   const key = Deno.env.get('FIRECRAWL_API_KEY');
   if (!key) return none;
   try {
@@ -193,14 +249,17 @@ async function fetchSite(domain: string): Promise<{
       return none;
     }
     const body = await res.json();
+    const html: string = body?.data?.html || '';
     const md = typeof body?.data?.markdown === 'string' ? body.data.markdown : null;
     const meta = body?.data?.metadata || {};
+    const origin = 'https://' + domain;
     return {
       screenshotUrl: typeof body?.data?.screenshot === 'string' ? body.data.screenshot : null,
       markdown: md ? md.replace(/\s+/g, ' ').slice(0, 1500) : null,
-      cssColours: harvestColours(body?.data?.html || ''),
+      cssColours: harvestColours(html),
       title: typeof meta.title === 'string' ? meta.title : null,
       metaDescription: typeof meta.description === 'string' ? meta.description : null,
+      markUrl: harvestMark(html, typeof meta.favicon === 'string' ? meta.favicon : null, origin),
     };
   } catch (e) {
     console.warn('firecrawl failed', e);
@@ -208,24 +267,27 @@ async function fetchSite(domain: string): Promise<{
   }
 }
 
-/** Drop image URLs the vision APIs couldn't fetch (a dead CDN link 400s a whole leg). */
+/** HEAD-check a URL is a real, fetchable IMAGE. A 200 that serves text/html
+ *  (a soft-404 page at an og:image URL) would 400 a whole vision leg. */
+async function isImage(url: string): Promise<boolean> {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 4_000);
+    const res = await fetch(url, { method: 'HEAD', signal: ctl.signal });
+    clearTimeout(timer);
+    const type = (res.headers.get('content-type') || '').toLowerCase();
+    return res.ok && type.startsWith('image/');
+  } catch {
+    return false;
+  }
+}
+
+/** Drop image URLs the vision APIs couldn't fetch or that aren't real images. */
 async function preflightImages(
   items: { url: string | null; hi?: boolean }[],
 ): Promise<{ url: string; hi?: boolean }[]> {
   const candidates = items.filter((i): i is { url: string; hi?: boolean } => !!i.url).slice(0, 3);
-  const checks = await Promise.all(
-    candidates.map(async (i) => {
-      try {
-        const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 4_000);
-        const res = await fetch(i.url, { method: 'HEAD', signal: ctl.signal });
-        clearTimeout(timer);
-        return res.ok ? i : null;
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const checks = await Promise.all(candidates.map(async (i) => ((await isImage(i.url)) ? i : null)));
   return checks.filter((i): i is { url: string; hi?: boolean } => !!i);
 }
 
@@ -490,10 +552,13 @@ Deno.serve(async (req) => {
 
     if ('data' in brand) {
       const d = brand.data || {};
+      const bfLogos = pickLogos(d.logos);
       extract = {
         name: (d.name && String(d.name).trim()) || domain,
         colors: (d.colors || []).filter((c: any) => typeof c?.hex === 'string'),
-        logos: pickLogos(d.logos),
+        logos: bfLogos,
+        // Brandfetch's clean icon leads; the site's own mark backs it up.
+        markUrl: bfLogos.iconUrl || site.markUrl,
         font: pickFont(d.fonts),
         bannerUrl: pickBanner(d.images),
         description: String(d.description || '').slice(0, 400),
@@ -509,12 +574,14 @@ Deno.serve(async (req) => {
     } else if (site.screenshotUrl || site.markdown) {
       // Brandfetch doesn't index most small businesses — exactly our audience.
       // The site itself carries everything the designers need: screenshot,
-      // copy, colour census, page title. No logo → monogram fallback.
+      // copy, colour census, page title, and its own favicon/touch-icon as the
+      // brand mark (og:image as a banner). Monogram only if even that's absent.
       const rawTitle = (site.title || '').split(/\s+[|—–·:-]\s+/)[0].trim();
       extract = {
         name: rawTitle.slice(0, 40) || domain.split('.')[0].replace(/^./, (c: string) => c.toUpperCase()),
         colors: (site.cssColours || []).slice(0, 6).map((c) => ({ hex: c.hex, type: 'css' })),
         logos: { logoUrl: null, logoDarkUrl: null, iconUrl: null, logoRasterUrl: null },
+        markUrl: site.markUrl,
         font: null,
         bannerUrl: null,
         description: String(site.metaDescription || '').slice(0, 400),
@@ -524,7 +591,7 @@ Deno.serve(async (req) => {
         cssColours: site.cssColours,
         source: 'site',
       };
-      console.log('brand-preview site-only fallback', domain);
+      console.log('brand-preview site-only fallback', domain, site.markUrl ? '(mark)' : '(monogram)');
     } else if ('error' in brand) {
       return json({ error: 'extract-failed' }, 502);
     } else {
@@ -644,6 +711,7 @@ Deno.serve(async (req) => {
       logoUrl: logos.logoUrl,
       logoDarkUrl: logos.logoDarkUrl,
       iconUrl: logos.iconUrl,
+      markUrl: extract.markUrl ?? logos.iconUrl ?? null,
       bannerUrl,
       font,
       description: extract.description,
