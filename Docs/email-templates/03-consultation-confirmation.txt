@@ -22,7 +22,9 @@ CRM. Knowing what's already in place helps me work out what we could
 realistically connect to, so the ideas on the day are practical rather
 than generic.
 
-Need to change the time? Just reply to this email and I'll sort it.
+Need to change the time? Reschedule or cancel here:
+{{manage_url}}
+(or just reply to this email.)
 
 Speak soon,
 Finlay

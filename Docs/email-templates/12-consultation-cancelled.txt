@@ -1,0 +1,18 @@
+Your Consultation Is Cancelled
+
+Hi {{first_name}},
+
+Your consultation on {{date}} at {{time}} (UK time) has been cancelled
+— no problem at all. If you'd still like to talk, you can pick a new
+time whenever suits:
+
+{{rebook_url}}
+
+Speak soon,
+Finlay
+SettlePay
+
+—
+SettlePay is a trading name of Finlay Salisbury.
+2b Rodney Street, London N1 9FS
+hello@settlepay.uk · settlepay.uk
