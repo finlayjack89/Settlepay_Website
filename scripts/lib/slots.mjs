@@ -66,8 +66,7 @@ export function generateSlots(cfg, busy, now) {
   const nowMs = now.getTime();
   const earliest = nowMs + cfg.minNoticeMinutes * 60000;
   const horizon = nowMs + cfg.horizonDays * 86400000;
-  const [sh, sm] = cfg.dayStart.split(':').map(Number);
-  const [eh, em] = cfg.dayEnd.split(':').map(Number);
+  const p2 = (n) => String(n).padStart(2, '0');
   const padded = (busy || []).map((b) => ({
     start: Date.parse(b.start) - cfg.bufferMinutes * 60000,
     end: Date.parse(b.end) + cfg.bufferMinutes * 60000,
@@ -77,18 +76,22 @@ export function generateSlots(cfg, busy, now) {
   const seen = new Set(); // dedupe days (a fall-back 25h day can repeat via +24h stepping)
   for (let dOff = 0; dOff <= cfg.horizonDays + 1; dOff++) {
     const { year, month, day, weekday } = zonedYmd(nowMs + dOff * 86400000, tz);
-    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const iso = `${year}-${p2(month)}-${p2(day)}`;
     if (seen.has(iso)) continue;
     seen.add(iso);
-    if (!cfg.workingDays.includes(weekday)) continue;
     if (cfg.blackoutDates && cfg.blackoutDates.includes(iso)) continue;
 
-    const dayStart = zonedWallToUtc(year, month, day, sh, sm, tz);
-    const dayEnd = zonedWallToUtc(year, month, day, eh, em, tz);
-    for (let t = dayStart; t + step <= dayEnd; t += step) {
-      if (t < earliest || t > horizon) continue;
-      if (padded.some((p) => t < p.end && t + step > p.start)) continue; // half-open overlap
-      out.push({ startIso: new Date(t).toISOString(), endIso: new Date(t + step).toISOString() });
+    const windows = (cfg.hours && cfg.hours[weekday]) || []; // per-weekday availability
+    for (const [ws, we] of windows) {
+      const [sh, sm] = ws.split(':').map(Number);
+      const [eh, em] = we.split(':').map(Number);
+      const winStart = zonedWallToUtc(year, month, day, sh, sm, tz);
+      const winEnd = zonedWallToUtc(year, month, day, eh, em, tz);
+      for (let t = winStart; t + step <= winEnd; t += step) {
+        if (t < earliest || t > horizon) continue;
+        if (padded.some((pp) => t < pp.end && t + step > pp.start)) continue; // half-open overlap
+        out.push({ startIso: new Date(t).toISOString(), endIso: new Date(t + step).toISOString() });
+      }
     }
   }
   return out;
