@@ -369,7 +369,13 @@ Deno.serve(async (req) => {
       }
 
       const base = Deno.env.get('RENDER_BASE') ?? 'https://settlepay.uk';
-      const target = base + '/p/render/?s=' + slug + '&device=' + device + (theme ? '&theme=' + theme : '');
+      // 4K-class output: the render page zooms itself by `scale` (Firecrawl has
+      // no deviceScaleFactor) and the capture viewport grows to match — desktop
+      // lands at 3520px wide, mobile at 2160px. Text and layout stay vector-
+      // crisp; raster logos are as sharp as their source allows.
+      const scale = Math.min(4, Math.max(1, Number(Deno.env.get('RENDER_SCALE') ?? '4') || 4));
+      const target =
+        base + '/p/render/?s=' + slug + '&device=' + device + (theme ? '&theme=' + theme : '') + '&scale=' + scale;
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 30_000);
       const shot = await fetch('https://api.firecrawl.dev/v2/scrape', {
@@ -381,10 +387,10 @@ Deno.serve(async (req) => {
             {
               type: 'screenshot',
               fullPage: true,
-              viewport: { width: device === 'desktop' ? 880 : 540, height: 900 },
+              viewport: { width: (device === 'desktop' ? 880 : 540) * scale, height: 900 },
             },
           ],
-          waitFor: 3500, // the render page fetches + paints + loads the logo
+          waitFor: 4000, // fetch + paint + logo load + zoomed decode
         }),
         signal: ctl.signal,
       });
