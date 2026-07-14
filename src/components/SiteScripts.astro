@@ -289,4 +289,221 @@
       });
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Bespoke booking slot picker (/book/) — fetch availability, pick, confirm
+  // ---------------------------------------------------------------------------
+  const booking = document.getElementById('sp-booking');
+  if (booking) {
+    const availUrl = booking.dataset.availability!;
+    const bookUrl = booking.dataset.book!;
+    const steps = {
+      loading: booking.querySelector('[data-step="loading"]') as HTMLElement,
+      error: booking.querySelector('[data-step="error"]') as HTMLElement,
+      slots: booking.querySelector('[data-step="slots"]') as HTMLElement,
+      details: booking.querySelector('[data-step="details"]') as HTMLElement,
+      success: booking.querySelector('[data-step="success"]') as HTMLElement,
+    };
+    const slotsList = booking.querySelector('[data-slots-list]') as HTMLElement;
+    const chosenEl = booking.querySelector('[data-chosen]') as HTMLElement;
+    const form = booking.querySelector('[data-book-form]') as HTMLFormElement;
+    const submitBtn = booking.querySelector('[data-book-submit]') as HTMLButtonElement;
+    const bookErr = booking.querySelector('[data-book-error]') as HTMLElement;
+    const backBtn = booking.querySelector('[data-back]') as HTMLElement | null;
+    const successWhen = booking.querySelector('[data-success-when]') as HTMLElement;
+    const joinLink = booking.querySelector('[data-join-link]') as HTMLAnchorElement;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London';
+    let selected: { start: string; label: string; day: string } | null = null;
+
+    const show = (name: keyof typeof steps) => {
+      (Object.keys(steps) as (keyof typeof steps)[]).forEach((k) => { steps[k].hidden = k !== name; });
+    };
+
+    const renderDays = (days: any[]) => {
+      slotsList.innerHTML = '';
+      if (!days.length) {
+        slotsList.innerHTML =
+          '<p class="sp-booking__state">No times available in the next couple of weeks — please <a href="#book-message">send a message</a> and we will find a slot.</p>';
+        return;
+      }
+      for (const d of days) {
+        const wrap = document.createElement('div');
+        const lbl = document.createElement('p');
+        lbl.className = 'sp-booking__day-label';
+        lbl.textContent = d.label;
+        wrap.appendChild(lbl);
+        const chips = document.createElement('div');
+        chips.className = 'sp-booking__chips';
+        for (const s of d.slots) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'sp-booking__chip';
+          b.textContent = s.label;
+          b.addEventListener('click', () => {
+            selected = { start: s.start, label: s.label, day: d.label };
+            chosenEl.textContent = `${d.label} at ${s.label} (UK time)`;
+            bookErr.hidden = true;
+            show('details');
+            (form.querySelector('#b-name') as HTMLElement | null)?.focus();
+          });
+          chips.appendChild(b);
+        }
+        wrap.appendChild(chips);
+        slotsList.appendChild(wrap);
+      }
+    };
+
+    const load = async () => {
+      show('loading');
+      try {
+        const res = await fetch(availUrl);
+        if (!res.ok) throw new Error('bad');
+        const data = await res.json();
+        renderDays(data.days || []);
+        show('slots');
+      } catch {
+        show('error');
+      }
+    };
+
+    backBtn?.addEventListener('click', () => show('slots'));
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      bookErr.hidden = true;
+      if (!selected) { show('slots'); return; }
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      const honeypot = form.querySelector('[name="_gotcha"]') as HTMLInputElement | null;
+      if (honeypot?.value) { show('success'); return; }
+      const fd = new FormData(form);
+      const label = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+      submitBtn.innerHTML = 'Booking…';
+      try {
+        const res = await fetch(bookUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            start: selected.start,
+            name: fd.get('name'),
+            email: fd.get('email'),
+            business: fd.get('business'),
+            notes: fd.get('notes'),
+            timezone: tz,
+            _gotcha: fd.get('_gotcha'),
+          }),
+        });
+        const out = await res.json();
+        if (res.ok && out.ok) {
+          successWhen.textContent = `${out.date} at ${out.time}`;
+          if (out.meetUrl) { joinLink.href = out.meetUrl; joinLink.hidden = false; }
+          show('success');
+        } else if (res.status === 409) {
+          bookErr.textContent = 'Sorry — that time was just taken. Please pick another.';
+          bookErr.hidden = false;
+          await load();
+        } else {
+          throw new Error('book-failed');
+        }
+      } catch {
+        bookErr.textContent = "Something went wrong. Please email hello@settlepay.uk and we'll sort a time.";
+        bookErr.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+        submitBtn.innerHTML = label;
+      }
+    });
+
+    load();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Booking self-management (/manage/) — reschedule or cancel via manage_token
+  // ---------------------------------------------------------------------------
+  const manage = document.getElementById('sp-manage');
+  if (manage) {
+    const manageUrl = manage.dataset.manage!;
+    const mAvailUrl = manage.dataset.availability!;
+    const token = new URLSearchParams(location.search).get('t') || '';
+    const mtz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London';
+    const q = (sel: string) => manage.querySelector(sel) as HTMLElement;
+    const mErr = q('[data-merror]');
+    const mstep = (name: string) => manage.querySelectorAll('[data-mstep]').forEach((el) => {
+      (el as HTMLElement).hidden = (el as HTMLElement).dataset.mstep !== name;
+    });
+
+    const renderSummary = (b: any) => {
+      q('[data-msummary]').textContent = `${b.date} at ${b.time}`;
+      q('[data-mstatus]').textContent = b.status === 'cancelled'
+        ? 'This booking has been cancelled.'
+        : b.canManage ? 'Shown in UK time. You can reschedule or cancel below.' : 'This booking has passed.';
+      const join = q('[data-mjoin]') as HTMLAnchorElement;
+      if (b.meetUrl && b.canManage) { join.href = b.meetUrl; join.hidden = false; } else { join.hidden = true; }
+      (q('[data-mreschedule]')).hidden = !b.canManage;
+      (q('[data-mcancel]')).hidden = !b.canManage;
+      mstep('summary');
+    };
+
+    const loadSummary = async () => {
+      if (!token) { mstep('notfound'); return; }
+      try {
+        const res = await fetch(`${manageUrl}?t=${encodeURIComponent(token)}`);
+        if (!res.ok) { mstep('notfound'); return; }
+        renderSummary(await res.json());
+      } catch { mstep('notfound'); }
+    };
+
+    q('[data-mcancel]')?.addEventListener('click', async () => {
+      if (!confirm('Cancel this consultation?')) return;
+      mErr.hidden = true;
+      try {
+        const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'cancel' }) });
+        if (!res.ok) throw new Error();
+        q('[data-mdone-title]').textContent = 'Booking Cancelled';
+        q('[data-mdone-when]').textContent = '';
+        q('[data-mdone-note]').innerHTML = 'No problem at all. You can <a href="/book/">book another time</a> whenever suits.';
+        mstep('done');
+      } catch { mErr.textContent = 'Could not cancel — please email hello@settlepay.uk.'; mErr.hidden = false; }
+    });
+
+    q('[data-mback]')?.addEventListener('click', () => mstep('summary'));
+
+    q('[data-mreschedule]')?.addEventListener('click', async () => {
+      const list = q('[data-mslots]');
+      list.innerHTML = '<p class="sp-booking__state">Loading times…</p>';
+      mstep('reschedule');
+      try {
+        const data = await (await fetch(mAvailUrl)).json();
+        list.innerHTML = '';
+        for (const d of data.days || []) {
+          const wrap = document.createElement('div');
+          const lbl = document.createElement('p'); lbl.className = 'sp-booking__day-label'; lbl.textContent = d.label; wrap.appendChild(lbl);
+          const chips = document.createElement('div'); chips.className = 'sp-booking__chips';
+          for (const s of d.slots) {
+            const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'sp-booking__chip'; btn.textContent = s.label;
+            btn.addEventListener('click', async () => {
+              if (!confirm(`Move your consultation to ${d.label} at ${s.label}?`)) return;
+              try {
+                const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'reschedule', start: s.start, timezone: mtz }) });
+                const out = await res.json();
+                if (res.ok && out.ok) {
+                  q('[data-mdone-title]').textContent = 'Booking Rescheduled';
+                  q('[data-mdone-when]').textContent = `${out.date} at ${out.time}`;
+                  q('[data-mdone-note]').textContent = "We've sent you an updated confirmation.";
+                  mstep('done');
+                } else if (res.status === 409) { alert('Sorry — that time was just taken. Please pick another.'); }
+                else throw new Error();
+              } catch { alert('Could not reschedule — please email hello@settlepay.uk.'); }
+            });
+            chips.appendChild(btn);
+          }
+          wrap.appendChild(chips); list.appendChild(wrap);
+        }
+      } catch { list.innerHTML = '<p class="sp-booking__state">Could not load times. Email hello@settlepay.uk.</p>'; }
+    });
+
+    loadSummary();
+  }
 </script>

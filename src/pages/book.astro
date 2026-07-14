@@ -1,12 +1,11 @@
 ---
 /**
- * /book/ — pick a time directly. Embeds the Cal.com (EU) booking calendar inline
- * so visitors can self-schedule the free consultation without leaving the site.
+ * /book/ — pick a time directly. A bespoke slot picker fetches live availability
+ * from our own Supabase functions (host working hours minus Google Calendar busy),
+ * then books the slot: creates a Google Calendar event with a Meet link and sends
+ * one SettlePay-branded confirmation. No third party, no Cal.com.
  *
- * The third-party embed script (app.cal.eu) loads ONLY on this page — every other
- * route stays JS-free and cookie-clean. Inline mode (not a popup) is used because
- * it has no click-timing race and degrades gracefully to a plain link if the
- * iframe is blocked.
+ * Behaviour lives in SiteScripts.astro (bundled), guarded by #sp-booking.
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
@@ -64,12 +63,70 @@ const checklist = [
       </aside>
 
       <div class="book-main">
-        <div id="settlepay-cal" class="book-embed" aria-label="Booking calendar">
-          <p class="book-embed__loading">
-            Loading the calendar…{' '}
-            <a href={SITE.bookingUrl} target="_blank" rel="noopener">Open it in a new tab</a>{' '}
-            if it doesn't appear.
-          </p>
+        <div
+          id="sp-booking"
+          class="sp-booking"
+          data-availability={SITE.availabilityEndpoint}
+          data-book={SITE.bookEndpoint}
+        >
+          <div data-step="loading" class="sp-booking__state" aria-live="polite">
+            <span class="sp-spinner" aria-hidden="true"></span>
+            <p>Loading available times…</p>
+          </div>
+
+          <div data-step="error" class="sp-booking__state" hidden>
+            <p>
+              We couldn't load available times just now. Please
+              <a href="#book-message">send a message</a> or email
+              <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a> and we'll sort a time.
+            </p>
+          </div>
+
+          <div data-step="slots" hidden>
+            <div class="sp-booking__head">
+              <h2 class="sp-booking__title">Pick a Time</h2>
+              <p class="sp-booking__tz"><Icon name="clock" sw={2} /> All times shown in UK time (Europe/London).</p>
+            </div>
+            <div data-slots-list class="sp-booking__days"></div>
+          </div>
+
+          <div data-step="details" hidden>
+            <button type="button" data-back class="sp-booking__back"><Icon name="chevron" sw={2.5} /> Change time</button>
+            <p class="sp-booking__chosen" data-chosen></p>
+            <form data-book-form class="sp-modal__form" novalidate>
+              <div class="sp-field">
+                <input required name="name" id="b-name" placeholder=" " autocomplete="name" />
+                <label for="b-name">Your name</label>
+              </div>
+              <div class="sp-field">
+                <input required type="email" name="email" id="b-email" placeholder=" " autocomplete="email" />
+                <label for="b-email">Email address</label>
+              </div>
+              <div class="sp-field">
+                <input name="business" id="b-business" placeholder=" " autocomplete="organization" />
+                <label for="b-business">Business name (optional)</label>
+              </div>
+              <div class="sp-field sp-field--area">
+                <textarea name="notes" id="b-notes" rows="3" placeholder=" "></textarea>
+                <label for="b-notes">Anything you'd like to cover? (optional)</label>
+              </div>
+              <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
+              <Button type="submit" icon="arrow" data-book-submit>Confirm Booking</Button>
+              <p class="sp-field__hint" data-book-error hidden role="alert" aria-live="assertive" style="color:var(--color-error)"></p>
+            </form>
+          </div>
+
+          <div data-step="success" class="sp-booking__success" hidden>
+            <div class="sp-booking__success-icon"><Icon name="check" sw={2.5} /></div>
+            <h2>You're Booked In</h2>
+            <p class="sp-booking__success-when" data-success-when></p>
+            <p class="sp-booking__success-note">
+              A confirmation with a calendar invite and your video link is on its way to your inbox.
+            </p>
+            <a data-join-link class="btn-primary sp-booking__join" target="_blank" rel="noopener" hidden>
+              Join Link<Icon name="arrow" sw={2.5} />
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -91,76 +148,71 @@ const checklist = [
   </section>
 </BaseLayout>
 
-<!-- Cal.com (EU) inline embed — loads only on this page. -->
-<script is:inline>
-  (function (C, A, L) {
-    let p = function (a, ar) { a.q.push(ar); };
-    let d = C.document;
-    C.Cal = C.Cal || function () {
-      let cal = C.Cal; let ar = arguments;
-      if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement('script')).src = A; cal.loaded = true; }
-      if (ar[0] === L) {
-        const api = function () { p(api, arguments); };
-        const namespace = ar[1];
-        api.q = api.q || [];
-        if (typeof namespace === 'string') { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ['initNamespace', namespace]); }
-        else p(cal, ar);
-        return;
-      }
-      p(cal, ar);
-    };
-  })(window, 'https://app.cal.eu/embed/embed.js', 'init');
-
-  Cal('init', 'consult', { origin: 'https://app.cal.eu' });
-  Cal.ns.consult('inline', {
-    elementOrSelector: '#settlepay-cal',
-    config: { layout: 'month_view', theme: 'light' },
-    calLink: 'settlepay/30min',
-  });
-  Cal.ns.consult('ui', {
-    hideEventTypeDetails: false,
-    layout: 'month_view',
-    cssVarsPerTheme: { light: { 'cal-brand': '#3B82F6' }, dark: { 'cal-brand': '#3B82F6' } },
-  });
-</script>
-
 <style>
   .book-section { padding: 0 0 5rem; }
-  .book-grid {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 2.5rem;
-    align-items: start;
-  }
+  .book-grid { display: grid; grid-template-columns: 300px 1fr; gap: 2.5rem; align-items: start; }
   .book-aside { position: sticky; top: calc(var(--nav-offset) + 1rem); }
-  .book-aside__title {
-    font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
-    margin: 0 0 1rem;
-  }
+  .book-aside__title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1rem; }
   .book-aside__list { list-style: none; margin: 0 0 1.25rem; padding: 0; display: grid; gap: 0.85rem; }
   .book-aside__list li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.92rem; line-height: 1.5; }
   .book-aside__list svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.15rem; color: var(--color-primary-action); }
-  .book-aside__note {
-    font-size: 0.82rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6;
-    padding-top: 1rem; border-top: 1px solid rgba(15, 23, 42, 0.08);
-  }
+  .book-aside__note { font-size: 0.82rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6; padding-top: 1rem; border-top: 1px solid rgba(15, 23, 42, 0.08); }
 
   .book-main {
     background: var(--color-pure-white);
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-md);
-    padding: 0.5rem;
-    overflow: hidden;
+    padding: 1.75rem;
+    min-height: 420px;
   }
-  .book-embed { width: 100%; min-height: 640px; }
-  .book-embed__loading {
-    text-align: center; padding: 5rem 1.5rem; font-size: 0.92rem;
-    color: var(--color-primary-brand); opacity: 0.6;
+
+  .sp-booking__state { text-align: center; padding: 4rem 1rem; color: var(--color-primary-brand); opacity: 0.7; font-size: 0.95rem; line-height: 1.6; }
+  .sp-spinner {
+    display: inline-block; width: 26px; height: 26px; margin-bottom: 1rem;
+    border: 3px solid rgba(59, 130, 246, 0.25); border-top-color: var(--color-primary-action);
+    border-radius: 50%; animation: spSpin 0.7s linear infinite;
   }
+  @keyframes spSpin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .sp-spinner { animation: none; } }
+
+  .sp-booking__head { margin-bottom: 1.5rem; }
+  .sp-booking__title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.4rem; }
+  .sp-booking__tz { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--color-primary-brand); opacity: 0.55; }
+  .sp-booking__tz svg { width: 15px; height: 15px; }
+
+  .sp-booking__days { display: grid; gap: 1.4rem; max-height: 30rem; overflow-y: auto; }
+  .sp-booking__day-label { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-primary-brand); opacity: 0.55; margin: 0 0 0.6rem; }
+  .sp-booking__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .sp-booking__chip {
+    appearance: none; cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 0.55rem 0.95rem; border-radius: var(--radius-input);
+    border: 1px solid rgba(15, 23, 42, 0.14); background: var(--color-pure-white); color: var(--color-primary-brand);
+    transition: border-color var(--ease-snappy), background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .sp-booking__chip:hover { border-color: var(--color-primary-action); background: rgba(59, 130, 246, 0.06); }
+  .sp-booking__chip:active { transform: scale(0.97); }
+  .sp-booking__chip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-primary-action); }
+
+  .sp-booking__back {
+    appearance: none; border: none; background: none; cursor: pointer; font: inherit;
+    display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.88rem; font-weight: 600;
+    color: var(--color-primary-action); padding: 0; margin: 0 0 1rem;
+  }
+  .sp-booking__back svg { width: 16px; height: 16px; transform: rotate(90deg); }
+  .sp-booking__chosen { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1.25rem; }
+
+  .sp-booking__success { text-align: center; padding: 1.5rem 0.5rem; }
+  .sp-booking__success-icon { width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10B981; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.1rem; }
+  .sp-booking__success-icon svg { width: 28px; height: 28px; }
+  .sp-booking__success h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  .sp-booking__success-when { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .sp-booking__success-note { font-size: 0.9rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6; margin-bottom: 1.5rem; }
+  .sp-booking__join { display: inline-flex; align-items: center; gap: 0.4rem; }
 
   @media (max-width: 860px) {
     .book-grid { grid-template-columns: 1fr; gap: 1.75rem; }
     .book-aside { position: static; }
+    .book-main { padding: 1.25rem; }
   }
 </style>
