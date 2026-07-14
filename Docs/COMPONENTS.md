@@ -26,13 +26,12 @@ The only way to render a button or button-styled link. Pills (100px), one primar
 | `class` | string | — | extra classes (rare) |
 
 ```astro
-<Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-<Button variant="secondary" href="/faq/">Read the FAQ</Button>
-<Button variant="primary" size="large" onDark enquire>Book a Free Consultation</Button>
+<Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+<Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
 ```
 **Use when:** any call to action. For "open the enquiry form" use `enquire`; for navigation use `href`.
-Standard CTA labels: **"Enquire Now"** in compact chrome (nav/hero), **"Book a Free Consultation"** for
-long-form CTAs.
+CTA labels come from `SITE.cta` in `src/data/site.mjs` — primary **"Send an Enquiry"** (always the
+modal), secondary **"Book a Free Call"** (always `/book/`). Don't hardcode funnel labels.
 
 ### `Icon.astro`
 Heroicons v2 outline, inline SVG, `currentColor`.
@@ -44,12 +43,14 @@ Heroicons v2 outline, inline SVG, `currentColor`.
 | `class` / `style` | — | — |
 
 Available names: `phone, mail, clock, arrow, sparkles, cog, refresh, users, card, shield, lock, globe,
-check, chevron, close, menu, store, scale, chat`. **Add new glyphs to the `P` map in `Icon.astro`**
+check, chevron, close, menu, store, scale, chat, banknotes`. **Add new glyphs to the `P` map in `Icon.astro`**
 (copy the exact Heroicons outline path) — never inline ad-hoc SVGs. `sw` 1.5 = decorative tiles,
 2–2.5 = inline UI.
 
 ### `SectionHeader.astro`
-Centred eyebrow + title (with one optional blue highlight word) + subtitle. Used atop most sections.
+Eyebrow + title (with one optional blue highlight word) + subtitle. Used atop most sections.
+Centred by default; `align="left"` for sections whose content runs header-left / content-right
+(HowItWorks, Calculator).
 
 | Prop | Type | Notes |
 |---|---|---|
@@ -59,10 +60,24 @@ Centred eyebrow + title (with one optional blue highlight word) + subtitle. Used
 | `blue` | string | the highlighted word/phrase (rendered blue) |
 | `titleAfter` | string | text after the blue word |
 | `subtitle` | string | supporting line |
+| `align` | `"center" \| "left"` | default `"center"` |
 
 ```astro
-<SectionHeader eyebrow="How It Works" title="The Plumbing, " blue="Explained" subtitle="…" />
+<SectionHeader align="left" eyebrow="How It Works" title="The Plumbing, " blue="Explained" subtitle="…" />
 ```
+
+### `StatusChip.astro`
+Small glass notification chip floated over dark product stages (`.stage-dark`) — narrates an outcome
+("Payment received · £850.00"). Decorative: wrap chip groups in `aria-hidden="true"`. Styles in
+`kit-extras.css` (`.status-chip`).
+
+| Prop | Type | Notes |
+|---|---|---|
+| `icon` | Heroicon name | rendered in a tinted 30px tile |
+| `label` | string | the message |
+| `value` | string | optional bold value appended after "·" |
+| `tone` | `"neutral" \| "success"` | success = green tint (functional colour, never blue) |
+| `class` | string | positioning classes (e.g. `hero-chip hero-chip--1`) |
 
 ### `Breadcrumbs.astro`
 `items={[{ name, path }]}` — last item is the current page. Used on all inner pages (also feeds
@@ -73,8 +88,8 @@ Centred eyebrow + title (with one optional blue highlight word) + subtitle. Used
 ## Chrome (site-wide)
 
 ### `Nav.astro`
-Sticky floating-island nav. Links from `SITE.nav`, primary "Enquire Now" (opens modal), mobile drawer
-(hamburger < 768px). No props. Edit links in `src/data/site.mjs`.
+Sticky floating-island nav. Links from `SITE.nav`, primary `SITE.cta.primary.label` (opens modal),
+mobile drawer (hamburger < 768px). No props. Edit links in `src/data/site.mjs`.
 
 ### `Footer.astro`
 Two-column footer with the **honest sole-trader disclosure** (no "Ltd"). Links from `SITE.footerLinks`,
@@ -127,12 +142,12 @@ Compose these in `src/pages/index.astro`. Each is self-contained (copy lives ins
 
 | Component | What it is | Section `id` |
 |---|---|---|
-| `Hero.astro` | Headline + sub + CTAs + interactive branded-checkout mockup | `#hero` |
-| `TrustBar.astro` | Elevated white bar of 4 trust badges | — |
-| `ValueProps.astro` | Four zig-zag value props, each with a live mockup preview | `#about` |
+| `Hero.astro` | Headline + sub + CTAs + interactive checkout mockup on a navy `.stage-dark` with floating `StatusChip`s | `#hero` |
+| `TrustBar.astro` | Slim one-line proof strip (trust points + live-client pill) | — |
+| `ValueProps.astro` | 2×2 bento of value-prop cards, each with a top-cropped mockup preview | `#about` |
 | `OurWork.astro` | Portfolio teaser cards (Live client / Illustrative demo) + disclaimer + link to `/work/` | `#work` |
-| `HowItWorks.astro` | 3 numbered steps + dashboard mockup + "manual vs automated" modes | `#integration` |
-| `FastStart.astro` | Reassurance chips + 3-stage timeline + urgent-service callout | `#timeline` |
+| `HowItWorks.astro` | 3 numbered steps + dashboard mockup on `.stage-dark` + "manual vs automated" modes | `#integration` |
+| `FastStart.astro` | Reassurance chips + 3-stage timeline + urgent-service note (slate band) | `#timeline` |
 | `Calculator.astro` | Live ROI calculator (sliders → hours saved) | `#pricing` |
 | `CtaBand.astro` | Dark CTA band, primary + secondary | `#enquire` |
 
