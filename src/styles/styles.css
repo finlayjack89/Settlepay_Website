@@ -259,9 +259,9 @@ body::after {
   margin: calc(12px * var(--nav-scroll-p, 0)) auto 0;
   border: 1px solid rgba(15, 23, 42, calc(0.07 * var(--nav-scroll-p, 0)));
   border-radius: calc(100px * var(--nav-scroll-p, 0));
-  background-color: rgba(255, 255, 255, calc(0.72 + 0.16 * var(--nav-scroll-p, 0)));
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  background-color: rgba(255, 255, 255, calc(0.62 + 0.16 * var(--nav-scroll-p, 0)));
+  backdrop-filter: blur(18px) saturate(1.8);
+  -webkit-backdrop-filter: blur(18px) saturate(1.8);
   /* Definition so the bar reads as a frosted-glass surface even over the white
      hero (where the blur alone has nothing behind it to soften):
      1) a bottom hairline at the top state that fades as it collapses to a pill,
