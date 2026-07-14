@@ -144,6 +144,9 @@ export function resolveBrief(variant, brand, overrides) {
     showVerified: brief.header.verified && (!desktop || !(brief.header.nav || []).length),
     logoUrl: logo.src,
     logoChip: !!logo.chip,
+    // The brand mark (favicon/touch-icon) stands in for the monogram when there
+    // is no wordmark logo — a real icon beside the business name.
+    markUrl: !logo.src ? brand.markUrl || null : null,
     header: brief.header,
     sections: brief.sections,
     content,
@@ -206,6 +209,7 @@ export function paintBrief(cardRoot, r, shared) {
 
   const brandRow = q(el, '[data-pp-brand]');
   const logo = q(el, '[data-pp-logo]');
+  const mark = q(el, '[data-pp-mark]');
   if (brandRow && logo) {
     logo.classList.toggle('pp__logo--chip', r.logoChip);
     if (r.logoUrl) {
@@ -222,6 +226,24 @@ export function paintBrief(cardRoot, r, shared) {
       logo.hidden = true;
       logo.removeAttribute('src');
       brandRow.classList.remove('has-logo');
+    }
+  }
+  // Mark stands in for the monogram (wordmark logo wins over it, above).
+  if (brandRow && mark) {
+    if (r.markUrl && !r.logoUrl) {
+      mark.alt = shared.name;
+      if (mark.getAttribute('src') !== r.markUrl) {
+        mark.onload = () => { mark.hidden = false; brandRow.classList.add('has-mark'); };
+        mark.onerror = () => { mark.hidden = true; brandRow.classList.remove('has-mark'); };
+        mark.src = r.markUrl;
+      } else if (mark.complete && mark.naturalWidth) {
+        mark.hidden = false;
+        brandRow.classList.add('has-mark');
+      }
+    } else {
+      mark.hidden = true;
+      mark.removeAttribute('src');
+      brandRow.classList.remove('has-mark');
     }
   }
 

@@ -40,6 +40,7 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
     <header class="pp__header">
       <div class="pp__brand" data-pp-brand>
         <span class="pp__mono" data-pp-mono>YB</span>
+        <img class="pp__mark" data-pp-mark alt="" hidden />
         <img class="pp__logo" data-pp-logo alt="" hidden />
         <div class="pp__wordmark">
           <span class="pp__name" data-pp-name>Your Business</span>
@@ -258,6 +259,22 @@ const { url = 'pay.your-business.co.uk/checkout' } = Astro.props;
   }
   .pp__logo { height: 34px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; }
   .pp__logo[hidden] { display: none; }
+  /* The brand MARK (favicon/touch-icon) sits in the monogram's place on a white
+     tile — a square icon designed for a browser tab reads on any header — and
+     the wordmark name stays beside it. */
+  .pp__mark {
+    width: 36px;
+    height: 36px;
+    border-radius: calc(var(--pp-radius) * 0.75);
+    object-fit: contain;
+    background: #ffffff;
+    border: 1px solid var(--pp-line);
+    padding: 3px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+  .pp__mark[hidden] { display: none; }
+  .pp__brand.has-mark .pp__mono { display: none; }
   /* Chip treatment: when only the wrong-theme artwork exists, back it with a
      contrasting chip (set via --pp-logo-chip) instead of losing the logo. */
   .pp__logo--chip {
