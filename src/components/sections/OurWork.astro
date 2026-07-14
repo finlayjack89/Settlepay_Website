@@ -21,6 +21,7 @@ const thumbStyle = (b) =>
 <section class="our-work section-pad" id="work" data-screen-label="Our work">
   <div class="container">
     <SectionHeader
+      align="left"
       eyebrow="Our Work"
       title="See What a Bespoke Page "
       blue="Actually Looks Like"
@@ -28,7 +29,7 @@ const thumbStyle = (b) =>
     />
     <div class="pf-grid">
       {featured.map((e) => (
-        <a class="pf-card" href={`/work/${e.slug}/`}>
+        <a class="pf-card" href={`/work/${e.slug}/`} data-reveal>
           <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
             <div class="pf-thumb__chrome"><span></span><span></span><span></span></div>
             <div class="pf-thumb__page">

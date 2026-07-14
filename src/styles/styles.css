@@ -57,7 +57,7 @@
   --space-header-gap:      2.5rem; /* SectionHeader → section content */
 
   /* Type scale */
-  --text-display:    clamp(2.1rem, 3vw + 1rem, 3.4rem);     /* hero H1 */
+  --text-display:    clamp(2.1rem, 3.2vw + 1rem, 3.6rem);   /* hero H1 */
   --text-title:      clamp(1.65rem, 2vw + 0.75rem, 2.4rem); /* section H2 */
   --text-page-title: clamp(1.9rem, 2.2vw + 1rem, 2.6rem);   /* interior page H1 */
   --text-lead:       1.1rem;
@@ -196,6 +196,54 @@ body::after {
 
 .value-prop__header--left .section-subtitle {
   margin-inline: 0;
+}
+
+/* Scroll reveal — subtle enter (opacity + 14px lift), staggered per group via
+   --reveal-delay set in SiteScripts. Hidden state only applies once JS has
+   added .reveal-ready to <html>, so no-JS visitors always see content. */
+html.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--ease-cinematic),
+    transform var(--ease-cinematic);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+html.reveal-ready [data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Full-bleed dark section ("dark chapter"). Use at most once between the hero
+   and the CtaBand — dark stays special. Overrides keep WCAG AA contrast. */
+.section--dark {
+  background:
+    radial-gradient(120% 90% at 50% -20%, #1E2B45 0%, transparent 60%),
+    var(--color-primary-brand);
+  color: var(--color-pure-white);
+}
+
+.section--dark .section-title {
+  color: var(--color-pure-white);
+}
+
+.section--dark .section-subtitle {
+  color: rgba(255, 255, 255, 0.68);
+  opacity: 1;
+}
+
+.section--dark .section-badge {
+  color: #93C5FD;
+  background-color: rgba(59, 130, 246, 0.16);
 }
 
 /* ---------------------------------------------------------
@@ -478,6 +526,19 @@ body::after {
     var(--color-pure-white) 0%,
     var(--color-secondary-bg) 100%
   );
+}
+
+/* Quiet dot-grid texture concentrated behind the stage, fading out — ties the
+   hero to the mockups' dotted-grid motif without gradients or glow. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(80% 75% at 72% 40%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(80% 75% at 72% 40%, #000 0%, transparent 72%);
 }
 
 .hero .container {
@@ -881,9 +942,7 @@ body::after {
 /* ---------------------------------------------------------
    9. How The Plumbing Works (Integration)
    --------------------------------------------------------- */
-.integration {
-  background-color: var(--color-pure-white);
-}
+/* .integration background comes from .section--dark (full-bleed dark chapter) */
 
 .integration__grid {
   display: grid;
@@ -934,6 +993,36 @@ body::after {
   font-size: 0.95rem;
   line-height: 1.6;
   opacity: 0.65;
+}
+
+/* On-dark overrides — the section is a full-bleed dark chapter (.section--dark) */
+.section--dark .integration__step-title,
+.section--dark .integration__flex-title,
+.section--dark .integration__mode-title {
+  color: var(--color-pure-white);
+}
+
+.section--dark .integration__flex {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.section--dark .integration__mode {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.section--dark .integration__mode-tag {
+  color: #93C5FD;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.section--dark .integration__mode-tag--auto {
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.section--dark .dashboard-mockup {
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.5);
 }
 
 /* Invoicing flexibility band */

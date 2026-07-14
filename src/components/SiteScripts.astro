@@ -113,6 +113,36 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Scroll reveals — subtle enter for [data-reveal] groups. The hidden state
+  // only exists under html.reveal-ready, so no-JS visitors see everything.
+  // Stagger is per parent group (capped) via --reveal-delay.
+  // ---------------------------------------------------------------------------
+  const revealEls = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+  if (revealEls.length) {
+    document.documentElement.classList.add('reveal-ready');
+    revealEls.forEach((el) => {
+      const parent = el.parentElement;
+      if (!parent) return;
+      const group = Array.from(parent.children).filter((c) => c.hasAttribute('data-reveal'));
+      const idx = group.indexOf(el);
+      if (idx > 0) el.style.setProperty('--reveal-delay', `${Math.min(idx, 5) * 70}ms`);
+    });
+    if ('IntersectionObserver' in window) {
+      const revealIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-revealed');
+            revealIo.unobserve(e.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -8% 0px' });
+      revealEls.forEach((el) => revealIo.observe(el));
+    } else {
+      revealEls.forEach((el) => el.classList.add('is-revealed'));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Hero checkout mockup — payment-method accordion
   // ---------------------------------------------------------------------------
   const checkout = document.querySelector('[data-checkout]');

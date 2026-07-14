@@ -44,7 +44,7 @@ const timeline = [
     <div class="speed__track">
       <div class="speed__steps">
         {timeline.map((s) => (
-          <div class="speed__step">
+          <div class="speed__step" data-reveal>
             <div class="speed__node"><Icon name={s.icon} sw={1.5} /></div>
             <span class="speed__day">{s.day}</span>
             <h3 class="speed__step-title">{s.title}</h3>

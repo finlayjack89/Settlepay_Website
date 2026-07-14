@@ -35,6 +35,12 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 
     <div class="hero__visual">
       <div class="stage-dark hero-stage">
+        {/* Stacked translucent layers behind the checkout — dimensional depth,
+            not glow (see .claude/skills/ui-ux-pro-max: Dimensional Layering). */}
+        <div class="hero-stage__layers" aria-hidden="true">
+          <i class="hero-stage__layer hero-stage__layer--1"></i>
+          <i class="hero-stage__layer hero-stage__layer--2"></i>
+        </div>
         <div class="hero-stage__mockup">
           <!-- Illustrative branded-checkout mockup (interactive method switcher) -->
           <div class="checkout-v2" data-checkout>

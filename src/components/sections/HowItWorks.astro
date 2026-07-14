@@ -17,7 +17,7 @@ const steps = [
   ],
 ];
 ---
-<section class="integration section-pad" data-screen-label="How it works">
+<section class="integration section-pad section--dark" data-screen-label="How it works">
   <div class="container" id="integration">
     <SectionHeader
       align="left"
@@ -29,7 +29,7 @@ const steps = [
     <div class="integration__grid">
       <div class="integration__steps">
         {steps.map(([t, x], i) => (
-          <div class="integration__step">
+          <div class="integration__step" data-reveal>
             <div class="integration__step-num">{i + 1}</div>
             <div class="integration__step-content">
               <h3 class="integration__step-title">{t}</h3>
@@ -39,7 +39,7 @@ const steps = [
         ))}
       </div>
       <div class="integration__visual">
-        <div class="stage-dark integration__stage"><Dashboard /></div>
+        <div class="integration__stage"><Dashboard /></div>
       </div>
     </div>
 
@@ -52,7 +52,7 @@ const steps = [
         </p>
       </div>
       <div class="integration__modes">
-        <div class="integration__mode">
+        <div class="integration__mode" data-reveal>
           <span class="integration__mode-tag">Manual</span>
           <h4 class="integration__mode-title">Enter the Amount, Then Pay</h4>
           <p class="integration__mode-text">
@@ -60,7 +60,7 @@ const steps = [
             totals vary or are agreed case by case.
           </p>
         </div>
-        <div class="integration__mode">
+        <div class="integration__mode" data-reveal>
           <span class="integration__mode-tag integration__mode-tag--auto">Automated</span>
           <h4 class="integration__mode-title">Pre-Filled Pay-by-Link</h4>
           <p class="integration__mode-text">

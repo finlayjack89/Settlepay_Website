@@ -49,7 +49,7 @@ const rows = [
       {rows.map((r) => {
         const Preview = r.Preview;
         return (
-          <article class="bento-card">
+          <article class="bento-card" data-reveal>
             <div class={'bento-card__icon' + (r.tone ? ' bento-card__icon--' + r.tone : '')}>
               <Icon name={r.icon} sw={1.5} />
             </div>
