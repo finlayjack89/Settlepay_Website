@@ -2,6 +2,7 @@
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
 import StatusChip from '../StatusChip.astro';
+import ParticleField from '../ParticleField.astro';
 import { SITE } from '../../data/site.mjs';
 
 const cardMarks = ['Visa', 'Mastercard', 'Amex'];
@@ -35,6 +36,8 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 
     <div class="hero__visual">
       <div class="stage-dark hero-stage" data-tilt data-tilt-max="2.5">
+        {/* WebGL island: quiet drifting particles behind the mockup. */}
+        <ParticleField />
         {/* Stacked translucent layers behind the checkout — dimensional depth,
             not glow (see .claude/skills/ui-ux-pro-max: Dimensional Layering). */}
         <div class="hero-stage__layers" aria-hidden="true">

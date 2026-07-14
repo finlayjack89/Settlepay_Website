@@ -1,6 +1,7 @@
 ---
 import SectionHeader from '../SectionHeader.astro';
 import Dashboard from '../previews/Dashboard.astro';
+import FlowScene from '../FlowScene.astro';
 
 const steps = [
   [
@@ -42,6 +43,9 @@ const steps = [
         <div class="integration__stage" data-live><Dashboard /></div>
       </div>
     </div>
+
+    {/* WebGL island: money-flow diagram — page -> processor -> bank/Xero. */}
+    <FlowScene />
 
     <div class="integration__flex">
       <div class="integration__flex-head">

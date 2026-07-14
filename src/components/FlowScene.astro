@@ -1,0 +1,204 @@
+---
+/**
+ * FlowScene — WebGL island: the money-flow diagram in the dark chapter.
+ * Dotted tracks connect Your Payment Page → FCA-regulated processor →
+ * Your Bank / Xero, with pulses travelling the tracks (Adyen-style, matte).
+ * Labels are real DOM (accessible, crisp); the canvas only draws tracks
+ * and pulses, so with no WebGL the diagram still reads via its chips.
+ *
+ * data-gl-state: "live" | "static" (reduced motion) | "unsupported".
+ * Compliance: narrates that funds go customer → processor → client's bank;
+ * SettlePay never holds funds.
+ */
+const nodes = [
+  { x: 0.09, y: 0.5, title: 'Your Payment Page', sub: 'Designed & built by SettlePay' },
+  { x: 0.46, y: 0.5, title: 'FCA-Regulated Processor', sub: 'Stripe · Adyen · Checkout.com' },
+  { x: 0.88, y: 0.22, title: 'Your Bank', sub: 'Funds settle directly to you' },
+  { x: 0.88, y: 0.78, title: 'Xero / QuickBooks', sub: 'Invoice marked paid' },
+];
+---
+<div class="flow-scene" data-flow-scene>
+  <span class="flow-scene__label">Where Your Money Goes</span>
+  <div class="flow-scene__stage">
+    <canvas class="flow-scene__canvas" data-flow-canvas aria-hidden="true"></canvas>
+    {nodes.map((n) => (
+      <div class="flow-scene__node" style={`--fx:${n.x * 100}%;--fy:${n.y * 100}%`}>
+        <span class="flow-scene__node-title">{n.title}</span>
+        <span class="flow-scene__node-sub">{n.sub}</span>
+      </div>
+    ))}
+  </div>
+  <p class="flow-scene__caption">
+    Card payments travel straight from your customer to your processor and settle in your own bank
+    account — SettlePay never holds your funds.
+  </p>
+</div>
+
+<script>
+  const VERT = `
+attribute vec2 aPos;
+attribute float aSize;
+attribute float aAlpha;
+uniform float uDpr;
+varying float vAlpha;
+void main() {
+  gl_Position = vec4(aPos.x * 2.0 - 1.0, 1.0 - aPos.y * 2.0, 0.0, 1.0);
+  gl_PointSize = aSize * uDpr;
+  vAlpha = aAlpha;
+}`;
+
+  const FRAG = `
+precision mediump float;
+uniform vec3 uColor;
+varying float vAlpha;
+void main() {
+  float d = length(gl_PointCoord - vec2(0.5));
+  float edge = smoothstep(0.5, 0.25, d);
+  gl_FragColor = vec4(uColor, vAlpha * edge);
+}`;
+
+  // Quadratic bezier tracks in normalised top-left space (match the chips).
+  const CURVES: [number[], number[], number[]][] = [
+    [[0.09, 0.5], [0.27, 0.3], [0.46, 0.5]],
+    [[0.46, 0.5], [0.68, 0.16], [0.88, 0.22]],
+    [[0.46, 0.5], [0.68, 0.86], [0.88, 0.78]],
+  ];
+  const TRACK_DOTS = 42;
+  const bez = (c: [number[], number[], number[]], t: number) => {
+    const u = 1 - t;
+    return [
+      u * u * c[0][0] + 2 * u * t * c[1][0] + t * t * c[2][0],
+      u * u * c[0][1] + 2 * u * t * c[1][1] + t * t * c[2][1],
+    ];
+  };
+
+  document.querySelectorAll<HTMLElement>('[data-flow-scene]').forEach((root) => {
+    const canvas = root.querySelector<HTMLCanvasElement>('[data-flow-canvas]');
+    if (!canvas) return;
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
+    if (!gl) {
+      root.dataset.glState = 'unsupported';
+      return;
+    }
+
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      root.dataset.glState = 'unsupported';
+      return;
+    }
+    gl.useProgram(prog);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    const uDpr = gl.getUniformLocation(prog, 'uDpr');
+    const uColor = gl.getUniformLocation(prog, 'uColor');
+    const aPos = gl.getAttribLocation(prog, 'aPos');
+    const aSize = gl.getAttribLocation(prog, 'aSize');
+    const aAlpha = gl.getAttribLocation(prog, 'aAlpha');
+    const bindAttrs = () => {
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(aSize);
+      gl.vertexAttribPointer(aSize, 1, gl.FLOAT, false, 16, 8);
+      gl.enableVertexAttribArray(aAlpha);
+      gl.vertexAttribPointer(aAlpha, 1, gl.FLOAT, false, 16, 12);
+    };
+
+    // Static dotted tracks.
+    const track = new Float32Array(CURVES.length * TRACK_DOTS * 4);
+    let ti = 0;
+    for (const c of CURVES) {
+      for (let i = 0; i < TRACK_DOTS; i++) {
+        const [x, y] = bez(c, i / (TRACK_DOTS - 1));
+        track[ti++] = x;
+        track[ti++] = y;
+        track[ti++] = 2.1;
+        track[ti++] = 0.2;
+      }
+    }
+    const trackBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, trackBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, track, gl.STATIC_DRAW);
+
+    // Travelling pulses: one per curve + two fading trail echoes each.
+    const PULSES = [
+      { curve: 0, speed: 1 / 7, phase: 0.0 },
+      { curve: 1, speed: 1 / 7, phase: 0.38 },
+      { curve: 2, speed: 1 / 7, phase: 0.62 },
+    ];
+    const pulse = new Float32Array(PULSES.length * 3 * 4);
+    const pulseBuf = gl.createBuffer();
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uDpr, dpr);
+    };
+    resize();
+    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
+
+    const drawTracks = () => {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindBuffer(gl.ARRAY_BUFFER, trackBuf);
+      bindAttrs();
+      gl.uniform3f(uColor, 1.0, 1.0, 1.0);
+      gl.drawArrays(gl.POINTS, 0, CURVES.length * TRACK_DOTS);
+    };
+
+    const drawPulses = (t: number) => {
+      let pi = 0;
+      for (const p of PULSES) {
+        const head = (t * p.speed + p.phase) % 1;
+        for (let e = 0; e < 3; e++) {
+          const tt = Math.max(head - e * 0.035, 0);
+          const [x, y] = bez(CURVES[p.curve], tt);
+          pulse[pi++] = x;
+          pulse[pi++] = y;
+          pulse[pi++] = e === 0 ? 6.5 : 4.5 - e;
+          pulse[pi++] = e === 0 ? 0.95 : 0.3 / e;
+        }
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, pulseBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, pulse, gl.DYNAMIC_DRAW);
+      bindAttrs();
+      gl.uniform3f(uColor, 0.36, 0.62, 0.98); // brand blue pulses
+      gl.drawArrays(gl.POINTS, 0, PULSES.length * 3);
+    };
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      drawTracks();
+      root.dataset.glState = 'static';
+      return;
+    }
+
+    let raf = 0;
+    let visible = false;
+    const start = performance.now();
+    const loop = () => {
+      drawTracks();
+      drawPulses((performance.now() - start) / 1000);
+      raf = visible ? requestAnimationFrame(loop) : 0;
+    };
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !raf) raf = requestAnimationFrame(loop);
+    });
+    io.observe(canvas);
+    root.dataset.glState = 'live';
+  });
+</script>
