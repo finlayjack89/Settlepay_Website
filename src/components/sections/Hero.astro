@@ -1,6 +1,7 @@
 ---
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
+import StatusChip from '../StatusChip.astro';
 import { SITE } from '../../data/site.mjs';
 
 const cardMarks = ['Visa', 'Mastercard', 'Amex'];
@@ -33,8 +34,8 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
     </div>
 
     <div class="hero__visual">
-      <div class="hero__visual-mockup">
-        <div class="bezel-wrap">
+      <div class="stage-dark hero-stage">
+        <div class="hero-stage__mockup">
           <!-- Illustrative branded-checkout mockup (interactive method switcher) -->
           <div class="checkout-v2" data-checkout>
             <div class="checkout-v2__inner">
@@ -113,6 +114,14 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
               <button class="checkout-v2__applepay-big" type="button" tabindex="-1">Check Out Now</button>
             </div>
           </div>
+        </div>
+
+        {/* Floating outcome chips — decorative narration of the product story:
+            customer pays, books reconcile, money lands. Generic amounts only. */}
+        <div class="hero-stage__chips" aria-hidden="true">
+          <StatusChip class="hero-chip hero-chip--1" tone="success" icon="check" label="Payment received" value="£850.00" />
+          <StatusChip class="hero-chip hero-chip--2" tone="neutral" icon="refresh" label="Matched to invoice INV-2041" />
+          <StatusChip class="hero-chip hero-chip--3" tone="neutral" icon="banknotes" label="Paid out to your bank" />
         </div>
       </div>
     </div>

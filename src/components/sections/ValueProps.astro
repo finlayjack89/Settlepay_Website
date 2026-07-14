@@ -11,28 +11,28 @@ const rows = [
     icon: 'cog',
     tone: '',
     title: 'Guided Account Setup',
-    text: 'We walk you step-by-step through opening your own merchant account with a modern processor — Stripe, Adyen, Checkout.com or whichever best fits your business — no technical jargon, no paperwork headaches.',
+    text: 'We walk you through opening your own merchant account with Stripe, Adyen or Checkout.com — no jargon, no paperwork headaches.',
     Preview: DashPreview,
   },
   {
     icon: 'sparkles',
     tone: 'green',
     title: 'Branded Checkout Pages',
-    text: "We design and build bespoke payment pages that match your company's look and feel — professional, on-brand, and buyer-friendly.",
+    text: "Bespoke payment pages that match your company's look and feel — professional, on-brand and buyer-friendly.",
     Preview: CheckoutTemplate,
   },
   {
     icon: 'refresh',
     tone: 'amber',
     title: 'Automated Reconciliation',
-    text: 'Stop chasing bank transfers and matching payments manually. Every card payment is automatically reconciled against your invoices and records.',
+    text: 'Every card payment is matched to your invoices and records automatically — no more chasing bank transfers.',
     Preview: ReconcileTemplate,
   },
   {
     icon: 'users',
     tone: 'purple',
     title: 'Fully Managed Onboarding',
-    text: 'We handle the entire setup and walk your team through how everything works — no technical know-how required on your side.',
+    text: 'We handle the entire setup and walk your team through it — no technical know-how required.',
     Preview: OnboardTemplate,
   },
 ];
@@ -45,22 +45,20 @@ const rows = [
       blue="Effortless Payments"
       subtitle="We handle every step — from setting up your merchant account to building your branded checkout page — so you never chase a bank transfer again."
     />
-    <div class="value-prop__grid">
-      {rows.map((r, i) => {
+    <div class="bento">
+      {rows.map((r) => {
         const Preview = r.Preview;
         return (
-          <div class={'zigzag-row is-visible' + (i % 2 ? ' zigzag-row--reverse' : '')}>
-            <div class="zigzag-row__content">
-              <div class={'zigzag-row__icon' + (r.tone ? ' zigzag-row__icon--' + r.tone : '')}>
-                <Icon name={r.icon} sw={1.5} />
-              </div>
-              <h3 class="zigzag-row__title">{r.title}</h3>
-              <p class="zigzag-row__text">{r.text}</p>
+          <article class="bento-card">
+            <div class={'bento-card__icon' + (r.tone ? ' bento-card__icon--' + r.tone : '')}>
+              <Icon name={r.icon} sw={1.5} />
             </div>
-            <div class="zigzag-row__visual zigzag-row__visual--live">
+            <h3 class="bento-card__title">{r.title}</h3>
+            <p class="bento-card__text">{r.text}</p>
+            <div class="bento-card__media">
               <Preview />
             </div>
-          </div>
+          </article>
         );
       })}
     </div>

@@ -573,12 +573,6 @@ body::after {
   justify-content: center;
 }
 
-.hero__visual-mockup {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-}
-
 /* ---------------------------------------------------------
    Asset 1: Shopify-Inspired Checkout Mockup
    --------------------------------------------------------- */
@@ -878,97 +872,10 @@ body::after {
 
 
 /* ---------------------------------------------------------
-   8. Value Proposition — Change 2: Zig-Zag Layout
+   8. Value Proposition — bento grid (cards in kit-extras.css .bento)
    --------------------------------------------------------- */
 .value-prop {
   background-color: var(--color-pure-white);
-}
-
-.value-prop__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
-}
-
-.zigzag-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: center;
-}
-
-.zigzag-row--reverse {
-  direction: rtl;
-}
-
-.zigzag-row--reverse > * {
-  direction: ltr;
-}
-
-.zigzag-row__content {
-  display: flex;
-  flex-direction: column;
-}
-
-.zigzag-row__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: rgba(59, 130, 246, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-}
-
-.zigzag-row__icon svg {
-  width: 28px;
-  height: 28px;
-  color: var(--color-primary-action);
-}
-
-.zigzag-row__icon--green { background: rgba(16, 185, 129, 0.08); }
-.zigzag-row__icon--green svg { color: #10B981; }
-
-.zigzag-row__icon--amber { background: rgba(245, 158, 11, 0.08); }
-.zigzag-row__icon--amber svg { color: #F59E0B; }
-
-.zigzag-row__icon--purple { background: rgba(139, 92, 246, 0.08); }
-.zigzag-row__icon--purple svg { color: #8B5CF6; }
-
-.zigzag-row__title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.015em;
-}
-
-.zigzag-row__text {
-  font-size: 0.95rem;
-  line-height: 1.75;
-  opacity: 0.7;
-  max-width: 440px;
-}
-
-/* Visual placeholder for zig-zag right-hand side */
-.zigzag-row__visual {
-  background: var(--color-secondary-bg);
-  border-radius: var(--radius-card);
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
-  padding: 1.5rem;
-}
-
-.zigzag-row__visual-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.25;
 }
 
 /* ---------------------------------------------------------
@@ -1031,14 +938,14 @@ body::after {
 
 /* Invoicing flexibility band */
 .integration__flex {
-  margin-top: 4.5rem;
-  padding-top: 3.5rem;
+  margin-top: 3rem;
+  padding-top: 2.5rem;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .integration__flex-head {
   max-width: 720px;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .integration__flex-title {
@@ -1065,7 +972,7 @@ body::after {
   background: var(--color-secondary-bg);
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: var(--radius-card);
-  padding: 1.75rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .integration__mode-tag {
@@ -1330,79 +1237,8 @@ body::after {
   margin-top: 0.1rem;
 }
 
-/* ---------------------------------------------------------
-   10. Trust Signals
-   --------------------------------------------------------- */
-.trust {
-  background-color: var(--color-secondary-bg);
-  padding-block: 0 5rem;
-}
-
-.trust__inner {
-  background: var(--color-pure-white);
-  border-radius: var(--radius-card);
-  padding: 2.5rem 3rem;
-  box-shadow:
-    0 1px 3px rgba(30, 58, 138, 0.03),
-    0 4px 20px rgba(30, 58, 138, 0.05);
-}
-
-.trust__badge-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2.5rem;
-  flex-wrap: wrap;
-}
-
-.trust__badge {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.trust__badge-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(59, 130, 246, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.trust__badge-icon svg {
-  width: 22px;
-  height: 22px;
-  color: var(--color-primary-action);
-}
-
-.trust__badge-icon--green { background: rgba(16, 185, 129, 0.08); }
-.trust__badge-icon--green svg { color: #10B981; }
-
-.trust__badge-icon--amber { background: rgba(245, 158, 11, 0.08); }
-.trust__badge-icon--amber svg { color: #F59E0B; }
-
-.trust__badge-icon--purple { background: rgba(139, 92, 246, 0.08); }
-.trust__badge-icon--purple svg { color: #8B5CF6; }
-
-.trust__badge-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.trust__badge-text {
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-top: 0.1rem;
-}
-
-.trust__divider {
-  width: 1px;
-  height: 36px;
-  background: rgba(15, 23, 42, 0.08);
-}
+/* Section 10 (Trust Signals) now lives in kit-extras.css as the slim
+   .trust-strip band under the hero. */
 
 /* ---------------------------------------------------------
    11. ROI Calculator
@@ -1714,29 +1550,14 @@ body::after {
     justify-content: center;
   }
 
-  .hero__visual-mockup {
+  .hero-stage__mockup {
     max-width: 400px;
-    margin-inline: auto;
   }
 
   .ambient-flair__grid {
     grid-template-columns: 1fr;
     max-width: 380px;
     margin-inline: auto;
-  }
-
-  /* Change 2: zig-zag collapses */
-  .zigzag-row {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .zigzag-row--reverse {
-    direction: ltr;
-  }
-
-  .zigzag-row__visual {
-    min-height: 160px;
   }
 
   .testimonials__grid {
@@ -1762,10 +1583,6 @@ body::after {
     min-width: 0;
   }
 
-  .integration__modes {
-    grid-template-columns: 1fr;
-  }
-
   .footer__grid {
     grid-template-columns: 1fr;
     gap: 2rem;
@@ -1778,6 +1595,10 @@ body::after {
 
 /* Mobile */
 @media (max-width: 768px) {
+  .integration__modes {
+    grid-template-columns: 1fr;
+  }
+
   /* Stay a compact rounded bar on mobile — ignore the scroll-progress collapse
      (only the subtle border/background lift from --nav-scroll-p carries over). */
   .navbar__inner {
@@ -1817,20 +1638,6 @@ body::after {
 
   .hero__title {
     font-size: clamp(1.75rem, 5vw + 0.5rem, 2.5rem);
-  }
-
-  .trust__inner {
-    padding: 2rem 1.5rem;
-  }
-
-  .trust__badge-group {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .trust__divider {
-    width: 40px;
-    height: 1px;
   }
 }
 
