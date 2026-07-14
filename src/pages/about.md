@@ -4,7 +4,6 @@ title: "About SettlePay"
 seoTitle: "About SettlePay | Payment Page Developer"
 description: "SettlePay is Finlay Salisbury, a UK payment-page developer building branded checkouts and reconciliation for small businesses still relying on bank transfers."
 keywords: "about SettlePay, Finlay Salisbury, payment page developer UK, sole trader payment integration, bespoke checkout developer, UK SME payments specialist"
-eyebrow: "Who We Are"
 path: "/about/"
 pageType: "AboutPage"
 ---
