@@ -964,7 +964,7 @@
   width: 100%;
 }
 .hero-stage__mockup {
-  max-width: 460px;
+  max-width: 420px; /* leaves a visible navy gutter so the stage reads as a stage */
   margin-inline: auto;
 }
 .hero-stage .checkout-v2 {
@@ -976,9 +976,11 @@
   z-index: 3;
   animation: chipFloat 6s ease-in-out infinite;
 }
+/* Chip positions sit over the checkout's quiet zones (never over inputs or
+   the mock CTA) and break the stage frame like the reference composition. */
 .hero-chip--1 { top: 1.25rem; right: -1.25rem; }
-.hero-chip--2 { top: 44%; left: -1.25rem; animation-duration: 7.5s; animation-delay: -2.5s; }
-.hero-chip--3 { bottom: 1.5rem; right: -0.9rem; animation-duration: 6.8s; animation-delay: -4.2s; }
+.hero-chip--2 { top: 67%; left: -1.25rem; animation-duration: 7.5s; animation-delay: -2.5s; }
+.hero-chip--3 { bottom: -1rem; right: -0.9rem; animation-duration: 6.8s; animation-delay: -4.2s; }
 
 @keyframes chipFloat {
   0%, 100% { transform: translateY(0); }
@@ -989,10 +991,11 @@
 }
 
 @media (max-width: 960px) {
-  /* Hero collapses to one column here — pull chips inside the stage edges. */
-  .hero-chip--1 { right: 0.75rem; top: 0.9rem; }
+  /* Hero collapses to one column here — straddle the stage edges instead of
+     overhanging the container. */
+  .hero-chip--1 { right: 0.75rem; top: -0.85rem; }
   .hero-chip--2 { left: 0.75rem; }
-  .hero-chip--3 { right: 0.75rem; }
+  .hero-chip--3 { right: 0.75rem; bottom: -0.85rem; }
 }
 @media (max-width: 640px) {
   .hero-chip--2,
