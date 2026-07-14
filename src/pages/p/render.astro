@@ -1,0 +1,79 @@
+---
+/**
+ * /p/render/?s=<slug>&device=mobile|desktop&theme=light|dark — the bare render
+ * target for downloadable images. Nothing but the painted payment page on a
+ * neutral backdrop: the brand-preview function points Firecrawl at this page
+ * (in production) and screenshots it, so the downloaded image is pixel-for-
+ * pixel what the browser renders.
+ *
+ * Not a user destination: no site chrome, noindex, covered by the robots
+ * Disallow on /p/. Renders only server-side share snapshots (same trust rules
+ * as /p/).
+ */
+import '../../styles/styles.css';
+import '../../styles/kit-extras.css';
+import PaymentPagePreview from '../../components/preview/PaymentPagePreview.astro';
+import { SITE } from '../../data/site.mjs';
+---
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Preview Render</title>
+  </head>
+  <body class="prender" data-prender data-endpoint={SITE.previewEndpoint}>
+    <main class="prender__wrap" data-prender-wrap>
+      <PaymentPagePreview />
+    </main>
+
+    <style>
+      .prender {
+        margin: 0;
+        padding: 24px;
+        background: var(--color-secondary-bg, #f4f6fb);
+        display: grid;
+        justify-content: center;
+        font-family: var(--font-primary, 'Satoshi', system-ui, sans-serif);
+      }
+      .prender__wrap { width: 480px; max-width: 100%; }
+      .prender.is-desktop .prender__wrap { width: 820px; }
+    </style>
+
+    <script>
+      import { resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
+
+      const root = document.querySelector('[data-prender]');
+      const wrap = document.querySelector('[data-prender-wrap]');
+      const params = new URLSearchParams(location.search);
+      const slug = (params.get('s') || '').toLowerCase();
+      const device = params.get('device') === 'desktop' ? 'desktop' : 'mobile';
+      const theme = ['light', 'dark'].includes(params.get('theme')) ? params.get('theme') : null;
+
+      root.classList.toggle('is-desktop', device === 'desktop');
+
+      async function load() {
+        if (!slug || !root.dataset.endpoint) return;
+        try {
+          const res = await fetch(root.dataset.endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ share: { slug } }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data || data.error || !data.variant) return;
+          paintBrief(
+            wrap,
+            resolveBrief(data.variant, data.brand || {}, { accent: null, scenario: null, device, theme }),
+            { name: data.name, host: data.domain },
+          );
+          // Signal readiness for the screenshotter (it also uses a waitFor delay).
+          document.body.dataset.ready = '1';
+        } catch {
+          /* screenshot of the skeleton-less blank card is the honest failure mode */
+        }
+      }
+      load();
+    </script>
+  </body>
+</html>

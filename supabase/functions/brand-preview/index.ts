@@ -236,6 +236,7 @@ Deno.serve(async (req) => {
     vote?: { domain?: string; key?: string; model?: string };
     createShare?: { domain?: string }; // snapshot the cached design → { slug }
     share?: { slug?: string }; // fetch a share snapshot for the /p/ page
+    renderShare?: { slug?: string; device?: string; theme?: string }; // download: screenshot the render page → image bytes
   };
   try {
     payload = await req.json();
@@ -333,6 +334,81 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error('share fetch failed', e);
       return json({ error: 'share-failed' }, 500);
+    }
+  }
+
+  // Download: Firecrawl screenshots the production /p/render/ page for this
+  // share and the image bytes are proxied straight back (their signed URL has
+  // no CORS for browser fetches). Costs one Firecrawl credit per call, so it
+  // shares the per-minute rate limit with generation.
+  if (payload.renderShare) {
+    const slug = String(payload.renderShare.slug || '').toLowerCase();
+    if (!/^[a-z0-9]{8,16}$/.test(slug)) return json({ error: 'invalid-share' }, 400);
+    const device = payload.renderShare.device === 'desktop' ? 'desktop' : 'mobile';
+    const theme = ['light', 'dark'].includes(payload.renderShare.theme || '') ? payload.renderShare.theme : '';
+    const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
+    if (!supabase || !fcKey) return json({ error: 'render-unavailable' }, 503);
+
+    try {
+      const { data: row } = await supabase
+        .from('brand_preview_shares')
+        .select('slug, expires_at')
+        .eq('slug', slug)
+        .maybeSingle();
+      if (!row || new Date(row.expires_at).getTime() < Date.now()) return json({ error: 'share-not-found' }, 404);
+
+      if (RATE_LIMIT_PER_MIN > 0) {
+        const since = new Date(Date.now() - 60_000).toISOString();
+        const { count } = await supabase
+          .from('brand_preview_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('ip_hash', ipHash)
+          .gte('created_at', since);
+        if ((count ?? 0) >= RATE_LIMIT_PER_MIN) return json({ error: 'rate-limited' }, 429);
+        await supabase.from('brand_preview_requests').insert({ ip_hash: ipHash, domain: 'render:' + slug });
+      }
+
+      const base = Deno.env.get('RENDER_BASE') ?? 'https://settlepay.uk';
+      const target = base + '/p/render/?s=' + slug + '&device=' + device + (theme ? '&theme=' + theme : '');
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 30_000);
+      const shot = await fetch('https://api.firecrawl.dev/v2/scrape', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + fcKey, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          url: target,
+          formats: [
+            {
+              type: 'screenshot',
+              fullPage: true,
+              viewport: { width: device === 'desktop' ? 880 : 540, height: 900 },
+            },
+          ],
+          waitFor: 3500, // the render page fetches + paints + loads the logo
+        }),
+        signal: ctl.signal,
+      });
+      clearTimeout(timer);
+      if (!shot.ok) {
+        console.error('render screenshot failed', shot.status, (await shot.text().catch(() => '')).slice(0, 200));
+        return json({ error: 'render-failed' }, 502);
+      }
+      const body = await shot.json();
+      const imgUrl = body?.data?.screenshot;
+      if (typeof imgUrl !== 'string') return json({ error: 'render-failed' }, 502);
+      const img = await fetch(imgUrl);
+      if (!img.ok) return json({ error: 'render-failed' }, 502);
+      const contentType = img.headers.get('content-type') || 'image/png';
+      return new Response(await img.arrayBuffer(), {
+        headers: {
+          ...cors,
+          'content-type': contentType,
+          'content-disposition': 'attachment; filename="settlepay-preview.' + (contentType.includes('jpeg') ? 'jpg' : 'png') + '"',
+        },
+      });
+    } catch (e) {
+      console.error('renderShare failed', e);
+      return json({ error: 'render-failed' }, 500);
     }
   }
 
