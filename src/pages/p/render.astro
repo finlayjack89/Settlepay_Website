@@ -49,8 +49,12 @@ import { SITE } from '../../data/site.mjs';
       const slug = (params.get('s') || '').toLowerCase();
       const device = params.get('device') === 'desktop' ? 'desktop' : 'mobile';
       const theme = ['light', 'dark'].includes(params.get('theme')) ? params.get('theme') : null;
+      // High-res downloads: the screenshotter has no deviceScaleFactor option,
+      // so the page zooms itself and the capture viewport grows to match.
+      const scale = Math.min(4, Math.max(1, Number(params.get('scale')) || 1));
 
       root.classList.toggle('is-desktop', device === 'desktop');
+      if (scale > 1) document.body.style.zoom = String(scale);
 
       async function load() {
         if (!slug || !root.dataset.endpoint) return;
