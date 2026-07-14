@@ -162,8 +162,10 @@ async function fetchSite(domain: string): Promise<{
   screenshotUrl: string | null;
   markdown: string | null;
   cssColours: { hex: string; count: number }[];
+  title: string | null;
+  metaDescription: string | null;
 }> {
-  const none = { screenshotUrl: null, markdown: null, cssColours: [] };
+  const none = { screenshotUrl: null, markdown: null, cssColours: [], title: null, metaDescription: null };
   const key = Deno.env.get('FIRECRAWL_API_KEY');
   if (!key) return none;
   try {
@@ -192,10 +194,13 @@ async function fetchSite(domain: string): Promise<{
     }
     const body = await res.json();
     const md = typeof body?.data?.markdown === 'string' ? body.data.markdown : null;
+    const meta = body?.data?.metadata || {};
     return {
       screenshotUrl: typeof body?.data?.screenshot === 'string' ? body.data.screenshot : null,
       markdown: md ? md.replace(/\s+/g, ' ').slice(0, 1500) : null,
       cssColours: harvestColours(body?.data?.html || ''),
+      title: typeof meta.title === 'string' ? meta.title : null,
+      metaDescription: typeof meta.description === 'string' ? meta.description : null,
     };
   } catch (e) {
     console.warn('firecrawl failed', e);
@@ -482,25 +487,49 @@ Deno.serve(async (req) => {
   if (!extract) {
     // Brand extraction and site capture are independent — run them together.
     const [brand, site] = await Promise.all([fetchBrand(domain, brandKey), fetchSite(domain)]);
-    if ('notFound' in brand) return json({ error: 'brand-not-found', domain }, 404);
-    if ('error' in brand) return json({ error: 'extract-failed' }, 502);
 
-    const d = brand.data || {};
-    extract = {
-      name: (d.name && String(d.name).trim()) || domain,
-      colors: (d.colors || []).filter((c: any) => typeof c?.hex === 'string'),
-      logos: pickLogos(d.logos),
-      font: pickFont(d.fonts),
-      bannerUrl: pickBanner(d.images),
-      description: String(d.description || '').slice(0, 400),
-      industries: (d.company?.industries || d.industries || [])
-        .map((i: any) => (typeof i === 'string' ? i : i?.name))
-        .filter(Boolean)
-        .slice(0, 3),
-      markdown: site.markdown,
-      screenshotUrl: site.screenshotUrl,
-      cssColours: site.cssColours,
-    };
+    if ('data' in brand) {
+      const d = brand.data || {};
+      extract = {
+        name: (d.name && String(d.name).trim()) || domain,
+        colors: (d.colors || []).filter((c: any) => typeof c?.hex === 'string'),
+        logos: pickLogos(d.logos),
+        font: pickFont(d.fonts),
+        bannerUrl: pickBanner(d.images),
+        description: String(d.description || '').slice(0, 400),
+        industries: (d.company?.industries || d.industries || [])
+          .map((i: any) => (typeof i === 'string' ? i : i?.name))
+          .filter(Boolean)
+          .slice(0, 3),
+        markdown: site.markdown,
+        screenshotUrl: site.screenshotUrl,
+        cssColours: site.cssColours,
+        source: 'brandfetch',
+      };
+    } else if (site.screenshotUrl || site.markdown) {
+      // Brandfetch doesn't index most small businesses — exactly our audience.
+      // The site itself carries everything the designers need: screenshot,
+      // copy, colour census, page title. No logo → monogram fallback.
+      const rawTitle = (site.title || '').split(/\s+[|—–·:-]\s+/)[0].trim();
+      extract = {
+        name: rawTitle.slice(0, 40) || domain.split('.')[0].replace(/^./, (c: string) => c.toUpperCase()),
+        colors: (site.cssColours || []).slice(0, 6).map((c) => ({ hex: c.hex, type: 'css' })),
+        logos: { logoUrl: null, logoDarkUrl: null, iconUrl: null, logoRasterUrl: null },
+        font: null,
+        bannerUrl: null,
+        description: String(site.metaDescription || '').slice(0, 400),
+        industries: [],
+        markdown: site.markdown,
+        screenshotUrl: site.screenshotUrl,
+        cssColours: site.cssColours,
+        source: 'site',
+      };
+      console.log('brand-preview site-only fallback', domain);
+    } else if ('error' in brand) {
+      return json({ error: 'extract-failed' }, 502);
+    } else {
+      return json({ error: 'brand-not-found', domain }, 404);
+    }
   }
 
   const name: string = extract.name;
@@ -620,7 +649,7 @@ Deno.serve(async (req) => {
       description: extract.description,
     },
     variants,
-    source: 'brandfetch',
+    source: extract.source || 'brandfetch',
     // Stored for provider-set changes (level-2 reuse); stripped from responses.
     extract,
   };
