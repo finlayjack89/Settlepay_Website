@@ -143,6 +143,50 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Live mockups — one-shot .is-live when a [data-live] asset is ~1/3 visible;
+  // CSS keyframes (chart draw, tick pops, node pulse) key off the class.
+  // ---------------------------------------------------------------------------
+  const liveEls = Array.from(document.querySelectorAll('[data-live]'));
+  if (liveEls.length) {
+    if ('IntersectionObserver' in window) {
+      const liveIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-live');
+            liveIo.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.35 });
+      liveEls.forEach((el) => liveIo.observe(el));
+    } else {
+      liveEls.forEach((el) => el.classList.add('is-live'));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pointer-tracked 3D tilt on [data-tilt] (hero stage, portfolio cards).
+  // Desktop pointers only; skipped entirely under prefers-reduced-motion.
+  // ---------------------------------------------------------------------------
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (finePointer && !reducedMotion) {
+    document.querySelectorAll<HTMLElement>('[data-tilt]').forEach((el) => {
+      const max = parseFloat(el.dataset.tiltMax || '4');
+      el.addEventListener('pointermove', (ev) => {
+        const r = el.getBoundingClientRect();
+        const px = (ev.clientX - r.left) / r.width - 0.5;
+        const py = (ev.clientY - r.top) / r.height - 0.5;
+        el.style.setProperty('--tilt-y', `${(px * max * 2).toFixed(2)}deg`);
+        el.style.setProperty('--tilt-x', `${(-py * max * 2).toFixed(2)}deg`);
+      });
+      el.addEventListener('pointerleave', () => {
+        el.style.setProperty('--tilt-x', '0deg');
+        el.style.setProperty('--tilt-y', '0deg');
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Hero checkout mockup — payment-method accordion
   // ---------------------------------------------------------------------------
   const checkout = document.querySelector('[data-checkout]');

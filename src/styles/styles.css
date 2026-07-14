@@ -201,24 +201,26 @@ body::after {
 /* Scroll reveal — subtle enter (opacity + 14px lift), staggered per group via
    --reveal-delay set in SiteScripts. Hidden state only applies once JS has
    added .reveal-ready to <html>, so no-JS visitors always see content. */
+/* Uses the standalone `translate` property (not `transform`) so it composes
+   with the pointer-tilt transform on elements carrying both attributes. */
 html.reveal-ready [data-reveal] {
   opacity: 0;
-  transform: translateY(14px);
+  translate: 0 14px;
   transition:
     opacity var(--ease-cinematic),
-    transform var(--ease-cinematic);
+    translate var(--ease-cinematic);
   transition-delay: var(--reveal-delay, 0ms);
 }
 
 html.reveal-ready [data-reveal].is-revealed {
   opacity: 1;
-  transform: none;
+  translate: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   html.reveal-ready [data-reveal] {
     opacity: 1;
-    transform: none;
+    translate: none;
     transition: none;
   }
 }

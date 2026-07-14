@@ -1169,3 +1169,86 @@
   .bento-card:nth-child(n) { grid-column: 1 / -1; }
   .bento-card__media { height: 200px; }
 }
+
+/* =========================================================================
+   Motion pass — live mockups + pointer tilt (Stripe-style "assets demo the
+   product"). Everything below is gated on no-preference so reduced-motion
+   users get the static site. Loops animate transform/opacity only.
+   ========================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+  /* Pointer-tracked tilt — JS writes --tilt-x/--tilt-y on [data-tilt]. */
+  [data-tilt] {
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(var(--tilt-ty, 0px));
+    transition: transform 240ms ease-out;
+    will-change: transform;
+  }
+  /* Explicit transform (specificity 0,3,0) so portfolio.css's plain
+     .pf-card:hover translateY can't clobber the tilt mid-hover. */
+  .pf-card[data-tilt]:hover {
+    --tilt-ty: -4px;
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(var(--tilt-ty, 0px));
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Charts draw themselves in when the asset enters view (pathLength="1"). */
+  .is-live .dashx svg path[stroke],
+  .is-live .dashboard-mockup svg path[stroke] {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: chartDraw 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+  }
+  .is-live .dashx svg path[fill^="url"],
+  .is-live .dashboard-mockup svg path[fill^="url"] {
+    opacity: 0;
+    animation: liveFadeIn 0.8s ease-out 1s forwards;
+  }
+  .is-live .dashx svg circle {
+    opacity: 0;
+    animation: liveFadeIn 0.4s ease-out 1.5s forwards;
+  }
+
+  /* Reconciliation: ticks pop one after another on a slow loop, the
+     status-bar refresh icon turns — "auto-matched in real time", shown. */
+  .is-live .rec .rec__row:nth-child(2) .rec__tick { animation: tickPop 7.5s ease-in-out 0.3s infinite; }
+  .is-live .rec .rec__row:nth-child(3) .rec__tick { animation: tickPop 7.5s ease-in-out 1.3s infinite; }
+  .is-live .rec .rec__row:nth-child(4) .rec__tick { animation: tickPop 7.5s ease-in-out 2.3s infinite; }
+  .is-live .rec .rec__statusbar svg { animation: spinSlow 7s linear infinite; }
+
+  /* Onboarding: the in-progress node breathes a soft ring outward. */
+  .is-live .onb .onb__step--active .onb__node { position: relative; }
+  .is-live .onb .onb__step--active .onb__node::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid rgba(59, 130, 246, 0.45);
+    animation: nodePulse 2.6s ease-out infinite;
+  }
+
+  /* Branded-checkout template: the "Your branding" tag gently bobs. */
+  .is-live .bct .bct__tag--brand { animation: chipFloat 5.5s ease-in-out infinite; }
+
+  /* Dark-chapter dashboard: transaction rows slide in, staggered. */
+  .is-live .dashboard-mockup .dashboard-mockup__row {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: liveRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .is-live .dashboard-mockup .dashboard-mockup__row:nth-child(2) { animation-delay: 1.15s; }
+  .is-live .dashboard-mockup .dashboard-mockup__row:nth-child(3) { animation-delay: 1.35s; }
+  .is-live .dashboard-mockup .dashboard-mockup__row:nth-child(1) { animation-delay: 0.95s; }
+}
+
+@keyframes chartDraw { to { stroke-dashoffset: 0; } }
+@keyframes liveFadeIn { to { opacity: 1; } }
+@keyframes liveRise { to { opacity: 1; transform: none; } }
+@keyframes spinSlow { to { transform: rotate(360deg); } }
+@keyframes tickPop {
+  0%, 3.5%, 100% { transform: scale(1); }
+  1.75% { transform: scale(1.35); }
+}
+@keyframes nodePulse {
+  0% { transform: scale(0.8); opacity: 0; }
+  35% { opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}

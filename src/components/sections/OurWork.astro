@@ -29,7 +29,7 @@ const thumbStyle = (b) =>
     />
     <div class="pf-grid">
       {featured.map((e) => (
-        <a class="pf-card" href={`/work/${e.slug}/`} data-reveal>
+        <a class="pf-card" href={`/work/${e.slug}/`} data-reveal data-tilt data-tilt-max="5">
           <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
             <div class="pf-thumb__chrome"><span></span><span></span><span></span></div>
             <div class="pf-thumb__page">
