@@ -45,8 +45,13 @@ export const SITE = {
   // manual-only mode.
   previewEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/brand-preview',
 
-  // Public booking page (Cal.com EU region) — secondary CTA to the enquiry form.
-  bookingUrl: 'https://cal.eu/settlepay/30min',
+  // Bespoke booking API (our own Supabase functions — Google Calendar + Meet).
+  availabilityEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/availability',
+  bookEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/book',
+  manageEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/booking-manage',
+
+  // In-house booking page (was the Cal.com link; now our own /book/ slot picker).
+  bookingUrl: '/book/',
 
   // Default SEO
   defaultTitle: 'SettlePay — Bespoke Payment Pages for UK Businesses',
