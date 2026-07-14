@@ -1,6 +1,7 @@
 ---
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
+import { SITE } from '../../data/site.mjs';
 
 const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 ---
@@ -19,7 +20,7 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
         — so you get paid faster, look professional, and stop reconciling payments by hand.
       </p>
       <div class="hero__actions">
-        <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+        <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
         <Button variant="secondary" href="#integration">See How It Works</Button>
       </div>
       <div class="hero__trust-note">

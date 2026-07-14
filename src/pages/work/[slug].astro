@@ -17,6 +17,7 @@ import RowanCheckout from '../../components/portfolio/demos/RowanCheckout.astro'
 import StillwaterCheckout from '../../components/portfolio/demos/StillwaterCheckout.astro';
 import WhitmoreCheckout from '../../components/portfolio/demos/WhitmoreCheckout.astro';
 import CamberFinchCheckout from '../../components/portfolio/demos/CamberFinchCheckout.astro';
+import { SITE } from '../../data/site.mjs';
 import { PORTFOLIO } from '../../data/portfolio.mjs';
 import seoData from '../../data/content/seo.json';
 import { webPage, breadcrumbs } from '../../data/structuredData.mjs';
@@ -250,7 +251,7 @@ const jsonLd = [
       <div class="case-inline-cta__inner">
         <p class="case-inline-cta__text">{cs ? 'Curious what this would recover in your own business?' : 'Want a branded payment page like this one?'}</p>
         <button type="button" class="case-inline-cta__link" data-enquire>
-          Tell us how you get paid today
+          {SITE.cta.primary.label}
           <Icon name="arrow" sw={2.5} />
         </button>
       </div>
@@ -294,8 +295,8 @@ const jsonLd = [
           you, and what it would save.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-          <Button variant="secondary" href="/work/">Back to Our Work</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>

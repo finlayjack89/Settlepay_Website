@@ -5,6 +5,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import Button from '../../components/Button.astro';
 import SectionHeader from '../../components/SectionHeader.astro';
 import BrandStudio from '../../components/portfolio/BrandStudio.astro';
+import { SITE } from '../../data/site.mjs';
 import { PORTFOLIO } from '../../data/portfolio.mjs';
 import seoData from '../../data/content/seo.json';
 import { webPage, breadcrumbs, itemList } from '../../data/structuredData.mjs';
@@ -114,8 +115,8 @@ const thumbStyle = (b) =>
           your name — free consultation, no jargon, no pressure.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-          <Button variant="secondary" href="/faq/">Read the FAQ</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>

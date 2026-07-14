@@ -140,7 +140,8 @@ const checklist = [
           Send a few details and Finlay will reply within one working day — no jargon, no pressure.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Send a Message</Button>
+          {/* This page IS the booking funnel, so the enquiry ask stands alone here. */}
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
           <Button variant="secondary" href="/work/">See Our Work</Button>
         </div>
       </div>

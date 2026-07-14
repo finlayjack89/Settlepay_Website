@@ -81,8 +81,8 @@ import { SITE } from '../../data/site.mjs';
             branded payment pages for small UK businesses.
           </p>
           <div class="pshare__cta-actions">
-            <Button variant="primary" icon="arrow" href={SITE.bookingUrl} target="_blank" rel="noopener">Book a Free Consultation</Button>
-            <Button variant="secondary" enquire>Enquire</Button>
+            <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+            <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
           </div>
           <p class="pshare__disclaimer" data-pshare-disclaimer></p>
         </div>

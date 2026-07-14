@@ -163,8 +163,8 @@ const CARDS = [0, 1, 2, 3];
           your business actually gets paid.
         </p>
         <div class="ps__cta-actions">
-          <Button variant="primary" icon="arrow" href={SITE.bookingUrl} target="_blank" rel="noopener">Book a Free Consultation</Button>
-          <Button variant="secondary" enquire>Enquire</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
           <button type="button" class="ps__share" data-ps-share hidden>
             <Icon name="globe" sw={1.8} />
             <span data-ps-share-label>Copy a Shareable Link</span>

@@ -51,12 +51,12 @@ const jsonLd = [
       <div class="mini-cta__inner">
         <h2 class="mini-cta__title">Like What You See?</h2>
         <p class="mini-cta__text">
-          This is just a sketch. Book a free consultation and we'll design the real thing — built
-          around how your business actually gets paid, and wired to an FCA-regulated processor.
+          This is just a sketch. Get in touch and we'll design the real thing — built around how
+          your business actually gets paid, and wired to an FCA-regulated processor.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" href={SITE.bookingUrl} target="_blank" rel="noopener">Book a Consultation</Button>
-          <Button variant="secondary" enquire>Enquire</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>

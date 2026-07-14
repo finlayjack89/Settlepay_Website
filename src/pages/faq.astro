@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import Button from '../components/Button.astro';
 import Icon from '../components/Icon.astro';
+import { SITE } from '../data/site.mjs';
 import faq from '../data/content/faq.json';
 import seoData from '../data/content/seo.json';
 import { webPage, breadcrumbs, faqPage } from '../data/structuredData.mjs';
@@ -87,11 +88,11 @@ const jsonLd = [
       <div class="mini-cta__inner">
         <h2 class="mini-cta__title">Still Have a Question?</h2>
         <p class="mini-cta__text">
-          Book a free, no-obligation consultation and we'll talk it through — no jargon, no pressure.
+          Send us a short enquiry and we'll talk it through — no jargon, no pressure.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-          <Button variant="secondary" href="/about/">About SettlePay</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>

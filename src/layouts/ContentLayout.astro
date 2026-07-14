@@ -6,6 +6,7 @@
 import BaseLayout from './BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import Button from '../components/Button.astro';
+import { SITE } from '../data/site.mjs';
 import { webPage, breadcrumbs } from '../data/structuredData.mjs';
 
 const { frontmatter } = Astro.props;
@@ -36,12 +37,12 @@ const jsonLd = [webPage({ path, title, description, type: pageType }), breadcrum
       <div class="mini-cta__inner">
         <h2 class="mini-cta__title">Ready to Stop Chasing Bank Transfers?</h2>
         <p class="mini-cta__text">
-          Book a free, no-obligation consultation. We'll review how you currently get paid and tell
-          you honestly whether we can help.
+          Send us a short enquiry — free and no-obligation. We'll review how you currently get paid
+          and tell you honestly whether we can help.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-          <Button variant="secondary" href="/faq/">Read the FAQ</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>
