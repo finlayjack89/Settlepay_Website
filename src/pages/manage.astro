@@ -8,6 +8,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
 import Icon from '../components/Icon.astro';
+import BookingCalendar from '../components/BookingCalendar.astro';
 import { SITE } from '../data/site.mjs';
 ---
 <BaseLayout title="Manage Your Booking" description="Reschedule or cancel your SettlePay consultation." canonical="/manage/" noindex={true}>
@@ -40,7 +41,7 @@ import { SITE } from '../data/site.mjs';
             <button type="button" data-mback class="sp-booking__back"><Icon name="chevron" sw={2.5} /> Back</button>
             <h2 class="sp-booking__title">Pick a New Time</h2>
             <p class="sp-booking__tz"><Icon name="clock" sw={2} /> All times shown in UK time (Europe/London).</p>
-            <div data-mslots class="sp-booking__days" style="margin-top:1.25rem"></div>
+            <div style="margin-top:1.25rem"><BookingCalendar /></div>
           </div>
 
           <div data-mstep="done" class="sp-booking__success" hidden>

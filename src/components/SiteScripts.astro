@@ -291,6 +291,117 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Shared month-grid calendar (used by /book/ and /manage/ reschedule).
+  // Renders availability days into a BookingCalendar shell: a month grid on the
+  // left (available days are clickable) and the selected day's times on the
+  // right. onPick receives { start, timeLabel, dayLabel } when a time is chosen.
+  // ---------------------------------------------------------------------------
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function buildCalendar(mount: HTMLElement | null, days: any[], onPick: (p: any) => void) {
+    if (!mount) return;
+    const grid = mount.querySelector('[data-cal-grid]') as HTMLElement | null;
+    const title = mount.querySelector('[data-cal-title]') as HTMLElement | null;
+    const prev = mount.querySelector('[data-cal-prev]') as HTMLButtonElement | null;
+    const next = mount.querySelector('[data-cal-next]') as HTMLButtonElement | null;
+    const timesLabel = mount.querySelector('[data-times-label]') as HTMLElement | null;
+    const timesList = mount.querySelector('[data-times-list]') as HTMLElement | null;
+    if (!grid || !title || !timesLabel || !timesList) return;
+
+    const byDate = new Map<string, any>();
+    for (const d of days) byDate.set(d.date, d);
+    const keys = [...byDate.keys()].sort();
+
+    if (!keys.length) {
+      grid.innerHTML = '';
+      title.textContent = '';
+      timesLabel.textContent = '';
+      timesList.innerHTML =
+        "<p class=\"sp-cal__empty\">No times available in the next couple of weeks — please <a href=\"#book-message\">send a message</a> and we'll find a slot.</p>";
+      if (prev) prev.disabled = true;
+      if (next) next.disabled = true;
+      return;
+    }
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const ymOf = (key: string) => { const [y, m] = key.split('-').map(Number); return y * 12 + (m - 1); };
+    const firstYM = ymOf(keys[0]);
+    const lastYM = ymOf(keys[keys.length - 1]);
+    let viewY = Number(keys[0].slice(0, 4));
+    let viewM = Number(keys[0].slice(5, 7)) - 1;
+    let selectedKey: string | null = null;
+
+    const fullDayLabel = (key: string, slotIso?: string) => {
+      try {
+        return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(slotIso!));
+      } catch { return byDate.get(key)?.label || key; }
+    };
+
+    const renderTimes = (key: string) => {
+      const day = byDate.get(key);
+      timesList.innerHTML = '';
+      if (!day) { timesLabel.textContent = ''; timesList.innerHTML = '<p class="sp-cal__times-empty">Select a date to see available times.</p>'; return; }
+      timesLabel.textContent = fullDayLabel(key, day.slots[0] && day.slots[0].start);
+      for (const s of day.slots) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sp-cal__slot';
+        b.textContent = s.label;
+        b.addEventListener('click', () => onPick({ start: s.start, timeLabel: s.label, dayLabel: timesLabel.textContent }));
+        timesList.appendChild(b);
+      }
+    };
+
+    const renderMonth = () => {
+      const curYM = viewY * 12 + viewM;
+      title.textContent = `${MONTHS[viewM]} ${viewY}`;
+      if (prev) prev.disabled = curYM <= firstYM;
+      if (next) next.disabled = curYM >= lastYM;
+      grid.innerHTML = '';
+      const lead = (new Date(viewY, viewM, 1).getDay() + 6) % 7; // Monday-first
+      const dim = new Date(viewY, viewM + 1, 0).getDate();
+      for (let i = 0; i < lead; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'sp-cal__cell sp-cal__cell--empty';
+        grid.appendChild(cell);
+      }
+      for (let day = 1; day <= dim; day++) {
+        const key = `${viewY}-${pad(viewM + 1)}-${pad(day)}`;
+        const entry = byDate.get(key);
+        if (entry) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'sp-cal__cell' + (key === selectedKey ? ' sp-cal__cell--selected' : '');
+          b.textContent = String(day);
+          const n = entry.slots.length;
+          b.setAttribute('aria-label', `${day} ${MONTHS[viewM]}, ${n} time${n === 1 ? '' : 's'} available`);
+          if (key === selectedKey) b.setAttribute('aria-current', 'date');
+          b.addEventListener('click', () => selectDate(key));
+          grid.appendChild(b);
+        } else {
+          const cell = document.createElement('div');
+          cell.className = 'sp-cal__cell';
+          cell.textContent = String(day);
+          grid.appendChild(cell);
+        }
+      }
+    };
+
+    const selectDate = (key: string) => {
+      selectedKey = key;
+      const ym = ymOf(key);
+      viewY = Math.floor(ym / 12);
+      viewM = ym % 12;
+      renderMonth();
+      renderTimes(key);
+    };
+
+    if (prev) prev.onclick = () => { const ym = viewY * 12 + viewM - 1; if (ym < firstYM) return; viewY = Math.floor(ym / 12); viewM = ym % 12; renderMonth(); };
+    if (next) next.onclick = () => { const ym = viewY * 12 + viewM + 1; if (ym > lastYM) return; viewY = Math.floor(ym / 12); viewM = ym % 12; renderMonth(); };
+
+    selectDate(keys[0]); // preselect the earliest available date so times show immediately
+  }
+
+  // ---------------------------------------------------------------------------
   // Bespoke booking slot picker (/book/) — fetch availability, pick, confirm
   // ---------------------------------------------------------------------------
   const booking = document.getElementById('sp-booking');
@@ -304,7 +415,7 @@
       details: booking.querySelector('[data-step="details"]') as HTMLElement,
       success: booking.querySelector('[data-step="success"]') as HTMLElement,
     };
-    const slotsList = booking.querySelector('[data-slots-list]') as HTMLElement;
+    const calMount = booking.querySelector('[data-calendar]') as HTMLElement | null;
     const chosenEl = booking.querySelector('[data-chosen]') as HTMLElement;
     const form = booking.querySelector('[data-book-form]') as HTMLFormElement;
     const submitBtn = booking.querySelector('[data-book-submit]') as HTMLButtonElement;
@@ -319,47 +430,19 @@
       (Object.keys(steps) as (keyof typeof steps)[]).forEach((k) => { steps[k].hidden = k !== name; });
     };
 
-    const renderDays = (days: any[]) => {
-      slotsList.innerHTML = '';
-      if (!days.length) {
-        slotsList.innerHTML =
-          '<p class="sp-booking__state">No times available in the next couple of weeks — please <a href="#book-message">send a message</a> and we will find a slot.</p>';
-        return;
-      }
-      for (const d of days) {
-        const wrap = document.createElement('div');
-        const lbl = document.createElement('p');
-        lbl.className = 'sp-booking__day-label';
-        lbl.textContent = d.label;
-        wrap.appendChild(lbl);
-        const chips = document.createElement('div');
-        chips.className = 'sp-booking__chips';
-        for (const s of d.slots) {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'sp-booking__chip';
-          b.textContent = s.label;
-          b.addEventListener('click', () => {
-            selected = { start: s.start, label: s.label, day: d.label };
-            chosenEl.textContent = `${d.label} at ${s.label} (UK time)`;
-            bookErr.hidden = true;
-            show('details');
-            (form.querySelector('#b-name') as HTMLElement | null)?.focus();
-          });
-          chips.appendChild(b);
-        }
-        wrap.appendChild(chips);
-        slotsList.appendChild(wrap);
-      }
-    };
-
     const load = async () => {
       show('loading');
       try {
         const res = await fetch(availUrl);
         if (!res.ok) throw new Error('bad');
         const data = await res.json();
-        renderDays(data.days || []);
+        buildCalendar(calMount, data.days || [], (pick: any) => {
+          selected = { start: pick.start, label: pick.timeLabel, day: pick.dayLabel };
+          chosenEl.textContent = `${pick.dayLabel} at ${pick.timeLabel} (UK time)`;
+          bookErr.hidden = true;
+          show('details');
+          (form.querySelector('#b-name') as HTMLElement | null)?.focus();
+        });
         show('slots');
       } catch {
         show('error');
@@ -470,38 +553,34 @@
 
     q('[data-mback]')?.addEventListener('click', () => mstep('summary'));
 
+    const rescheduleTo = async (start: string) => {
+      try {
+        const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'reschedule', start, timezone: mtz }) });
+        const out = await res.json();
+        if (res.ok && out.ok) {
+          q('[data-mdone-title]').textContent = 'Booking Rescheduled';
+          q('[data-mdone-when]').textContent = `${out.date} at ${out.time}`;
+          q('[data-mdone-note]').textContent = "We've sent you an updated confirmation.";
+          mstep('done');
+        } else if (res.status === 409) { alert('Sorry — that time was just taken. Please pick another.'); }
+        else throw new Error();
+      } catch { alert('Could not reschedule — please email hello@settlepay.uk.'); }
+    };
+
+    const mCalMount = manage.querySelector('[data-mstep="reschedule"] [data-calendar]') as HTMLElement | null;
     q('[data-mreschedule]')?.addEventListener('click', async () => {
-      const list = q('[data-mslots]');
-      list.innerHTML = '<p class="sp-booking__state">Loading times…</p>';
       mstep('reschedule');
+      const mTimes = mCalMount?.querySelector('[data-times-list]') as HTMLElement | null;
+      if (mTimes) mTimes.innerHTML = '<p class="sp-cal__times-empty">Loading times…</p>';
       try {
         const data = await (await fetch(mAvailUrl)).json();
-        list.innerHTML = '';
-        for (const d of data.days || []) {
-          const wrap = document.createElement('div');
-          const lbl = document.createElement('p'); lbl.className = 'sp-booking__day-label'; lbl.textContent = d.label; wrap.appendChild(lbl);
-          const chips = document.createElement('div'); chips.className = 'sp-booking__chips';
-          for (const s of d.slots) {
-            const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'sp-booking__chip'; btn.textContent = s.label;
-            btn.addEventListener('click', async () => {
-              if (!confirm(`Move your consultation to ${d.label} at ${s.label}?`)) return;
-              try {
-                const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'reschedule', start: s.start, timezone: mtz }) });
-                const out = await res.json();
-                if (res.ok && out.ok) {
-                  q('[data-mdone-title]').textContent = 'Booking Rescheduled';
-                  q('[data-mdone-when]').textContent = `${out.date} at ${out.time}`;
-                  q('[data-mdone-note]').textContent = "We've sent you an updated confirmation.";
-                  mstep('done');
-                } else if (res.status === 409) { alert('Sorry — that time was just taken. Please pick another.'); }
-                else throw new Error();
-              } catch { alert('Could not reschedule — please email hello@settlepay.uk.'); }
-            });
-            chips.appendChild(btn);
-          }
-          wrap.appendChild(chips); list.appendChild(wrap);
-        }
-      } catch { list.innerHTML = '<p class="sp-booking__state">Could not load times. Email hello@settlepay.uk.</p>'; }
+        buildCalendar(mCalMount, data.days || [], (pick: any) => {
+          if (!confirm(`Move your consultation to ${pick.dayLabel} at ${pick.timeLabel}?`)) return;
+          rescheduleTo(pick.start);
+        });
+      } catch {
+        if (mTimes) mTimes.innerHTML = '<p class="sp-cal__times-empty">Could not load times. Email hello@settlepay.uk.</p>';
+      }
     });
 
     loadSummary();
