@@ -970,6 +970,21 @@
   max-width: 420px; /* leaves a visible navy gutter so the stage reads as a stage */
   margin-inline: auto;
 }
+
+/* Compact hero rendition — the full checkout ran ~640px and its bottom fifth
+   clipped on laptop viewports. Tighter rhythm so the whole stage fits. */
+.hero-stage.stage-dark { padding-block: clamp(1rem, 2vw, 1.5rem); }
+.hero-stage .checkout-v2__inner { padding: 1.1rem 1.25rem 1.2rem; }
+.hero-stage .checkout-v2__express { margin-bottom: 0.85rem; }
+.hero-stage .checkout-v2__divider { margin-bottom: 0.85rem; }
+.hero-stage .checkout-v2__header { margin-bottom: 0.7rem; }
+.hero-stage .checkout-v2__panel--active .checkout-v2__panel-body { padding: 0.9rem 1rem; }
+.hero-stage .checkout-v2__input {
+  min-height: 50px;
+  padding-top: 1.4rem !important;
+  padding-bottom: 0.35rem !important;
+}
+.hero-stage .checkout-v2__applepay-big { height: 46px; font-size: 1rem; }
 .hero-stage .checkout-v2 {
   box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
 }
@@ -1001,9 +1016,10 @@
   animation: chipFloat 6s ease-in-out infinite;
 }
 /* Chip positions sit over the checkout's quiet zones (never over inputs or
-   the mock CTA) and break the stage frame like the reference composition. */
-.hero-chip--1 { top: 1.25rem; right: -1.25rem; }
-.hero-chip--2 { top: 67%; left: -1.25rem; animation-duration: 7.5s; animation-delay: -2.5s; }
+   the mock CTA) and break the stage frame like the reference composition.
+   Tuned for the compact hero checkout. */
+.hero-chip--1 { top: -0.85rem; right: -1.25rem; }
+.hero-chip--2 { top: 61%; left: -1.25rem; animation-duration: 7.5s; animation-delay: -2.5s; }
 .hero-chip--3 { bottom: -1rem; right: -0.9rem; animation-duration: 6.8s; animation-delay: -4.2s; }
 
 @keyframes chipFloat {
@@ -1353,6 +1369,157 @@
 @keyframes chipEmph {
   0%, 12%, 100% { scale: 1; }
   6% { scale: 1.07; }
+}
+
+/* =========================================================================
+   Our Work split-scroll — sticky rail (header + UK map) beside stacked cards
+   ========================================================================= */
+.our-work__split {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: start;
+}
+.our-work__rail {
+  position: sticky;
+  top: calc(var(--nav-offset) + 1.5rem);
+}
+.our-work__rail .value-prop__header {
+  margin-bottom: 1.5rem;
+}
+/* Doubled selector: portfolio.css loads after this file on pages that import
+   it, so the stack override needs the extra specificity to win. */
+.our-work__split .pf-grid--stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.75rem;
+}
+.our-work__more {
+  margin-top: 1.75rem;
+}
+
+.uk-map {
+  margin-top: 0.5rem;
+}
+.uk-map__canvas {
+  width: min(300px, 80%);
+  aspect-ratio: 24 / 30;
+  display: block;
+  touch-action: pan-y; /* map ripple must never trap page scroll */
+}
+.uk-map__caption {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--color-primary-brand);
+  opacity: 0.6;
+  max-width: 36ch;
+}
+@media (max-width: 960px) {
+  .our-work__split { grid-template-columns: 1fr; }
+  .our-work__rail { position: static; }
+  .uk-map { display: none; } /* the split is gone; keep mobile lean */
+}
+
+/* Bento media: the four crops read too alike — drop the repeated browser
+   chrome and frame each tile's actual "money shot" instead. */
+.bento-card__media .mok__chrome { display: none; }
+.bento-card__media .mok { --media-shift: 0px; transform: translateY(var(--media-shift)); }
+.bento-card:nth-child(2) .bento-card__media .mok { --media-shift: -8px; }   /* checkout: brand bar + Pay headline */
+.bento-card:nth-child(3) .bento-card__media .mok { --media-shift: -26px; }  /* reconcile: matched rows + ticks */
+.bento-card:nth-child(4) .bento-card__media .mok { --media-shift: -12px; }  /* onboarding: first steps + badges */
+
+/* =========================================================================
+   PayCard — the customer's card in the CTA band. Colour lives in the wash
+   that follows the pointer (blue -> violet, functional tints only), depth
+   comes from tilt + sheen. No glow: the sheen is a soft specular light.
+   ========================================================================= */
+.pay-card {
+  position: relative;
+  width: min(380px, 100%);
+  aspect-ratio: 1.586;
+  border-radius: 18px;
+  padding: 1.5rem;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      120% 160% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
+      rgba(59, 130, 246, 0.32) 0%,
+      rgba(139, 92, 246, 0.16) 42%,
+      transparent 72%
+    ),
+    linear-gradient(135deg, #1E2B45 0%, #131C30 55%, #0F172A 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 48px rgba(2, 6, 23, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: var(--color-pure-white);
+}
+.pay-card__sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    60% 80% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
+    rgba(255, 255, 255, 0.14) 0%,
+    transparent 60%
+  );
+}
+.pay-card__chip {
+  position: absolute;
+  top: 1.4rem;
+  left: 1.5rem;
+  width: 42px;
+  height: 30px;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #E8ECF3 0%, #B9C2D0 100%);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.25);
+}
+.pay-card__chip::after {
+  content: "";
+  position: absolute;
+  inset: 6px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.28);
+  border-radius: 3px;
+}
+.pay-card__wave {
+  position: absolute;
+  top: 1.35rem;
+  right: 1.4rem;
+  width: 26px;
+  height: 26px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.pay-card__number {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.85rem;
+  color: rgba(255, 255, 255, 0.92);
+}
+.pay-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pay-card__holder {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.pay-card__mark {
+  /* Light-bg Visa mark, shown as-is on a small white plate for contrast. */
+  height: 22px;
+  width: auto;
+  background: var(--color-pure-white);
+  border-radius: 4px;
+  padding: 3px 6px;
+  box-sizing: content-box;
 }
 
 /* Scroll-progressive subtitle fill in the dark chapter (Adyen word-fill,

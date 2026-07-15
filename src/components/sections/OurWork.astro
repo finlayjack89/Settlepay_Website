@@ -8,6 +8,7 @@
 import '../../styles/portfolio.css';
 import SectionHeader from '../SectionHeader.astro';
 import Button from '../Button.astro';
+import UKMap from '../UKMap.astro';
 import { PORTFOLIO } from '../../data/portfolio.mjs';
 
 const featuredSlugs = ['lockdales-auctioneers', 'marsh-vale-plumbing', 'harbourside-lettings'];
@@ -20,14 +21,23 @@ const thumbStyle = (b) =>
 ---
 <section class="our-work section-pad" id="work" data-screen-label="Our work">
   <div class="container">
-    <SectionHeader
-      align="left"
-      eyebrow="Our Work"
-      title="See What a Bespoke Page "
-      blue="Actually Looks Like"
-      subtitle="One live client and five fictional demo brands — each replacing bank transfers, cheques or card numbers read out over the phone with a branded page customers trust."
-    />
-    <div class="pf-grid">
+    {/* Split-scroll: the rail (header + UK map) pins while the cards walk past. */}
+    <div class="our-work__split">
+      <div class="our-work__rail">
+        <SectionHeader
+          align="left"
+          eyebrow="Our Work"
+          title="See What a Bespoke Page "
+          blue="Actually Looks Like"
+          subtitle="One live client and five fictional demo brands — each replacing bank transfers, cheques or card numbers read out over the phone with a branded page customers trust."
+        />
+        <UKMap />
+        <div class="our-work__more">
+          <Button variant="secondary" href="/work/" icon="arrow">View All Our Work</Button>
+        </div>
+      </div>
+
+      <div class="pf-grid pf-grid--stack">
       {featured.map((e) => (
         <a class="pf-card" href={`/work/${e.slug}/`} data-reveal data-tilt data-tilt-max="5">
           <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
@@ -58,13 +68,11 @@ const thumbStyle = (b) =>
           </div>
         </a>
       ))}
+      </div>
     </div>
     <p class="pf-disclaimer">
       Apart from Lockdales Auctioneers, the businesses shown are fictional brands created to
       demonstrate the range of what we build.
     </p>
-    <div class="our-work__more">
-      <Button variant="secondary" href="/work/" icon="arrow">View All Our Work</Button>
-    </div>
   </div>
 </section>

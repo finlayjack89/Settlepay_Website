@@ -1,0 +1,25 @@
+---
+/**
+ * PayCard — the customer's payment card as a hero object (the Stripe-video
+ * card moment, in SettlePay colours). Pointer-tracked 3D tilt via [data-tilt];
+ * a light sheen and a blue-to-violet colour wash follow the cursor through
+ * the --px/--py variables the tilt handler writes. Pure CSS card: navy body,
+ * chip, contactless mark, generic number — deliberately carries no SettlePay
+ * branding (we build payment pages; we do not issue cards) and the Visa mark
+ * renders as-is per the payment-mark rules.
+ */
+---
+<div class="pay-card" data-tilt data-tilt-max="7" aria-hidden="true">
+  <div class="pay-card__sheen"></div>
+  <div class="pay-card__chip"></div>
+  <svg class="pay-card__wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+    <path d="M8.5 9.5a5.5 5.5 0 0 1 0 5" />
+    <path d="M11.5 7.5a9 9 0 0 1 0 9" />
+    <path d="M14.5 5.5a12.5 12.5 0 0 1 0 13" />
+  </svg>
+  <div class="pay-card__number">•••• &nbsp;•••• &nbsp;•••• &nbsp;4242</div>
+  <div class="pay-card__row">
+    <span class="pay-card__holder">Your Customer</span>
+    <img src="/assets/payment/Visa.svg" alt="" class="pay-card__mark" loading="lazy" />
+  </div>
+</div>

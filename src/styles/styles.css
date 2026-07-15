@@ -209,14 +209,18 @@ body::after {
    --reveal-delay set in SiteScripts. Hidden state only applies once JS has
    added .reveal-ready to <html>, so no-JS visitors always see content. */
 /* Uses the standalone `translate` property (not `transform`) so it composes
-   with the pointer-tilt transform on elements carrying both attributes. */
+   with the pointer-tilt transform on elements carrying both attributes.
+   transform/box-shadow are ALSO listed (delay 0) because this rule replaces
+   the element's own transition — without them, card hover lifts snap. */
 html.reveal-ready [data-reveal] {
   opacity: 0;
   translate: 0 14px;
   transition:
     opacity var(--ease-cinematic),
-    translate var(--ease-cinematic);
-  transition-delay: var(--reveal-delay, 0ms);
+    translate var(--ease-cinematic),
+    transform var(--ease-cinematic),
+    box-shadow var(--ease-cinematic);
+  transition-delay: var(--reveal-delay, 0ms), var(--reveal-delay, 0ms), 0ms, 0ms;
 }
 
 html.reveal-ready [data-reveal].is-revealed {
@@ -962,17 +966,34 @@ html.reveal-ready [data-reveal].is-revealed {
    --------------------------------------------------------- */
 /* .integration background comes from .section--dark (full-bleed dark chapter) */
 
+/* Adyen-style split-scroll: the dashboard pins while the steps walk past it;
+   the step nearest the viewport centre carries the light (.is-current). */
 .integration__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4rem;
-  align-items: center;
+  align-items: start;
+}
+
+.integration__visual {
+  position: sticky;
+  top: calc(var(--nav-offset) + 2rem);
 }
 
 .integration__steps {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 3.5rem;
+  padding-block: 1rem 3rem;
+}
+
+html.reveal-ready .section--dark .integration__step {
+  opacity: 0.4;
+  transition: opacity 0.35s ease;
+}
+
+html.reveal-ready .section--dark .integration__step.is-current {
+  opacity: 1;
 }
 
 .integration__step {
@@ -1114,10 +1135,7 @@ html.reveal-ready [data-reveal].is-revealed {
   opacity: 0.68;
 }
 
-/* Asset 2: Dashboard Mockup */
-.integration__visual {
-  position: relative;
-}
+/* Asset 2: Dashboard Mockup (position comes from the sticky split above) */
 
 .dashboard-mockup {
   background: var(--color-pure-white);
@@ -1522,13 +1540,34 @@ html.reveal-ready [data-reveal].is-revealed {
 }
 
 .cta-section__inner {
-  text-align: center;
-  max-width: 780px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  text-align: left;
+  max-width: 1060px;
   margin-inline: auto;
-  background: var(--color-primary-brand);
+  background:
+    radial-gradient(120% 90% at 85% 20%, #1E2B45 0%, transparent 60%),
+    var(--color-primary-brand);
   border-radius: var(--radius-card);
   padding: 3.5rem clamp(1.5rem, 5vw, 4rem);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.20);
+}
+
+.cta-section__card {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 880px) {
+  .cta-section__inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .cta-section__card {
+    order: -1; /* card first on mobile — the hook before the ask */
+  }
 }
 
 .cta-section__title {
@@ -1552,9 +1591,15 @@ html.reveal-ready [data-reveal].is-revealed {
 .cta-section__actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+@media (max-width: 880px) {
+  .cta-section__actions {
+    justify-content: center;
+  }
 }
 
 /* ---------------------------------------------------------
@@ -1688,6 +1733,12 @@ html.reveal-ready [data-reveal].is-revealed {
 
   .integration__visual {
     min-width: 0;
+    position: static; /* no pinning once the grid stacks */
+  }
+
+  .integration__steps {
+    gap: 2.5rem;
+    padding-block: 0;
   }
 
   .footer__grid {

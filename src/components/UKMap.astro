@@ -1,0 +1,213 @@
+---
+/**
+ * UKMap — WebGL island: a stylised dot-matrix silhouette of the UK with
+ * pulses travelling between cities (the Stripe globe idea, scaled to our
+ * actual market: small UK businesses). Pointer proximity makes nearby dots
+ * rise and brighten — the Stripe hover-life idea without any glow.
+ *
+ * The silhouette is a hand-drawn bitmap mask (stylised, not cartography).
+ * data-gl-state: "live" | "static" | "unsupported".
+ */
+---
+<div class="uk-map" data-uk-map>
+  <canvas class="uk-map__canvas" data-uk-canvas aria-hidden="true"></canvas>
+  <p class="uk-map__caption">
+    Auction houses, tradespeople, clinics, accountants — built for small businesses across the UK.
+  </p>
+</div>
+
+<script>
+  const VERT = `
+attribute vec2 aPos;
+attribute float aSize;
+attribute float aAlpha;
+attribute float aCity;
+uniform float uDpr;
+uniform vec2 uPointer;
+uniform float uTime;
+varying float vAlpha;
+varying float vCity;
+void main() {
+  float d = distance(aPos, uPointer);
+  float boost = smoothstep(0.22, 0.0, d);            /* pointer ripple */
+  float pulse = aCity * (0.5 + 0.5 * sin(uTime * 2.0 + aPos.x * 20.0));
+  gl_Position = vec4(aPos.x * 2.0 - 1.0, 1.0 - aPos.y * 2.0, 0.0, 1.0);
+  gl_PointSize = (aSize + boost * 2.4 + pulse * 1.6) * uDpr;
+  vAlpha = min(aAlpha + boost * 0.5 + pulse * 0.35, 1.0);
+  vCity = aCity;
+}`;
+
+  const FRAG = `
+precision mediump float;
+varying float vAlpha;
+varying float vCity;
+void main() {
+  float d = length(gl_PointCoord - vec2(0.5));
+  float edge = smoothstep(0.5, 0.26, d);
+  /* Navy land dots, brand-blue cities — sized for the light slate band. */
+  vec3 ink = mix(vec3(0.16, 0.22, 0.35), vec3(0.23, 0.51, 0.96), vCity);
+  gl_FragColor = vec4(ink, vAlpha * edge);
+}`;
+
+  // Stylised UK mask — '#' = land dot, not cartography. 24 x 30 cells.
+  const MASK = [
+    '..........##............',
+    '.........###............',
+    '.......#####............',
+    '......######............',
+    '.....#######............',
+    '......######............',
+    '.....#######............',
+    '....########............',
+    '....#########...........',
+    '.....########...........',
+    '......#######...........',
+    '.......#####............',
+    '.......#####............',
+    '###....######...........',
+    '####...######...........',
+    '###...########..........',
+    '......#########.........',
+    '.....###########........',
+    '....############........',
+    '....#############.......',
+    '.....#############......',
+    '.....##############.....',
+    '......#############.....',
+    '.....##############.....',
+    '....###############.....',
+    '...##############.......',
+    '..############..........',
+    '..########..............',
+    '...#####................',
+    '....##..................',
+  ];
+  // City nodes (col,row in mask space): Glasgow, Edinburgh, Belfast,
+  // Leeds, Manchester, Birmingham, Cardiff, London.
+  const CITIES: [number, number][] = [
+    [5, 8], [9, 8], [2, 14], [10, 15], [8, 16], [9, 19], [6, 22], [15, 23],
+  ];
+  // Pulse routes between cities (index pairs into CITIES).
+  const ROUTES: [number, number][] = [[7, 0], [7, 2], [4, 7], [1, 5], [6, 3]];
+
+  const COLS = 24;
+  const ROWS = MASK.length;
+  const cell = (c: number, r: number) => [(c + 0.5) / COLS, (r + 0.5) / ROWS];
+
+  document.querySelectorAll<HTMLElement>('[data-uk-map]').forEach((root) => {
+    const canvas = root.querySelector<HTMLCanvasElement>('[data-uk-canvas]');
+    if (!canvas) return;
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
+    if (!gl) { root.dataset.glState = 'unsupported'; return; }
+
+    const compile = (t: number, s: string) => {
+      const sh = gl.createShader(t)!;
+      gl.shaderSource(sh, s);
+      gl.compileShader(sh);
+      return sh;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { root.dataset.glState = 'unsupported'; return; }
+    gl.useProgram(prog);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    // Land dots + brighter city dots, one static buffer [x,y,size,alpha,city].
+    const verts: number[] = [];
+    MASK.forEach((row, r) => {
+      for (let c = 0; c < COLS; c++) {
+        if (row[c] !== '#') continue;
+        const [x, y] = cell(c, r);
+        verts.push(x, y, 3.1, 0.62, 0);
+      }
+    });
+    CITIES.forEach(([c, r]) => {
+      const [x, y] = cell(c, r);
+      verts.push(x, y, 3.4, 0.9, 1);
+    });
+    // Travelling pulses along straight city-to-city routes (drawn as points).
+    const pulseBase = verts.length / 5;
+    ROUTES.forEach(() => verts.push(0, 0, 5, 0.9, 1));
+    const data = new Float32Array(verts);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    const stride = 20;
+    const attr = (n: string, size: number, off: number) => {
+      const loc = gl.getAttribLocation(prog, n);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride, off);
+    };
+    attr('aPos', 2, 0);
+    attr('aSize', 1, 8);
+    attr('aAlpha', 1, 12);
+    attr('aCity', 1, 16);
+
+    const uDpr = gl.getUniformLocation(prog, 'uDpr');
+    const uPointer = gl.getUniformLocation(prog, 'uPointer');
+    const uTime = gl.getUniformLocation(prog, 'uTime');
+    gl.uniform2f(uPointer, -9, -9); // far away = no ripple
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uDpr, dpr);
+    };
+    resize();
+    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
+
+    canvas.style.pointerEvents = 'auto';
+    canvas.addEventListener('pointermove', (ev) => {
+      const r = canvas.getBoundingClientRect();
+      gl.uniform2f(uPointer, (ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height);
+    });
+    canvas.addEventListener('pointerleave', () => gl.uniform2f(uPointer, -9, -9));
+
+    const draw = (t: number) => {
+      // Advance pulses along their routes.
+      ROUTES.forEach(([a, b], i) => {
+        const p = (t * 0.16 + i * 0.21) % 1;
+        const [ax, ay] = cell(...CITIES[a]);
+        const [bx, by] = cell(...CITIES[b]);
+        const o = (pulseBase + i) * 5;
+        data[o] = ax + (bx - ax) * p;
+        data[o + 1] = ay + (by - ay) * p;
+      });
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      gl.uniform1f(uTime, t);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.POINTS, 0, data.length / 5);
+    };
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      draw(0.8);
+      root.dataset.glState = 'static';
+      return;
+    }
+
+    let raf = 0;
+    let visible = false;
+    const start = performance.now();
+    const loop = () => {
+      draw((performance.now() - start) / 1000);
+      raf = visible ? requestAnimationFrame(loop) : 0;
+    };
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !raf) raf = requestAnimationFrame(loop);
+    });
+    io.observe(canvas);
+    root.dataset.glState = 'live';
+  });
+</script>
