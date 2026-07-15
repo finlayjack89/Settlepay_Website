@@ -1382,10 +1382,11 @@
 }
 .our-work__rail {
   position: sticky;
-  top: calc(var(--nav-offset) + 1.5rem);
+  /* Tight offset: header + map + caption + button must fit a 900px viewport. */
+  top: calc(var(--nav-offset) + 0.75rem);
 }
 .our-work__rail .value-prop__header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 /* Doubled selector: portfolio.css loads after this file on pages that import
    it, so the stack override needs the extra specificity to win. */
@@ -1395,20 +1396,20 @@
   gap: 1.75rem;
 }
 .our-work__more {
-  margin-top: 1.75rem;
+  margin-top: 0.75rem;
 }
 
 .uk-map {
-  margin-top: 0.5rem;
+  margin-top: 0;
 }
 .uk-map__canvas {
-  width: min(300px, 80%);
-  aspect-ratio: 24 / 30;
+  width: min(240px, 75%);
+  aspect-ratio: 44 / 66; /* matches the rasterised mask grid in UKMap.astro */
   display: block;
   touch-action: pan-y; /* map ripple must never trap page scroll */
 }
 .uk-map__caption {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   font-size: 0.85rem;
   line-height: 1.6;
   color: var(--color-primary-brand);
