@@ -75,6 +75,17 @@ import { SITE } from '../../data/site.mjs';
           </div>
         </div>
 
+        <div class="pshare__tools">
+          <button type="button" class="pshare__tool" data-pshare-copy>
+            <Icon name="globe" sw={1.8} />
+            <span data-pshare-copy-label>Copy Shareable Link</span>
+          </button>
+          <button type="button" class="pshare__tool" data-pshare-download>
+            <Icon name="download" sw={1.8} />
+            <span data-pshare-download-label>Download as Image</span>
+          </button>
+        </div>
+
         <div class="pshare__cta">
           <p class="pshare__cta-text">
             Want a page like this for your business? SettlePay designs and builds bespoke
@@ -194,6 +205,33 @@ import { SITE } from '../../data/site.mjs';
     100% { background-position: -200% 0; }
   }
 
+  .pshare__tools {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1.6rem;
+  }
+  .pshare__tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-button);
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .pshare__tool:hover:not(:disabled) { background: var(--color-secondary-bg); }
+  .pshare__tool:active:not(:disabled) { transform: scale(0.98); }
+  .pshare__tool:disabled { cursor: default; opacity: 0.6; }
+  .pshare__tool svg { width: 16px; height: 16px; color: var(--color-primary-action); }
+
   .pshare__cta {
     max-width: 820px;
     margin: 2rem auto 0;
@@ -231,6 +269,7 @@ import { SITE } from '../../data/site.mjs';
 
 <script>
   import { resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
+  import { slugify } from '../../scripts/brandReskin.mjs';
 
   const FONT_LINK_ID = 'pshare-brand-font';
   const FONT_OK = (f) =>
@@ -264,6 +303,10 @@ import { SITE } from '../../data/site.mjs';
     const disclaimerEl = root.querySelector('[data-pshare-disclaimer]');
     const deviceBtns = root.querySelectorAll('[data-pshare-device]');
     const themeBtns = root.querySelectorAll('[data-pshare-theme]');
+    const copyBtn = root.querySelector('[data-pshare-copy]');
+    const copyLabel = root.querySelector('[data-pshare-copy-label]');
+    const downloadBtn = root.querySelector('[data-pshare-download]');
+    const downloadLabel = root.querySelector('[data-pshare-download-label]');
 
     // Deter casual copying inside the mockup only — the rest of the page is normal.
     frameEl.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -271,6 +314,7 @@ import { SITE } from '../../data/site.mjs';
 
     const state = {
       snapshot: null,
+      slug: '',
       overrides: {
         accent: null,
         scenario: null,
@@ -314,6 +358,58 @@ import { SITE } from '../../data/site.mjs';
       b.addEventListener('click', () => { state.overrides.theme = b.dataset.pshareTheme; render(); })
     );
 
+    // The recipient gets the same tools as the creator: re-share this exact
+    // link, or download the render in whatever device/appearance they're viewing.
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        const link = location.origin + '/p/' + state.slug;
+        try {
+          await navigator.clipboard.writeText(link);
+          if (copyLabel) copyLabel.textContent = 'Link Copied';
+        } catch {
+          if (copyLabel) copyLabel.textContent = 'Copy Failed';
+        }
+        setTimeout(() => { if (copyLabel) copyLabel.textContent = 'Copy Shareable Link'; }, 2200);
+      });
+    }
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', async () => {
+        if (!state.slug || !endpoint) return;
+        downloadBtn.disabled = true;
+        if (downloadLabel) downloadLabel.textContent = 'Preparing Image…';
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              renderShare: {
+                slug: state.slug,
+                device: state.overrides.device,
+                theme: state.overrides.theme || '',
+              },
+            }),
+          });
+          if (!res.ok || !(res.headers.get('content-type') || '').startsWith('image/')) throw new Error('render-failed');
+          const blob = await res.blob();
+          const ext = blob.type.includes('jpeg') ? 'jpg' : 'png';
+          const name = state.snapshot ? slugify(state.snapshot.name) : 'settlepay';
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name + '-payment-page.' + ext;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+          if (downloadLabel) downloadLabel.textContent = 'Downloaded';
+        } catch {
+          if (downloadLabel) downloadLabel.textContent = "Couldn't Prepare Image";
+        } finally {
+          downloadBtn.disabled = false;
+          setTimeout(() => { if (downloadLabel) downloadLabel.textContent = 'Download as Image'; }, 2600);
+        }
+      });
+    }
+
     function fail() {
       if (bodyEl) bodyEl.hidden = true;
       if (errorEl) errorEl.hidden = false;
@@ -326,6 +422,7 @@ import { SITE } from '../../data/site.mjs';
       const fromPath = (location.pathname.match(/^\/p\/([a-z0-9]{8,16})\/?$/i) || [])[1];
       const slug = (fromPath || new URLSearchParams(location.search).get('s') || '').toLowerCase();
       if (!slug || !endpoint) { fail(); return; }
+      state.slug = slug;
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
