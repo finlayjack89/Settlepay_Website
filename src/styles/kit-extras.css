@@ -1605,3 +1605,132 @@
     background-clip: text;
   }
 }
+
+/* =========================================================================
+   MarketShift — scroll-scrubbed market counter. Static single band by
+   default (no-JS / reduced motion see the true figure); the tall section,
+   pinned stage and hidden-until-settled extras only exist once JS marks
+   html.reveal-ready AND motion is allowed.
+   ========================================================================= */
+.market-shift {
+  background-color: var(--color-pure-white);
+}
+.market-shift__stage {
+  padding-block: var(--space-section);
+}
+.market-shift__inner {
+  text-align: center;
+  max-width: 56rem;
+}
+.market-shift__figure {
+  font-size: clamp(3.4rem, 9vw, 6.25rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-brand);
+  font-variant-numeric: tabular-nums;
+  margin: 0.5rem 0 1.1rem;
+}
+.market-shift__currency {
+  font-size: 0.55em;
+  vertical-align: 0.5em;
+  margin-right: 0.06em;
+  opacity: 0.8;
+}
+.market-shift__unit {
+  font-size: 0.3em;
+  font-weight: 600;
+  margin-left: 0.18em;
+  color: var(--color-text-muted);
+  letter-spacing: 0;
+}
+.market-shift__label {
+  font-size: var(--text-lead);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  max-width: 44ch;
+  margin-inline: auto;
+}
+.market-shift__source {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--color-primary-brand);
+  opacity: 0.55;
+}
+.market-shift__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 40rem;
+  margin: 2.25rem auto 0;
+}
+.market-shift__fact {
+  background-color: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 1.25rem 1.4rem;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+.market-shift__fact strong {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--color-primary-brand);
+  font-variant-numeric: tabular-nums;
+}
+.market-shift__fact p {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+.market-shift__fact span {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--color-primary-brand);
+  opacity: 0.5;
+}
+.market-shift__close {
+  margin: 2rem auto 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+  max-width: 46ch;
+}
+@media (max-width: 640px) {
+  .market-shift__facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .market-shift {
+    min-height: 230vh;
+  }
+  html.reveal-ready .market-shift__stage {
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  html.reveal-ready .market-shift__source,
+  html.reveal-ready .market-shift__facts,
+  html.reveal-ready .market-shift__close {
+    transition: opacity var(--ease-cinematic), translate var(--ease-cinematic);
+  }
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__source,
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__facts,
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__close {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  html.reveal-ready .market-shift.is-settled .market-shift__facts {
+    transition-delay: 120ms;
+  }
+  html.reveal-ready .market-shift.is-settled .market-shift__close {
+    transition-delay: 260ms;
+  }
+}

@@ -1,0 +1,47 @@
+---
+/**
+ * MarketShift — the scroll-scrubbed market-scale counter. The section grows
+ * tall and its stage pins (JS + motion gated); the giant number ticks up as
+ * the user scrolls and settles on the true UK Finance figure, at which point
+ * the sourced supporting stats fade in and the page releases.
+ *
+ * Markup ships the FINAL figure: no-JS and reduced-motion readers see the
+ * true stat as a normal static band. Compliance: every number here is real
+ * and attributed on-page — never invent or round these up. Figures verified
+ * 2026-07: UK Finance card spending 2024 = £797bn debit + £249bn credit
+ * (£1,046bn, 31.4bn transactions); cash 9% of payments in 2024 vs 48% in
+ * 2014 (UK Payment Markets 2025); 86 hours/year chasing unpaid invoices
+ * (Small Business Commissioner / DBT research, 2025).
+ */
+---
+<section class="market-shift" data-countup data-count-target="1046">
+  <div class="market-shift__stage">
+    <div class="container market-shift__inner">
+      <h2 class="section-badge">The Way Britain Pays Has Changed</h2>
+      <p class="market-shift__figure" aria-label="1,046 billion pounds">
+        <span aria-hidden="true" class="market-shift__currency">£</span><span
+          aria-hidden="true" class="market-shift__value" data-count-value>1,046</span>
+        <span aria-hidden="true" class="market-shift__unit">billion</span>
+      </p>
+      <p class="market-shift__label">
+        spent on UK debit and credit cards in 2024 — across 31.4 billion transactions.
+      </p>
+      <p class="market-shift__source">Source: UK Finance card spending data, 2024</p>
+      <div class="market-shift__facts">
+        <div class="market-shift__fact">
+          <strong>9%</strong>
+          <p>Cash's share of UK payments in 2024 — down from 48% a decade earlier.</p>
+          <span>UK Finance, UK Payment Markets 2025</span>
+        </div>
+        <div class="market-shift__fact">
+          <strong>86 hours</strong>
+          <p>The time the average business owner spends chasing unpaid invoices each year.</p>
+          <span>Small Business Commissioner, 2025</span>
+        </div>
+      </div>
+      <p class="market-shift__close">
+        Your customers already pay this way. A bespoke payment page makes paying you the easy part.
+      </p>
+    </div>
+  </div>
+</section>

@@ -166,6 +166,38 @@
   }
 
   // ---------------------------------------------------------------------------
+  // MarketShift counter — the number scrubs with scroll through the tall
+  // section (stage is sticky) and settles on the true figure shipped in the
+  // markup; .is-settled reveals the sourced supporting stats. Skipped under
+  // reduced motion, where the section stays a static band with the real stat.
+  // ---------------------------------------------------------------------------
+  const countSection = document.querySelector<HTMLElement>('[data-countup]');
+  if (countSection && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const countValue = countSection.querySelector<HTMLElement>('[data-count-value]');
+    const countTarget = parseInt(countSection.dataset.countTarget || '0', 10);
+    if (countValue && countTarget > 0) {
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      let countTick = false;
+      const writeCount = () => {
+        countTick = false;
+        const r = countSection.getBoundingClientRect();
+        const travel = r.height - window.innerHeight;
+        if (travel <= 0) return;
+        const p = Math.min(Math.max(-r.top / travel, 0), 1);
+        countValue.textContent = Math.round(easeOutCubic(p) * countTarget).toLocaleString('en-GB');
+        if (p >= 0.96) countSection.classList.add('is-settled');
+      };
+      window.addEventListener('scroll', () => {
+        if (!countTick) {
+          countTick = true;
+          requestAnimationFrame(writeCount);
+        }
+      }, { passive: true });
+      writeCount();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Split-scroll step spotlight — the integration step nearest the viewport
   // centre carries .is-current (dimming is CSS-gated on html.reveal-ready, so
   // no-JS keeps every step fully legible).
