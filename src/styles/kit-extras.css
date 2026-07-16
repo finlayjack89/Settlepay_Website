@@ -1741,3 +1741,148 @@
     transition-delay: 260ms;
   }
 }
+
+/* =========================================================================
+   Sourced-claim footnotes — CSS counters number every .src-note superscript
+   in DOM order; each links to the numbered Sources register (#sources).
+   Zero JS; keyboard-focusable because they are real anchors.
+   ========================================================================= */
+body { counter-reset: srcnote; }
+.src-note {
+  counter-increment: srcnote;
+  text-decoration: none;
+  padding-left: 2px;
+}
+.src-note::after {
+  content: counter(srcnote);
+  font-size: 0.58em;
+  font-weight: 700;
+  vertical-align: super;
+  color: var(--color-primary-action);
+}
+.src-note:hover::after { text-decoration: underline; }
+
+.sources {
+  background-color: var(--color-primary-brand);
+  padding: 1.75rem 0 2.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sources__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-on-dark-muted);
+  margin-bottom: 0.85rem;
+}
+.sources__list {
+  list-style: decimal;
+  padding-left: 1.1rem;
+  max-width: 72ch;
+}
+.sources__list li {
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--color-text-on-dark-muted);
+  margin-bottom: 0.45rem;
+}
+.sources__list a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sources__list li:target { color: var(--color-pure-white); }
+
+/* =========================================================================
+   PreviewTeaser — the preview tool's front door. Navy panel echoing the CTA
+   band; single-field GET form to /preview/?url=… (works with JS disabled).
+   ========================================================================= */
+.preview-teaser {
+  background-color: var(--color-pure-white);
+  padding-block: var(--space-section-compact);
+}
+.preview-teaser__inner {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: clamp(1.5rem, 3.5vw, 3rem);
+  max-width: 1060px;
+  margin-inline: auto;
+  background:
+    radial-gradient(120% 90% at 85% 20%, #1E2B45 0%, transparent 60%),
+    var(--color-primary-brand);
+  border-radius: var(--radius-card);
+  padding: 2.25rem clamp(1.5rem, 4vw, 3rem);
+}
+.preview-teaser__title {
+  font-size: clamp(1.3rem, 1.6vw + 0.7rem, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-pure-white);
+  margin-bottom: 0.5rem;
+}
+.preview-teaser__text {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--color-text-on-dark-muted);
+  max-width: 46ch;
+}
+.preview-teaser__form {
+  display: flex;
+  gap: 0.6rem;
+}
+.preview-teaser__form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-input);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-pure-white);
+}
+.preview-teaser__form input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.preview-teaser__form input:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+/* Deliberately white, not blue: the page's one blue ask stays the enquiry. */
+.preview-teaser__btn {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--radius-button);
+  border: none;
+  background: var(--color-pure-white);
+  color: var(--color-primary-brand);
+  transition: transform var(--ease-snappy), box-shadow var(--ease-snappy);
+}
+.preview-teaser__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+}
+.preview-teaser__btn:active { transform: translateY(0) scale(0.98); }
+@media (max-width: 880px) {
+  .preview-teaser__inner { grid-template-columns: 1fr; }
+  .preview-teaser__form { flex-direction: column; }
+}
+
+/* Hero tertiary link to the preview tool — quiet, not a third button. */
+.hero__preview-link {
+  margin-top: 0.85rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.hero__preview-link a {
+  color: var(--color-primary-brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hero__preview-link a:hover { color: var(--color-primary-action); }

@@ -716,7 +716,10 @@ const CARDS = [0, 1, 2, 3];
           body: JSON.stringify({ createShare: { domain: state.domain } }),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok && data && data.slug) state.shareSlug = data.slug;
+        if (res.ok && data && data.slug) {
+          state.shareSlug = data.slug;
+          if (window.__previewContext) window.__previewContext.slug = data.slug;
+        }
       } catch {
         /* handled by callers */
       }
@@ -853,6 +856,9 @@ const CARDS = [0, 1, 2, 3];
       }
       state.domain = registrableDomain(u.hostname);
       window.spTrack?.('preview_generate');
+      // Hand the funnel context to the enquiry modal: a lead who generated a
+      // preview opens the conversation with exactly what they were looking at.
+      window.__previewContext = { domain: state.domain, slug: window.__previewContext?.slug };
 
       if (!endpoint) {
         setStatus("Live previews aren't switched on yet — adjust the controls below to sketch by hand.", 'error');

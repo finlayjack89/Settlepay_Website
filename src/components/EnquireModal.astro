@@ -60,6 +60,8 @@ import Button from './Button.astro';
         </p>
         <!-- Honeypot: bots fill this; humans never see it. -->
         <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
+        <!-- Funnel context (e.g. which preview the enquirer generated) — set by JS. -->
+        <input type="hidden" name="context" value="" />
         <!-- Trust is zone-local: reassurance sits at the point of commitment. -->
         <ul class="sp-modal__assure" aria-label="What to expect">
           <li><Icon name="check" sw={2.5} />No card details requested</li>

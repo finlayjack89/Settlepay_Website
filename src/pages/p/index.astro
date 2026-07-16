@@ -72,6 +72,14 @@ import { SITE } from '../../data/site.mjs';
             <div class="pshare__skeleton" data-pshare-skeleton aria-hidden="true">
               <span></span><span></span><span></span><span></span><span></span>
             </div>
+            <noscript>
+              <!-- Without JS the skeleton would shimmer forever — say so instead. -->
+              <style>.pshare__skeleton { display: none; }</style>
+              <p class="pshare__noscript">
+                This shared preview needs JavaScript to load. Enable JavaScript, or
+                <a href="/preview/">make your own preview here</a>.
+              </p>
+            </noscript>
           </div>
         </div>
 
@@ -188,6 +196,14 @@ import { SITE } from '../../data/site.mjs';
     overflow: hidden;
   }
   .pshare__skeleton[hidden] { display: none; }
+  .pshare__noscript {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--color-text-muted);
+  }
+  .pshare__noscript a { color: var(--color-primary-action); text-decoration: underline; }
   .pshare__skeleton span {
     display: block;
     border-radius: 8px;

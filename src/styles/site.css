@@ -515,6 +515,10 @@
   .faq-objections { grid-template-columns: 1fr; }
 }
 
+/* One blue primary at a time: once a preview is generated, the studio's own
+   in-flow CTA takes over and the page-level mini-cta retires. */
+body:has(.ps.is-generated) .mini-cta { display: none; }
+
 /* ---- 404 ---- */
 .notfound {
   min-height: 60vh;

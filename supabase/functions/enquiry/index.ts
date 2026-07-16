@@ -73,6 +73,9 @@ Deno.serve(async (req) => {
   const name = str(form.get('name'));
   const email = str(form.get('email'));
   const message = str(form.get('message'));
+  // Optional funnel context (e.g. "preview:lockdales.com /p/abc123") — stored
+  // in notes so the lead opens with exactly what the enquirer was looking at.
+  const context = str(form.get('context')).slice(0, 300);
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   if (!business || !name || !message || !emailOk) {
@@ -90,7 +93,7 @@ Deno.serve(async (req) => {
 
   const { data, error } = await supabase
     .from('leads')
-    .insert({ business, name, email, message })
+    .insert({ business, name, email, message, notes: context || null })
     .select('id')
     .single();
 
