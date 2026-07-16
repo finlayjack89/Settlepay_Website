@@ -6,6 +6,36 @@
 ---
 <script>
   // ---------------------------------------------------------------------------
+  // First-party, cookieless analytics beacon. Fire-and-forget: no cookies, no
+  // device storage; the events function stores only aggregate funnel events
+  // (see supabase/functions/events + /privacy/). Must never break the page.
+  // ---------------------------------------------------------------------------
+  const track = (event: string, extra: Record<string, unknown> = {}) => {
+    const url = document.body.dataset.events;
+    if (!url) return;
+    // Production only — localhost/preview traffic must never pollute the data.
+    if (!location.hostname.endsWith('settlepay.uk')) return;
+    try {
+      const payload = JSON.stringify({
+        event,
+        path: location.pathname,
+        ref: event === 'pageview' ? document.referrer : undefined,
+        ...extra,
+      });
+      // text/plain keeps this a CORS "simple request" — beacons cannot
+      // preflight, and Chrome refuses application/json Blobs cross-origin.
+      // The events function parses the body as JSON regardless of type.
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([payload], { type: 'text/plain' }));
+      } else {
+        fetch(url, { method: 'POST', body: payload, keepalive: true }).catch(() => {});
+      }
+    } catch { /* analytics failures are invisible by design */ }
+  };
+  (window as unknown as { spTrack: typeof track }).spTrack = track;
+  track('pageview');
+
+  // ---------------------------------------------------------------------------
   // Mobile navigation drawer
   // ---------------------------------------------------------------------------
   const nav = document.getElementById('navbar');
@@ -22,6 +52,12 @@
     navMobile.querySelectorAll('[data-nav-link]').forEach((l) =>
       l.addEventListener('click', () => setNav(false))
     );
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setNav(false);
+        (navToggle as HTMLElement).focus();
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -83,6 +119,37 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Nav dark variant — while any dark surface sits under the nav band, the
+  // light frost flips to dark glass (.navbar--over-dark). IO with a top-band
+  // rootMargin; rebuilt on resize since rootMargin is viewport-dependent.
+  // ---------------------------------------------------------------------------
+  {
+    const navEl = document.getElementById('navbar');
+    const darkSurfaces = Array.from(
+      document.querySelectorAll('.section--dark, .cta-section__inner, .preview-teaser__inner, .footer, .sources')
+    );
+    if (navEl && darkSurfaces.length && 'IntersectionObserver' in window) {
+      const under = new Set<Element>();
+      let darkIo: IntersectionObserver | null = null;
+      const build = () => {
+        darkIo?.disconnect();
+        under.clear();
+        darkIo = new IntersectionObserver((entries) => {
+          entries.forEach((e) => { e.isIntersecting ? under.add(e.target) : under.delete(e.target); });
+          navEl.classList.toggle('navbar--over-dark', under.size > 0);
+        }, { rootMargin: `0px 0px -${Math.max(window.innerHeight - 90, 0)}px 0px` });
+        darkSurfaces.forEach((el) => darkIo!.observe(el));
+      };
+      build();
+      let navDarkResize = 0;
+      window.addEventListener('resize', () => {
+        clearTimeout(navDarkResize);
+        navDarkResize = window.setTimeout(build, 200) as unknown as number;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Mobile sticky booking bar — slides in after the hero, hides whenever the
   // final CTA band or footer is on screen so it never doubles up. Homepage only
   // (the bar is only rendered there). Per-element Map because the IO callback
@@ -90,7 +157,9 @@
   // ---------------------------------------------------------------------------
   const stickyCta = document.querySelector('[data-sticky-cta]');
   if (stickyCta) {
-    const hero = document.getElementById('hero');
+    // On interior pages the page-header stands in for the hero: the bar slides
+    // in once the header scrolls away, never on first paint.
+    const hero = document.getElementById('hero') || document.querySelector('.page-header');
     // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
     // selector here if consent UI is ever added.)
     const suppressors = ['.cta-section', '.footer']
@@ -198,6 +267,52 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Legal TOC scrollspy — the sticky rail darkens the section you're reading.
+  // ---------------------------------------------------------------------------
+  const legalToc = document.querySelector('[data-legal-toc]');
+  if (legalToc && 'IntersectionObserver' in window) {
+    const tocLinks = Array.from(legalToc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'));
+    const byId = new Map(tocLinks.map((a) => [a.getAttribute('href')!.slice(1), a]));
+    const heads = Array.from(document.querySelectorAll<HTMLElement>('.prose h2[id]'))
+      .filter((h) => byId.has(h.id));
+    if (heads.length) {
+      const spy = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          tocLinks.forEach((a) => a.classList.toggle('is-current', a === byId.get((e.target as HTMLElement).id)));
+        });
+      }, { rootMargin: '-15% 0px -70% 0px' });
+      heads.forEach((h) => spy.observe(h));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FAQ deep links — a hash-targeted answer opens itself (outreach emails link
+  // straight to "Are you FCA regulated?"), and every answer offers a copy-link.
+  // ---------------------------------------------------------------------------
+  const faqItems = document.querySelectorAll<HTMLDetailsElement>('details.faq-item[id]');
+  if (faqItems.length) {
+    const openFromHash = () => {
+      const target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+      if (target instanceof HTMLDetailsElement) target.open = true;
+    };
+    window.addEventListener('hashchange', openFromHash);
+    openFromHash();
+    document.querySelectorAll<HTMLAnchorElement>('[data-faq-copy]').forEach((a) => {
+      a.addEventListener('click', () => {
+        const url = location.origin + location.pathname + a.getAttribute('href');
+        navigator.clipboard?.writeText(url).then(() => {
+          const label = a.lastChild;
+          if (!label) return;
+          const original = label.textContent;
+          label.textContent = ' Link copied';
+          setTimeout(() => { label.textContent = original; }, 1800);
+        }).catch(() => {});
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Split-scroll step spotlight — the integration step nearest the viewport
   // centre carries .is-current (dimming is CSS-gated on html.reveal-ready, so
   // no-JS keeps every step fully legible).
@@ -291,6 +406,72 @@
         }
       });
     });
+
+    // -------------------------------------------------------------------------
+    // Idle demo loop — this audience won't click a mockup, so after ~4s in
+    // view untouched the checkout demonstrates itself: the security code types
+    // in, the pay button presses, processes and lands on a green confirmation,
+    // then the Klarna panel peeks open before everything resets. The FIRST
+    // pointer/keyboard interaction inside the mockup kills the loop for good.
+    // Skipped under reduced motion; IO-gated like every other island.
+    // -------------------------------------------------------------------------
+    const payBtn = checkout.querySelector('.checkout-v2__applepay-big') as HTMLElement | null;
+    const cvcInput = checkout.querySelector('[data-demo-cvc]') as HTMLInputElement | null;
+    if (payBtn && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const payLabel = payBtn.textContent;
+      let demoDead = false;
+      let demoTimers: number[] = [];
+      const clearDemo = () => { demoTimers.forEach(clearTimeout); demoTimers = []; };
+      const resetDemo = () => {
+        payBtn.classList.remove('is-pressed', 'is-busy', 'is-success');
+        payBtn.textContent = payLabel;
+        if (cvcInput) cvcInput.value = '';
+      };
+      const killDemo = () => {
+        demoDead = true;
+        clearDemo();
+        resetDemo();
+        activate(panels[0]);
+      };
+      ['pointerdown', 'pointerover', 'focusin'].forEach((ev) =>
+        checkout.addEventListener(ev, killDemo, { once: true, capture: true })
+      );
+
+      const at = (ms: number, fn: () => void) => demoTimers.push(window.setTimeout(fn, ms));
+      const runCycle = () => {
+        if (demoDead) return;
+        // 1. The security code types itself in.
+        if (cvcInput) '123'.split('').forEach((ch, i) => at(200 + i * 160, () => { cvcInput.value += ch; }));
+        // 2. Press -> processing -> paid.
+        at(900, () => payBtn.classList.add('is-pressed'));
+        at(1100, () => {
+          payBtn.classList.remove('is-pressed');
+          payBtn.classList.add('is-busy');
+          payBtn.textContent = 'Processing…';
+        });
+        at(2300, () => {
+          payBtn.classList.remove('is-busy');
+          payBtn.classList.add('is-success');
+          payBtn.textContent = 'Payment received';
+        });
+        // 3. Reset, peek at Klarna, settle back on card.
+        at(4600, resetDemo);
+        at(5100, () => { if (panels[1]) activate(panels[1]); });
+        at(7000, () => activate(panels[0]));
+        at(9000, () => { if (!demoDead && demoVisible) runCycle(); });
+      };
+
+      let demoVisible = false;
+      let demoStarted = false;
+      const demoIo = new IntersectionObserver(([e]) => {
+        demoVisible = e.isIntersecting;
+        if (demoVisible && !demoStarted && !demoDead) {
+          demoStarted = true;
+          at(4000, runCycle);
+        }
+      }, { threshold: 0.6 });
+      demoIo.observe(checkout);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -362,13 +543,36 @@
       document.body.style.overflow = '';
       lastFocused?.focus();
     };
+    const modalFooter = modal.querySelector('[data-modal-footer]') as HTMLElement | null;
     const showSuccess = () => {
       formView.hidden = true;
       successView.hidden = false;
+      if (modalFooter) modalFooter.hidden = true; // success has its own booking CTA
       form?.reset();
     };
 
-    document.querySelectorAll('[data-enquire]').forEach((b) => b.addEventListener('click', openModal));
+    document.querySelectorAll('[data-enquire]').forEach((b) =>
+      b.addEventListener('click', () => {
+        // Attribute the open to the surface that triggered it (funnel analytics).
+        const source =
+          (b as HTMLElement).dataset.enquireSource ||
+          b.closest('section[id]')?.id ||
+          (b.closest('nav') ? 'nav' : b.closest('.sticky-cta') ? 'sticky-cta' : 'page');
+        track('enquiry_open', { source });
+        // Preview-aware prefill: a generated preview is the hottest intent
+        // signal on the site — carry it into the conversation.
+        const pctx = (window as any).__previewContext as { domain?: string; slug?: string } | undefined;
+        if (pctx?.domain && form) {
+          const msg = form.querySelector('[name="message"]') as HTMLTextAreaElement | null;
+          if (msg && !msg.value) {
+            msg.value = `I generated a preview for ${pctx.domain} and I'd like to talk about the real thing.`;
+          }
+          const ctxField = form.querySelector('[name="context"]') as HTMLInputElement | null;
+          if (ctxField) ctxField.value = `preview:${pctx.domain}${pctx.slug ? ` /p/${pctx.slug}` : ''}`;
+        }
+        openModal();
+      })
+    );
     modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeModal));
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', (e) => {
@@ -417,6 +621,7 @@
               body: fd,
             });
             if (!res.ok) throw new Error('bad-status');
+            track('enquiry_submitted');
             showSuccess();
           } else {
             const subject = encodeURIComponent('Consultation enquiry — ' + (data.business || 'SettlePay'));
@@ -478,6 +683,22 @@
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const ymOf = (key: string) => { const [y, m] = key.split('-').map(Number); return y * 12 + (m - 1); };
+
+    // "First available" quick-pick — one tap books the soonest slot without
+    // touching the calendar. Rebuilt fresh on every buildCalendar call.
+    mount.querySelector('.sp-cal__quick')?.remove();
+    const firstDay = byDate.get(keys[0]);
+    const firstSlot = firstDay?.slots?.[0];
+    if (firstSlot) {
+      const quick = document.createElement('button');
+      quick.type = 'button';
+      quick.className = 'sp-cal__quick';
+      quick.innerHTML = `<span>First available: <strong>${firstDay.label} at ${firstSlot.label}</strong></span><span class="sp-cal__quick-cta">Book it</span>`;
+      quick.addEventListener('click', () =>
+        onPick({ start: firstSlot.start, timeLabel: firstSlot.label, dayLabel: firstDay.label })
+      );
+      mount.prepend(quick);
+    }
     const firstYM = ymOf(keys[0]);
     const lastYM = ymOf(keys[keys.length - 1]);
     let viewY = Number(keys[0].slice(0, 4));
@@ -500,7 +721,14 @@
         b.type = 'button';
         b.className = 'sp-cal__slot';
         b.textContent = s.label;
-        b.addEventListener('click', () => onPick({ start: s.start, timeLabel: s.label, dayLabel: timesLabel.textContent }));
+        b.addEventListener('click', () => {
+          const fire = () => onPick({ start: s.start, timeLabel: s.label, dayLabel: timesLabel.textContent });
+          // A brief settle: the chip fills navy before the step advances, so
+          // the click feels acknowledged. Instant under reduced motion.
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { fire(); return; }
+          b.classList.add('is-picked');
+          setTimeout(fire, 190);
+        });
         timesList.appendChild(b);
       }
     };
@@ -582,7 +810,10 @@
 
     const show = (name: keyof typeof steps) => {
       (Object.keys(steps) as (keyof typeof steps)[]).forEach((k) => { steps[k].hidden = k !== name; });
+      // Move focus to the confirmation so screen readers announce the booking.
+      if (name === 'success') steps.success.focus();
     };
+    track('booking_view');
 
     const load = async () => {
       show('loading');
@@ -594,6 +825,7 @@
           selected = { start: pick.start, label: pick.timeLabel, day: pick.dayLabel };
           chosenEl.textContent = `${pick.dayLabel} at ${pick.timeLabel} (UK time)`;
           bookErr.hidden = true;
+          track('booking_slot_selected');
           show('details');
           (form.querySelector('#b-name') as HTMLElement | null)?.focus();
         });
@@ -617,6 +849,7 @@
       submitBtn.disabled = true;
       submitBtn.setAttribute('aria-busy', 'true');
       submitBtn.innerHTML = 'Booking…';
+      track('booking_details_submitted');
       try {
         const res = await fetch(bookUrl, {
           method: 'POST',
@@ -635,6 +868,7 @@
         if (res.ok && out.ok) {
           successWhen.textContent = `${out.date} at ${out.time}`;
           if (out.meetUrl) { joinLink.href = out.meetUrl; joinLink.hidden = false; }
+          track('booking_confirmed');
           show('success');
         } else if (res.status === 409) {
           bookErr.textContent = 'Sorry — that time was just taken. Please pick another.';
@@ -671,6 +905,44 @@
       (el as HTMLElement).hidden = (el as HTMLElement).dataset.mstep !== name;
     });
 
+    // Branded replacements for confirm()/alert(): an inline card the JS moves
+    // into the active step, and a tone-aware banner. Falls back to the native
+    // dialog if the markup is ever missing.
+    const confirmCard = q('[data-mconfirm]');
+    const confirmTextEl = q('[data-mconfirm-text]');
+    const confirmYes = q('[data-mconfirm-yes]') as HTMLButtonElement | null;
+    const confirmNo = q('[data-mconfirm-no]') as HTMLButtonElement | null;
+    let confirmResolve: ((v: boolean) => void) | null = null;
+    const settleConfirm = (v: boolean) => {
+      if (confirmCard) confirmCard.hidden = true;
+      const r = confirmResolve;
+      confirmResolve = null;
+      r?.(v);
+    };
+    confirmYes?.addEventListener('click', () => settleConfirm(true));
+    confirmNo?.addEventListener('click', () => settleConfirm(false));
+    const askConfirm = (host: Element | null, text: string, yesLabel: string): Promise<boolean> => {
+      if (!confirmCard || !confirmTextEl || !confirmYes || !host) {
+        return Promise.resolve(window.confirm(text));
+      }
+      return new Promise((resolve) => {
+        confirmTextEl.textContent = text;
+        confirmYes.textContent = yesLabel;
+        host.appendChild(confirmCard);
+        confirmCard.hidden = false;
+        confirmResolve = resolve;
+        confirmYes.focus();
+      });
+    };
+    const mBanner = q('[data-mbanner]');
+    const showBanner = (host: Element | null, text: string, tone: 'warn' | 'error') => {
+      if (!mBanner || !host) { window.alert(text); return; }
+      mBanner.textContent = text;
+      mBanner.classList.toggle('is-error', tone === 'error');
+      host.appendChild(mBanner);
+      mBanner.hidden = false;
+    };
+
     const renderSummary = (b: any) => {
       q('[data-msummary]').textContent = `${b.date} at ${b.time}`;
       q('[data-mstatus]').textContent = b.status === 'cancelled'
@@ -693,7 +965,8 @@
     };
 
     q('[data-mcancel]')?.addEventListener('click', async () => {
-      if (!confirm('Cancel this consultation?')) return;
+      const host = manage.querySelector('[data-mstep="summary"]');
+      if (!(await askConfirm(host, 'Cancel this consultation? This cannot be undone.', 'Yes, cancel it'))) return;
       mErr.hidden = true;
       try {
         const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'cancel' }) });
@@ -716,9 +989,12 @@
           q('[data-mdone-when]').textContent = `${out.date} at ${out.time}`;
           q('[data-mdone-note]').textContent = "We've sent you an updated confirmation.";
           mstep('done');
-        } else if (res.status === 409) { alert('Sorry — that time was just taken. Please pick another.'); }
-        else throw new Error();
-      } catch { alert('Could not reschedule — please email hello@settlepay.uk.'); }
+        } else if (res.status === 409) {
+          showBanner(manage.querySelector('[data-mstep="reschedule"]'), 'Sorry — that time was just taken. Please pick another.', 'warn');
+        } else throw new Error();
+      } catch {
+        showBanner(manage.querySelector('[data-mstep="reschedule"]'), 'Could not reschedule — please email hello@settlepay.uk.', 'error');
+      }
     };
 
     const mCalMount = manage.querySelector('[data-mstep="reschedule"] [data-calendar]') as HTMLElement | null;
@@ -728,8 +1004,10 @@
       if (mTimes) mTimes.innerHTML = '<p class="sp-cal__times-empty">Loading times…</p>';
       try {
         const data = await (await fetch(mAvailUrl)).json();
-        buildCalendar(mCalMount, data.days || [], (pick: any) => {
-          if (!confirm(`Move your consultation to ${pick.dayLabel} at ${pick.timeLabel}?`)) return;
+        buildCalendar(mCalMount, data.days || [], async (pick: any) => {
+          if (mBanner) mBanner.hidden = true;
+          const host = manage.querySelector('[data-mstep="reschedule"]');
+          if (!(await askConfirm(host, `Move your consultation to ${pick.dayLabel} at ${pick.timeLabel}?`, 'Yes, move it'))) return;
           rescheduleTo(pick.start);
         });
       } catch {

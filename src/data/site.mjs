@@ -50,6 +50,10 @@ export const SITE = {
   bookEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/book',
   manageEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/booking-manage',
 
+  // First-party, cookieless analytics beacon — aggregate funnel events only.
+  // No cookies, no IP/UA stored (see /privacy/ and the events function).
+  eventsEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/events',
+
   // In-house booking page (was the Cal.com link; now our own /book/ slot picker).
   bookingUrl: '/book/',
 

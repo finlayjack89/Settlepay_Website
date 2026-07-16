@@ -9,6 +9,8 @@ import OurWork from '../components/sections/OurWork.astro';
 import TrustBar from '../components/sections/TrustBar.astro';
 import Calculator from '../components/sections/Calculator.astro';
 import CtaBand from '../components/sections/CtaBand.astro';
+import PreviewTeaser from '../components/sections/PreviewTeaser.astro';
+import Sources from '../components/sections/Sources.astro';
 
 import seoData from '../data/content/seo.json';
 import { siteGraph } from '../data/structuredData.mjs';
@@ -23,15 +25,18 @@ const jsonLd = [siteGraph()];
   ogTitle={seo.ogTitle}
   ogDescription={seo.ogDescription}
   canonical="/"
+  image="/og/home.png"
   jsonLd={jsonLd}
 >
   <Hero />
   <TrustBar />
   <ValueProps />
   <OurWork />
+  <PreviewTeaser />
   <HowItWorks />
   <MarketShift />
   <FastStart />
   <Calculator />
   <CtaBand />
+  <Sources />
 </BaseLayout>

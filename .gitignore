@@ -7,6 +7,8 @@ node_modules/
 # local backups / scratch (not part of the site)
 _old_site_backup/
 _design_extract/
+# competitor screen recordings live in ../inspiration, never in the deployable tree
+public/landing_page_inspiration/
 # logs
 npm-debug.log*
 yarn-debug.log*

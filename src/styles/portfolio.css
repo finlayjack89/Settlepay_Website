@@ -167,14 +167,111 @@
   width: 62%;
 }
 .pf-thumb__btn {
-  display: block;
+  display: grid;
+  place-items: center;
   height: 26px;
   border-radius: 6px;
   background: var(--pf-accent);
   margin-top: 12px;
+  transition: filter var(--ease-snappy), transform var(--ease-snappy);
+}
+.pf-thumb__btn-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--pf-surface);
+  mix-blend-mode: normal;
+}
+.pf-card:hover .pf-thumb__btn {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+/* Brand-true content rows — real text, not grey skeleton bars, so seven
+   builds stop looking like one recoloured template. */
+.pf-thumb__brandname {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-thumb__invoice {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 9px;
+}
+.pf-thumb__inv-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--pf-ink);
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-thumb__inv-amount {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--pf-ink);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.pf-thumb__field {
+  display: block;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.6);
+}
+/* Lockdales hero card — the one real client takes the top row. */
+.pf-card--hero {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+}
+.pf-card--hero .pf-thumb {
+  height: 100%;
+}
+.pf-card--hero .pf-card__body {
+  align-self: center;
+}
+@media (max-width: 880px) {
+  .pf-card--hero { grid-template-columns: 1fr; }
+}
+.pf-chip--demo {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-primary-action);
+  font-weight: 600;
 }
 
 /* ---- Case-study page header extras ---- */
+/* Outbound link to the real production page — verifiable, not asserted. */
+.case-live-link {
+  margin-top: 1rem;
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.case-live-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 700;
+  color: var(--color-primary-action);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.case-live-link a svg { width: 14px; height: 14px; transform: rotate(-45deg); }
+
 .case-head {
   display: flex;
   align-items: center;
@@ -1548,3 +1645,146 @@
     .wf__pane, .wf-row, .wf__btn, .wf__dots button, .wf__tab { transition: none; }
     .wf-sms, .wf-invoice { animation: none; }
   }
+
+/* ============================================================================
+   WorkflowTheatre discoverability — promoted instruction + one-shot attract.
+   The [data-live] IO (SiteScripts) adds .is-live when ~1/3 visible; the sweep
+   runs once per tab (staggered via --wf-i) and a ring pulses on the first
+   scenario tab. Inert under reduced motion; no-JS keeps the static board.
+   ============================================================================ */
+.wf__prompt {
+  margin-bottom: 0.9rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.wf__prompt-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .wf.is-live .wf__tab {
+    animation: wfTabSweep 0.55s ease;
+    animation-delay: calc(var(--wf-i, 0) * 220ms);
+    animation-fill-mode: backwards;
+  }
+  html.reveal-ready .wf.is-live .wf__tab[data-wf-tab="0"] {
+    position: relative;
+  }
+  html.reveal-ready .wf.is-live .wf__tab[data-wf-tab="0"]::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 13px;
+    border: 2px solid rgba(59, 130, 246, 0.55);
+    opacity: 0;
+    animation: wfTabRing 1.4s ease 1.1s 2;
+    pointer-events: none;
+  }
+}
+@keyframes wfTabSweep {
+  0% { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.45); }
+  100% { background: var(--color-pure-white); }
+}
+@keyframes wfTabRing {
+  0% { opacity: 0; transform: scale(0.98); }
+  35% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.03); }
+}
+/* Reduced motion: the 3.6s auto-advance loses its value without transitions —
+   keep the step-by-step controls, hide the play toggle. */
+@media (prefers-reduced-motion: reduce) {
+  .wf__btn--play { display: none; }
+}
+
+/* ============================================================================
+   Live case page (Lockdales flagship) — annotation strip, real-mechanics
+   before/after, and the odd-tile orphan fix.
+   ============================================================================ */
+.case-annot { padding-top: 1.25rem; }
+.case-annot__strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.75rem;
+  justify-content: center;
+  max-width: 900px;
+  margin-inline: auto;
+}
+.case-annot__item {
+  position: relative;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.case-annot__item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.case-beforeafter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  max-width: 900px;
+  margin: 2.5rem auto 0;
+}
+.case-beforeafter__col {
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.case-beforeafter__col--before { background: var(--color-secondary-bg); }
+.case-beforeafter__col--after {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.case-beforeafter__col h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-muted);
+}
+.case-beforeafter__col--after h3 { color: #0B6B4D; }
+.case-beforeafter__col li {
+  position: relative;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: rgba(15, 23, 42, 0.72);
+  margin-bottom: 0.5rem;
+}
+.case-beforeafter__col--before li::before {
+  content: "–";
+  position: absolute; left: 0;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+.case-beforeafter__col--after li::before {
+  content: "✓";
+  position: absolute; left: 0;
+  color: #0B6B4D;
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .case-beforeafter { grid-template-columns: 1fr; }
+}
+
+/* Odd tile counts: the last lonely tile spans the full row instead of
+   leaving an orphaned half-empty column. */
+.cap-grid > .cap-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }

@@ -214,6 +214,10 @@
 .sp-modal__view,
 .sp-modal__success { overflow-y: auto; min-height: 0; }
 @keyframes spRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes spFade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .sp-modal { animation: spFade 0.25s ease; } /* keep the fade, drop the rise */
+}
 .sp-modal__close {
   position: absolute; top: 1.1rem; right: 1.1rem;
   background: var(--color-secondary-bg); border: none; cursor: pointer;
@@ -367,8 +371,13 @@
 }
 .dashx__live::before {
   content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: #10b981; box-shadow: 0 0 0 0 rgba(16,185,129,0.5);
-  animation: dashxPulse 2s infinite;
+  background: #10b981;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dashx__live::before {
+    box-shadow: 0 0 0 0 rgba(16,185,129,0.5);
+    animation: dashxPulse 2s infinite;
+  }
 }
 @keyframes dashxPulse {
   0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
@@ -978,7 +987,7 @@
 .hero-stage .checkout-v2__express { margin-bottom: 0.85rem; }
 .hero-stage .checkout-v2__divider { margin-bottom: 0.85rem; }
 .hero-stage .checkout-v2__header { margin-bottom: 0.7rem; }
-.hero-stage .checkout-v2__panel--active .checkout-v2__panel-body { padding: 0.9rem 1rem; }
+.hero-stage .checkout-v2__panel-pad { padding: 0.9rem 1rem; }
 .hero-stage .checkout-v2__input {
   min-height: 50px;
   padding-top: 1.4rem !important;
@@ -1076,7 +1085,7 @@
   gap: 7px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #0f8a63;
+  color: #0B6B4D; /* darkened for >=4.5:1 on the green-tinted slate pill */
   padding: 4px 12px;
   border-radius: 100px;
   background: rgba(16, 185, 129, 0.1);
@@ -1412,8 +1421,7 @@
   margin-top: 0.5rem;
   font-size: 0.85rem;
   line-height: 1.6;
-  color: var(--color-primary-brand);
-  opacity: 0.6;
+  color: var(--color-text-muted);
   max-width: 36ch;
 }
 @media (max-width: 960px) {
@@ -1535,14 +1543,17 @@
   bottom: 5rem;
   width: 42px;
   height: 42px;
+  /* Blue/cyan holds the middle stops so the resting pointer position reads
+     brand blue, not pink; warm hues only appear at the travel extremes. */
   background: linear-gradient(
     115deg,
-    #7DD3FC 0%,
-    #C4B5FD 22%,
-    #F9A8D4 42%,
-    #FDE68A 62%,
-    #86EFAC 82%,
-    #7DD3FC 100%
+    #F9A8D4 0%,
+    #C4B5FD 16%,
+    #7DD3FC 38%,
+    #93C5FD 54%,
+    #C4B5FD 70%,
+    #FDE68A 86%,
+    #86EFAC 100%
   );
   background-size: 260% 260%;
   background-position: calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%);
@@ -1613,7 +1624,11 @@
    html.reveal-ready AND motion is allowed.
    ========================================================================= */
 .market-shift {
-  background-color: var(--color-pure-white);
+  /* A short navy tail dissolves the dark chapter into the white counter —
+     the harshest seam on the page becomes a dawn instead of a bang. */
+  background:
+    linear-gradient(180deg, var(--color-primary-brand) 0%, rgba(15, 23, 42, 0) 160px),
+    var(--color-pure-white);
 }
 .market-shift__stage {
   padding-block: var(--space-section);
@@ -1652,10 +1667,10 @@
   margin-inline: auto;
 }
 .market-shift__source {
+  /* Attribution IS the evidence — solid muted token, never opacity-dimmed. */
   margin-top: 0.6rem;
   font-size: 0.8rem;
-  color: var(--color-primary-brand);
-  opacity: 0.55;
+  color: var(--color-text-muted);
 }
 .market-shift__facts {
   display: grid;
@@ -1688,8 +1703,7 @@
 .market-shift__fact span {
   font-size: 0.72rem;
   letter-spacing: 0.02em;
-  color: var(--color-primary-brand);
-  opacity: 0.5;
+  color: var(--color-text-muted);
 }
 .market-shift__close {
   margin: 2rem auto 0;
@@ -1722,9 +1736,14 @@
     transition: opacity var(--ease-cinematic), translate var(--ease-cinematic);
   }
   html.reveal-ready .market-shift:not(.is-settled) .market-shift__source,
-  html.reveal-ready .market-shift:not(.is-settled) .market-shift__facts,
   html.reveal-ready .market-shift:not(.is-settled) .market-shift__close {
     opacity: 0;
+    translate: 0 14px;
+  }
+  /* Ghost skeletons, not a void: mid-scrub the fact cards hold their space
+     at low opacity so the pinned viewport never reads >40% empty. */
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__facts {
+    opacity: 0.14;
     translate: 0 14px;
   }
   html.reveal-ready .market-shift.is-settled .market-shift__facts {
@@ -1734,3 +1753,148 @@
     transition-delay: 260ms;
   }
 }
+
+/* =========================================================================
+   Sourced-claim footnotes — CSS counters number every .src-note superscript
+   in DOM order; each links to the numbered Sources register (#sources).
+   Zero JS; keyboard-focusable because they are real anchors.
+   ========================================================================= */
+body { counter-reset: srcnote; }
+.src-note {
+  counter-increment: srcnote;
+  text-decoration: none;
+  padding-left: 2px;
+}
+.src-note::after {
+  content: counter(srcnote);
+  font-size: 0.58em;
+  font-weight: 700;
+  vertical-align: super;
+  color: var(--color-primary-action);
+}
+.src-note:hover::after { text-decoration: underline; }
+
+.sources {
+  background-color: var(--color-primary-brand);
+  padding: 1.75rem 0 2.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sources__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-on-dark-muted);
+  margin-bottom: 0.85rem;
+}
+.sources__list {
+  list-style: decimal;
+  padding-left: 1.1rem;
+  max-width: 72ch;
+}
+.sources__list li {
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--color-text-on-dark-muted);
+  margin-bottom: 0.45rem;
+}
+.sources__list a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sources__list li:target { color: var(--color-pure-white); }
+
+/* =========================================================================
+   PreviewTeaser — the preview tool's front door. Navy panel echoing the CTA
+   band; single-field GET form to /preview/?url=… (works with JS disabled).
+   ========================================================================= */
+.preview-teaser {
+  background-color: var(--color-pure-white);
+  padding-block: var(--space-section-compact);
+}
+.preview-teaser__inner {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: clamp(1.5rem, 3.5vw, 3rem);
+  max-width: 1060px;
+  margin-inline: auto;
+  background:
+    radial-gradient(120% 90% at 85% 20%, #1E2B45 0%, transparent 60%),
+    var(--color-primary-brand);
+  border-radius: var(--radius-card);
+  padding: 2.25rem clamp(1.5rem, 4vw, 3rem);
+}
+.preview-teaser__title {
+  font-size: clamp(1.3rem, 1.6vw + 0.7rem, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-pure-white);
+  margin-bottom: 0.5rem;
+}
+.preview-teaser__text {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--color-text-on-dark-muted);
+  max-width: 46ch;
+}
+.preview-teaser__form {
+  display: flex;
+  gap: 0.6rem;
+}
+.preview-teaser__form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-input);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-pure-white);
+}
+.preview-teaser__form input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.preview-teaser__form input:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+/* Deliberately white, not blue: the page's one blue ask stays the enquiry. */
+.preview-teaser__btn {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--radius-button);
+  border: none;
+  background: var(--color-pure-white);
+  color: var(--color-primary-brand);
+  transition: transform var(--ease-snappy), box-shadow var(--ease-snappy);
+}
+.preview-teaser__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+}
+.preview-teaser__btn:active { transform: translateY(0) scale(0.98); }
+@media (max-width: 880px) {
+  .preview-teaser__inner { grid-template-columns: 1fr; }
+  .preview-teaser__form { flex-direction: column; }
+}
+
+/* Hero tertiary link to the preview tool — quiet, not a third button. */
+.hero__preview-link {
+  margin-top: 0.85rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.hero__preview-link a {
+  color: var(--color-primary-brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hero__preview-link a:hover { color: var(--color-primary-action); }

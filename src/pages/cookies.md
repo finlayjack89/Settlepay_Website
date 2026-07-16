@@ -15,9 +15,20 @@ This policy should be read alongside our Privacy Policy, which explains how we h
 
 ## The Short Version
 
-The SettlePay site is a simple static marketing website. By default it sets **only strictly-necessary cookies and equivalent local storage** to make the site work and keep it secure. It does **not** currently set any advertising, marketing, or third-party tracking cookies, and it does **not** run analytics.
+The SettlePay site is a simple static marketing website. By default it sets **only strictly-necessary cookies and equivalent local storage** to make the site work and keep it secure. It does **not** set any advertising, marketing, or third-party tracking cookies.
 
-Because we currently set no non-essential cookies, **you will not see a cookie consent banner** on the site. If that ever changes (for example, if we add analytics in future), we will update this policy and show a consent banner so that you can choose before any non-essential cookies are set.
+We do measure how the site is used, but we do it **without cookies**: our own first-party measurement stores nothing on your device and reads nothing from it (see "Cookieless Site Measurement" below). Because nothing non-essential is stored on or read from your device, **you will not see a cookie consent banner** on the site. If that ever changes, we will update this policy and show a consent banner first.
+
+## Cookieless Site Measurement
+
+To understand which pages are useful and whether things like the enquiry form and booking page actually work well, the site sends a small, anonymous signal to our own server when a page is viewed or a key action happens (for example, opening the enquiry form).
+
+What this measurement does and doesn't do:
+
+- **No cookies, no local storage** — nothing is saved on or read from your device.
+- **No IP address or browser fingerprint is stored.** Our server keeps only a one-way, scrambled code derived from connection details plus a secret that changes every day — so the code cannot identify you, cannot be reversed, and cannot link your visits from one day to the next.
+- **No cross-site tracking, no advertising, no profiles.** The data is aggregate counts: how many visits, which pages, which buttons — never who.
+- The data is processed by us alone (stored with our infrastructure provider, Supabase) and is not shared with or sold to anyone.
 
 ## What Cookies and Similar Technologies Are
 

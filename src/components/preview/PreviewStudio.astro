@@ -142,6 +142,14 @@ const CARDS = [0, 1, 2, 3];
           </button>
         </div>
       </div>
+      <!-- Honest progress checklist: the same staged messages, visible as work. -->
+      <ol class="ps__checklist" data-ps-checklist hidden aria-hidden="true">
+        <li>Reading your site</li>
+        <li>Capturing your homepage and brand</li>
+        <li>Designing your payment page</li>
+        <li>Applying your colours, logo and type</li>
+      </ol>
+
       <div class="ps__cards" data-ps-cards>
         {CARDS.map((i) => (
           <div class="ps__card" data-ps-card hidden={i > 0}>
@@ -154,6 +162,10 @@ const CARDS = [0, 1, 2, 3];
           </div>
         ))}
       </div>
+
+      <!-- Evidence strip: what we actually read from their site — turns
+           "AI template" scepticism into "they read my actual brand". -->
+      <p class="ps__ingredients" data-ps-ingredients hidden></p>
 
       <!-- In-flow CTA — revealed once a page has been generated -->
       <div class="ps__cta" data-ps-cta hidden>
@@ -448,6 +460,89 @@ const CARDS = [0, 1, 2, 3];
     overflow: hidden;
   }
   .ps__skeleton[hidden] { display: none; }
+
+  /* ---- progress checklist ---- */
+  .ps__checklist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    margin: 0 0 1rem;
+    padding: 0.8rem 1.1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    background: var(--color-secondary-bg);
+    list-style: none;
+  }
+  .ps__checklist[hidden] { display: none; }
+  .ps__checklist li {
+    position: relative;
+    padding-left: 1.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    transition: color var(--ease-snappy);
+  }
+  .ps__checklist li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    translate: 0 -50%;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid rgba(15, 23, 42, 0.2);
+    box-sizing: border-box;
+  }
+  .ps__checklist li.is-active { color: var(--color-primary-brand); }
+  .ps__checklist li.is-active::before {
+    border-color: var(--color-primary-action);
+    border-top-color: transparent;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .ps__checklist li.is-active::before { animation: psSpin 0.9s linear infinite; }
+  }
+  @keyframes psSpin { to { transform: rotate(360deg); } }
+  .ps__checklist li.is-done { color: var(--color-primary-brand); }
+  .ps__checklist li.is-done::before {
+    border: none;
+    background: var(--color-success);
+    animation: none;
+    transform: none;
+  }
+
+  /* ---- unveil: one-shot clip-path wipe as the generated page arrives ---- */
+  @media (prefers-reduced-motion: no-preference) {
+    .ps__card.is-unveiling .ps__card-frame {
+      animation: psUnveil 0.65s var(--ease-cinematic);
+    }
+  }
+  @keyframes psUnveil {
+    0% { clip-path: inset(0 0 100% 0); opacity: 0.4; }
+    100% { clip-path: inset(0 0 0 0); opacity: 1; }
+  }
+
+  /* ---- ingredients evidence strip ---- */
+  .ps__ingredients {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.85rem 0 0;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+  }
+  .ps__ingredients[hidden] { display: none; }
+  .ps__ingredient-chips {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .ps__ingredient-chips i {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+  }
   .ps__skeleton span {
     display: block;
     border-radius: 8px;
@@ -716,7 +811,10 @@ const CARDS = [0, 1, 2, 3];
           body: JSON.stringify({ createShare: { domain: state.domain } }),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok && data && data.slug) state.shareSlug = data.slug;
+        if (res.ok && data && data.slug) {
+          state.shareSlug = data.slug;
+          if (window.__previewContext) window.__previewContext.slug = data.slug;
+        }
       } catch {
         /* handled by callers */
       }
@@ -729,6 +827,7 @@ const CARDS = [0, 1, 2, 3];
       // never the tool. Falls back to a plain ?url= deep link if minting fails.
       shareBtn.addEventListener('click', async () => {
         if (shareLabel) shareLabel.textContent = 'Creating Link…';
+        window.spTrack?.('preview_share_created');
         const slug = await mintShare();
         const link = slug
           ? location.origin + '/p/' + slug
@@ -751,6 +850,7 @@ const CARDS = [0, 1, 2, 3];
       downloadBtn.addEventListener('click', async () => {
         downloadBtn.disabled = true;
         if (downloadLabel) downloadLabel.textContent = 'Preparing Image…';
+        window.spTrack?.('preview_download');
         try {
           const slug = await mintShare();
           if (!slug) throw new Error('no-share');
@@ -836,6 +936,56 @@ const CARDS = [0, 1, 2, 3];
     let stageTimers = [];
     const clearStages = () => { stageTimers.forEach(clearTimeout); stageTimers = []; };
 
+    // Visible progress checklist mirroring STAGES (status line stays the
+    // aria-live announcer; the list is aria-hidden decoration of the same facts).
+    const checklistEl = root.querySelector('[data-ps-checklist]');
+    const checklistRows = checklistEl ? Array.from(checklistEl.children) : [];
+    const checklistStep = (i) => {
+      checklistRows.forEach((row, j) => {
+        row.classList.toggle('is-done', j < i);
+        row.classList.toggle('is-active', j === i);
+      });
+    };
+    const checklistShow = (on) => {
+      if (!checklistEl) return;
+      checklistEl.hidden = !on;
+      if (on) checklistStep(0);
+    };
+
+    // Evidence strip: the brand ingredients we actually extracted.
+    const ingredientsEl = root.querySelector('[data-ps-ingredients]');
+    const showIngredients = () => {
+      if (!ingredientsEl) return;
+      ingredientsEl.textContent = '';
+      const bits = [];
+      const accents = [...new Set(
+        (state.variants || [])
+          .map((v) => v && v.brief && v.brief.design && (v.brief.design.accent || v.brief.design.primary))
+          .filter((c) => typeof c === 'string' && /^#?[0-9a-fA-F]{3,8}$/.test(c.replace('#', '')))
+      )].slice(0, 3);
+      const lead = document.createElement('span');
+      lead.textContent = `Designed from ${state.domain}'s public branding`;
+      ingredientsEl.appendChild(lead);
+      if (accents.length) {
+        const chips = document.createElement('span');
+        chips.className = 'ps__ingredient-chips';
+        accents.forEach((c) => {
+          const dot = document.createElement('i');
+          dot.style.background = c.startsWith('#') ? c : '#' + c;
+          chips.appendChild(dot);
+        });
+        ingredientsEl.appendChild(chips);
+        bits.push('colours');
+      }
+      if (state.brand && state.brand.font) {
+        const f = document.createElement('span');
+        f.textContent = `· type: ${String(state.brand.font).slice(0, 40)}`;
+        ingredientsEl.appendChild(f);
+        bits.push('font');
+      }
+      ingredientsEl.hidden = false;
+    };
+
     function scrollToPreview() {
       const target = cardEls[0];
       if (!target) return;
@@ -850,6 +1000,10 @@ const CARDS = [0, 1, 2, 3];
         return;
       }
       state.domain = registrableDomain(u.hostname);
+      window.spTrack?.('preview_generate');
+      // Hand the funnel context to the enquiry modal: a lead who generated a
+      // preview opens the conversation with exactly what they were looking at.
+      window.__previewContext = { domain: state.domain, slug: window.__previewContext?.slug };
 
       if (!endpoint) {
         setStatus("Live previews aren't switched on yet — adjust the controls below to sketch by hand.", 'error');
@@ -860,10 +1014,12 @@ const CARDS = [0, 1, 2, 3];
       if (generateBtn) generateBtn.disabled = true;
       if (freshBtn) freshBtn.hidden = true;
       if (ctaEl) ctaEl.hidden = true;
+      if (ingredientsEl) ingredientsEl.hidden = true;
       setBtnLabel('Designing…');
       setSkeletons(true);
-      STAGES.forEach(([msg, delay]) => {
-        stageTimers.push(setTimeout(() => setStatus(msg, 'working'), delay));
+      checklistShow(true);
+      STAGES.forEach(([msg, delay], i) => {
+        stageTimers.push(setTimeout(() => { setStatus(msg, 'working'); checklistStep(i); }, delay));
       });
 
       try {
@@ -877,9 +1033,19 @@ const CARDS = [0, 1, 2, 3];
           throw new Error((data && data.error) || 'extract-failed');
         }
         clearStages();
+        checklistStep(checklistRows.length); // every row ticks done
+        setTimeout(() => checklistShow(false), 450);
         setSkeletons(false);
         applyProfile(data);
         const good = (data.variants || []).filter((v) => v.brief).length;
+        if (good) {
+          showIngredients();
+          // The unveil: a one-shot clip-path wipe as the page arrives.
+          if (!reduceMotion.matches && cardEls[0]) {
+            cardEls[0].classList.add('is-unveiling');
+            setTimeout(() => cardEls[0].classList.remove('is-unveiling'), 900);
+          }
+        }
         const who = data.name || state.domain;
         if (freshBtn) freshBtn.hidden = !good;
         setStatus(
@@ -894,6 +1060,7 @@ const CARDS = [0, 1, 2, 3];
         state.domain = '';
         state.variants = [];
         clearStages();
+        checklistShow(false);
         setSkeletons(false);
         cardEls.forEach((c, i) => { c.hidden = i > 0; });
         root.classList.remove('is-multi');

@@ -25,10 +25,13 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
         <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
         <Button variant="secondary" href="#integration">See How It Works</Button>
       </div>
+      <p class="hero__preview-link">
+        Or <a href="/preview/">paste your website address and see your own page first</a> →
+      </p>
       <div class="hero__trust-note">
         <p class="hero__trust-text">
-          Your checkout runs on FCA-regulated processors like <strong>Stripe</strong>,
-          <strong>Adyen</strong> and <strong>Checkout.com</strong> — trusted by millions of
+          Your checkout runs on FCA-regulated processors like{' '}
+          <strong>Stripe</strong>, <strong>Adyen</strong> and <strong>Checkout.com</strong> — trusted by millions of
           businesses globally
         </p>
       </div>
@@ -58,7 +61,7 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
               </div>
               <div class="checkout-v2__divider"><span>OR</span></div>
               <div class="checkout-v2__header">
-                <h3 class="checkout-v2__title">Payment</h3>
+                <p class="checkout-v2__title">Payment</p>
                 <p class="checkout-v2__subtitle">All transactions are secure and encrypted.</p>
               </div>
 
@@ -76,18 +79,22 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
                     </div>
                   </div>
                   <div class="checkout-v2__panel-body">
-                    <div class="checkout-v2__input-wrap">
-                      <input type="text" placeholder=" " class="checkout-v2__input" value="4242 4242 4242 4242" readonly tabindex="-1" />
-                      <label class="checkout-v2__floating-label">Card number</label>
-                    </div>
-                    <div class="checkout-v2__input-row">
-                      <div class="checkout-v2__input-wrap" style="flex:1">
-                        <input type="text" placeholder=" " class="checkout-v2__input" value="04 / 28" readonly tabindex="-1" />
-                        <label class="checkout-v2__floating-label">Expiry (MM / YY)</label>
-                      </div>
-                      <div class="checkout-v2__input-wrap" style="flex:1">
-                        <input type="text" placeholder=" " class="checkout-v2__input" value="" readonly tabindex="-1" />
-                        <label class="checkout-v2__floating-label">Security code</label>
+                    <div class="checkout-v2__panel-inner">
+                      <div class="checkout-v2__panel-pad">
+                        <div class="checkout-v2__input-wrap">
+                          <input type="text" placeholder=" " class="checkout-v2__input" value="4242 4242 4242 4242" readonly tabindex="-1" />
+                          <label class="checkout-v2__floating-label">Card number</label>
+                        </div>
+                        <div class="checkout-v2__input-row">
+                          <div class="checkout-v2__input-wrap" style="flex:1">
+                            <input type="text" placeholder=" " class="checkout-v2__input" value="04 / 28" readonly tabindex="-1" />
+                            <label class="checkout-v2__floating-label">Expiry (MM / YY)</label>
+                          </div>
+                          <div class="checkout-v2__input-wrap" style="flex:1">
+                            <input type="text" placeholder=" " class="checkout-v2__input" value="" readonly tabindex="-1" data-demo-cvc />
+                            <label class="checkout-v2__floating-label">Security code</label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -98,7 +105,9 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
                   <div class="checkout-v2__panel-header" role="button" tabindex="0" aria-expanded="false">
                     <div class="checkout-v2__radio"></div>
                     <span class="checkout-v2__method-name">Klarna</span>
-                    <div class="checkout-v2__icons"></div>
+                    <div class="checkout-v2__icons">
+                      <img src="/assets/payment/Klarna.svg" alt="" class="checkout-v2__card-icon" />
+                    </div>
                   </div>
                 </div>
 
@@ -107,7 +116,9 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
                   <div class="checkout-v2__panel-header" role="button" tabindex="0" aria-expanded="false">
                     <div class="checkout-v2__radio"></div>
                     <span class="checkout-v2__method-name">PayPal</span>
-                    <div class="checkout-v2__icons"></div>
+                    <div class="checkout-v2__icons">
+                      <img src="/assets/payment/PayPal.svg" alt="" class="checkout-v2__card-icon" />
+                    </div>
                   </div>
                 </div>
               </div>

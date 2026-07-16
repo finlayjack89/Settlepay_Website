@@ -1,0 +1,114 @@
+{
+ "/": {
+  "requests": 15,
+  "bytes": {
+   "js": 24158,
+   "css": 113287,
+   "img": 22941,
+   "font": 0,
+   "html": 76478,
+   "other": 0
+  },
+  "total_kb": 231,
+  "dcl": 329,
+  "load": 330,
+  "lcp": 0,
+  "cls": 0
+ },
+ "/work/": {
+  "requests": 11,
+  "bytes": {
+   "js": 19692,
+   "css": 119947,
+   "img": 5961,
+   "font": 0,
+   "html": 33992,
+   "other": 0
+  },
+  "total_kb": 175,
+  "dcl": 48,
+  "load": 49,
+  "lcp": 0,
+  "cls": 0
+ },
+ "/work/lockdales-auctioneers/": {
+  "requests": 10,
+  "bytes": {
+   "js": 16251,
+   "css": 186414,
+   "img": 220974,
+   "font": 0,
+   "html": 36234,
+   "other": 0
+  },
+  "total_kb": 449,
+  "dcl": 161,
+  "load": 162,
+  "lcp": 0,
+  "cls": 0
+ },
+ "/book/": {
+  "requests": 8,
+  "bytes": {
+   "js": 16251,
+   "css": 83865,
+   "img": 5961,
+   "font": 0,
+   "html": 23865,
+   "other": 20073
+  },
+  "total_kb": 146,
+  "dcl": 51,
+  "load": 52,
+  "lcp": 0,
+  "cls": 0
+ },
+ "/faq/": {
+  "requests": 7,
+  "bytes": {
+   "js": 16251,
+   "css": 83865,
+   "img": 5961,
+   "font": 0,
+   "html": 49049,
+   "other": 0
+  },
+  "total_kb": 151,
+  "dcl": 48,
+  "load": 49,
+  "lcp": 0,
+  "cls": 0
+ },
+ "/about/": {
+  "requests": 7,
+  "bytes": {
+   "js": 16251,
+   "css": 83865,
+   "img": 5961,
+   "font": 0,
+   "html": 19987,
+   "other": 0
+  },
+  "total_kb": 123,
+  "dcl": 75,
+  "load": 75,
+  "lcp": 0,
+  "cls": 0
+ },
+ "/preview/": {
+  "requests": 13,
+  "bytes": {
+   "js": 32360,
+   "css": 134661,
+   "img": 5961,
+   "font": 0,
+   "html": 72175,
+   "other": 0
+  },
+  "total_kb": 239,
+  "dcl": 51,
+  "load": 52,
+  "lcp": 0,
+  "cls": 0
+ }
+}

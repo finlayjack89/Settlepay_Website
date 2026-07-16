@@ -18,14 +18,20 @@ import Icon from '../Icon.astro';
 const { workflow, accent = '#0F172A', brandBg = '#0F172A', brandSurface = '#F5F2EB' } = Astro.props;
 const board = workflow.board;
 ---
-<div class="wf" data-wf style={`--wf-accent:${accent};--wf-brand-bg:${brandBg};--wf-brand-surface:${brandSurface}`}>
+<div class="wf" data-wf data-live style={`--wf-accent:${accent};--wf-brand-bg:${brandBg};--wf-brand-surface:${brandSurface}`}>
+  <!-- Promoted instruction: the theatre is the page's best asset and used to
+       hide behind a small grey caption nobody read. -->
+  <p class="wf__prompt">
+    <span class="wf__prompt-eyebrow">Choose a Story</span>
+    Pick a customer to follow their payment end to end — every screen below is simulated, no real money moves.
+  </p>
   <div class="wf__tabs" role="tablist" aria-label="Choose a view">
-    <button class="wf__tab is-active" type="button" role="tab" aria-selected="true" data-wf-tab="board">
+    <button class="wf__tab is-active" type="button" role="tab" aria-selected="true" data-wf-tab="board" style="--wf-i:0">
       <span class="wf__tab-title">The Board</span>
       <span class="wf__tab-sub">The week at a glance</span>
     </button>
     {workflow.scenarios.map((s, i) => (
-      <button class="wf__tab" type="button" role="tab" aria-selected="false" data-wf-tab={String(i)}>
+      <button class="wf__tab" type="button" role="tab" aria-selected="false" data-wf-tab={String(i)} style={`--wf-i:${i + 1}`}>
         <span class="wf__tab-title">{s.tab}</span>
         <span class="wf__tab-sub">{s.customer}{s.blurb ? ' · ' + s.blurb : ''}</span>
       </button>

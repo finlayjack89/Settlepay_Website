@@ -1,17 +1,29 @@
 ---
 /**
- * Footer — two-column footer with honest sole-trader disclosure.
+ * Footer — brand column + three proper link columns (Explore / Legal /
+ * Contact) with honest sole-trader disclosure, ending the page on a quiet
+ * narrative full stop: a one-shot line-draw across the top border that
+ * settles into a green "Invoice settled" tick ([data-live], fully drawn
+ * under no-JS/reduced-motion).
  * No "Ltd" / no "Registered in England & Wales" (SettlePay is a sole trader).
  */
 import { SITE } from '../data/site.mjs';
+import Icon from './Icon.astro';
 const year = new Date().getFullYear();
+const isLegal = (l) => /privacy|cookies|terms/.test(l.href);
+const explore = SITE.footerLinks.filter((l) => !isLegal(l));
+const legal = SITE.footerLinks.filter(isLegal);
 ---
-<footer class="footer" id="contact">
+<footer class="footer" id="contact" data-live>
+  <div class="footer__settle" aria-hidden="true">
+    <span class="footer__settle-line"></span>
+    <span class="footer__settle-chip"><Icon name="check" sw={3} />Invoice settled</span>
+  </div>
   <div class="container">
     <div class="footer__grid">
       <div class="footer__brand">
         <img
-          src="/assets/logos/monogram.svg"
+          src="/assets/logos/monogram-mark-light.svg"
           alt="SettlePay"
           class="footer__logo"
           width="44"
@@ -24,24 +36,34 @@ const year = new Date().getFullYear();
           auctioneers and more. We integrate modern processors like Stripe, Adyen and Checkout.com so
           you never chase a bank transfer again.
         </p>
-        <nav class="footer__inline-links" aria-label="Footer">
-          {SITE.footerLinks.map((l) => (
-            <a href={l.href}>{l.label}</a>
-          ))}
-        </nav>
       </div>
 
-      <div class="footer__contact">
-        <a href={`mailto:${SITE.email}`} class="footer__contact-item">{SITE.email}</a>
-        <a href={`mailto:${SITE.emailConsultations}`} class="footer__contact-item">{SITE.emailConsultations}</a>
-        <span class="footer__contact-item">{SITE.address.city}, {SITE.address.country}</span>
+      <nav class="footer__col" aria-label="Explore">
+        <p class="footer__col-title">Explore</p>
+        {explore.map((l) => (
+          <a href={l.href}>{l.label}</a>
+        ))}
+      </nav>
+
+      <nav class="footer__col" aria-label="Legal">
+        <p class="footer__col-title">Legal</p>
+        {legal.map((l) => (
+          <a href={l.href}>{l.label}</a>
+        ))}
+      </nav>
+
+      <div class="footer__col" aria-label="Contact">
+        <p class="footer__col-title">Contact</p>
+        <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+        <a href={`mailto:${SITE.emailConsultations}`}>{SITE.emailConsultations}</a>
+        <span>{SITE.address.city}, {SITE.address.country}</span>
       </div>
     </div>
 
     <div class="footer__bottom">
       <p>
-        © {year} SettlePay. {SITE.tradingStatement} A sole trader based in {SITE.address.city},
-        {SITE.address.country}.
+        © {year} SettlePay. {SITE.tradingStatement} A sole trader based in{' '}
+        {SITE.address.city}, {SITE.address.country}.
       </p>
     </div>
   </div>

@@ -15,6 +15,10 @@
   --color-primary-action-hover: #2563EB;
   --color-secondary-bg:        #F1F5F9;
   --color-pure-white:          #FFFFFF;
+  /* Muted-but-legible text — solid tokens, not opacity dimming, so attributions
+     and disclosures composite to >=4.5:1 on their real backgrounds (WCAG AA). */
+  --color-text-muted:          #55607A; /* on white/slate */
+  --color-text-on-dark-muted:  rgba(255, 255, 255, 0.72); /* on navy */
 
   /* Typography — Change 1 */
   --font-primary: 'Satoshi', system-ui, sans-serif;
@@ -78,6 +82,32 @@ html {
   font-size: var(--text-base);
   scroll-behavior: smooth;
   scroll-padding-top: var(--nav-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Cross-document view transitions (MPA) — a ~180ms fade between pages, with
+   the nav pill persisting rather than repainting. CSS-only: no ClientRouter,
+   so the WebGL islands' lifecycle is untouched. Firefox degrades to normal
+   navigation; reduced motion gets none. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.18s;
+  }
+  #navbar {
+    view-transition-name: site-nav;
+  }
+}
+
+html {
   /* Reserve the scrollbar gutter so locking body scroll (modal open) never
      shifts the page or the fixed nav sideways. */
   scrollbar-gutter: stable;
@@ -367,6 +397,27 @@ html.reveal-ready [data-reveal].is-revealed {
   padding-inline: calc(1.5rem - 0.75rem * var(--nav-scroll-p, 0));
   max-width: 1200px;
   transition: padding var(--ease-spring);
+}
+
+/* Dark variant: over navy sections the light frost reads as an opaque grey
+   slab — flip to a dark glass with light links (JS toggles the class from an
+   IO over the dark surfaces). */
+.navbar--over-dark .navbar__inner {
+  background-color: rgba(15, 23, 42, calc(0.5 + 0.22 * var(--nav-scroll-p, 0)));
+  border-color: rgba(255, 255, 255, calc(0.14 * var(--nav-scroll-p, 0)));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, calc(0.08 * (1 - var(--nav-scroll-p, 0)))),
+    0 4px 20px rgba(2, 6, 23, 0.35);
+}
+.navbar--over-dark .navbar__link {
+  color: rgba(255, 255, 255, 0.85);
+}
+.navbar--over-dark .navbar__link:hover {
+  color: var(--color-pure-white);
+}
+.navbar--over-dark .navbar__logo img,
+.navbar--over-dark [data-nav-toggle] {
+  filter: brightness(0) invert(1);
 }
 
 .navbar__logo {
@@ -783,13 +834,28 @@ html.reveal-ready [data-reveal].is-revealed {
 .checkout-v2__panel--active .checkout-v2__panel-header {
   background: #fdfdfd;
 }
+/* Accordion bodies animate open via the grid-rows 0fr -> 1fr trick (needs the
+   inner wrapper to allow min-height 0); reduced motion snaps as before. */
 .checkout-v2__panel-body {
-  display: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+}
+.checkout-v2__panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.checkout-v2__panel-pad {
+  padding: 1.25rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .checkout-v2__panel-body {
+    transition: grid-template-rows 0.35s var(--ease-cinematic);
+  }
 }
 .checkout-v2__panel--active .checkout-v2__panel-body {
-  display: block;
+  grid-template-rows: 1fr;
   background: #fafafa;
-  padding: 1.25rem;
   border-top: 1px solid #d9d9d9;
 }
 
@@ -952,6 +1018,19 @@ html.reveal-ready [data-reveal].is-revealed {
 .checkout-v2__applepay-big:hover {
   opacity: 0.9;
 }
+/* Idle-demo states: press, process, land on green — driven by SiteScripts. */
+.checkout-v2__applepay-big {
+  transition: opacity 0.2s, transform var(--ease-snappy), background-color 0.25s ease;
+}
+.checkout-v2__applepay-big.is-pressed {
+  transform: scale(0.97);
+}
+.checkout-v2__applepay-big.is-busy {
+  opacity: 0.85;
+}
+.checkout-v2__applepay-big.is-success {
+  background: var(--color-success);
+}
 
 
 /* ---------------------------------------------------------
@@ -988,7 +1067,8 @@ html.reveal-ready [data-reveal].is-revealed {
 }
 
 html.reveal-ready .section--dark .integration__step {
-  opacity: 0.4;
+  /* Dimmed but still readable (>=3:1) for anyone scrolling ahead of the spotlight. */
+  opacity: 0.55;
   transition: opacity 0.35s ease;
 }
 
@@ -1614,8 +1694,8 @@ html.reveal-ready .section--dark .integration__step.is-current {
 
 .footer__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 2.5rem;
   padding-bottom: 2.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   align-items: start;
@@ -1630,42 +1710,92 @@ html.reveal-ready .section--dark .integration__step.is-current {
 .footer__tagline {
   font-size: 0.85rem;
   line-height: 1.7;
-  opacity: 0.4;
+  color: var(--color-text-on-dark-muted);
   max-width: 340px;
-  margin-bottom: 1.25rem;
 }
 
-.footer__inline-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-.footer__inline-links a {
-  font-size: 0.82rem;
-  opacity: 0.5;
-  transition: opacity var(--ease-snappy);
-}
-
-.footer__inline-links a:hover {
-  opacity: 1;
-}
-
-.footer__contact {
+.footer__col {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
-.footer__contact-item {
-  font-size: 0.88rem;
-  opacity: 0.55;
-  transition: opacity var(--ease-snappy);
+.footer__col-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 0.35rem;
 }
 
-.footer__contact-item:hover {
-  opacity: 1;
+.footer__col a,
+.footer__col span {
+  font-size: 0.86rem;
+  color: var(--color-text-on-dark-muted);
+  transition: color var(--ease-snappy);
+  /* 24px minimum touch target without changing the visual rhythm */
+  display: inline-block;
+  padding-block: 4px;
+  margin-block: -4px;
+}
+
+.footer__col a:hover {
+  color: var(--color-pure-white);
+}
+
+/* The page's narrative full stop: a line draws across the footer's top edge
+   and settles into a green "Invoice settled" tick. One-shot via [data-live];
+   fully drawn for no-JS and reduced motion. */
+.footer__settle {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+}
+.footer__settle-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+}
+.footer__settle-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #6EE7B7;
+  background: var(--color-primary-brand);
+  border: 1px solid rgba(110, 231, 183, 0.35);
+  border-radius: 100px;
+  padding: 5px 14px;
+}
+.footer__settle-chip svg {
+  width: 12px;
+  height: 12px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .footer .footer__settle-line {
+    transform: scaleX(0);
+    transition: transform 1.1s var(--ease-cinematic);
+  }
+  html.reveal-ready .footer.is-live .footer__settle-line {
+    transform: scaleX(1);
+  }
+  html.reveal-ready .footer .footer__settle-chip {
+    opacity: 0;
+    scale: 0.9;
+    transition: opacity 0.45s var(--ease-cinematic) 0.75s, scale 0.45s var(--ease-cinematic) 0.75s;
+  }
+  html.reveal-ready .footer.is-live .footer__settle-chip {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 .footer__bottom {
@@ -1674,8 +1804,9 @@ html.reveal-ready .section--dark .integration__step.is-current {
 }
 
 .footer__bottom p {
+  /* The sole-trader disclosure — must stay comfortably legible (was opacity 0.3). */
   font-size: 0.78rem;
-  opacity: 0.3;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 /* ---------------------------------------------------------
@@ -1742,12 +1873,12 @@ html.reveal-ready .section--dark .integration__step.is-current {
   }
 
   .footer__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 2rem;
   }
 
-  .footer__contact {
-    align-items: flex-start;
+  .footer__brand {
+    grid-column: 1 / -1;
   }
 }
 

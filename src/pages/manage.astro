@@ -44,6 +44,17 @@ import { SITE } from '../data/site.mjs';
             <div style="margin-top:1.25rem"><BookingCalendar /></div>
           </div>
 
+          <!-- Inline confirm card + banner — branded replacements for the native
+               confirm()/alert() dialogs. JS moves them into the active step. -->
+          <div class="manage__confirm" data-mconfirm hidden role="alertdialog" aria-labelledby="mconfirm-text">
+            <p id="mconfirm-text" data-mconfirm-text></p>
+            <div class="manage__confirm-actions">
+              <button type="button" class="btn-primary" data-mconfirm-yes></button>
+              <button type="button" class="btn-secondary" data-mconfirm-no>Go back</button>
+            </div>
+          </div>
+          <p class="manage__banner" data-mbanner hidden role="alert"></p>
+
           <div data-mstep="done" class="sp-booking__success" hidden>
             <div class="sp-booking__success-icon"><Icon name="check" sw={2.5} /></div>
             <h2 data-mdone-title>All Done</h2>
@@ -67,4 +78,30 @@ import { SITE } from '../data/site.mjs';
     appearance: none; border: none; background: none; cursor: pointer; font: inherit;
     font-size: 0.9rem; font-weight: 600; color: var(--color-error); text-decoration: underline; padding: 0.5rem;
   }
+  .manage__confirm {
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 16px;
+    padding: 1.1rem 1.25rem;
+    margin-top: 1.25rem;
+  }
+  .manage__confirm[hidden] { display: none; }
+  .manage__confirm p { margin: 0 0 0.85rem; font-weight: 600; }
+  .manage__confirm-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .manage__banner {
+    margin-top: 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: var(--radius-input);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #7C4A03;
+  }
+  .manage__banner.is-error {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #B91C1C;
+  }
+  .manage__banner[hidden] { display: none; }
 </style>
