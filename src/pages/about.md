@@ -6,32 +6,54 @@ description: "SettlePay is Finlay Salisbury, a UK payment-page developer buildin
 keywords: "about SettlePay, Finlay Salisbury, payment page developer UK, sole trader payment integration, bespoke checkout developer, UK SME payments specialist"
 path: "/about/"
 pageType: "AboutPage"
+lead: "SettlePay helps small UK businesses take card and online payments properly — without the admin, the awkward phone calls or the pile of bank statements to reconcile by hand."
 ---
-SettlePay helps small UK businesses take card and online payments properly, without the admin, the awkward phone calls or the pile of bank statements to reconcile by hand.
-
 We build you a bespoke, branded payment page and wire it into the accounting software you already use. The money goes straight to your bank. You keep control. We handle the plumbing.
 
 ## What We Do
 
 Most small businesses don't need another payment "platform". They need the pieces joined up so payments just work. That's what we do, in three plain parts.
 
-**The Front Door.** We design and build a secure, branded checkout or pay-by-link page that lives on your own website or sits on your invoices. Your customers see your name and your colours, with familiar options like Apple Pay, Google Pay and standard card entry, so paying feels safe and normal.
-
-**The Engine Room.** Behind that page sits an established, FCA-regulated payment processor such as Stripe, GoCardless, Checkout.com or Adyen. They process the payment securely and you get a single, clean dashboard to see who has paid. We never touch your funds; they settle directly from the processor to your own business bank account on a reliable schedule.
-
-**The Bookkeeper.** We build the bridge between your payments and your accounting software, such as Xero, QuickBooks or Sage. When a customer pays, the matching invoice is marked as paid automatically. No re-keying, no guessing which payment belongs to whom.
+<div class="about-flow">
+  <div class="about-flow__step">
+    <span class="about-flow__num" aria-hidden="true">1</span>
+    <h3>The Front Door</h3>
+    <p>A secure, branded checkout or pay-by-link page that lives on your own website or sits on your invoices. Your customers see your name and your colours, with familiar options like Apple Pay, Google Pay and standard card entry, so paying feels safe and normal.</p>
+  </div>
+  <div class="about-flow__step">
+    <span class="about-flow__num" aria-hidden="true">2</span>
+    <h3>The Engine Room</h3>
+    <p>Behind that page sits an established, FCA-regulated payment processor such as Stripe, GoCardless, Checkout.com or Adyen. They process the payment securely; funds settle directly from the processor to your own business bank account. We never touch your money.</p>
+  </div>
+  <div class="about-flow__step">
+    <span class="about-flow__num" aria-hidden="true">3</span>
+    <h3>The Bookkeeper</h3>
+    <p>A bridge between your payments and your accounting software — Xero, QuickBooks or Sage. When a customer pays, the matching invoice is marked as paid automatically. No re-keying, no guessing which payment belongs to whom.</p>
+  </div>
+</div>
 
 PCI DSS compliance is handled by your chosen payment processor. Using a hosted payment page typically reduces your business's PCI scope, often to SAQ A, though you remain responsible for completing your own PCI Self-Assessment. We're happy to point you in the right direction.
 
 ## How We're Different
 
-**No lock-in.** We don't trap you in a proprietary SettlePay system. Everything we build runs on standard tools you can keep and maintain whether or not you carry on working with us.
-
-**We never hold your money.** SettlePay is a technology and integration provider, not a payment institution. Your funds move directly from the FCA-regulated processor to your bank account. We are never in the middle of it.
-
-**You keep your own account.** We guide you through opening your own merchant account with the processor, in your own business name. It belongs to you. We're the engineers who set it up well, not a middleman taking a cut of every sale.
-
-**It doesn't look like everyone else's.** Your payment page is designed around your brand, not dropped in from a template. To your customers it should feel like a natural part of your business, because it is.
+<div class="about-grid">
+  <div class="about-card">
+    <h3>No Lock-In</h3>
+    <p>We don't trap you in a proprietary SettlePay system. Everything we build runs on standard tools you can keep and maintain whether or not you carry on working with us.</p>
+  </div>
+  <div class="about-card">
+    <h3>We Never Hold Your Money</h3>
+    <p>SettlePay is a technology and integration provider, not a payment institution. Your funds move directly from the FCA-regulated processor to your bank account. We are never in the middle of it.</p>
+  </div>
+  <div class="about-card">
+    <h3>You Keep Your Own Account</h3>
+    <p>We guide you through opening your own merchant account with the processor, in your own business name. It belongs to you. We're the engineers who set it up well, not a middleman taking a cut of every sale.</p>
+  </div>
+  <div class="about-card">
+    <h3>It Doesn't Look Like Everyone Else's</h3>
+    <p>Your payment page is designed around your brand, not dropped in from a template. To your customers it should feel like a natural part of your business, because it is.</p>
+  </div>
+</div>
 
 ## Who We Work With
 

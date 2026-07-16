@@ -283,6 +283,48 @@
 }
 
 /* ---- About page extras ---- */
+/* Three-step flow strip — echoes the landing page's flow-diagram language. */
+.about-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin: 2rem 0 2.25rem;
+}
+.about-flow__step {
+  background: var(--color-secondary-bg);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem;
+}
+.about-flow__num {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary-brand);
+  color: var(--color-pure-white);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.about-flow__step h3 {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+  margin: 0 0 0.45rem;
+}
+.about-flow__step p {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: rgba(15, 23, 42, 0.62);
+  margin: 0;
+}
+@media (max-width: 880px) {
+  .about-flow { grid-template-columns: 1fr; }
+  .about-grid { grid-template-columns: 1fr; }
+}
 .about-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
