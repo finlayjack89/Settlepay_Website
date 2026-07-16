@@ -3,12 +3,15 @@
  * PayCard — the customer's payment card as a hero object (the Stripe-video
  * card moment, in SettlePay colours). Pointer-tracked 3D tilt via [data-tilt];
  * the tilt handler writes --px/--py and every light layer derives its own
- * motion from them: the face gloss sweeps opposite the tilt like a fixed
- * light, the gold chip's glint crosses at a different rate (different
- * material), and the holographic SettlePay monogram shifts hue as it moves.
+ * motion from them: the specular band sweeps AND rotates opposite the tilt
+ * like a fixed light over moving metal, the gold chip's glint crosses at a
+ * different rate (different material), and the holographic SettlePay
+ * monogram shifts hue as it moves. Nothing tracks the cursor position
+ * directly — a following radial read as cheap; only reflections move.
  * The card still reads as the CUSTOMER's card (we build payment pages, we do
  * not issue cards) — the monogram is a hologram patch, not an issuer mark,
- * and the Visa mark renders as-is per the payment-mark rules.
+ * and the Visa wordmark is monochrome silver as on a physical card face
+ * (the scoped exception in DESIGN-SYSTEM §12).
  */
 ---
 <div class="pay-card" data-tilt data-tilt-max="7" aria-hidden="true">
@@ -34,8 +37,7 @@
     </g>
     <rect x="220" y="14" width="150" height="96" fill="url(#pc-dots)" mask="url(#pc-dot-mask)" opacity="0.4" />
   </svg>
-  <div class="pay-card__sheen"></div>
-  <div class="pay-card__gloss"></div>
+  <div class="pay-card__foil"></div>
   <div class="pay-card__chip">
     <svg viewBox="0 0 46 34" aria-hidden="true">
       <defs>
@@ -65,6 +67,24 @@
   <div class="pay-card__number">•••• &nbsp;•••• &nbsp;•••• &nbsp;4242</div>
   <div class="pay-card__row">
     <span class="pay-card__holder">Your Customer</span>
-    <img src="/assets/payment/Visa.svg" alt="" class="pay-card__mark" loading="lazy" />
+    {/* Visa wordmark paths from /assets/payment/Visa.svg, minus the white
+        plate, filled silver — the monochrome treatment real card faces use. */}
+    <svg class="pay-card__mark" viewBox="45 134 662 201" aria-hidden="true">
+      <defs>
+        <linearGradient id="pc-visa" x1="0" y1="0" x2="0.85" y2="1">
+          <stop offset="0" stop-color="#EDF1F7" />
+          <stop offset="0.45" stop-color="#C7CFDC" />
+          <stop offset="0.7" stop-color="#A8B2C4" />
+          <stop offset="1" stop-color="#E2E8F1" />
+        </linearGradient>
+      </defs>
+      <g fill="url(#pc-visa)">
+        <path d="M278.198 334.228l33.36-195.763h53.358L331.566 334.228h-53.368zM524.307 142.687c-10.57-3.966-27.135-8.222-47.822-8.222-52.726 0-89.863 26.551-90.181 64.604-.318 28.129 26.514 43.822 46.754 53.185 20.771 9.598 27.752 15.716 27.652 24.283-.133 13.123-16.586 19.115-31.924 19.115-21.355 0-32.701-2.967-50.225-10.274l-6.878-3.112-7.487 43.822c12.463 5.467 35.508 10.199 59.438 10.445 56.09 0 92.502-26.248 92.916-66.885.199-22.27-14.016-39.215-44.801-53.188-18.65-9.056-30.072-15.099-29.951-24.269 0-8.137 9.668-16.838 30.56-16.838 17.286-.271 29.585 3.474 39.476 7.431l4.746 2.248 7.196-42.689l.531 2.344zM661.615 138.464h-41.23c-12.773 0-22.332 3.486-27.941 16.234l-79.245 179.402h56.031s9.159-24.121 11.231-29.418c6.123 0 60.555.084 68.336.084 1.596 6.854 6.492 29.334 6.492 29.334h49.512l-43.186-195.636zm-65.417 126.408c4.414-11.279 21.26-54.724 21.26-54.724-.316.521 4.381-11.334 7.074-18.684l3.606 16.878s10.217 46.729 12.353 56.527h-44.293v.003zM232.903 138.464L180.664 271.96l-5.565-27.129c-9.726-31.274-40.025-65.157-73.898-82.12l47.767 171.204 56.455-.066 84.004-195.386h-56.524" />
+        <path d="M131.92 138.464H45.879l-.682 4.073C112.58 157.177 166.061 199.979 186.759 244.83L165.634 155.015c-3.64-13.854-14.182-16.215-27.452-16.551h-6.262" />
+      </g>
+    </svg>
   </div>
+  {/* Specular band sits ABOVE the content: a real reflection crosses the
+      number, chip and marks, not just the paintwork underneath them. */}
+  <div class="pay-card__gloss"></div>
 </div>

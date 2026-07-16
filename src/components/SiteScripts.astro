@@ -246,23 +246,35 @@
     const countTarget = parseInt(countSection.dataset.countTarget || '0', 10);
     if (countValue && countTarget > 0) {
       const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-      let countTick = false;
-      const writeCount = () => {
-        countTick = false;
+      // Wheel clicks land as instant scroll steps, so the shown progress
+      // chases the real one through a time-based lerp — the wheel gets the
+      // same momentum feel as a trackpad, and 60Hz/120Hz displays match.
+      let targetP = 0;
+      let shownP = 0;
+      let rafId = 0;
+      let lastTs = 0;
+      const readTarget = () => {
         const r = countSection.getBoundingClientRect();
         const travel = r.height - window.innerHeight;
-        if (travel <= 0) return;
-        const p = Math.min(Math.max(-r.top / travel, 0), 1);
-        countValue.textContent = Math.round(easeOutCubic(p) * countTarget).toLocaleString('en-GB');
-        if (p >= 0.96) countSection.classList.add('is-settled');
+        if (travel > 0) targetP = Math.min(Math.max(-r.top / travel, 0), 1);
+      };
+      const writeCount = (ts: number) => {
+        rafId = 0;
+        const dt = Math.min((ts - lastTs) / 1000, 0.1) || 1 / 60;
+        lastTs = ts;
+        shownP += (targetP - shownP) * (1 - Math.exp(-dt / 0.12));
+        if (Math.abs(targetP - shownP) < 0.0006) shownP = targetP;
+        countValue.textContent = Math.round(easeOutCubic(shownP) * countTarget).toLocaleString('en-GB');
+        if (shownP >= 0.96) countSection.classList.add('is-settled');
+        if (shownP !== targetP) rafId = requestAnimationFrame(writeCount);
       };
       window.addEventListener('scroll', () => {
-        if (!countTick) {
-          countTick = true;
-          requestAnimationFrame(writeCount);
-        }
+        readTarget();
+        if (!rafId) rafId = requestAnimationFrame(writeCount);
       }, { passive: true });
-      writeCount();
+      readTarget();
+      shownP = targetP; // a mid-page load starts on the right value, no chase
+      rafId = requestAnimationFrame(writeCount);
     }
   }
 
@@ -362,21 +374,49 @@
   if (finePointer && !reducedMotion) {
     document.querySelectorAll<HTMLElement>('[data-tilt]').forEach((el) => {
       const max = parseFloat(el.dataset.tiltMax || '4');
+      // Custom properties cannot transition, so every calc()-derived light
+      // layer would snap on pointerleave — instead the written values chase
+      // their targets through a short time-based lerp. Tilt rests flat (0,0)
+      // while the light vars rest at (0.5, 0.35): the fixed light stays
+      // slightly high even when nobody is pointing.
+      const REST = { px: 0.5, py: 0.35, rx: 0, ry: 0 };
+      let t = { ...REST };
+      const c = { ...REST };
+      let raf = 0;
+      let last = 0;
+      const step = (ts: number) => {
+        raf = 0;
+        const dt = Math.min((ts - last) / 1000, 0.05) || 1 / 60;
+        last = ts;
+        const k = 1 - Math.exp(-dt / 0.06);
+        let done = true;
+        (Object.keys(c) as (keyof typeof c)[]).forEach((key) => {
+          c[key] += (t[key] - c[key]) * k;
+          if (Math.abs(t[key] - c[key]) > 0.001) done = false;
+          else c[key] = t[key];
+        });
+        el.style.setProperty('--tilt-y', `${(c.rx * max * 2).toFixed(2)}deg`);
+        el.style.setProperty('--tilt-x', `${(-c.ry * max * 2).toFixed(2)}deg`);
+        // Normalised pointer position for light/sheen effects (PayCard).
+        el.style.setProperty('--px', c.px.toFixed(3));
+        el.style.setProperty('--py', c.py.toFixed(3));
+        // Pointer-from-centre (0..1): light layers scale intensity with it.
+        el.style.setProperty('--pfc', Math.min(Math.hypot(c.px - 0.5, c.py - 0.5) * 2.4, 1).toFixed(3));
+        if (!done) raf = requestAnimationFrame(step);
+      };
+      const wake = () => {
+        if (!raf) raf = requestAnimationFrame(step);
+      };
       el.addEventListener('pointermove', (ev) => {
         const r = el.getBoundingClientRect();
         const px = (ev.clientX - r.left) / r.width - 0.5;
         const py = (ev.clientY - r.top) / r.height - 0.5;
-        el.style.setProperty('--tilt-y', `${(px * max * 2).toFixed(2)}deg`);
-        el.style.setProperty('--tilt-x', `${(-py * max * 2).toFixed(2)}deg`);
-        // Normalised pointer position for light/sheen effects (PayCard).
-        el.style.setProperty('--px', (px + 0.5).toFixed(3));
-        el.style.setProperty('--py', (py + 0.5).toFixed(3));
+        t = { px: px + 0.5, py: py + 0.5, rx: px, ry: py };
+        wake();
       });
       el.addEventListener('pointerleave', () => {
-        el.style.setProperty('--tilt-x', '0deg');
-        el.style.setProperty('--tilt-y', '0deg');
-        el.style.setProperty('--px', '0.5');
-        el.style.setProperty('--py', '0.35');
+        t = { ...REST };
+        wake();
       });
     });
   }

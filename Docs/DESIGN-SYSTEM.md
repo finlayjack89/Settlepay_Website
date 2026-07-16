@@ -221,6 +221,10 @@ In [`public/assets/payment/`](../public/assets/payment/): `Visa.svg`, `Mastercar
 Pay render as proper branded buttons (black Apple-glyph button; white button with the four-colour
 Google "G"). Used inside the hero checkout mockup only.
 
+One scoped exception: on the `PayCard` physical-card mockup the Visa wordmark renders monochrome
+silver — the treatment real card faces use — because it depicts a customer's card, not a checkout
+trust mark. Everywhere else the as-is rule stands.
+
 ---
 
 ## 13. Imagery
