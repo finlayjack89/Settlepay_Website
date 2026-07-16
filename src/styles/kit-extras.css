@@ -987,7 +987,7 @@
 .hero-stage .checkout-v2__express { margin-bottom: 0.85rem; }
 .hero-stage .checkout-v2__divider { margin-bottom: 0.85rem; }
 .hero-stage .checkout-v2__header { margin-bottom: 0.7rem; }
-.hero-stage .checkout-v2__panel--active .checkout-v2__panel-body { padding: 0.9rem 1rem; }
+.hero-stage .checkout-v2__panel-pad { padding: 0.9rem 1rem; }
 .hero-stage .checkout-v2__input {
   min-height: 50px;
   padding-top: 1.4rem !important;
@@ -1543,14 +1543,17 @@
   bottom: 5rem;
   width: 42px;
   height: 42px;
+  /* Blue/cyan holds the middle stops so the resting pointer position reads
+     brand blue, not pink; warm hues only appear at the travel extremes. */
   background: linear-gradient(
     115deg,
-    #7DD3FC 0%,
-    #C4B5FD 22%,
-    #F9A8D4 42%,
-    #FDE68A 62%,
-    #86EFAC 82%,
-    #7DD3FC 100%
+    #F9A8D4 0%,
+    #C4B5FD 16%,
+    #7DD3FC 38%,
+    #93C5FD 54%,
+    #C4B5FD 70%,
+    #FDE68A 86%,
+    #86EFAC 100%
   );
   background-size: 260% 260%;
   background-position: calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%);
@@ -1621,7 +1624,11 @@
    html.reveal-ready AND motion is allowed.
    ========================================================================= */
 .market-shift {
-  background-color: var(--color-pure-white);
+  /* A short navy tail dissolves the dark chapter into the white counter —
+     the harshest seam on the page becomes a dawn instead of a bang. */
+  background:
+    linear-gradient(180deg, var(--color-primary-brand) 0%, rgba(15, 23, 42, 0) 160px),
+    var(--color-pure-white);
 }
 .market-shift__stage {
   padding-block: var(--space-section);
@@ -1729,9 +1736,14 @@
     transition: opacity var(--ease-cinematic), translate var(--ease-cinematic);
   }
   html.reveal-ready .market-shift:not(.is-settled) .market-shift__source,
-  html.reveal-ready .market-shift:not(.is-settled) .market-shift__facts,
   html.reveal-ready .market-shift:not(.is-settled) .market-shift__close {
     opacity: 0;
+    translate: 0 14px;
+  }
+  /* Ghost skeletons, not a void: mid-scrub the fact cards hold their space
+     at low opacity so the pinned viewport never reads >40% empty. */
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__facts {
+    opacity: 0.14;
     translate: 0 14px;
   }
   html.reveal-ready .market-shift.is-settled .market-shift__facts {

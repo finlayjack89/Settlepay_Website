@@ -282,6 +282,50 @@
   color: var(--color-primary-action);
 }
 
+/* Wayfinding for 10k-px legal documents: on wide screens the TOC becomes a
+   sticky left rail with an IO scrollspy (.is-current); below 1200px it stays
+   the stacked box. No-JS keeps a persistent clickable TOC either way. */
+.legal-top {
+  display: inline-flex;
+  margin-top: 2.5rem;
+}
+@media (min-width: 1200px) {
+  .legal-grid {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+  .legal-toc {
+    position: sticky;
+    top: calc(var(--nav-offset) + 1rem);
+    max-height: calc(100vh - var(--nav-offset) - 2rem);
+    overflow-y: auto;
+    margin-bottom: 0;
+  }
+  .legal-toc ol {
+    grid-template-columns: 1fr;
+  }
+  .legal-toc a.is-current {
+    color: var(--color-primary-brand);
+    font-weight: 700;
+  }
+}
+/* Deep-link target: the linked section identifies itself. */
+.prose h2:target {
+  scroll-margin-top: var(--nav-offset);
+  border-left: 3px solid var(--color-primary-action);
+  padding-left: 0.6rem;
+  margin-left: -0.75rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .prose h2:target { animation: legalTargetWash 1.6s ease-out; }
+  @keyframes legalTargetWash {
+    0% { background: rgba(59, 130, 246, 0.1); }
+    100% { background: transparent; }
+  }
+}
+
 /* ---- About page extras ---- */
 /* Three-step flow strip — echoes the landing page's flow-diagram language. */
 .about-flow {

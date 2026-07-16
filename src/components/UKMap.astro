@@ -141,8 +141,8 @@ void main() {
   const ROWS = MASK.length;
   const ASPECT = COLS / ROWS; // physical x/y ratio of the canvas
   const ARC_N = 56;           // points per arc
-  const BASE_SIZE = 2.1;
-  const BASE_ALPHA = 0.6;
+  const BASE_SIZE = 2.35;
+  const BASE_ALPHA = 0.78;
   const cell = (c: number, r: number): [number, number] => [(c + 0.5) / COLS, (r + 0.5) / ROWS];
 
   const easeInOut = (t: number) => t * t * (3 - 2 * t);

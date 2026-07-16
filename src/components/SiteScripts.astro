@@ -119,6 +119,37 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Nav dark variant — while any dark surface sits under the nav band, the
+  // light frost flips to dark glass (.navbar--over-dark). IO with a top-band
+  // rootMargin; rebuilt on resize since rootMargin is viewport-dependent.
+  // ---------------------------------------------------------------------------
+  {
+    const navEl = document.getElementById('navbar');
+    const darkSurfaces = Array.from(
+      document.querySelectorAll('.section--dark, .cta-section__inner, .preview-teaser__inner, .footer, .sources')
+    );
+    if (navEl && darkSurfaces.length && 'IntersectionObserver' in window) {
+      const under = new Set<Element>();
+      let darkIo: IntersectionObserver | null = null;
+      const build = () => {
+        darkIo?.disconnect();
+        under.clear();
+        darkIo = new IntersectionObserver((entries) => {
+          entries.forEach((e) => { e.isIntersecting ? under.add(e.target) : under.delete(e.target); });
+          navEl.classList.toggle('navbar--over-dark', under.size > 0);
+        }, { rootMargin: `0px 0px -${Math.max(window.innerHeight - 90, 0)}px 0px` });
+        darkSurfaces.forEach((el) => darkIo!.observe(el));
+      };
+      build();
+      let navDarkResize = 0;
+      window.addEventListener('resize', () => {
+        clearTimeout(navDarkResize);
+        navDarkResize = window.setTimeout(build, 200) as unknown as number;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Mobile sticky booking bar — slides in after the hero, hides whenever the
   // final CTA band or footer is on screen so it never doubles up. Homepage only
   // (the bar is only rendered there). Per-element Map because the IO callback
@@ -232,6 +263,26 @@
         }
       }, { passive: true });
       writeCount();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legal TOC scrollspy — the sticky rail darkens the section you're reading.
+  // ---------------------------------------------------------------------------
+  const legalToc = document.querySelector('[data-legal-toc]');
+  if (legalToc && 'IntersectionObserver' in window) {
+    const tocLinks = Array.from(legalToc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'));
+    const byId = new Map(tocLinks.map((a) => [a.getAttribute('href')!.slice(1), a]));
+    const heads = Array.from(document.querySelectorAll<HTMLElement>('.prose h2[id]'))
+      .filter((h) => byId.has(h.id));
+    if (heads.length) {
+      const spy = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          tocLinks.forEach((a) => a.classList.toggle('is-current', a === byId.get((e.target as HTMLElement).id)));
+        });
+      }, { rootMargin: '-15% 0px -70% 0px' });
+      heads.forEach((h) => spy.observe(h));
     }
   }
 
@@ -355,6 +406,72 @@
         }
       });
     });
+
+    // -------------------------------------------------------------------------
+    // Idle demo loop — this audience won't click a mockup, so after ~4s in
+    // view untouched the checkout demonstrates itself: the security code types
+    // in, the pay button presses, processes and lands on a green confirmation,
+    // then the Klarna panel peeks open before everything resets. The FIRST
+    // pointer/keyboard interaction inside the mockup kills the loop for good.
+    // Skipped under reduced motion; IO-gated like every other island.
+    // -------------------------------------------------------------------------
+    const payBtn = checkout.querySelector('.checkout-v2__applepay-big') as HTMLElement | null;
+    const cvcInput = checkout.querySelector('[data-demo-cvc]') as HTMLInputElement | null;
+    if (payBtn && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const payLabel = payBtn.textContent;
+      let demoDead = false;
+      let demoTimers: number[] = [];
+      const clearDemo = () => { demoTimers.forEach(clearTimeout); demoTimers = []; };
+      const resetDemo = () => {
+        payBtn.classList.remove('is-pressed', 'is-busy', 'is-success');
+        payBtn.textContent = payLabel;
+        if (cvcInput) cvcInput.value = '';
+      };
+      const killDemo = () => {
+        demoDead = true;
+        clearDemo();
+        resetDemo();
+        activate(panels[0]);
+      };
+      ['pointerdown', 'pointerover', 'focusin'].forEach((ev) =>
+        checkout.addEventListener(ev, killDemo, { once: true, capture: true })
+      );
+
+      const at = (ms: number, fn: () => void) => demoTimers.push(window.setTimeout(fn, ms));
+      const runCycle = () => {
+        if (demoDead) return;
+        // 1. The security code types itself in.
+        if (cvcInput) '123'.split('').forEach((ch, i) => at(200 + i * 160, () => { cvcInput.value += ch; }));
+        // 2. Press -> processing -> paid.
+        at(900, () => payBtn.classList.add('is-pressed'));
+        at(1100, () => {
+          payBtn.classList.remove('is-pressed');
+          payBtn.classList.add('is-busy');
+          payBtn.textContent = 'Processing…';
+        });
+        at(2300, () => {
+          payBtn.classList.remove('is-busy');
+          payBtn.classList.add('is-success');
+          payBtn.textContent = 'Payment received';
+        });
+        // 3. Reset, peek at Klarna, settle back on card.
+        at(4600, resetDemo);
+        at(5100, () => { if (panels[1]) activate(panels[1]); });
+        at(7000, () => activate(panels[0]));
+        at(9000, () => { if (!demoDead && demoVisible) runCycle(); });
+      };
+
+      let demoVisible = false;
+      let demoStarted = false;
+      const demoIo = new IntersectionObserver(([e]) => {
+        demoVisible = e.isIntersecting;
+        if (demoVisible && !demoStarted && !demoDead) {
+          demoStarted = true;
+          at(4000, runCycle);
+        }
+      }, { threshold: 0.6 });
+      demoIo.observe(checkout);
+    }
   }
 
   // ---------------------------------------------------------------------------
