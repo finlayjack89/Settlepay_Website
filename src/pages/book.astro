@@ -69,9 +69,19 @@ const checklist = [
           data-availability={SITE.availabilityEndpoint}
           data-book={SITE.bookEndpoint}
         >
-          <div data-step="loading" class="sp-booking__state" aria-live="polite">
-            <span class="sp-spinner" aria-hidden="true"></span>
-            <p>Loading available times…</p>
+          <div data-step="loading" aria-live="polite">
+            <p class="sr-only">Loading available times…</p>
+            <!-- Skeleton of the incoming calendar, not an anonymous spinner. -->
+            <div class="sp-skel" aria-hidden="true">
+              <div class="sp-skel__cal">
+                <span class="sp-skel__bar"></span>
+                <span class="sp-skel__grid"></span>
+              </div>
+              <div class="sp-skel__times">
+                <span class="sp-skel__bar"></span>
+                <i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
           </div>
 
           <div data-step="error" class="sp-booking__state" hidden>
@@ -92,7 +102,15 @@ const checklist = [
 
           <div data-step="details" hidden>
             <button type="button" data-back class="sp-booking__back"><Icon name="chevron" sw={2.5} /> Change time</button>
-            <p class="sp-booking__chosen" data-chosen></p>
+            <!-- The moment of commitment: a proper meeting card, not a plain sentence. -->
+            <div class="sp-booking__summary">
+              <div class="sp-booking__summary-icon"><Icon name="clock" sw={2} /></div>
+              <div class="sp-booking__summary-body">
+                <p class="sp-booking__chosen" data-chosen></p>
+                <p class="sp-booking__summary-meta">30 minutes · Google Meet video call · with Finlay, SettlePay's founder</p>
+                <span class="sp-booking__summary-tag">Free — no obligation</span>
+              </div>
+            </div>
             <form data-book-form class="sp-modal__form" novalidate>
               <div class="sp-field">
                 <input required name="name" id="b-name" placeholder=" " autocomplete="name" />
@@ -112,6 +130,13 @@ const checklist = [
               </div>
               <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
               <Button type="submit" icon="arrow" data-book-submit>Confirm Booking</Button>
+              <p class="sp-field__hint">
+                No payment details needed. You can reschedule or cancel any time from your
+                confirmation email.
+              </p>
+              <p class="sp-field__hint">
+                By booking, you agree to our <a href="/privacy/">Privacy Policy</a>.
+              </p>
               <p class="sp-field__hint" data-book-error hidden role="alert" aria-live="assertive" style="color:var(--color-error)"></p>
             </form>
           </div>

@@ -60,21 +60,31 @@ import Button from './Button.astro';
         </p>
         <!-- Honeypot: bots fill this; humans never see it. -->
         <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
+        <!-- Trust is zone-local: reassurance sits at the point of commitment. -->
+        <ul class="sp-modal__assure" aria-label="What to expect">
+          <li><Icon name="check" sw={2.5} />No card details requested</li>
+          <li><Icon name="check" sw={2.5} />A reply within one working day</li>
+          <li><Icon name="check" sw={2.5} />Payments are processed by FCA-regulated partners</li>
+        </ul>
         <Button type="submit" icon="arrow" data-submit-btn>Send My Enquiry</Button>
         <p class="sp-field__hint">
           By submitting, you agree to our <a href="/privacy/">Privacy Policy</a>.
         </p>
         <p class="sp-field__hint" data-form-note hidden aria-live="polite"></p>
         <p class="sp-field__hint" data-form-error hidden role="alert" aria-live="assertive" style="color:var(--color-error)"></p>
-
-        <div class="sp-modal__or"><span>or</span></div>
-        <a href="/book/" class="btn-secondary sp-modal__book">
-          Pick a Time Now<Icon name="arrow" sw={2.5} />
-        </a>
-        <p class="sp-field__hint sp-modal__alt-note">
-          Prefer email? Write to us at <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a>
-        </p>
       </form>
+    </div>
+
+    <!-- Non-scrolling footer: the self-schedule fork must never hide below the
+         form's internal scroll fold — both funnel paths stay on screen. -->
+    <div class="sp-modal__footer" data-modal-footer>
+      <div class="sp-modal__or"><span>or</span></div>
+      <a href="/book/" class="btn-secondary sp-modal__book">
+        Pick a Time Now<Icon name="arrow" sw={2.5} />
+      </a>
+      <p class="sp-field__hint sp-modal__alt-note">
+        Prefer email? Write to us at <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a>
+      </p>
     </div>
 
     <div class="sp-modal__success" data-modal-success hidden>
@@ -107,6 +117,36 @@ import Button from './Button.astro';
   @media (prefers-reduced-motion: reduce) {
     .sp-modal__success:not([hidden]) { animation: none; }
   }
+
+  /* Zone-local reassurance at the submit button. */
+  .sp-modal__assure {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0.2rem 0 0.55rem;
+  }
+  .sp-modal__assure li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+  .sp-modal__assure li :global(svg) {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    color: var(--color-success);
+  }
+
+  /* Pinned footer: sits outside the scrolling view, hidden on success. */
+  .sp-modal__footer {
+    flex-shrink: 0;
+    padding-top: 0.55rem;
+    margin-top: 0.55rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .sp-modal__footer[hidden] { display: none; }
 
   /* "or" divider between the form and the self-schedule shortcut. */
   .sp-modal__or {

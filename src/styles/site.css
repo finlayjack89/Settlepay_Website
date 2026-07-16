@@ -516,7 +516,35 @@
   color: var(--color-primary-action); padding: 0; margin: 0 0 1rem;
 }
 .sp-booking__back svg { width: 16px; height: 16px; flex-shrink: 0; transform: rotate(90deg); }
-.sp-booking__chosen { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1.25rem; }
+.sp-booking__chosen { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+/* Commitment summary card — the chosen slot presented as a proper meeting. */
+.sp-booking__summary {
+  display: flex; align-items: flex-start; gap: 0.85rem;
+  background: var(--color-secondary-bg);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 1rem 1.15rem;
+  margin: 0 0 1.4rem;
+}
+.sp-booking__summary-icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: var(--color-primary-action);
+}
+.sp-booking__summary-icon svg { width: 17px; height: 17px; }
+.sp-booking__summary-meta {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 0.84rem; line-height: 1.5;
+  color: var(--color-text-muted);
+}
+.sp-booking__summary-tag {
+  display: inline-block;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  color: #0B6B4D; background: rgba(16, 185, 129, 0.12);
+  padding: 3px 10px; border-radius: 100px;
+}
 
 .sp-booking__success { text-align: center; padding: 1.5rem 0.5rem; }
 .sp-booking__success-icon { width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10B981; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.1rem; }
@@ -690,6 +718,74 @@ button.sp-cal__cell--selected:hover {
 .sp-cal__slot:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+/* The settle moment: chip fills navy for ~190ms before the step advances. */
+.sp-cal__slot.is-picked {
+  background: var(--color-primary-brand);
+  border-color: var(--color-primary-brand);
+  color: var(--color-pure-white);
+  transform: scale(0.97);
+}
+/* One-tap soonest-slot pill above the calendar. */
+.sp-cal__quick {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.1rem;
+  border-radius: var(--radius-input);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.06);
+  color: var(--color-primary-brand);
+  transition: border-color var(--ease-snappy), background var(--ease-snappy);
+}
+.sp-cal__quick:hover {
+  border-color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.1);
+}
+.sp-cal__quick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+.sp-cal__quick-cta {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-primary-action);
+}
+/* Loading skeleton shaped like the incoming calendar. */
+.sp-skel {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 1.75rem;
+  padding: 0.5rem 0 1rem;
+}
+.sp-skel__bar,
+.sp-skel__grid,
+.sp-skel__times i {
+  display: block;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.07);
+}
+.sp-skel__bar { height: 20px; width: 55%; margin-bottom: 1rem; }
+.sp-skel__grid { height: 240px; }
+.sp-skel__times i { height: 42px; margin-bottom: 0.55rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .sp-skel__bar, .sp-skel__grid, .sp-skel__times i {
+    animation: spSkelPulse 1.4s ease-in-out infinite;
+  }
+}
+@keyframes spSkelPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (max-width: 620px) {
+  .sp-skel { grid-template-columns: 1fr; }
 }
 .sp-cal__times-empty {
   font-size: 0.9rem;

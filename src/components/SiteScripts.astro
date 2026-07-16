@@ -398,9 +398,11 @@
       document.body.style.overflow = '';
       lastFocused?.focus();
     };
+    const modalFooter = modal.querySelector('[data-modal-footer]') as HTMLElement | null;
     const showSuccess = () => {
       formView.hidden = true;
       successView.hidden = false;
+      if (modalFooter) modalFooter.hidden = true; // success has its own booking CTA
       form?.reset();
     };
 
@@ -525,6 +527,22 @@
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const ymOf = (key: string) => { const [y, m] = key.split('-').map(Number); return y * 12 + (m - 1); };
+
+    // "First available" quick-pick — one tap books the soonest slot without
+    // touching the calendar. Rebuilt fresh on every buildCalendar call.
+    mount.querySelector('.sp-cal__quick')?.remove();
+    const firstDay = byDate.get(keys[0]);
+    const firstSlot = firstDay?.slots?.[0];
+    if (firstSlot) {
+      const quick = document.createElement('button');
+      quick.type = 'button';
+      quick.className = 'sp-cal__quick';
+      quick.innerHTML = `<span>First available: <strong>${firstDay.label} at ${firstSlot.label}</strong></span><span class="sp-cal__quick-cta">Book it</span>`;
+      quick.addEventListener('click', () =>
+        onPick({ start: firstSlot.start, timeLabel: firstSlot.label, dayLabel: firstDay.label })
+      );
+      mount.prepend(quick);
+    }
     const firstYM = ymOf(keys[0]);
     const lastYM = ymOf(keys[keys.length - 1]);
     let viewY = Number(keys[0].slice(0, 4));
@@ -547,7 +565,14 @@
         b.type = 'button';
         b.className = 'sp-cal__slot';
         b.textContent = s.label;
-        b.addEventListener('click', () => onPick({ start: s.start, timeLabel: s.label, dayLabel: timesLabel.textContent }));
+        b.addEventListener('click', () => {
+          const fire = () => onPick({ start: s.start, timeLabel: s.label, dayLabel: timesLabel.textContent });
+          // A brief settle: the chip fills navy before the step advances, so
+          // the click feels acknowledged. Instant under reduced motion.
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { fire(); return; }
+          b.classList.add('is-picked');
+          setTimeout(fire, 190);
+        });
         timesList.appendChild(b);
       }
     };
@@ -724,6 +749,44 @@
       (el as HTMLElement).hidden = (el as HTMLElement).dataset.mstep !== name;
     });
 
+    // Branded replacements for confirm()/alert(): an inline card the JS moves
+    // into the active step, and a tone-aware banner. Falls back to the native
+    // dialog if the markup is ever missing.
+    const confirmCard = q('[data-mconfirm]');
+    const confirmTextEl = q('[data-mconfirm-text]');
+    const confirmYes = q('[data-mconfirm-yes]') as HTMLButtonElement | null;
+    const confirmNo = q('[data-mconfirm-no]') as HTMLButtonElement | null;
+    let confirmResolve: ((v: boolean) => void) | null = null;
+    const settleConfirm = (v: boolean) => {
+      if (confirmCard) confirmCard.hidden = true;
+      const r = confirmResolve;
+      confirmResolve = null;
+      r?.(v);
+    };
+    confirmYes?.addEventListener('click', () => settleConfirm(true));
+    confirmNo?.addEventListener('click', () => settleConfirm(false));
+    const askConfirm = (host: Element | null, text: string, yesLabel: string): Promise<boolean> => {
+      if (!confirmCard || !confirmTextEl || !confirmYes || !host) {
+        return Promise.resolve(window.confirm(text));
+      }
+      return new Promise((resolve) => {
+        confirmTextEl.textContent = text;
+        confirmYes.textContent = yesLabel;
+        host.appendChild(confirmCard);
+        confirmCard.hidden = false;
+        confirmResolve = resolve;
+        confirmYes.focus();
+      });
+    };
+    const mBanner = q('[data-mbanner]');
+    const showBanner = (host: Element | null, text: string, tone: 'warn' | 'error') => {
+      if (!mBanner || !host) { window.alert(text); return; }
+      mBanner.textContent = text;
+      mBanner.classList.toggle('is-error', tone === 'error');
+      host.appendChild(mBanner);
+      mBanner.hidden = false;
+    };
+
     const renderSummary = (b: any) => {
       q('[data-msummary]').textContent = `${b.date} at ${b.time}`;
       q('[data-mstatus]').textContent = b.status === 'cancelled'
@@ -746,7 +809,8 @@
     };
 
     q('[data-mcancel]')?.addEventListener('click', async () => {
-      if (!confirm('Cancel this consultation?')) return;
+      const host = manage.querySelector('[data-mstep="summary"]');
+      if (!(await askConfirm(host, 'Cancel this consultation? This cannot be undone.', 'Yes, cancel it'))) return;
       mErr.hidden = true;
       try {
         const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'cancel' }) });
@@ -769,9 +833,12 @@
           q('[data-mdone-when]').textContent = `${out.date} at ${out.time}`;
           q('[data-mdone-note]').textContent = "We've sent you an updated confirmation.";
           mstep('done');
-        } else if (res.status === 409) { alert('Sorry — that time was just taken. Please pick another.'); }
-        else throw new Error();
-      } catch { alert('Could not reschedule — please email hello@settlepay.uk.'); }
+        } else if (res.status === 409) {
+          showBanner(manage.querySelector('[data-mstep="reschedule"]'), 'Sorry — that time was just taken. Please pick another.', 'warn');
+        } else throw new Error();
+      } catch {
+        showBanner(manage.querySelector('[data-mstep="reschedule"]'), 'Could not reschedule — please email hello@settlepay.uk.', 'error');
+      }
     };
 
     const mCalMount = manage.querySelector('[data-mstep="reschedule"] [data-calendar]') as HTMLElement | null;
@@ -781,8 +848,10 @@
       if (mTimes) mTimes.innerHTML = '<p class="sp-cal__times-empty">Loading times…</p>';
       try {
         const data = await (await fetch(mAvailUrl)).json();
-        buildCalendar(mCalMount, data.days || [], (pick: any) => {
-          if (!confirm(`Move your consultation to ${pick.dayLabel} at ${pick.timeLabel}?`)) return;
+        buildCalendar(mCalMount, data.days || [], async (pick: any) => {
+          if (mBanner) mBanner.hidden = true;
+          const host = manage.querySelector('[data-mstep="reschedule"]');
+          if (!(await askConfirm(host, `Move your consultation to ${pick.dayLabel} at ${pick.timeLabel}?`, 'Yes, move it'))) return;
           rescheduleTo(pick.start);
         });
       } catch {
