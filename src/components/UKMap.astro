@@ -128,6 +128,8 @@ void main() {
     Birmingham: [27, 46], Cardiff: [21, 54], Bristol: [24, 54], London: [35, 54],
   };
   // Payment arcs, origin -> destination (the London->Birmingham story).
+  // Ordered so the staggered lanes (route index mod LANES) mix directions
+  // well — each lane cycles its own residue class, so lanes never collide.
   const ROUTES: [string, string][] = [
     ['London', 'Birmingham'],
     ['Glasgow', 'London'],
@@ -135,6 +137,12 @@ void main() {
     ['Manchester', 'London'],
     ['Edinburgh', 'Bristol'],
     ['Leeds', 'Cardiff'],
+    ['Bristol', 'Newcastle'],
+    ['Birmingham', 'Edinburgh'],
+    ['Cardiff', 'London'],
+    ['Belfast', 'Manchester'],
+    ['Newcastle', 'London'],
+    ['Glasgow', 'Edinburgh'],
   ];
 
   const COLS = MASK[0].length;
@@ -204,7 +212,7 @@ void main() {
         const t = j / (ARC_N - 1);
         const xp = (1 - t) * (1 - t) * axp + 2 * (1 - t) * t * cxp + t * t * bxp;
         const yp = (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * cyp + t * t * by;
-        verts.push(xp / ASPECT, yp, 2.9, 0, 1);
+        verts.push(xp / ASPECT, yp, 3.15, 0, 1);
       }
     });
     const data = new Float32Array(verts);
@@ -256,15 +264,23 @@ void main() {
     const liftDot = (i: number, e: number, sizeBoost: number) => {
       setDot(i, BASE_SIZE + e * sizeBoost, BASE_ALPHA + e * 0.4, e);
     };
+    // Cities reset each frame, then every lane bids for its endpoints — max
+    // wins, so two arcs sharing a city never dim each other.
+    const liftCity = (i: number, e: number, sizeBoost: number) => {
+      if (BASE_SIZE + e * sizeBoost <= data[i * 5 + 2]) return;
+      liftDot(i, e, sizeBoost);
+    };
 
     // Arc timeline: origin turns blue -> line draws origin->destination ->
     // hold with the destination lit -> line erases in the SAME direction ->
-    // endpoints return to ink. One route active at a time.
-    const PH = { grow: 0.35, draw: 1.0, hold: 0.7, erase: 1.0, fade: 0.45, gap: 1.1 };
+    // endpoints return to ink. Three staggered lanes launch a new arc every
+    // CYCLE/3 seconds, so 2-3 are usually in flight — one at a time read
+    // too quiet.
+    const PH = { grow: 0.35, draw: 1.0, hold: 0.55, erase: 1.0, fade: 0.4, gap: 0.3 };
     const CYCLE = PH.grow + PH.draw + PH.hold + PH.erase + PH.fade + PH.gap;
+    const LANES = 3;
 
     const applyRoute = (route: number, lt: number) => {
-      Object.values(cityIdx).forEach((i) => setDot(i, BASE_SIZE, BASE_ALPHA, 0));
       let head = 0, erase = 0, fromE = 0, toE = 0;
       const tDraw = lt - PH.grow;
       const tHold = tDraw - PH.draw;
@@ -287,29 +303,25 @@ void main() {
         fromE = e; toE = e;
       }
       const [from, to] = ROUTES[route];
-      liftDot(cityIdx[from], fromE, 1.9);
-      liftDot(cityIdx[to], toE, 1.9);
-      ROUTES.forEach((_, ri) => {
-        const active = ri === route;
-        for (let j = 0; j < ARC_N; j++) {
-          const o = (arcBase + ri * ARC_N + j) * 5;
-          if (!active) { data[o + 3] = 0; continue; }
-          const tj = j / (ARC_N - 1);
-          const vis = clamp01((head - tj) / 0.05) * clamp01((tj - erase) / 0.05);
-          data[o + 3] = vis * 0.95;
-          // The drawing tip runs slightly hotter and larger.
-          const tip = clamp01(1 - Math.abs(head - tj) / 0.06) * (head < 1 ? 1 : 0);
-          data[o + 2] = 2.9 + tip * 1.3;
-        }
-      });
+      liftCity(cityIdx[from], fromE, 1.9);
+      liftCity(cityIdx[to], toE, 1.9);
+      for (let j = 0; j < ARC_N; j++) {
+        const o = (arcBase + route * ARC_N + j) * 5;
+        const tj = j / (ARC_N - 1);
+        const vis = clamp01((head - tj) / 0.05) * clamp01((tj - erase) / 0.05);
+        data[o + 3] = vis * 0.95;
+        // The drawing tip runs slightly hotter and larger.
+        const tip = clamp01(1 - Math.abs(head - tj) / 0.06) * (head < 1 ? 1 : 0);
+        data[o + 2] = 3.15 + tip * 1.3;
+      }
     };
 
     // Local payments: a few land dots ease to blue and back, smaller than the
     // arc endpoints, on a rolling random schedule.
     type Twinkle = { idx: number; start: number; dur: number };
     const pickDot = () => Math.floor(Math.random() * nLand);
-    const twinkles: Twinkle[] = Array.from({ length: 4 }, (_, i) => ({
-      idx: pickDot(), start: 0.6 + i * 0.9, dur: 2.4,
+    const twinkles: Twinkle[] = Array.from({ length: 12 }, (_, i) => ({
+      idx: pickDot(), start: 0.3 + i * 0.4, dur: 2.0,
     }));
     const applyTwinkles = (t: number) => {
       twinkles.forEach((tw) => {
@@ -317,7 +329,7 @@ void main() {
         if (ph >= 1) {
           setDot(tw.idx, BASE_SIZE, BASE_ALPHA, 0);
           tw.idx = pickDot();
-          tw.start = t + 0.4 + Math.random() * 1.8;
+          tw.start = t + 0.15 + Math.random() * 1.0;
           return;
         }
         if (ph <= 0) return;
@@ -326,8 +338,15 @@ void main() {
     };
 
     const draw = (t: number) => {
-      const route = Math.floor(t / CYCLE) % ROUTES.length;
-      applyRoute(route, t % CYCLE);
+      Object.values(cityIdx).forEach((i) => setDot(i, BASE_SIZE, BASE_ALPHA, 0));
+      for (let ri = 0; ri < ROUTES.length; ri++) {
+        for (let j = 0; j < ARC_N; j++) data[(arcBase + ri * ARC_N + j) * 5 + 3] = 0;
+      }
+      for (let lane = 0; lane < LANES; lane++) {
+        const tl = t + lane * (CYCLE / LANES);
+        const cycles = Math.floor(tl / CYCLE);
+        applyRoute((cycles * LANES + lane) % ROUTES.length, tl % CYCLE);
+      }
       applyTwinkles(t);
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);

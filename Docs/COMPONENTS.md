@@ -193,8 +193,8 @@ DPR capped at 2.
 |---|---|
 | `ParticleField.astro` | Ambient drifting particles behind the hero stage. |
 | `FlowScene.astro` | Dark-chapter money-flow diagram: bezier tracks + travelling pulses between DOM node chips. Caption states SettlePay never holds funds. |
-| `UKMap.astro` | Dot-matrix UK silhouette (mask rasterised from Natural Earth data — a hand-editable string grid). Payment arcs draw origin→destination then erase the same way; random dots blink blue as local payments; pointer proximity lifts and warms dots. |
-| `PayCard.astro` | The customer's card in the CTA band (not a canvas — layered CSS/SVG). `[data-tilt]` writes `--px/--py`; the face gloss, gold chip glint and holographic SettlePay monogram each read them at a different rate. The monogram is a hologram patch, not an issuer mark — the card must keep reading as the *customer's*. |
+| `UKMap.astro` | Dot-matrix UK silhouette (mask rasterised from Natural Earth data — a hand-editable string grid). Payment arcs draw origin→destination then erase the same way, on three staggered lanes so 2–3 are usually in flight; random dots blink blue as local payments; pointer proximity lifts and warms dots. |
+| `PayCard.astro` | The customer's card in the CTA band (not a canvas — layered CSS/SVG). `[data-tilt]` writes lerped `--px/--py/--pfc`; the steel-foil shimmer (color-dodge), rotating specular band, gold chip glint and holographic SettlePay monogram each read them at a different rate. Nothing tracks the cursor directly — only reflections move. The monogram is a hologram patch, not an issuer mark — the card must keep reading as the *customer's*; the Visa wordmark is monochrome silver (DESIGN-SYSTEM §12 exception). |
 
 ---
 

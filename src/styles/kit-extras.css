@@ -1391,7 +1391,6 @@
 }
 .our-work__rail {
   position: sticky;
-  /* Tight offset: header + map + caption + button must fit a 900px viewport. */
   top: calc(var(--nav-offset) + 0.75rem);
 }
 .our-work__rail .value-prop__header {
@@ -1405,14 +1404,17 @@
   gap: 1.75rem;
 }
 .our-work__more {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
 }
 
 .uk-map {
   margin-top: 0;
 }
 .uk-map__canvas {
-  width: min(240px, 75%);
+  /* Height budget: the pinned rail must show header, map, caption AND the
+     View All button, so on shorter viewports the map gives up height first. */
+  height: clamp(200px, calc(100vh - 580px), 360px);
+  width: auto;
   aspect-ratio: 44 / 66; /* matches the rasterised mask grid in UKMap.astro */
   display: block;
   touch-action: pan-y; /* map ripple must never trap page scroll */
@@ -1452,12 +1454,14 @@
   border-radius: 18px;
   padding: 1.5rem;
   overflow: hidden;
+  /* Static ambience — the light source is FIXED; only reflections move.
+     Anything chasing the cursor position directly read as cheap. */
   background:
     radial-gradient(
-      120% 160% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
-      rgba(59, 130, 246, 0.32) 0%,
-      rgba(139, 92, 246, 0.16) 42%,
-      transparent 72%
+      120% 160% at 72% -10%,
+      rgba(59, 130, 246, 0.3) 0%,
+      rgba(139, 92, 246, 0.14) 46%,
+      transparent 74%
     ),
     linear-gradient(135deg, #1E2B45 0%, #131C30 55%, #0F172A 100%);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -1476,31 +1480,77 @@
   height: 100%;
   pointer-events: none;
 }
-.pay-card__sheen {
+/* Steel foil under the content: tight metal micro-bands + anisotropic
+   brushed grain, pre-darkened so color-dodge lifts it to metal instead of
+   blowing out (the brightness/contrast pre-pass is what keeps dodge in
+   range — it also runs hotter in Firefox). The counter-sliding ::after is
+   the interference shimmer: two band fields moving opposite ways is what
+   reads as foil rather than paint. Recipes: inspiration/card-lighting/. */
+.pay-card__foil {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(
-    60% 80% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
-    rgba(255, 255, 255, 0.18) 0%,
-    transparent 60%
-  );
+  /* Dampened pointer travel (37–63%) — full-range sliding looks slippery. */
+  --bgx: calc(37% + var(--px, 0.5) * 26%);
+  --bgy: calc(37% + var(--py, 0.35) * 26%);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.5' numOctaves='2'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23g)'/%3E%3C/svg%3E"),
+    linear-gradient(120deg, hsl(217, 20%, 46%), hsl(217, 42%, 54%)),
+    repeating-linear-gradient(
+      133deg,
+      #0E152E 0%,
+      #0E152E 3.2%,
+      hsl(215, 12%, 60%) 3.8%,
+      hsl(215, 30%, 68%) 4.5%,
+      hsl(215, 12%, 60%) 5.2%,
+      #0E152E 5.8%,
+      #0E152E 9%
+    );
+  background-size: 44% 44%, 200% 200%, 340% 340%;
+  background-position: center, var(--bgx) var(--bgy), var(--bgx) var(--bgy);
+  background-blend-mode: screen, hue, hard-light;
+  filter: brightness(0.7) contrast(2.2) saturate(0.7);
+  mix-blend-mode: color-dodge;
+  /* Calm at rest, wakes with the pointer (--pfc = distance from centre) —
+     the brand ribbon must stay the lead voice when nobody is pointing. */
+  opacity: calc(0.26 + var(--pfc, 0) * 0.38);
+}
+.pay-card__foil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  background-position: center, calc(100% - var(--bgx)) calc(100% - var(--bgy)),
+    calc(100% - var(--bgx)) calc(100% - var(--bgy));
+  mix-blend-mode: soft-light;
 }
 /* Fixed-light specular band: tilting the card one way sweeps the highlight
-   the other. Oversized layer + transform only, so it stays on the compositor. */
+   the other, and horizontal tilt ROTATES the light line — the strongest
+   "lit object, not decal" cue. Two-intensity profile (soft lobe + razor
+   core); a single soft band reads as plastic. Oversized layer + transform
+   only, so it stays on the compositor. */
 .pay-card__gloss {
   position: absolute;
   inset: -60%;
   pointer-events: none;
   background: linear-gradient(
     100deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.09) 46%,
-    rgba(255, 255, 255, 0.28) 50%,
-    rgba(255, 255, 255, 0.09) 54%,
-    transparent 60%
+    transparent 41%,
+    rgba(214, 227, 245, 0.14) 46%,
+    rgba(228, 238, 252, 0.32) 49.4%,
+    rgba(255, 255, 255, 0.72) 50%,
+    rgba(228, 238, 252, 0.32) 50.6%,
+    rgba(214, 227, 245, 0.14) 54%,
+    transparent 59%
   );
-  transform: translate3d(calc((var(--px, 0.5) - 0.5) * -36%), calc((var(--py, 0.35) - 0.35) * -14%), 0);
+  mix-blend-mode: overlay;
+  opacity: calc(0.6 + var(--pfc, 0) * 0.4);
+  transform: translate3d(
+      calc((var(--px, 0.5) - 0.5) * -52%),
+      calc((var(--py, 0.35) - 0.35) * -18%),
+      0
+    )
+    rotate(calc((var(--px, 0.5) - 0.5) * -14deg));
   will-change: transform;
 }
 .pay-card__chip {
@@ -1531,18 +1581,24 @@
     rgba(255, 255, 255, 0.08) 56%,
     transparent 66%
   );
-  transform: translate3d(calc((var(--px, 0.5) - 0.5) * 58%), 0, 0);
+  transform: translate3d(
+    calc((var(--px, 0.5) - 0.5) * 58%),
+    calc((var(--py, 0.35) - 0.35) * 16%),
+    0
+  );
   will-change: transform;
 }
 /* Holographic SettlePay monogram — a hologram patch, not an issuer mark.
    Iridescent gradient slides through the masked monogram as the card tilts.
    Prefix FIRST: the minifier keeps only the last of a prefixed pair. */
 .pay-card__holo {
+  /* Mid-right, clear of the wave mark above and the number row below —
+     breathing room on all sides so the patch reads as deliberate. */
   position: absolute;
-  right: 1.4rem;
-  bottom: 5rem;
-  width: 42px;
-  height: 42px;
+  right: 1.5rem;
+  top: 42%;
+  width: 54px;
+  height: 54px;
   /* Blue/cyan holds the middle stops so the resting pointer position reads
      brand blue, not pink; warm hues only appear at the travel extremes. */
   background: linear-gradient(
@@ -1593,13 +1649,10 @@
   color: rgba(255, 255, 255, 0.6);
 }
 .pay-card__mark {
-  /* Light-bg Visa mark, shown as-is on a small white plate for contrast. */
-  height: 22px;
+  /* Silver monochrome wordmark straight on the card face — no plate. */
+  height: 19px;
   width: auto;
-  background: var(--color-pure-white);
-  border-radius: 4px;
-  padding: 3px 6px;
-  box-sizing: content-box;
+  filter: drop-shadow(0 1px 1px rgba(2, 6, 23, 0.5));
 }
 
 /* Scroll-progressive subtitle fill in the dark chapter (Adyen word-fill,
@@ -1624,11 +1677,9 @@
    html.reveal-ready AND motion is allowed.
    ========================================================================= */
 .market-shift {
-  /* A short navy tail dissolves the dark chapter into the white counter —
-     the harshest seam on the page becomes a dawn instead of a bang. */
-  background:
-    linear-gradient(180deg, var(--color-primary-brand) 0%, rgba(15, 23, 42, 0) 160px),
-    var(--color-pure-white);
+  /* Clean hard seam against the dark chapter: a navy fade-out here read as a
+     smear (two visible band edges), so the chapter now ends on a crisp line. */
+  background: var(--color-pure-white);
 }
 .market-shift__stage {
   padding-block: var(--space-section);
