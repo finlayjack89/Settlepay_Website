@@ -113,8 +113,9 @@ All `<head>` SEO. Driven by props from the page/layout.
 | `jsonLd` | array of JSON-LD objects (one `<script>` each) |
 
 ### `SiteScripts.astro`
-All client behaviour (mobile nav, checkout accordion, ROI calculator, modal). One bundled module,
-guarded per page. Rendered once by `BaseLayout`. No props.
+All client behaviour (mobile nav, checkout accordion, ROI calculator, modal, scroll reveals,
+pointer tilt, step spotlight, story fill, MarketShift counter scrub, booking slot picker). One
+bundled module, guarded per page. Rendered once by `BaseLayout`. No props.
 
 ---
 
@@ -145,14 +146,15 @@ Compose these in `src/pages/index.astro`. Each is self-contained (copy lives ins
 | `Hero.astro` | Headline + sub + CTAs + interactive checkout mockup on a navy `.stage-dark` with floating `StatusChip`s | `#hero` |
 | `TrustBar.astro` | Slim one-line proof strip (trust points + live-client pill) | — |
 | `ValueProps.astro` | 2×2 bento of value-prop cards, each with a top-cropped mockup preview | `#about` |
-| `OurWork.astro` | Portfolio teaser cards (Live client / Illustrative demo) + disclaimer + link to `/work/` | `#work` |
-| `HowItWorks.astro` | 3 numbered steps + dashboard mockup on `.stage-dark` + "manual vs automated" modes | `#integration` |
+| `OurWork.astro` | Split-scroll: sticky rail (header + `UKMap` canvas + link) beside stacked tilting portfolio cards | `#work` |
+| `HowItWorks.astro` | Dark chapter: sticky dashboard + step spotlight + `FlowScene` canvas + "manual vs automated" modes | `#integration` |
+| `MarketShift.astro` | Scroll-scrubbed counter pinning while the number ticks to the true UK Finance figure, then sourced stats reveal. Figures are real and attributed — verify against the named sources before changing any number. | — |
 | `FastStart.astro` | Reassurance chips + 3-stage timeline + urgent-service note (slate band) | `#timeline` |
 | `Calculator.astro` | Live ROI calculator (sliders → hours saved) | `#pricing` |
-| `CtaBand.astro` | Dark CTA band, primary + secondary | `#enquire` |
+| `CtaBand.astro` | CTA band: copy + trust list beside the tilting `PayCard` | `#enquire` |
 
 The landing-page order in `index.astro` is: Hero, TrustBar, ValueProps, OurWork, HowItWorks,
-FastStart, Calculator, CtaBand.
+MarketShift, FastStart, Calculator, CtaBand.
 
 To add a new section: create `src/components/sections/MySection.astro`, use `SectionHeader` +
 `.section-pad` + `.container`, reuse tokens, and add it to `index.astro`.
@@ -178,6 +180,21 @@ Pure CSS/SVG. Decorative; the only interactive one is the hero checkout (in `Her
 **Mockups intentionally use their own 4–8px radius language** (Shopify-style) — keep them visually
 distinct from the real SettlePay UI (pills + 24px cards). They are illustrative: never present them as
 a real product screenshot or attach real client data.
+
+---
+
+## Canvas islands & hero objects (`src/components/`)
+
+Raw WebGL, zero dependencies. Shared contract: `data-gl-state` = `live | static | unsupported`
+(reduced motion draws one static frame; no WebGL leaves the DOM telling the story), IO-gated RAF,
+DPR capped at 2.
+
+| Component | What it is |
+|---|---|
+| `ParticleField.astro` | Ambient drifting particles behind the hero stage. |
+| `FlowScene.astro` | Dark-chapter money-flow diagram: bezier tracks + travelling pulses between DOM node chips. Caption states SettlePay never holds funds. |
+| `UKMap.astro` | Dot-matrix UK silhouette (mask rasterised from Natural Earth data — a hand-editable string grid). Payment arcs draw origin→destination then erase the same way; random dots blink blue as local payments; pointer proximity lifts and warms dots. |
+| `PayCard.astro` | The customer's card in the CTA band (not a canvas — layered CSS/SVG). `[data-tilt]` writes `--px/--py`; the face gloss, gold chip glint and holographic SettlePay monogram each read them at a different rate. The monogram is a hologram patch, not an issuer mark — the card must keep reading as the *customer's*. |
 
 ---
 

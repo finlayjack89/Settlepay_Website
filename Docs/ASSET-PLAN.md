@@ -23,9 +23,10 @@ legible reduced-motion state.
 | Trust strip | Text + live-client pill | Lockdales coin mark (`assets/logos/lockdales-coin.png`) beside the pill | XS |
 | Bento (Why SettlePay) | Differentiated mockup crops, live loops (chart draw, tick pops, node pulse) | **WebM loops of real flows** recorded from our own demo pages via Playwright (reconcile matching, onboarding advancing) — swap in per tile | M |
 | Dark chapter | Live dashboard (sticky, split-scroll) + FlowScene (GL) + step spotlight + text fill | — (done) | — |
-| Our Work | Sticky rail + UKMap (GL, hover ripple) + stacked brand cards with tilt | **Real Lockdales page loop**: 6–8 s scroll capture of the live client page in a browser frame — the single most persuasive asset we can ship. *Needs client permission first.* | S (after permission) |
+| Our Work | Sticky rail + UKMap (GL: Natural-Earth-derived dot silhouette, drawn payment arcs, local-payment blinks, hover ripple) + stacked brand cards with tilt | **Real Lockdales page loop**: 6–8 s scroll capture of the live client page in a browser frame — the single most persuasive asset we can ship. *Needs client permission first.* | S (after permission) |
+| Market shift | Scroll-scrubbed counter settling on the true UK Finance figure + sourced stat cards (cash decline, hours chasing invoices) | Re-verify figures when UK Finance publishes 2025 data (annual refresh) | XS (yearly) |
 | Calculator | Live sliders/results | Nothing — the calculator is the asset | — |
-| CTA band | PayCard (tilt + pointer-tracked colour wash) | — (done) | — |
+| CTA band | PayCard: brand-art ribbon, gold contact-pad chip with its own glint, directional face gloss, holographic SettlePay monogram | — (done) | — |
 | About | Prose | **One real photo of Finlay** — calm, cool-neutral, professional. Sole-trader trust hinges on a face. | S (needs the photo) |
 | OG/social | Single static og-default | Per-page OG cards in the new visual language (navy stage + chips) — static PNGs | S |
 
