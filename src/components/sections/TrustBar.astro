@@ -1,42 +1,24 @@
 ---
+/**
+ * TrustBar — slim one-line proof strip directly under the hero (styles in
+ * kit-extras.css .trust-strip). Items come from SITE.trustPoints; the green
+ * pill names the one real live client.
+ */
 import Icon from '../Icon.astro';
 import { SITE } from '../../data/site.mjs';
 
 const trust = SITE.trustPoints;
 ---
-<section class="trust section-pad" data-screen-label="Trust bar">
+<section class="trust-strip" data-screen-label="Trust strip">
   <div class="container">
-    <div class="trust__inner">
-      <div class="trust__badge-group">
-        {trust.map((b) => (
-          <div class="trust__badge">
-            <div class={'trust__badge-icon' + (b.tone ? ' trust__badge-icon--' + b.tone : '')}>
-              <Icon name={b.icon} sw={1.5} />
-            </div>
-            <div>
-              <div class="trust__badge-title">{b.title}</div>
-              <div class="trust__badge-text">{b.text}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div class="trust-strip__row">
+      {trust.map((b) => (
+        <div class="trust-strip__item">
+          <Icon name={b.icon} sw={1.75} />
+          {b.title}
+        </div>
+      ))}
+      <a class="trust-strip__live" href="/work/lockdales-auctioneers/">Live with Lockdales Auctioneers</a>
     </div>
   </div>
 </section>
-
-<style>
-  /* Deterministic, always-balanced grid (overrides the flex-wrap from styles.css). */
-  .trust__badge-group {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.75rem 2rem;
-    align-items: start;
-  }
-  .trust__badge { align-items: flex-start; }
-  @media (max-width: 880px) {
-    .trust__badge-group { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 480px) {
-    .trust__badge-group { grid-template-columns: 1fr; }
-  }
-</style>

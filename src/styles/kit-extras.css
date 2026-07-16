@@ -183,6 +183,7 @@
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(15, 23, 42, 0.55);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   /* Safety net on very short screens: overlay scrolls if even the capped modal
@@ -288,15 +289,6 @@
    third-party processor branding. Deliberately distinct from the hero
    checkout form and the How-It-Works dashboard.
    ========================================================================= */
-
-/* When a visual holds a live mockup, drop the placeholder chrome */
-.zigzag-row__visual--live {
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
-  align-items: stretch;
-  overflow: visible;
-}
 
 /* Shared window shell ---------------------------------------------------- */
 .mok {
@@ -810,12 +802,16 @@
 /* =========================================================================
    Fast start / turnaround section
    ========================================================================= */
+/* Slate band — part of the homepage's alternating white/slate rhythm. */
+.speed {
+  background-color: var(--color-secondary-bg);
+}
 .speed__reassure {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.7rem;
-  margin: 0 auto 3.75rem;
+  margin: 0 auto 2.75rem;
 }
 .speed__chip {
   display: inline-flex;
@@ -823,7 +819,7 @@
   gap: 0.5rem;
   padding: 0.6rem 1.15rem;
   border-radius: 100px;
-  background: var(--color-secondary-bg);
+  background: var(--color-pure-white);
   border: 1px solid rgba(15, 23, 42, 0.06);
   font-size: 0.95rem;
   font-weight: 600;
@@ -892,47 +888,849 @@
   text-wrap: pretty;
 }
 
-/* Urgent service callout */
-.speed__urgent {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  margin-top: 4rem;
-  padding: 1.75rem 2rem;
-  border-radius: var(--radius-card);
-  background: var(--color-primary-brand);
-  color: #fff;
-}
-.speed__urgent-icon {
-  flex-shrink: 0;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-.speed__urgent-icon svg { width: 26px; height: 26px; }
-.speed__urgent-body { flex: 1; min-width: 0; }
-.speed__urgent-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 0 0 0.3rem;
-}
-.speed__urgent-text {
+/* Urgent-service note — one quiet line under the timeline. */
+.speed__note {
+  text-align: center;
+  margin-top: 2.75rem;
   font-size: 0.95rem;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.66);
-  margin: 0;
-  max-width: 62ch;
+  color: var(--color-primary-brand);
+  opacity: 0.65;
 }
-.speed__urgent .btn-secondary { flex-shrink: 0; }
 
 @media (max-width: 768px) {
   .speed__track::before { display: none; }
   .speed__steps { grid-template-columns: 1fr; gap: 2.5rem; }
-  .speed__urgent { flex-direction: column; align-items: flex-start; gap: 1.1rem; }
-  .speed__urgent .btn-secondary { width: 100%; }
+}
+
+/* =========================================================================
+   Dark product stage — navy panel that seats a light mockup (hero + How It
+   Works). Brand-navy variant of the Lockdales portal stage. The site-wide
+   grain overlay (body::after) already covers it — no second grain layer.
+   NOTE: must never gain overflow:hidden or filter — the glass chips inside
+   rely on backdrop-filter, which either would break.
+   ========================================================================= */
+.stage-dark {
+  position: relative;
+  background: radial-gradient(130% 90% at 50% -10%, #1E2B45 0%, #0F172A 62%);
+  border-radius: calc(var(--radius-card) + 8px);
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 24px 60px rgba(15, 23, 42, 0.22);
+}
+.stage-dark .dashboard-mockup {
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.45);
+}
+
+/* =========================================================================
+   Status chip — small glass notification (see StatusChip.astro). Blue is
+   never used here (reserved for the primary action); only the success chip
+   carries a functional tint.
+   ========================================================================= */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem 0.55rem 0.55rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(1.8);
+  backdrop-filter: blur(14px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-md), 0 12px 32px rgba(2, 6, 23, 0.28);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+  white-space: nowrap;
+}
+.status-chip__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.status-chip__icon svg { width: 16px; height: 16px; }
+.status-chip--success .status-chip__icon { background: rgba(16, 185, 129, 0.14); color: #0f8a63; }
+.status-chip--neutral .status-chip__icon { background: rgba(15, 23, 42, 0.08); color: var(--color-primary-brand); }
+.status-chip__value { font-weight: 700; letter-spacing: -0.01em; }
+
+/* =========================================================================
+   Hero stage — checkout mockup seated on the dark stage with floating chips
+   ========================================================================= */
+.hero-stage {
+  max-width: 560px;
+  margin-inline: auto;
+  width: 100%;
+}
+.hero-stage__mockup {
+  position: relative;
+  z-index: 1;
+  max-width: 420px; /* leaves a visible navy gutter so the stage reads as a stage */
+  margin-inline: auto;
+}
+
+/* Compact hero rendition — the full checkout ran ~640px and its bottom fifth
+   clipped on laptop viewports. Tighter rhythm so the whole stage fits. */
+.hero-stage.stage-dark { padding-block: clamp(1rem, 2vw, 1.5rem); }
+.hero-stage .checkout-v2__inner { padding: 1.1rem 1.25rem 1.2rem; }
+.hero-stage .checkout-v2__express { margin-bottom: 0.85rem; }
+.hero-stage .checkout-v2__divider { margin-bottom: 0.85rem; }
+.hero-stage .checkout-v2__header { margin-bottom: 0.7rem; }
+.hero-stage .checkout-v2__panel--active .checkout-v2__panel-body { padding: 0.9rem 1rem; }
+.hero-stage .checkout-v2__input {
+  min-height: 50px;
+  padding-top: 1.4rem !important;
+  padding-bottom: 0.35rem !important;
+}
+.hero-stage .checkout-v2__applepay-big { height: 46px; font-size: 1rem; }
+.hero-stage .checkout-v2 {
+  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
+}
+
+/* Stacked translucent layers peeking out behind the checkout's top edge —
+   the reference composition's card-stack depth, kept matte (no glow). */
+.hero-stage__layer {
+  position: absolute;
+  display: block;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.35);
+}
+.hero-stage__layer--1 {
+  inset: clamp(0.7rem, 1.5vw, 1.1rem) 3rem 42% 3rem;
+  transform: rotate(-2.2deg);
+}
+.hero-stage__layer--2 {
+  inset: clamp(1.4rem, 2.6vw, 2rem) 1.9rem 32% 1.9rem;
+  transform: rotate(1.6deg);
+}
+
+.hero-chip {
+  position: absolute;
+  z-index: 3;
+  animation: chipFloat 6s ease-in-out infinite;
+}
+/* Chip positions sit over the checkout's quiet zones (never over inputs or
+   the mock CTA) and break the stage frame like the reference composition.
+   Tuned for the compact hero checkout. */
+.hero-chip--1 { top: -0.85rem; right: -1.25rem; }
+.hero-chip--2 { top: 61%; left: -1.25rem; animation-duration: 7.5s; animation-delay: -2.5s; }
+.hero-chip--3 { bottom: -1rem; right: -0.9rem; animation-duration: 6.8s; animation-delay: -4.2s; }
+
+@keyframes chipFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-chip { animation: none; }
+}
+
+@media (max-width: 960px) {
+  /* Hero collapses to one column here — straddle the stage edges instead of
+     overhanging the container. */
+  .hero-chip--1 { right: 0.75rem; top: -0.85rem; }
+  .hero-chip--2 { left: 0.75rem; }
+  .hero-chip--3 { right: 0.75rem; bottom: -0.85rem; }
+}
+@media (max-width: 640px) {
+  .hero-chip--2,
+  .hero-chip--3 { display: none; }
+  .status-chip { font-size: 0.72rem; }
+}
+
+/* =========================================================================
+   Trust strip — slim proof band directly under the hero (replaces the old
+   full-height TrustBar section)
+   ========================================================================= */
+.trust-strip {
+  background: var(--color-secondary-bg); /* seamless with the hero gradient's slate end */
+  border-block: 1px solid rgba(15, 23, 42, 0.06);
+  padding-block: 1.1rem;
+}
+.trust-strip__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 2.25rem;
+  row-gap: 0.6rem;
+}
+.trust-strip__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+  opacity: 0.75;
+}
+.trust-strip__item svg { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
+.trust-strip__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f8a63;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: rgba(16, 185, 129, 0.1);
+  transition: background var(--ease-snappy);
+}
+.trust-strip__live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+.trust-strip__live:hover { background: rgba(16, 185, 129, 0.16); }
+@media (max-width: 640px) {
+  .trust-strip__row { column-gap: 1.25rem; }
+  .trust-strip__item { font-size: 0.78rem; }
+}
+
+/* =========================================================================
+   ValueProps bento — 2x2 grid of white cards, each masking a preview mockup
+   ========================================================================= */
+/* Asymmetric 12-col composition: wide/narrow rows mirror each other. */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+.bento-card:nth-child(1) { grid-column: span 7; }
+.bento-card:nth-child(2) { grid-column: span 5; }
+.bento-card:nth-child(3) { grid-column: span 5; }
+.bento-card:nth-child(4) { grid-column: span 7; }
+.bento-card {
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  padding: 1.75rem 1.75rem 0;
+  overflow: clip; /* clip, not hidden: no new scrollport; rounds the media crop */
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--ease-cinematic), box-shadow var(--ease-cinematic);
+}
+.bento-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+.bento-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-icon);
+  display: grid;
+  place-items: center;
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-primary-action);
+}
+.bento-card__icon svg { width: 24px; height: 24px; }
+.bento-card__icon--green { background: rgba(16, 185, 129, 0.08); color: var(--color-success); }
+.bento-card__icon--amber { background: rgba(245, 158, 11, 0.08); color: var(--color-warning); }
+.bento-card__icon--purple { background: rgba(139, 92, 246, 0.08); color: var(--color-info); }
+.bento-card__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--color-primary-brand);
+  margin: 1rem 0 0.45rem;
+}
+.bento-card__text {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--color-primary-brand);
+  opacity: 0.68;
+}
+/* Mockup containment: mockups float on a slate tile inside the card (depth
+   without decorative colour), top-aligned, fade at the cut edge. The preview
+   components are never edited — only reframed here. */
+.bento-card__media {
+  margin-top: 1.4rem;
+  height: 250px;
+  overflow: hidden;
+  padding: 1.25rem 1.25rem 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--color-secondary-bg);
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.05);
+  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 98%);
+  mask-image: linear-gradient(180deg, #000 62%, transparent 98%);
+}
+/* Their large drop shadows would clip to ugly edges inside the crop. */
+.bento-card__media .mok {
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+}
+/* Narrow cards: mockup slides off the tile's right edge — cropped composition
+   instead of four identical centred crops. */
+.bento-card:nth-child(2) .bento-card__media,
+.bento-card:nth-child(3) .bento-card__media {
+  padding-right: 0;
+  height: 220px;
+}
+.bento-card:nth-child(2) .bento-card__media .mok,
+.bento-card:nth-child(3) .bento-card__media .mok {
+  width: 112%;
+  border-radius: 14px 0 0 0;
+}
+@media (max-width: 880px) {
+  .bento-card:nth-child(n) { grid-column: 1 / -1; }
+  .bento-card__media { height: 200px; }
+}
+
+/* =========================================================================
+   Motion pass — live mockups + pointer tilt (Stripe-style "assets demo the
+   product"). Everything below is gated on no-preference so reduced-motion
+   users get the static site. Loops animate transform/opacity only.
+   ========================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+  /* Pointer-tracked tilt — JS writes --tilt-x/--tilt-y on [data-tilt]. */
+  [data-tilt] {
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(var(--tilt-ty, 0px));
+    transition: transform 240ms ease-out;
+    will-change: transform;
+  }
+  /* Explicit transform (specificity 0,3,0) so portfolio.css's plain
+     .pf-card:hover translateY can't clobber the tilt mid-hover. */
+  .pf-card[data-tilt]:hover {
+    --tilt-ty: -4px;
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(var(--tilt-ty, 0px));
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Charts draw themselves in when the asset enters view (pathLength="1"). */
+  .is-live .dashx svg path[stroke],
+  .is-live .dashboard-mockup svg path[stroke] {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: chartDraw 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+  }
+  .is-live .dashx svg path[fill^="url"],
+  .is-live .dashboard-mockup svg path[fill^="url"] {
+    opacity: 0;
+    animation: liveFadeIn 0.8s ease-out 1s forwards;
+  }
+  .is-live .dashx svg circle {
+    opacity: 0;
+    animation: liveFadeIn 0.4s ease-out 1.5s forwards;
+  }
+
+  /* Reconciliation: ticks pop one after another on a slow loop, the
+     status-bar refresh icon turns — "auto-matched in real time", shown. */
+  .is-live .rec .rec__row:nth-child(2) .rec__tick { animation: tickPop 7.5s ease-in-out 0.3s infinite; }
+  .is-live .rec .rec__row:nth-child(3) .rec__tick { animation: tickPop 7.5s ease-in-out 1.3s infinite; }
+  .is-live .rec .rec__row:nth-child(4) .rec__tick { animation: tickPop 7.5s ease-in-out 2.3s infinite; }
+  .is-live .rec .rec__statusbar svg { animation: spinSlow 7s linear infinite; }
+
+  /* Onboarding: the in-progress node breathes a soft ring outward. */
+  .is-live .onb .onb__step--active .onb__node { position: relative; }
+  .is-live .onb .onb__step--active .onb__node::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid rgba(59, 130, 246, 0.45);
+    animation: nodePulse 2.6s ease-out infinite;
+  }
+
+  /* Branded-checkout template: the "Your branding" tag gently bobs. */
+  .is-live .bct .bct__tag--brand { animation: chipFloat 5.5s ease-in-out infinite; }
+
+  /* Dark-chapter dashboard: transaction rows slide in, staggered. */
+  .is-live .dashboard-mockup .dashboard-mockup__row {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: liveRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .is-live .dashboard-mockup .dashboard-mockup__row:nth-child(2) { animation-delay: 1.15s; }
+  .is-live .dashboard-mockup .dashboard-mockup__row:nth-child(3) { animation-delay: 1.35s; }
+  .is-live .dashboard-mockup .dashboard-mockup__row:nth-child(1) { animation-delay: 0.95s; }
+}
+
+@keyframes chartDraw { to { stroke-dashoffset: 0; } }
+@keyframes liveFadeIn { to { opacity: 1; } }
+@keyframes liveRise { to { opacity: 1; transform: none; } }
+@keyframes spinSlow { to { transform: rotate(360deg); } }
+@keyframes tickPop {
+  0%, 3.5%, 100% { transform: scale(1); }
+  1.75% { transform: scale(1.35); }
+}
+@keyframes nodePulse {
+  0% { transform: scale(0.8); opacity: 0; }
+  35% { opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* =========================================================================
+   WebGL islands — particle field (hero stage) + money-flow scene (dark
+   chapter). Canvases are decorative; all information lives in DOM chips.
+   ========================================================================= */
+.particle-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.hero-stage .hero-stage__layers,
+.hero-stage .hero-stage__mockup { position: relative; }
+
+.flow-scene {
+  margin-top: 3rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.flow-scene__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 1.5rem;
+}
+.flow-scene__stage {
+  position: relative;
+  height: 230px;
+}
+.flow-scene__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.flow-scene__node {
+  position: absolute;
+  left: var(--fx);
+  top: var(--fy);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.flow-scene__node-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-pure-white);
+}
+.flow-scene__node-sub {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.flow-scene__caption {
+  margin-top: 1.75rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+  max-width: 62ch;
+}
+@media (max-width: 720px) {
+  /* Cramped: drop the canvas, keep the story as a stacked chip flow. */
+  .flow-scene__stage { height: auto; display: flex; flex-direction: column; gap: 1.4rem; align-items: flex-start; }
+  .flow-scene__canvas { display: none; }
+  .flow-scene__node { position: relative; left: 0; top: 0; transform: none; }
+  .flow-scene__node + .flow-scene__node::before {
+    content: "↓";
+    position: absolute;
+    top: -1.45rem;
+    left: 0.9rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+  }
+}
+
+/* Hero chips narrate the flow: each takes a turn to lean in (12s cycle,
+   phased 0/4/8s so it reads received -> matched -> paid out). chipEmph
+   animates the standalone `scale` property; chipFloat animates transform,
+   so both run in one comma list without fighting. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-chip--1 { animation: chipFloat 6s ease-in-out infinite, chipEmph 12s ease-in-out infinite; }
+  .hero-chip--2 { animation: chipFloat 7.5s ease-in-out -2.5s infinite, chipEmph 12s ease-in-out 4s infinite; }
+  .hero-chip--3 { animation: chipFloat 6.8s ease-in-out -4.2s infinite, chipEmph 12s ease-in-out 8s infinite; }
+}
+@keyframes chipEmph {
+  0%, 12%, 100% { scale: 1; }
+  6% { scale: 1.07; }
+}
+
+/* =========================================================================
+   Our Work split-scroll — sticky rail (header + UK map) beside stacked cards
+   ========================================================================= */
+.our-work__split {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: start;
+}
+.our-work__rail {
+  position: sticky;
+  /* Tight offset: header + map + caption + button must fit a 900px viewport. */
+  top: calc(var(--nav-offset) + 0.75rem);
+}
+.our-work__rail .value-prop__header {
+  margin-bottom: 1rem;
+}
+/* Doubled selector: portfolio.css loads after this file on pages that import
+   it, so the stack override needs the extra specificity to win. */
+.our-work__split .pf-grid--stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.75rem;
+}
+.our-work__more {
+  margin-top: 0.75rem;
+}
+
+.uk-map {
+  margin-top: 0;
+}
+.uk-map__canvas {
+  width: min(240px, 75%);
+  aspect-ratio: 44 / 66; /* matches the rasterised mask grid in UKMap.astro */
+  display: block;
+  touch-action: pan-y; /* map ripple must never trap page scroll */
+}
+.uk-map__caption {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--color-primary-brand);
+  opacity: 0.6;
+  max-width: 36ch;
+}
+@media (max-width: 960px) {
+  .our-work__split { grid-template-columns: 1fr; }
+  .our-work__rail { position: static; }
+  .uk-map { display: none; } /* the split is gone; keep mobile lean */
+}
+
+/* Bento media: the four crops read too alike — drop the repeated browser
+   chrome and frame each tile's actual "money shot" instead. */
+.bento-card__media .mok__chrome { display: none; }
+.bento-card__media .mok { --media-shift: 0px; transform: translateY(var(--media-shift)); }
+.bento-card:nth-child(2) .bento-card__media .mok { --media-shift: -8px; }   /* checkout: brand bar + Pay headline */
+.bento-card:nth-child(3) .bento-card__media .mok { --media-shift: -26px; }  /* reconcile: matched rows + ticks */
+.bento-card:nth-child(4) .bento-card__media .mok { --media-shift: -12px; }  /* onboarding: first steps + badges */
+
+/* =========================================================================
+   PayCard — the customer's card in the CTA band. Bold brand art (diagonal
+   ribbon + dot field) under three light layers that each read the pointer
+   at a different rate: face gloss (sweeps opposite the tilt), chip glint
+   (faster — different material), holo monogram (hue slides). All motion is
+   transform/background-position on tiny layers; the art never repaints.
+   ========================================================================= */
+.pay-card {
+  position: relative;
+  width: min(380px, 100%);
+  aspect-ratio: 1.586;
+  border-radius: 18px;
+  padding: 1.5rem;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      120% 160% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
+      rgba(59, 130, 246, 0.32) 0%,
+      rgba(139, 92, 246, 0.16) 42%,
+      transparent 72%
+    ),
+    linear-gradient(135deg, #1E2B45 0%, #131C30 55%, #0F172A 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 48px rgba(2, 6, 23, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: var(--color-pure-white);
+}
+.pay-card__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pay-card__sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    60% 80% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
+    rgba(255, 255, 255, 0.18) 0%,
+    transparent 60%
+  );
+}
+/* Fixed-light specular band: tilting the card one way sweeps the highlight
+   the other. Oversized layer + transform only, so it stays on the compositor. */
+.pay-card__gloss {
+  position: absolute;
+  inset: -60%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.09) 46%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.09) 54%,
+    transparent 60%
+  );
+  transform: translate3d(calc((var(--px, 0.5) - 0.5) * -36%), calc((var(--py, 0.35) - 0.35) * -14%), 0);
+  will-change: transform;
+}
+.pay-card__chip {
+  position: absolute;
+  top: 1.4rem;
+  left: 1.5rem;
+  width: 46px;
+  height: 34px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.4);
+}
+.pay-card__chip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* The chip is metal: its reflection line runs faster and the opposite way
+   to the card face — a different material catches the same light differently. */
+.pay-card__chip-glint {
+  position: absolute;
+  inset: -30% -150%;
+  background: linear-gradient(
+    105deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.08) 44%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.08) 56%,
+    transparent 66%
+  );
+  transform: translate3d(calc((var(--px, 0.5) - 0.5) * 58%), 0, 0);
+  will-change: transform;
+}
+/* Holographic SettlePay monogram — a hologram patch, not an issuer mark.
+   Iridescent gradient slides through the masked monogram as the card tilts.
+   Prefix FIRST: the minifier keeps only the last of a prefixed pair. */
+.pay-card__holo {
+  position: absolute;
+  right: 1.4rem;
+  bottom: 5rem;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(
+    115deg,
+    #7DD3FC 0%,
+    #C4B5FD 22%,
+    #F9A8D4 42%,
+    #FDE68A 62%,
+    #86EFAC 82%,
+    #7DD3FC 100%
+  );
+  background-size: 260% 260%;
+  background-position: calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%);
+  -webkit-mask: url('/assets/logos/monogram-mark.svg') center / contain no-repeat;
+  mask: url('/assets/logos/monogram-mark.svg') center / contain no-repeat;
+  opacity: 0.9;
+}
+.pay-card__wave {
+  position: absolute;
+  top: 1.35rem;
+  right: 1.4rem;
+  width: 26px;
+  height: 26px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.pay-card__number {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.85rem;
+  color: rgba(255, 255, 255, 0.92);
+  position: relative;
+  text-shadow: 0 1px 6px rgba(2, 6, 23, 0.55); /* stays legible over the art */
+}
+.pay-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  text-shadow: 0 1px 6px rgba(2, 6, 23, 0.55);
+}
+.pay-card__holder {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.pay-card__mark {
+  /* Light-bg Visa mark, shown as-is on a small white plate for contrast. */
+  height: 22px;
+  width: auto;
+  background: var(--color-pure-white);
+  border-radius: 4px;
+  padding: 3px 6px;
+  box-sizing: content-box;
+}
+
+/* Scroll-progressive subtitle fill in the dark chapter (Adyen word-fill,
+   paragraph-level). JS writes --story-p (0..1); defaults to filled. */
+@media (prefers-reduced-motion: no-preference) {
+  .section--dark .section-subtitle {
+    color: transparent;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.92) calc(var(--story-p, 1) * 110%),
+      rgba(255, 255, 255, 0.32) calc(var(--story-p, 1) * 110%)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+}
+
+/* =========================================================================
+   MarketShift — scroll-scrubbed market counter. Static single band by
+   default (no-JS / reduced motion see the true figure); the tall section,
+   pinned stage and hidden-until-settled extras only exist once JS marks
+   html.reveal-ready AND motion is allowed.
+   ========================================================================= */
+.market-shift {
+  background-color: var(--color-pure-white);
+}
+.market-shift__stage {
+  padding-block: var(--space-section);
+}
+.market-shift__inner {
+  text-align: center;
+  max-width: 56rem;
+}
+.market-shift__figure {
+  font-size: clamp(3.4rem, 9vw, 6.25rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--color-primary-brand);
+  font-variant-numeric: tabular-nums;
+  margin: 0.5rem 0 1.1rem;
+}
+.market-shift__currency {
+  font-size: 0.55em;
+  vertical-align: 0.5em;
+  margin-right: 0.06em;
+  opacity: 0.8;
+}
+.market-shift__unit {
+  font-size: 0.3em;
+  font-weight: 600;
+  margin-left: 0.18em;
+  color: var(--color-text-muted);
+  letter-spacing: 0;
+}
+.market-shift__label {
+  font-size: var(--text-lead);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  max-width: 44ch;
+  margin-inline: auto;
+}
+.market-shift__source {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--color-primary-brand);
+  opacity: 0.55;
+}
+.market-shift__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 40rem;
+  margin: 2.25rem auto 0;
+}
+.market-shift__fact {
+  background-color: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 1.25rem 1.4rem;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+.market-shift__fact strong {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--color-primary-brand);
+  font-variant-numeric: tabular-nums;
+}
+.market-shift__fact p {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+.market-shift__fact span {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--color-primary-brand);
+  opacity: 0.5;
+}
+.market-shift__close {
+  margin: 2rem auto 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+  max-width: 46ch;
+}
+@media (max-width: 640px) {
+  .market-shift__facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .market-shift {
+    min-height: 230vh;
+  }
+  html.reveal-ready .market-shift__stage {
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  html.reveal-ready .market-shift__source,
+  html.reveal-ready .market-shift__facts,
+  html.reveal-ready .market-shift__close {
+    transition: opacity var(--ease-cinematic), translate var(--ease-cinematic);
+  }
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__source,
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__facts,
+  html.reveal-ready .market-shift:not(.is-settled) .market-shift__close {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  html.reveal-ready .market-shift.is-settled .market-shift__facts {
+    transition-delay: 120ms;
+  }
+  html.reveal-ready .market-shift.is-settled .market-shift__close {
+    transition-delay: 260ms;
+  }
 }

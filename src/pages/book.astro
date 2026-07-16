@@ -37,7 +37,6 @@ const checklist = [
   <header class="page-header">
     <div class="container">
       <Breadcrumbs items={crumbs} />
-      <div class="section-badge">Free Consultation</div>
       <h1 class="page-header__title">Book Your <span>Free Consultation</span></h1>
       <p class="page-header__lead">
         Thirty minutes, online, no obligation. Pick a time that suits you below and you'll get a
@@ -140,7 +139,8 @@ const checklist = [
           Send a few details and Finlay will reply within one working day — no jargon, no pressure.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Send a Message</Button>
+          {/* This page IS the booking funnel, so the enquiry ask stands alone here. */}
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
           <Button variant="secondary" href="/work/">See Our Work</Button>
         </div>
       </div>
@@ -149,7 +149,7 @@ const checklist = [
 </BaseLayout>
 
 <style>
-  .book-section { padding: 0 0 5rem; }
+  .book-section { padding: 0 0 var(--space-section); }
   .book-grid { display: grid; grid-template-columns: 300px 1fr; gap: 2.5rem; align-items: start; }
   .book-aside { position: sticky; top: calc(var(--nav-offset) + 1rem); }
   .book-aside__title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1rem; }

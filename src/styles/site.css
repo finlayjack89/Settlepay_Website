@@ -47,31 +47,34 @@
 /* ---- Inner-page header (About / FAQ / legal) ---- */
 .page-header {
   position: relative;
-  padding-block: 7.5rem 3.5rem;
+  padding-block: 4.5rem 2.5rem;
   background: linear-gradient(165deg, var(--color-pure-white) 0%, var(--color-secondary-bg) 100%);
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 .page-header__inner {
   max-width: 760px;
 }
+.page-header .breadcrumbs {
+  margin-bottom: 1.25rem;
+}
 .page-header__title {
-  font-size: clamp(2rem, 3vw + 1rem, 3rem);
+  font-size: var(--text-page-title);
   font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.03em;
   color: var(--color-primary-brand);
-  margin: 0.75rem 0 0;
+  margin: 0;
   text-wrap: balance;
 }
 .page-header__title span {
   color: var(--color-primary-action);
 }
 .page-header__lead {
-  font-size: 1.1rem;
+  font-size: var(--text-lead);
   line-height: 1.7;
   color: var(--color-primary-brand);
   opacity: 0.6;
-  margin-top: 1rem;
+  margin-top: 0.85rem;
   max-width: 60ch;
 }
 
@@ -224,7 +227,7 @@
 
 /* Section wrapper for legal/long-form pages */
 .content-section {
-  padding-block: 4rem 6rem;
+  padding-block: 3rem var(--space-section);
 }
 .legal-meta {
   display: inline-flex;
@@ -329,7 +332,7 @@
 
 /* ---- FAQ ---- */
 .faq-section {
-  padding-block: 3.5rem 6rem;
+  padding-block: 2.5rem var(--space-section);
 }
 .faq-cat {
   margin-top: 3rem;
@@ -443,7 +446,7 @@
   text-align: center;
   max-width: 600px;
   margin-inline: auto;
-  padding-block: 4rem;
+  padding-block: var(--space-section-compact);
 }
 .mini-cta__title {
   font-size: clamp(1.4rem, 2vw + 0.5rem, 2rem);
@@ -468,7 +471,7 @@
 
 @media (max-width: 768px) {
   .page-header {
-    padding-block: 6rem 2.5rem;
+    padding-block: 3.5rem 2rem;
   }
   .legal-toc ol {
     grid-template-columns: 1fr;

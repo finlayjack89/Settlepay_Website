@@ -54,7 +54,7 @@ These are conduct/legal requirements, not style preferences. Breaking them is a 
 
 - Plain, honest, calm, jargon-light **UK English** (organise, reconcile, personalise, licence/license).
 - **"you / your"** = the reader; **"we / our"** = SettlePay. Solo founder — avoid "our team".
-- **Title Case** for headlines & buttons ("Enquire Now", "See How It Works"). Sentence case for body.
+- **Title Case** for headlines & buttons ("Send an Enquiry", "See How It Works"). Sentence case for body.
   Eyebrow/badge labels are **UPPERCASE** with letter-spacing (one deliberate sentence-case variant:
   "See the impact").
 - **No emoji, ever.** Iconography does the visual lifting.
@@ -106,13 +106,14 @@ The single most important visual discipline.
   **1.6–1.75**, measure **~50–75ch**, left-aligned long copy (never justified/centred). **No thin/light
   weights for body.**
 
-| Role | Size | Notes |
+| Role | Token / size | Notes |
 |---|---|---|
-| Display / hero H1 | `clamp(2.25rem, 3.5vw + 1rem, 3.75rem)` | 700, line-height 1.05, tracking −0.035em |
-| Section title (H2) | `clamp(1.75rem, 2.5vw + 0.5rem, 2.75rem)` | 700, tracking −0.03em, one blue `<span>` |
+| Display / hero H1 | `--text-display` = `clamp(2.1rem, 3vw + 1rem, 3.4rem)` | 700, line-height 1.05, tracking −0.035em |
+| Section title (H2) | `--text-title` = `clamp(1.65rem, 2vw + 0.75rem, 2.4rem)` | 700, tracking −0.03em, one blue `<span>` |
+| Interior page H1 | `--text-page-title` = `clamp(1.9rem, 2.2vw + 1rem, 2.6rem)` | 700, `.page-header__title` |
 | Card / feature title | 1.35rem | 700 |
 | Step / sub-title (H3) | 1.15rem | 700 |
-| Lead / hero sub | 1.1rem | line-height 1.7, opacity ~0.6 |
+| Lead / hero sub | `--text-lead` = 1.1rem | line-height 1.7, opacity ~0.6 |
 | Body | 1rem–1.05rem | line-height 1.6–1.75 |
 | Eyebrow / badge / label | 0.75rem | 600, uppercase, letter-spacing 0.04em |
 | Micro (timestamps) | 0.7rem | never for reading copy |
@@ -121,12 +122,18 @@ The single most important visual discipline.
 
 ## 6. Spacing & layout
 
-- **Generous spacing is a trust signal.** Section vertical padding **6rem** (`.section-pad`; 4rem mobile).
+- **Spacing tokens:** `--space-section` = `clamp(3.5rem, 2.75rem + 2.5vw, 4.75rem)` (`.section-pad`),
+  `--space-section-compact` = `clamp(2.25rem, 2rem + 1.25vw, 3rem)` (slim bands: trust strip,
+  mini-cta), `--space-header-gap` = 2.5rem (SectionHeader → content). Clamps cover mobile — no
+  per-breakpoint padding overrides.
+- **Rhythm comes from alternating surfaces, not padding.** Homepage bands alternate white / slate
+  (`--color-secondary-bg`), punctuated by contained navy panels (`.stage-dark`, CtaBand card).
 - **Container:** `max-width: 1200px`, gutters 1.5rem (`.container`).
 - **Layout patterns:** sticky floating-island nav (top 12px, max-width 940px, centred); hero is a
-  2-col grid (copy left / mockup right), collapses to 1 col under 960px; value props alternate
-  left/right ("zig-zag"); trust signals in a single elevated white bar.
-- Anchor scroll offset of 90px (`:target`) clears the floating nav.
+  2-col grid (copy left / dark product stage right), collapses to 1 col under 960px; value props are
+  a 2×2 bento of white cards with top-cropped mockup media; trust signals in a slim one-line strip
+  under the hero.
+- Anchor scroll offset of 86px (`--nav-offset` via `scroll-padding-top`) clears the floating nav.
 
 ---
 
@@ -263,5 +270,7 @@ Keep claims honest (no "FCA authorised" in titles/descriptions).
 - [ ] "We never hold your money" stated where relevant.
 - [ ] Real vs illustrative clients labelled correctly.
 - [ ] UK English, Title Case headings, no emoji, one primary + one secondary button per view.
+- [ ] CTA funnel: primary = "Send an Enquiry" (modal, `SITE.cta.primary`); secondary = "Book a Free
+      Call" → `/book/` (`SITE.cta.secondary`). Don't invent new funnel labels per page.
 - [ ] Blue used only for the primary action / accents — never decoration.
 - [ ] New icons via `Icon.astro`; new buttons/headers via their components.

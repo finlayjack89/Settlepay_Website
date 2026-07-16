@@ -1,15 +1,16 @@
 ---
 /**
- * StickyCta — mobile-only sticky booking bar. Links to /book/ (the calendar),
- * matching every other "Book a Free Consultation" CTA so booking is one path.
+ * StickyCta — mobile-only sticky enquiry bar, matching the site-wide primary
+ * ask (SITE.cta.primary opens the enquiry modal).
  * Shown/hidden by SiteScripts via IntersectionObserver: slides in once the hero
  * has scrolled away, and hides whenever the final CTA band or footer is on screen
  * so it never doubles up on the real button. Homepage only.
  */
+import { SITE } from '../data/site.mjs';
 import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
-  <Button variant="primary" size="large" icon="arrow" href="/book/">Book a Free Consultation</Button>
+  <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
 </div>
 
 <style>
@@ -23,8 +24,9 @@ import Button from './Button.astro';
     justify-content: center;
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(16px) saturate(1.4);
+    /* Prefix first, standard last — the minifier keeps only the final one. */
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
     box-shadow:
       0 -1px 0 rgba(15, 23, 42, 0.06),
       0 -8px 24px rgba(15, 23, 42, 0.08);

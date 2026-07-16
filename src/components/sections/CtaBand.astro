@@ -1,29 +1,35 @@
 ---
 import Button from '../Button.astro';
 import Icon from '../Icon.astro';
+import PayCard from '../PayCard.astro';
 import { SITE } from '../../data/site.mjs';
 ---
 <section class="cta-section" id="enquire" data-screen-label="CTA band">
   <div class="container">
     <div class="cta-section__inner">
-      <h2 class="cta-section__title">Ready to Stop Chasing Bank Transfers?</h2>
-      <p class="cta-section__text">
-        Book a free, no-obligation consultation. We'll review your current payment workflow and show
-        you exactly how a bespoke checkout page, with payments processed by an FCA-regulated processor, can eliminate the
-        admin.
-      </p>
-      {/* Reassurance beat at the risk-anxiety peak — for the already-sold, right before the ask. */}
-      <ul class="cta-section__trust" aria-label="Why businesses trust SettlePay">
-        {SITE.trustPoints.map((t) => (
-          <li class="cta-section__trust-item">
-            <Icon name={t.icon} sw={1.75} />
-            <span>{t.title}</span>
-          </li>
-        ))}
-      </ul>
-      <div class="cta-section__actions">
-        <Button variant="primary" size="large" icon="arrow" href="/book/">Book a Free Consultation</Button>
-        <Button variant="secondary" onDark href="/work/">See Our Work</Button>
+      <div class="cta-section__content">
+        <h2 class="cta-section__title">Ready to Stop Chasing Bank Transfers?</h2>
+        <p class="cta-section__text">
+          Send us a short enquiry — free and no-obligation. We'll review your current payment
+          workflow and show you exactly how a bespoke checkout page, with payments processed by an
+          FCA-regulated processor, can eliminate the admin.
+        </p>
+        {/* Reassurance beat at the risk-anxiety peak — for the already-sold, right before the ask. */}
+        <ul class="cta-section__trust" aria-label="Why businesses trust SettlePay">
+          {SITE.trustPoints.map((t) => (
+            <li class="cta-section__trust-item">
+              <Icon name={t.icon} sw={1.75} />
+              <span>{t.title}</span>
+            </li>
+          ))}
+        </ul>
+        <div class="cta-section__actions">
+          <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" onDark href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
+        </div>
+      </div>
+      <div class="cta-section__card">
+        <PayCard />
       </div>
     </div>
   </div>
@@ -35,12 +41,15 @@ import { SITE } from '../../data/site.mjs';
   .cta-section__trust {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.6rem 1.75rem;
     max-width: 660px;
-    margin: 0 auto 2.25rem;
+    margin: 0 0 2.25rem;
     padding: 0;
     list-style: none;
+  }
+  @media (max-width: 880px) {
+    .cta-section__trust { justify-content: center; margin-inline: auto; }
   }
   .cta-section__trust-item {
     display: inline-flex;

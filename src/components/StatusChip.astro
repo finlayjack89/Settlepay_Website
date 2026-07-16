@@ -1,0 +1,14 @@
+---
+/**
+ * StatusChip — small glass notification chip (illustrative, decorative).
+ * Floats over dark product stages to narrate an outcome ("Payment received").
+ * Styles live in kit-extras.css (.status-chip) so the recipe is reusable.
+ */
+import Icon from './Icon.astro';
+
+const { icon, label, value = '', tone = 'neutral', class: className = '' } = Astro.props;
+---
+<div class={`status-chip status-chip--${tone} ${className}`.trim()}>
+  <span class="status-chip__icon"><Icon name={icon} sw={2} /></span>
+  <span>{label}{value && <> · <span class="status-chip__value">{value}</span></>}</span>
+</div>

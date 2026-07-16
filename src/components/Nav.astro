@@ -39,7 +39,7 @@ import Button from './Button.astro';
         {SITE.nav.map((l) => (
           <a href={l.href} class="navbar__link">{l.label}</a>
         ))}
-        <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+        <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
       </div>
 
       <button
@@ -59,7 +59,7 @@ import Button from './Button.astro';
     {SITE.nav.map((l) => (
       <a href={l.href} class="navbar__link" data-nav-link>{l.label}</a>
     ))}
-    <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+    <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
   </div>
 </nav>
 

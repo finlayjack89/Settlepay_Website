@@ -1,6 +1,5 @@
 ---
 import Icon from '../Icon.astro';
-import Button from '../Button.astro';
 import SectionHeader from '../SectionHeader.astro';
 
 const reassure = [
@@ -45,7 +44,7 @@ const timeline = [
     <div class="speed__track">
       <div class="speed__steps">
         {timeline.map((s) => (
-          <div class="speed__step">
+          <div class="speed__step" data-reveal>
             <div class="speed__node"><Icon name={s.icon} sw={1.5} /></div>
             <span class="speed__day">{s.day}</span>
             <h3 class="speed__step-title">{s.title}</h3>
@@ -54,16 +53,9 @@ const timeline = [
         ))}
       </div>
     </div>
-    <div class="speed__urgent">
-      <div class="speed__urgent-icon"><Icon name="clock" sw={1.5} /></div>
-      <div class="speed__urgent-body">
-        <h3 class="speed__urgent-title">Need It Sooner? We Run an Urgent Service.</h3>
-        <p class="speed__urgent-text">
-          If you’re up against a deadline and need a payment product at short notice, tell us — we
-          prioritise urgent builds and turn them around fast.
-        </p>
-      </div>
-      <Button variant="secondary" onDark enquire>Talk to Us</Button>
-    </div>
+    <p class="speed__note">
+      Up against a deadline? We run an urgent service for short-notice builds — just mention it when
+      you enquire.
+    </p>
   </div>
 </section>

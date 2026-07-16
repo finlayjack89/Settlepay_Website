@@ -53,6 +53,13 @@ export const SITE = {
   // In-house booking page (was the Cal.com link; now our own /book/ slot picker).
   bookingUrl: '/book/',
 
+  // Site-wide CTA funnel — ONE primary ask, ONE secondary path (user decision 2026-07-14).
+  // The primary always opens the enquiry modal (data-enquire); the secondary links to /book/.
+  cta: {
+    primary: { label: 'Send an Enquiry' },
+    secondary: { label: 'Book a Free Call', href: '/book/' },
+  },
+
   // Default SEO
   defaultTitle: 'SettlePay — Bespoke Payment Pages for UK Businesses',
   titleTemplate: '%s · SettlePay',

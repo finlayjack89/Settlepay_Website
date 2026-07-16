@@ -1,6 +1,9 @@
 ---
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
+import StatusChip from '../StatusChip.astro';
+import ParticleField from '../ParticleField.astro';
+import { SITE } from '../../data/site.mjs';
 
 const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 ---
@@ -19,7 +22,7 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
         — so you get paid faster, look professional, and stop reconciling payments by hand.
       </p>
       <div class="hero__actions">
-        <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+        <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
         <Button variant="secondary" href="#integration">See How It Works</Button>
       </div>
       <div class="hero__trust-note">
@@ -32,8 +35,16 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
     </div>
 
     <div class="hero__visual">
-      <div class="hero__visual-mockup">
-        <div class="bezel-wrap">
+      <div class="stage-dark hero-stage" data-tilt data-tilt-max="2.5">
+        {/* WebGL island: quiet drifting particles behind the mockup. */}
+        <ParticleField />
+        {/* Stacked translucent layers behind the checkout — dimensional depth,
+            not glow (see .claude/skills/ui-ux-pro-max: Dimensional Layering). */}
+        <div class="hero-stage__layers" aria-hidden="true">
+          <i class="hero-stage__layer hero-stage__layer--1"></i>
+          <i class="hero-stage__layer hero-stage__layer--2"></i>
+        </div>
+        <div class="hero-stage__mockup">
           <!-- Illustrative branded-checkout mockup (interactive method switcher) -->
           <div class="checkout-v2" data-checkout>
             <div class="checkout-v2__inner">
@@ -79,14 +90,6 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
                         <label class="checkout-v2__floating-label">Security code</label>
                       </div>
                     </div>
-                    <div class="checkout-v2__input-wrap">
-                      <input type="text" placeholder=" " class="checkout-v2__input" value="" readonly tabindex="-1" />
-                      <label class="checkout-v2__floating-label">Name on card</label>
-                    </div>
-                    <label class="checkout-v2__checkbox-wrap">
-                      <input type="checkbox" checked class="checkout-v2__checkbox" tabindex="-1" />
-                      <span class="checkout-v2__checkbox-label">Use shipping address as billing address</span>
-                    </label>
                   </div>
                 </div>
 
@@ -112,6 +115,14 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
               <button class="checkout-v2__applepay-big" type="button" tabindex="-1">Check Out Now</button>
             </div>
           </div>
+        </div>
+
+        {/* Floating outcome chips — decorative narration of the product story:
+            customer pays, books reconcile, money lands. Generic amounts only. */}
+        <div class="hero-stage__chips" aria-hidden="true">
+          <StatusChip class="hero-chip hero-chip--1" tone="success" icon="check" label="Payment received" value="£850.00" />
+          <StatusChip class="hero-chip hero-chip--2" tone="neutral" icon="refresh" label="Matched to invoice INV-2041" />
+          <StatusChip class="hero-chip hero-chip--3" tone="neutral" icon="banknotes" label="Paid out to your bank" />
         </div>
       </div>
     </div>
