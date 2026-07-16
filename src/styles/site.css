@@ -406,6 +406,115 @@
   text-underline-offset: 2px;
 }
 
+/* Deep-link target: a one-shot wash so the linked answer identifies itself. */
+.faq-item:target {
+  border-color: rgba(59, 130, 246, 0.55);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .faq-item:target { animation: faqTargetWash 1.6s ease-out; }
+  @keyframes faqTargetWash {
+    0% { background: rgba(59, 130, 246, 0.1); }
+    100% { background: var(--color-pure-white); }
+  }
+}
+
+/* CSS-only open/close animation where the platform supports it; everyone
+   else keeps today's instant toggle. */
+@supports (interpolate-size: allow-keywords) {
+  @media (prefers-reduced-motion: no-preference) {
+    .faq-item::details-content {
+      block-size: 0;
+      overflow-y: clip;
+      transition: block-size var(--ease-cinematic), content-visibility var(--ease-cinematic);
+      transition-behavior: allow-discrete;
+    }
+    .faq-item[open]::details-content {
+      block-size: auto;
+      interpolate-size: allow-keywords;
+    }
+  }
+}
+
+/* Copy-link affordance at the foot of every answer. */
+.faq-item__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted) !important;
+  text-decoration: none !important;
+}
+.faq-item__link svg { width: 13px; height: 13px; }
+.faq-item__link:hover { color: var(--color-primary-action) !important; }
+
+/* Inline enquiry link inside the cost answer — prose-styled button. */
+.faq-inline-enquire {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-primary-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+/* Top Objections strip — the make-or-break answers before the accordion. */
+.faq-objections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 820px;
+  margin-bottom: 2.5rem;
+}
+.faq-objection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: var(--color-pure-white);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy), translate var(--ease-snappy);
+}
+.faq-objection:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: var(--shadow-md);
+  translate: 0 -2px;
+}
+.faq-objection__tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.faq-objection__q {
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+}
+.faq-objection__go {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary-action);
+}
+.faq-objection__go svg { width: 13px; height: 13px; }
+@media (max-width: 720px) {
+  .faq-objections { grid-template-columns: 1fr; }
+}
+
 /* ---- 404 ---- */
 .notfound {
   min-height: 60vh;

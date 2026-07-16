@@ -126,7 +126,9 @@
   // ---------------------------------------------------------------------------
   const stickyCta = document.querySelector('[data-sticky-cta]');
   if (stickyCta) {
-    const hero = document.getElementById('hero');
+    // On interior pages the page-header stands in for the hero: the bar slides
+    // in once the header scrolls away, never on first paint.
+    const hero = document.getElementById('hero') || document.querySelector('.page-header');
     // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
     // selector here if consent UI is ever added.)
     const suppressors = ['.cta-section', '.footer']
@@ -231,6 +233,32 @@
       }, { passive: true });
       writeCount();
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FAQ deep links — a hash-targeted answer opens itself (outreach emails link
+  // straight to "Are you FCA regulated?"), and every answer offers a copy-link.
+  // ---------------------------------------------------------------------------
+  const faqItems = document.querySelectorAll<HTMLDetailsElement>('details.faq-item[id]');
+  if (faqItems.length) {
+    const openFromHash = () => {
+      const target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+      if (target instanceof HTMLDetailsElement) target.open = true;
+    };
+    window.addEventListener('hashchange', openFromHash);
+    openFromHash();
+    document.querySelectorAll<HTMLAnchorElement>('[data-faq-copy]').forEach((a) => {
+      a.addEventListener('click', () => {
+        const url = location.origin + location.pathname + a.getAttribute('href');
+        navigator.clipboard?.writeText(url).then(() => {
+          const label = a.lastChild;
+          if (!label) return;
+          const original = label.textContent;
+          label.textContent = ' Link copied';
+          setTimeout(() => { label.textContent = original; }, 1800);
+        }).catch(() => {});
+      });
+    });
   }
 
   // ---------------------------------------------------------------------------

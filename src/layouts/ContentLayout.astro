@@ -24,8 +24,8 @@ const jsonLd = [webPage({ path, title, description, type: pageType }), breadcrum
   <header class="page-header">
     <div class="container">
       <Breadcrumbs items={crumbs} />
-      <h1 class="page-header__title">{title}</h1>
-      {lead && <p class="page-header__lead">{lead}</p>}
+      <h1 class="page-header__title" data-reveal>{title}</h1>
+      {lead && <p class="page-header__lead" data-reveal>{lead}</p>}
     </div>
   </header>
   <section class="content-section">

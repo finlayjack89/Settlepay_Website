@@ -42,8 +42,8 @@ const thumbStyle = (b) =>
   <header class="page-header">
     <div class="container">
       <Breadcrumbs items={crumbs} />
-      <h1 class="page-header__title">Branded Payment Pages, <span>Pattern by Pattern</span></h1>
-      <p class="page-header__lead">
+      <h1 class="page-header__title" data-reveal>Branded Payment Pages, <span>Pattern by Pattern</span></h1>
+      <p class="page-header__lead" data-reveal>
         Seven builds — one live client and six fictional demo brands — each replacing bank transfers,
         cheques or card details read out over the phone with a payment page that looks like the
         business it belongs to.
@@ -55,7 +55,7 @@ const thumbStyle = (b) =>
     <div class="container">
       <div class="pf-grid">
         {PORTFOLIO.map((e) => (
-          <a class="pf-card" href={`/work/${e.slug}/`}>
+          <a class="pf-card" href={`/work/${e.slug}/`} data-reveal data-tilt data-tilt-max="4">
             <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
               <div class="pf-thumb__chrome"><span></span><span></span><span></span></div>
               <div class="pf-thumb__page">
