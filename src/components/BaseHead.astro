@@ -9,6 +9,7 @@ const {
   title = SITE.defaultTitle,
   description = SITE.defaultDescription,
   image = SITE.ogImage,
+  imageAlt = 'SettlePay — bespoke payment pages for UK businesses',
   ogTitle,
   ogDescription,
   keywords,
@@ -44,7 +45,7 @@ const robots = noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview
 <meta property="og:image" content={imageURL} />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="SettlePay — bespoke payment pages for UK businesses" />
+<meta property="og:image:alt" content={imageAlt} />
 <meta property="og:locale" content={SITE.locale} />
 
 <!-- Twitter -->

@@ -10,7 +10,7 @@ import { SITE } from '../data/site.mjs';
 import { webPage, breadcrumbs } from '../data/structuredData.mjs';
 
 const { frontmatter } = Astro.props;
-const { title, seoTitle, description, keywords, lead, path, pageType = 'WebPage' } = frontmatter;
+const { title, seoTitle, description, keywords, lead, path, pageType = 'WebPage', image } = frontmatter;
 const crumbs = [{ name: 'Home', path: '/' }, { name: title, path }];
 const jsonLd = [webPage({ path, title, description, type: pageType }), breadcrumbs(crumbs)];
 ---
@@ -19,6 +19,7 @@ const jsonLd = [webPage({ path, title, description, type: pageType }), breadcrum
   description={description}
   keywords={keywords}
   canonical={path}
+  image={image}
   jsonLd={jsonLd}
 >
   <header class="page-header">

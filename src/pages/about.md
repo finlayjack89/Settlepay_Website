@@ -6,6 +6,7 @@ description: "SettlePay is Finlay Salisbury, a UK payment-page developer buildin
 keywords: "about SettlePay, Finlay Salisbury, payment page developer UK, sole trader payment integration, bespoke checkout developer, UK SME payments specialist"
 path: "/about/"
 pageType: "AboutPage"
+image: "/og/about.png"
 lead: "SettlePay helps small UK businesses take card and online payments properly — without the admin, the awkward phone calls or the pile of bank statements to reconcile by hand."
 ---
 We build you a bespoke, branded payment page and wire it into the accounting software you already use. The money goes straight to your bank. You keep control. We handle the plumbing.
