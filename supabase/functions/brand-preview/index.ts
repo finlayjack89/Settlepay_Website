@@ -41,6 +41,10 @@ const MULTI = activeProviders().length > 1;
 // harder while the split test runs.
 const RATE_LIMIT_PER_MIN = Number(Deno.env.get('RATE_LIMIT_PER_MIN') ?? (MULTI ? '5' : '10'));
 const RATE_LIMIT_PER_DAY = Number(Deno.env.get('RATE_LIMIT_PER_DAY') ?? '60');
+// Hard ceiling on total generations/day across ALL visitors — the per-IP
+// limits above don't bound spend when traffic spikes (each generation bills
+// Claude + Brandfetch legs). Raise deliberately, never remove.
+const GLOBAL_LIMIT_PER_DAY = Number(Deno.env.get('GLOBAL_LIMIT_PER_DAY') ?? '150');
 const CACHE_TTL_HOURS = Number(Deno.env.get('CACHE_TTL_HOURS') ?? '168');
 
 const cors = {
@@ -511,6 +515,17 @@ Deno.serve(async (req) => {
           .eq('ip_hash', ipHash)
           .gte('created_at', since);
         if ((count ?? 0) >= limit) return json({ error: 'rate-limited' }, 429);
+      }
+      if (GLOBAL_LIMIT_PER_DAY > 0) {
+        const since = new Date(Date.now() - 86_400_000).toISOString();
+        const { count } = await supabase
+          .from('brand_preview_requests')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since);
+        if ((count ?? 0) >= GLOBAL_LIMIT_PER_DAY) {
+          console.error(`global daily preview cap hit (${GLOBAL_LIMIT_PER_DAY}) — check for abuse before raising.`);
+          return json({ error: 'rate-limited' }, 429);
+        }
       }
       await supabase.from('brand_preview_requests').insert({ ip_hash: ipHash, domain });
     } catch (_) {
