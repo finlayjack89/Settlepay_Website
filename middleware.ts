@@ -53,7 +53,8 @@ export default async function middleware(req: Request): Promise<Response | undef
   }
 
   if (name) {
-    const title = `${esc(name)}'s Payment Page Preview | SettlePay`;
+    const poss = name.endsWith('s') ? "'" : "'s";
+    const title = `${esc(name)}${poss} Payment Page Preview | SettlePay`;
     const desc = esc(
       `An illustrative payment-page preview designed from ${domain || 'this business'}'s public branding — see how a bespoke checkout could look.`,
     );
