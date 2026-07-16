@@ -7,6 +7,29 @@ cleanup without bloating git) at `/Users/finlaysalisbury/Documents/SettlePay/ins
 `_current-state/` (baseline screenshots of every page) and one folder per research topic
 (external reference captures + INDEX.md mapping each image to the plan item it supports).
 
+## Execution Status (2026-07-16, PR #25)
+
+**Executed and verified** — Phase 1 complete (1.1–1.3, 1.5–1.7; email templates audited clean);
+Phase 2 complete (2.1–2.9; booking polish built on PR #24's calendar as agreed); Phase 3
+permission-independent scope complete (3.1 live link, 3.4 mechanics walkthrough + before/after,
+3.5 work index, 3.7 about, 3.8 preview reveal, 3.9 theatre attract); Phase 4 complete
+(4.1–4.8; the /p/ OG middleware half of 4.6 deferred — Vercel decision).
+
+**Blocked on external input** — 3.2 Lockdales quote, 3.3 capture loop, full 3.4 hero stage
+(client permission); 3.6 founder photo (photo promised); email client render-tests (advisory);
+OurWork tab order deliberately skipped (sound reading order; restructure risks the sticky rail).
+
+**Deploy steps after merge** (from the repo root, linked to the Supabase project):
+`supabase db push` (site_events + leads-digest cron) · `supabase functions deploy events
+--no-verify-jwt` · `supabase functions deploy leads-digest --no-verify-jwt` ·
+`supabase functions deploy enquiry --no-verify-jwt` · `supabase functions deploy brand-preview
+--no-verify-jwt` · `supabase secrets set EVENTS_SALT=<random>` · `node scripts/smoke-probes.mjs`.
+
+Perf gate vs committed baseline: +5KB JS per route (beacon + all new behaviour), content growth
+within budget, Lockdales page −166KB net.
+
+---
+
 **The one-line verdict:** the landing page is rich but has weak final beats and two illegible
 canvases; the interior pages don't feel like the same product; the conversion surfaces (booking,
 modal, preview tool) are the flattest and most defect-ridden pages on the site; and the single
