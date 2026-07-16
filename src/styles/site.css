@@ -480,3 +480,244 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Booking shell — states, spinner, headings, success. Shared by /book/ and
+   /manage/; global (not scoped) so both pages and JS-injected content get them.
+   --------------------------------------------------------------------------- */
+.sp-booking__state { text-align: center; padding: 4rem 1rem; color: var(--color-primary-brand); opacity: 0.7; font-size: 0.95rem; line-height: 1.6; }
+.sp-spinner {
+  display: inline-block; width: 26px; height: 26px; margin-bottom: 1rem;
+  border: 3px solid rgba(59, 130, 246, 0.25); border-top-color: var(--color-primary-action);
+  border-radius: 50%; animation: spSpin 0.7s linear infinite;
+}
+@keyframes spSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sp-spinner { animation: none; } }
+
+.sp-booking__head { margin-bottom: 1.5rem; }
+.sp-booking__title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.4rem; }
+.sp-booking__tz { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--color-primary-brand); opacity: 0.55; }
+.sp-booking__tz svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.sp-booking__back {
+  appearance: none; border: none; background: none; cursor: pointer; font: inherit;
+  display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.88rem; font-weight: 600;
+  color: var(--color-primary-action); padding: 0; margin: 0 0 1rem;
+}
+.sp-booking__back svg { width: 16px; height: 16px; flex-shrink: 0; transform: rotate(90deg); }
+.sp-booking__chosen { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1.25rem; }
+
+.sp-booking__success { text-align: center; padding: 1.5rem 0.5rem; }
+.sp-booking__success-icon { width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10B981; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.1rem; }
+.sp-booking__success-icon svg { width: 28px; height: 28px; }
+.sp-booking__success h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+.sp-booking__success-when { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+.sp-booking__success-note { font-size: 0.9rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6; margin-bottom: 1.5rem; }
+.sp-booking__join { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* ---------------------------------------------------------------------------
+   Booking calendar — month grid + time column, shared by /book/ and /manage/.
+   Global (not scoped) because the day cells and time slots are built in JS and
+   would otherwise miss Astro's scoped-style attribute. buildCalendar() in
+   SiteScripts.astro populates the [data-*] hooks.
+   --------------------------------------------------------------------------- */
+.sp-cal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14rem;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+/* Month panel ------------------------------------------------------------- */
+.sp-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.sp-cal__month-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+}
+.sp-cal__navbtn {
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: var(--color-pure-white);
+  color: var(--color-primary-brand);
+  transition: background var(--ease-snappy), border-color var(--ease-snappy), opacity var(--ease-snappy);
+}
+.sp-cal__navbtn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+.sp-cal__navbtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.sp-cal__navbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+.sp-cal__navbtn svg {
+  width: 16px;
+  height: 16px;
+}
+.sp-cal__navbtn[data-cal-prev] svg {
+  transform: rotate(90deg);
+}
+.sp-cal__navbtn[data-cal-next] svg {
+  transform: rotate(-90deg);
+}
+
+.sp-cal__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.sp-cal__dow span {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(15, 23, 42, 0.4);
+}
+
+.sp-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+.sp-cal__cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  border-radius: 50%;
+  color: rgba(15, 23, 42, 0.28);
+}
+button.sp-cal__cell {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.09);
+  transition: background var(--ease-snappy), color var(--ease-snappy), transform var(--ease-snappy), box-shadow var(--ease-snappy);
+}
+button.sp-cal__cell:hover {
+  background: rgba(59, 130, 246, 0.18);
+}
+button.sp-cal__cell:active {
+  transform: scale(0.94);
+}
+button.sp-cal__cell:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+button.sp-cal__cell--selected,
+button.sp-cal__cell--selected:hover {
+  background: var(--color-primary-action);
+  color: var(--color-pure-white);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+/* Time column ------------------------------------------------------------- */
+.sp-cal__times {
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  padding-left: 1.75rem;
+}
+.sp-cal__times-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+  margin: 0 0 0.85rem;
+  min-height: 1.2em;
+}
+.sp-cal__times-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 20.5rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+.sp-cal__slot {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-input);
+  text-align: center;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: var(--color-pure-white);
+  color: var(--color-primary-brand);
+  transition: border-color var(--ease-snappy), background var(--ease-snappy), transform var(--ease-snappy);
+}
+.sp-cal__slot:hover {
+  border-color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.06);
+}
+.sp-cal__slot:active {
+  transform: scale(0.98);
+}
+.sp-cal__slot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+.sp-cal__times-empty {
+  font-size: 0.9rem;
+  color: rgba(15, 23, 42, 0.5);
+  line-height: 1.6;
+  padding-top: 0.5rem;
+}
+.sp-cal__empty {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-primary-brand);
+  opacity: 0.7;
+  padding: 2rem 0;
+}
+
+@media (max-width: 620px) {
+  .sp-cal {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .sp-cal__times {
+    border-left: none;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    padding-left: 0;
+    padding-top: 1.25rem;
+  }
+  .sp-cal__times-list {
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.sp-cal__cell,
+  .sp-cal__slot,
+  .sp-cal__navbtn {
+    transition: none;
+  }
+  button.sp-cal__cell:active,
+  .sp-cal__slot:active {
+    transform: none;
+  }
+}

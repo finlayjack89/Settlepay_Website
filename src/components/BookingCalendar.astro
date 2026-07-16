@@ -1,0 +1,31 @@
+---
+/**
+ * BookingCalendar — the month-grid + time-column shell shared by /book/ and
+ * /manage/ (reschedule). Static markup only; SiteScripts.astro's buildCalendar()
+ * fills the grid, month title and time list from the availability response.
+ * Styles are global (src/styles/site.css) because the day cells and time slots
+ * are created in JS and would miss Astro's scoped-style attribute.
+ */
+import Icon from './Icon.astro';
+---
+<div class="sp-cal" data-calendar>
+  <div class="sp-cal__panel">
+    <div class="sp-cal__nav">
+      <button type="button" data-cal-prev class="sp-cal__navbtn" aria-label="Previous month">
+        <Icon name="chevron" sw={2.5} />
+      </button>
+      <span data-cal-title class="sp-cal__month-title" aria-live="polite"></span>
+      <button type="button" data-cal-next class="sp-cal__navbtn" aria-label="Next month">
+        <Icon name="chevron" sw={2.5} />
+      </button>
+    </div>
+    <div class="sp-cal__dow" aria-hidden="true">
+      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+    </div>
+    <div data-cal-grid class="sp-cal__grid"></div>
+  </div>
+  <div class="sp-cal__times">
+    <p data-times-label class="sp-cal__times-label"></p>
+    <div data-times-list class="sp-cal__times-list"></div>
+  </div>
+</div>

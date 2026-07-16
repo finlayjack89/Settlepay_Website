@@ -11,6 +11,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import Button from '../components/Button.astro';
 import Icon from '../components/Icon.astro';
+import BookingCalendar from '../components/BookingCalendar.astro';
 import { SITE } from '../data/site.mjs';
 import { webPage, breadcrumbs } from '../data/structuredData.mjs';
 
@@ -86,7 +87,7 @@ const checklist = [
               <h2 class="sp-booking__title">Pick a Time</h2>
               <p class="sp-booking__tz"><Icon name="clock" sw={2} /> All times shown in UK time (Europe/London).</p>
             </div>
-            <div data-slots-list class="sp-booking__days"></div>
+            <BookingCalendar />
           </div>
 
           <div data-step="details" hidden>
@@ -166,49 +167,6 @@ const checklist = [
     padding: 1.75rem;
     min-height: 420px;
   }
-
-  .sp-booking__state { text-align: center; padding: 4rem 1rem; color: var(--color-primary-brand); opacity: 0.7; font-size: 0.95rem; line-height: 1.6; }
-  .sp-spinner {
-    display: inline-block; width: 26px; height: 26px; margin-bottom: 1rem;
-    border: 3px solid rgba(59, 130, 246, 0.25); border-top-color: var(--color-primary-action);
-    border-radius: 50%; animation: spSpin 0.7s linear infinite;
-  }
-  @keyframes spSpin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .sp-spinner { animation: none; } }
-
-  .sp-booking__head { margin-bottom: 1.5rem; }
-  .sp-booking__title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.4rem; }
-  .sp-booking__tz { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--color-primary-brand); opacity: 0.55; }
-  .sp-booking__tz svg { width: 15px; height: 15px; }
-
-  .sp-booking__days { display: grid; gap: 1.4rem; max-height: 30rem; overflow-y: auto; }
-  .sp-booking__day-label { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-primary-brand); opacity: 0.55; margin: 0 0 0.6rem; }
-  .sp-booking__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .sp-booking__chip {
-    appearance: none; cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 600;
-    padding: 0.55rem 0.95rem; border-radius: var(--radius-input);
-    border: 1px solid rgba(15, 23, 42, 0.14); background: var(--color-pure-white); color: var(--color-primary-brand);
-    transition: border-color var(--ease-snappy), background var(--ease-snappy), transform var(--ease-snappy);
-  }
-  .sp-booking__chip:hover { border-color: var(--color-primary-action); background: rgba(59, 130, 246, 0.06); }
-  .sp-booking__chip:active { transform: scale(0.97); }
-  .sp-booking__chip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-primary-action); }
-
-  .sp-booking__back {
-    appearance: none; border: none; background: none; cursor: pointer; font: inherit;
-    display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.88rem; font-weight: 600;
-    color: var(--color-primary-action); padding: 0; margin: 0 0 1rem;
-  }
-  .sp-booking__back svg { width: 16px; height: 16px; transform: rotate(90deg); }
-  .sp-booking__chosen { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1.25rem; }
-
-  .sp-booking__success { text-align: center; padding: 1.5rem 0.5rem; }
-  .sp-booking__success-icon { width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10B981; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.1rem; }
-  .sp-booking__success-icon svg { width: 28px; height: 28px; }
-  .sp-booking__success h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-  .sp-booking__success-when { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .sp-booking__success-note { font-size: 0.9rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6; margin-bottom: 1.5rem; }
-  .sp-booking__join { display: inline-flex; align-items: center; gap: 0.4rem; }
 
   @media (max-width: 860px) {
     .book-grid { grid-template-columns: 1fr; gap: 1.75rem; }
