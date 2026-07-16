@@ -13,6 +13,8 @@
   const track = (event: string, extra: Record<string, unknown> = {}) => {
     const url = document.body.dataset.events;
     if (!url) return;
+    // Production only — localhost/preview traffic must never pollute the data.
+    if (!location.hostname.endsWith('settlepay.uk')) return;
     try {
       const payload = JSON.stringify({
         event,
@@ -20,8 +22,11 @@
         ref: event === 'pageview' ? document.referrer : undefined,
         ...extra,
       });
+      // text/plain keeps this a CORS "simple request" — beacons cannot
+      // preflight, and Chrome refuses application/json Blobs cross-origin.
+      // The events function parses the body as JSON regardless of type.
       if (navigator.sendBeacon) {
-        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+        navigator.sendBeacon(url, new Blob([payload], { type: 'text/plain' }));
       } else {
         fetch(url, { method: 'POST', body: payload, keepalive: true }).catch(() => {});
       }
