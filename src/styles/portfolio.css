@@ -1702,3 +1702,89 @@
 @media (prefers-reduced-motion: reduce) {
   .wf__btn--play { display: none; }
 }
+
+/* ============================================================================
+   Live case page (Lockdales flagship) — annotation strip, real-mechanics
+   before/after, and the odd-tile orphan fix.
+   ============================================================================ */
+.case-annot { padding-top: 1.25rem; }
+.case-annot__strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.75rem;
+  justify-content: center;
+  max-width: 900px;
+  margin-inline: auto;
+}
+.case-annot__item {
+  position: relative;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.case-annot__item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.case-beforeafter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  max-width: 900px;
+  margin: 2.5rem auto 0;
+}
+.case-beforeafter__col {
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.case-beforeafter__col--before { background: var(--color-secondary-bg); }
+.case-beforeafter__col--after {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.case-beforeafter__col h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-muted);
+}
+.case-beforeafter__col--after h3 { color: #0B6B4D; }
+.case-beforeafter__col li {
+  position: relative;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: rgba(15, 23, 42, 0.72);
+  margin-bottom: 0.5rem;
+}
+.case-beforeafter__col--before li::before {
+  content: "–";
+  position: absolute; left: 0;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+.case-beforeafter__col--after li::before {
+  content: "✓";
+  position: absolute; left: 0;
+  color: #0B6B4D;
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .case-beforeafter { grid-template-columns: 1fr; }
+}
+
+/* Odd tile counts: the last lonely tile spans the full row instead of
+   leaving an orphaned half-empty column. */
+.cap-grid > .cap-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
