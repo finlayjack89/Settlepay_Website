@@ -485,7 +485,18 @@
    Booking shell — states, spinner, headings, success. Shared by /book/ and
    /manage/; global (not scoped) so both pages and JS-injected content get them.
    --------------------------------------------------------------------------- */
-.sp-booking__state { text-align: center; padding: 4rem 1rem; color: var(--color-primary-brand); opacity: 0.7; font-size: 0.95rem; line-height: 1.6; }
+.sp-booking__state { text-align: center; padding: 4rem 1rem; color: var(--color-text-muted); font-size: 0.95rem; line-height: 1.6; }
+/* Recovery links in error/empty states get the standard blue link treatment —
+   they are the escape hatch and must never read as plain text. */
+.sp-booking__state a,
+.sp-cal__empty a {
+  color: var(--color-primary-action);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sp-booking__state a:hover,
+.sp-cal__empty a:hover { color: var(--color-primary-action-hover); }
 .sp-spinner {
   display: inline-block; width: 26px; height: 26px; margin-bottom: 1rem;
   border: 3px solid rgba(59, 130, 246, 0.25); border-top-color: var(--color-primary-action);

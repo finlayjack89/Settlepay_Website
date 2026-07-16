@@ -22,6 +22,12 @@
     navMobile.querySelectorAll('[data-nav-link]').forEach((l) =>
       l.addEventListener('click', () => setNav(false))
     );
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setNav(false);
+        (navToggle as HTMLElement).focus();
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -582,6 +588,8 @@
 
     const show = (name: keyof typeof steps) => {
       (Object.keys(steps) as (keyof typeof steps)[]).forEach((k) => { steps[k].hidden = k !== name; });
+      // Move focus to the confirmation so screen readers announce the booking.
+      if (name === 'success') steps.success.focus();
     };
 
     const load = async () => {

@@ -15,6 +15,10 @@
   --color-primary-action-hover: #2563EB;
   --color-secondary-bg:        #F1F5F9;
   --color-pure-white:          #FFFFFF;
+  /* Muted-but-legible text — solid tokens, not opacity dimming, so attributions
+     and disclosures composite to >=4.5:1 on their real backgrounds (WCAG AA). */
+  --color-text-muted:          #55607A; /* on white/slate */
+  --color-text-on-dark-muted:  rgba(255, 255, 255, 0.72); /* on navy */
 
   /* Typography — Change 1 */
   --font-primary: 'Satoshi', system-ui, sans-serif;
@@ -78,6 +82,15 @@ html {
   font-size: var(--text-base);
   scroll-behavior: smooth;
   scroll-padding-top: var(--nav-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+html {
   /* Reserve the scrollbar gutter so locking body scroll (modal open) never
      shifts the page or the fixed nav sideways. */
   scrollbar-gutter: stable;
@@ -988,7 +1001,8 @@ html.reveal-ready [data-reveal].is-revealed {
 }
 
 html.reveal-ready .section--dark .integration__step {
-  opacity: 0.4;
+  /* Dimmed but still readable (>=3:1) for anyone scrolling ahead of the spotlight. */
+  opacity: 0.55;
   transition: opacity 0.35s ease;
 }
 
@@ -1630,7 +1644,7 @@ html.reveal-ready .section--dark .integration__step.is-current {
 .footer__tagline {
   font-size: 0.85rem;
   line-height: 1.7;
-  opacity: 0.4;
+  color: var(--color-text-on-dark-muted);
   max-width: 340px;
   margin-bottom: 1.25rem;
 }
@@ -1643,12 +1657,16 @@ html.reveal-ready .section--dark .integration__step.is-current {
 
 .footer__inline-links a {
   font-size: 0.82rem;
-  opacity: 0.5;
-  transition: opacity var(--ease-snappy);
+  color: var(--color-text-on-dark-muted);
+  transition: color var(--ease-snappy);
+  /* 24px minimum touch target without changing the visual rhythm */
+  display: inline-block;
+  padding-block: 4px;
+  margin-block: -4px;
 }
 
 .footer__inline-links a:hover {
-  opacity: 1;
+  color: var(--color-pure-white);
 }
 
 .footer__contact {
@@ -1660,12 +1678,12 @@ html.reveal-ready .section--dark .integration__step.is-current {
 
 .footer__contact-item {
   font-size: 0.88rem;
-  opacity: 0.55;
-  transition: opacity var(--ease-snappy);
+  color: var(--color-text-on-dark-muted);
+  transition: color var(--ease-snappy);
 }
 
 .footer__contact-item:hover {
-  opacity: 1;
+  color: var(--color-pure-white);
 }
 
 .footer__bottom {
@@ -1674,8 +1692,9 @@ html.reveal-ready .section--dark .integration__step.is-current {
 }
 
 .footer__bottom p {
+  /* The sole-trader disclosure — must stay comfortably legible (was opacity 0.3). */
   font-size: 0.78rem;
-  opacity: 0.3;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 /* ---------------------------------------------------------
