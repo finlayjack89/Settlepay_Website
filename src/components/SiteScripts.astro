@@ -6,6 +6,31 @@
 ---
 <script>
   // ---------------------------------------------------------------------------
+  // First-party, cookieless analytics beacon. Fire-and-forget: no cookies, no
+  // device storage; the events function stores only aggregate funnel events
+  // (see supabase/functions/events + /privacy/). Must never break the page.
+  // ---------------------------------------------------------------------------
+  const track = (event: string, extra: Record<string, unknown> = {}) => {
+    const url = document.body.dataset.events;
+    if (!url) return;
+    try {
+      const payload = JSON.stringify({
+        event,
+        path: location.pathname,
+        ref: event === 'pageview' ? document.referrer : undefined,
+        ...extra,
+      });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+      } else {
+        fetch(url, { method: 'POST', body: payload, keepalive: true }).catch(() => {});
+      }
+    } catch { /* analytics failures are invisible by design */ }
+  };
+  (window as unknown as { spTrack: typeof track }).spTrack = track;
+  track('pageview');
+
+  // ---------------------------------------------------------------------------
   // Mobile navigation drawer
   // ---------------------------------------------------------------------------
   const nav = document.getElementById('navbar');
@@ -374,7 +399,17 @@
       form?.reset();
     };
 
-    document.querySelectorAll('[data-enquire]').forEach((b) => b.addEventListener('click', openModal));
+    document.querySelectorAll('[data-enquire]').forEach((b) =>
+      b.addEventListener('click', () => {
+        // Attribute the open to the surface that triggered it (funnel analytics).
+        const source =
+          (b as HTMLElement).dataset.enquireSource ||
+          b.closest('section[id]')?.id ||
+          (b.closest('nav') ? 'nav' : b.closest('.sticky-cta') ? 'sticky-cta' : 'page');
+        track('enquiry_open', { source });
+        openModal();
+      })
+    );
     modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeModal));
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', (e) => {
@@ -423,6 +458,7 @@
               body: fd,
             });
             if (!res.ok) throw new Error('bad-status');
+            track('enquiry_submitted');
             showSuccess();
           } else {
             const subject = encodeURIComponent('Consultation enquiry — ' + (data.business || 'SettlePay'));
@@ -591,6 +627,7 @@
       // Move focus to the confirmation so screen readers announce the booking.
       if (name === 'success') steps.success.focus();
     };
+    track('booking_view');
 
     const load = async () => {
       show('loading');
@@ -602,6 +639,7 @@
           selected = { start: pick.start, label: pick.timeLabel, day: pick.dayLabel };
           chosenEl.textContent = `${pick.dayLabel} at ${pick.timeLabel} (UK time)`;
           bookErr.hidden = true;
+          track('booking_slot_selected');
           show('details');
           (form.querySelector('#b-name') as HTMLElement | null)?.focus();
         });
@@ -625,6 +663,7 @@
       submitBtn.disabled = true;
       submitBtn.setAttribute('aria-busy', 'true');
       submitBtn.innerHTML = 'Booking…';
+      track('booking_details_submitted');
       try {
         const res = await fetch(bookUrl, {
           method: 'POST',
@@ -643,6 +682,7 @@
         if (res.ok && out.ok) {
           successWhen.textContent = `${out.date} at ${out.time}`;
           if (out.meetUrl) { joinLink.href = out.meetUrl; joinLink.hidden = false; }
+          track('booking_confirmed');
           show('success');
         } else if (res.status === 409) {
           bookErr.textContent = 'Sorry — that time was just taken. Please pick another.';

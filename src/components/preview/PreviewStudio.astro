@@ -729,6 +729,7 @@ const CARDS = [0, 1, 2, 3];
       // never the tool. Falls back to a plain ?url= deep link if minting fails.
       shareBtn.addEventListener('click', async () => {
         if (shareLabel) shareLabel.textContent = 'Creating Link…';
+        window.spTrack?.('preview_share_created');
         const slug = await mintShare();
         const link = slug
           ? location.origin + '/p/' + slug
@@ -751,6 +752,7 @@ const CARDS = [0, 1, 2, 3];
       downloadBtn.addEventListener('click', async () => {
         downloadBtn.disabled = true;
         if (downloadLabel) downloadLabel.textContent = 'Preparing Image…';
+        window.spTrack?.('preview_download');
         try {
           const slug = await mintShare();
           if (!slug) throw new Error('no-share');
@@ -850,6 +852,7 @@ const CARDS = [0, 1, 2, 3];
         return;
       }
       state.domain = registrableDomain(u.hostname);
+      window.spTrack?.('preview_generate');
 
       if (!endpoint) {
         setStatus("Live previews aren't switched on yet — adjust the controls below to sketch by hand.", 'error');
