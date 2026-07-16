@@ -167,14 +167,111 @@
   width: 62%;
 }
 .pf-thumb__btn {
-  display: block;
+  display: grid;
+  place-items: center;
   height: 26px;
   border-radius: 6px;
   background: var(--pf-accent);
   margin-top: 12px;
+  transition: filter var(--ease-snappy), transform var(--ease-snappy);
+}
+.pf-thumb__btn-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--pf-surface);
+  mix-blend-mode: normal;
+}
+.pf-card:hover .pf-thumb__btn {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+/* Brand-true content rows — real text, not grey skeleton bars, so seven
+   builds stop looking like one recoloured template. */
+.pf-thumb__brandname {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-thumb__invoice {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 9px;
+}
+.pf-thumb__inv-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--pf-ink);
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-thumb__inv-amount {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--pf-ink);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.pf-thumb__field {
+  display: block;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.6);
+}
+/* Lockdales hero card — the one real client takes the top row. */
+.pf-card--hero {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+}
+.pf-card--hero .pf-thumb {
+  height: 100%;
+}
+.pf-card--hero .pf-card__body {
+  align-self: center;
+}
+@media (max-width: 880px) {
+  .pf-card--hero { grid-template-columns: 1fr; }
+}
+.pf-chip--demo {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-primary-action);
+  font-weight: 600;
 }
 
 /* ---- Case-study page header extras ---- */
+/* Outbound link to the real production page — verifiable, not asserted. */
+.case-live-link {
+  margin-top: 1rem;
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.case-live-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 700;
+  color: var(--color-primary-action);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.case-live-link a svg { width: 14px; height: 14px; transform: rotate(-45deg); }
+
 .case-head {
   display: flex;
   align-items: center;

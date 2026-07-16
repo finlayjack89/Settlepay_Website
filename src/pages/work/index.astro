@@ -55,17 +55,26 @@ const thumbStyle = (b) =>
     <div class="container">
       <div class="pf-grid">
         {PORTFOLIO.map((e) => (
-          <a class="pf-card" href={`/work/${e.slug}/`} data-reveal data-tilt data-tilt-max="4">
+          <a
+            class={'pf-card' + (e.live ? ' pf-card--hero' : '')}
+            href={`/work/${e.slug}/`}
+            data-reveal
+            data-tilt
+            data-tilt-max="4"
+          >
             <div class="pf-thumb" style={thumbStyle(e.brand)} aria-hidden="true">
               <div class="pf-thumb__chrome"><span></span><span></span><span></span></div>
               <div class="pf-thumb__page">
                 <div class="pf-thumb__brandbar">
                   <span class="pf-thumb__logo"></span>
-                  <span class="pf-thumb__brandline"></span>
+                  <span class="pf-thumb__brandname">{e.name}</span>
                 </div>
-                <span class="pf-thumb__line"></span>
-                <span class="pf-thumb__line pf-thumb__line--short"></span>
-                <span class="pf-thumb__btn"></span>
+                <div class="pf-thumb__invoice">
+                  <span class="pf-thumb__inv-label">{e.thumb?.label ?? 'Amount due'}</span>
+                  <span class="pf-thumb__inv-amount">{e.thumb?.amount ?? '£240.00'}</span>
+                </div>
+                <span class="pf-thumb__field"></span>
+                <span class="pf-thumb__btn"><span class="pf-thumb__btn-label">Pay securely</span></span>
               </div>
             </div>
             <div class="pf-card__body">
@@ -80,6 +89,7 @@ const thumbStyle = (b) =>
               <p class="pf-card__summary">{e.summary}</p>
               <div class="pf-card__methods">
                 {e.methods.map((m) => <span class="pf-chip">{m}</span>)}
+                {!e.live && <span class="pf-chip pf-chip--demo">Interactive demo — test mode</span>}
               </div>
             </div>
           </a>

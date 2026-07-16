@@ -31,8 +31,10 @@
 export const PORTFOLIO = [
   {
     slug: 'lockdales-auctioneers',
+    thumb: { label: 'Invoice 2417 — Sale 189', amount: '£1,246.00' },
     name: 'Lockdales Auctioneers',
     live: true,
+    liveUrl: 'https://lockdalespayments.netlify.app/', // the real production page (verifiable trust)
     vertical: 'Fine Art & Antiquities',
     pattern: 'Branded "Pay Your Invoice" page',
     tagline:
@@ -45,7 +47,7 @@ export const PORTFOLIO = [
       solution:
         'A bespoke, Lockdales-branded "Pay Your Invoice" page processed by Stripe on the Lockdales account: buyers choose BACS (with the account details shown) or pay securely by card, entering their name and bidder number as the reference so Lockdales can match the payment to their invoice. Funds settle straight to the Lockdales bank account.',
       impact: [
-        'A branded, secure payment page live on the Lockdales domain',
+        'A branded, secure payment page, live and taking real payments',
         'Buyers can pay by card instead of reading details down the phone',
         'Funds settle straight to the Lockdales bank account',
       ],
@@ -54,7 +56,7 @@ export const PORTFOLIO = [
       {
         icon: 'card',
         title: 'Branded Card Checkout',
-        text: 'A payment page in Lockdales colours on the Lockdales domain — not a generic processor screen buyers have never seen.',
+        text: 'A dedicated payment page in Lockdales colours — not a generic processor screen buyers have never seen.',
       },
       {
         icon: 'scale',
@@ -86,6 +88,7 @@ export const PORTFOLIO = [
 
   {
     slug: 'harbourside-lettings',
+    thumb: { label: 'Holding deposit', amount: '£1,150.00' },
     name: 'Harbourside Lettings',
     live: false,
     vertical: 'Estate & Lettings',
@@ -350,6 +353,7 @@ export const PORTFOLIO = [
 
   {
     slug: 'marsh-vale-plumbing',
+    thumb: { label: 'Invoice INV-0384', amount: '£384.00' },
     name: 'Marsh & Vale Plumbing & Heating',
     live: false,
     vertical: 'Trades & Home Services',
@@ -598,6 +602,7 @@ export const PORTFOLIO = [
 
   {
     slug: 'rowan-physiotherapy',
+    thumb: { label: 'Initial assessment', amount: '£55.00' },
     name: 'Rowan Physiotherapy',
     live: false,
     vertical: 'Independent Practitioners & Clinics',
@@ -876,6 +881,7 @@ export const PORTFOLIO = [
 
   {
     slug: 'stillwater-weddings',
+    thumb: { label: 'Booking balance', amount: '£2,400.00' },
     name: 'Stillwater Weddings',
     live: false,
     vertical: 'Photographers & Event Suppliers',
@@ -1127,6 +1133,7 @@ export const PORTFOLIO = [
 
   {
     slug: 'whitmore-accountants',
+    thumb: { label: 'Monthly retainer', amount: '£420.00' },
     name: 'Whitmore & Co. Accountants',
     live: false,
     vertical: 'Professional Services',
@@ -1394,6 +1401,7 @@ export const PORTFOLIO = [
 
   {
     slug: 'camber-finch-auctions',
+    thumb: { label: 'Lot 214 — hammer + premium', amount: '£860.00' },
     name: 'Camber & Finch Auctioneers',
     live: false,
     vertical: 'Fine Art & Auctions',

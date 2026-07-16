@@ -80,6 +80,14 @@ const jsonLd = [
       </div>
       <h1 class="page-header__title" data-reveal>{entry.name}</h1>
       <p class="page-header__lead">{entry.tagline}</p>
+      {entry.liveUrl && (
+        <p class="case-live-link">
+          <a href={entry.liveUrl} target="_blank" rel="noopener">
+            View the live page<Icon name="arrow" sw={2.5} />
+          </a>
+          <span>— the real production page, taking real payments today.</span>
+        </p>
+      )}
     </div>
   </header>
 
