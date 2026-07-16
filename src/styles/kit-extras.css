@@ -1431,9 +1431,11 @@
 .bento-card:nth-child(4) .bento-card__media .mok { --media-shift: -12px; }  /* onboarding: first steps + badges */
 
 /* =========================================================================
-   PayCard — the customer's card in the CTA band. Colour lives in the wash
-   that follows the pointer (blue -> violet, functional tints only), depth
-   comes from tilt + sheen. No glow: the sheen is a soft specular light.
+   PayCard — the customer's card in the CTA band. Bold brand art (diagonal
+   ribbon + dot field) under three light layers that each read the pointer
+   at a different rate: face gloss (sweeps opposite the tilt), chip glint
+   (faster — different material), holo monogram (hue slides). All motion is
+   transform/background-position on tiny layers; the art never repaints.
    ========================================================================= */
 .pay-card {
   position: relative;
@@ -1459,32 +1461,94 @@
   justify-content: flex-end;
   color: var(--color-pure-white);
 }
+.pay-card__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
 .pay-card__sheen {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
     60% 80% at calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%),
-    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.18) 0%,
     transparent 60%
   );
+}
+/* Fixed-light specular band: tilting the card one way sweeps the highlight
+   the other. Oversized layer + transform only, so it stays on the compositor. */
+.pay-card__gloss {
+  position: absolute;
+  inset: -60%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.09) 46%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.09) 54%,
+    transparent 60%
+  );
+  transform: translate3d(calc((var(--px, 0.5) - 0.5) * -36%), calc((var(--py, 0.35) - 0.35) * -14%), 0);
+  will-change: transform;
 }
 .pay-card__chip {
   position: absolute;
   top: 1.4rem;
   left: 1.5rem;
-  width: 42px;
-  height: 30px;
+  width: 46px;
+  height: 34px;
   border-radius: 6px;
-  background: linear-gradient(145deg, #E8ECF3 0%, #B9C2D0 100%);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.4);
 }
-.pay-card__chip::after {
-  content: "";
+.pay-card__chip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* The chip is metal: its reflection line runs faster and the opposite way
+   to the card face — a different material catches the same light differently. */
+.pay-card__chip-glint {
   position: absolute;
-  inset: 6px 8px;
-  border: 1px solid rgba(15, 23, 42, 0.28);
-  border-radius: 3px;
+  inset: -30% -150%;
+  background: linear-gradient(
+    105deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.08) 44%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.08) 56%,
+    transparent 66%
+  );
+  transform: translate3d(calc((var(--px, 0.5) - 0.5) * 58%), 0, 0);
+  will-change: transform;
+}
+/* Holographic SettlePay monogram — a hologram patch, not an issuer mark.
+   Iridescent gradient slides through the masked monogram as the card tilts.
+   Prefix FIRST: the minifier keeps only the last of a prefixed pair. */
+.pay-card__holo {
+  position: absolute;
+  right: 1.4rem;
+  bottom: 5rem;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(
+    115deg,
+    #7DD3FC 0%,
+    #C4B5FD 22%,
+    #F9A8D4 42%,
+    #FDE68A 62%,
+    #86EFAC 82%,
+    #7DD3FC 100%
+  );
+  background-size: 260% 260%;
+  background-position: calc(var(--px, 0.5) * 100%) calc(var(--py, 0.35) * 100%);
+  -webkit-mask: url('/assets/logos/monogram-mark.svg') center / contain no-repeat;
+  mask: url('/assets/logos/monogram-mark.svg') center / contain no-repeat;
+  opacity: 0.9;
 }
 .pay-card__wave {
   position: absolute;
@@ -1500,11 +1564,15 @@
   letter-spacing: 0.08em;
   margin-bottom: 0.85rem;
   color: rgba(255, 255, 255, 0.92);
+  position: relative;
+  text-shadow: 0 1px 6px rgba(2, 6, 23, 0.55); /* stays legible over the art */
 }
 .pay-card__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
+  text-shadow: 0 1px 6px rgba(2, 6, 23, 0.55);
 }
 .pay-card__holder {
   font-size: 0.7rem;
