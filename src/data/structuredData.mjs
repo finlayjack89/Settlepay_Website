@@ -16,7 +16,7 @@ export function orgNode() {
     description: SITE.defaultDescription,
     logo: {
       '@type': 'ImageObject',
-      url: base + '/assets/logos/wordmark-squircle.png',
+      url: base + '/assets/logos/settlepay-logo-512.png',
     },
     image: base + SITE.ogImage,
     founder: { '@type': 'Person', name: SITE.legalOwner },
