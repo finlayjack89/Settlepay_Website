@@ -385,7 +385,7 @@
     const decayScrollVel = (ts: number) => {
       const d = Math.min(Math.max(ts - lastDecayTs, 0) / 1000, 0.1);
       lastDecayTs = ts;
-      scrollVel *= Math.exp(-d / 0.18);
+      scrollVel *= Math.exp(-d / 0.3);
     };
     const scrollWakers: Array<() => void> = [];
     window.addEventListener(
@@ -415,6 +415,8 @@
       const c = { ...REST };
       let raf = 0;
       let last = 0;
+      let sk = 0; // scroll-spring position
+      let skv = 0; // scroll-spring velocity
       const step = (ts: number) => {
         raf = 0;
         const dt = Math.min((ts - last) / 1000, 0.05) || 1 / 60;
@@ -432,9 +434,21 @@
         let kick = 0;
         if (scrollGain) {
           decayScrollVel(ts);
-          kick = Math.max(-0.35, Math.min(0.35, -scrollVel * 0.12)) * scrollGain;
-          if (Math.abs(kick) > 0.002) done = false;
-          else kick = 0;
+          // Under-damped spring chasing the velocity target: the card LEANS
+          // while you scroll and visibly wobbles back to rest when you stop.
+          // (Pure exponential decay at 0.12 gain read as nothing at real
+          // trackpad speeds — the whole card is translating at the time.)
+          const kTarget = Math.max(-0.5, Math.min(0.5, -scrollVel * 0.3)) * scrollGain;
+          skv += ((kTarget - sk) * 130 - skv * 9) * dt;
+          sk += skv * dt;
+          kick = sk;
+          if (Math.abs(sk) > 0.0015 || Math.abs(skv) > 0.01 || Math.abs(kTarget) > 0.0015) {
+            done = false;
+          } else {
+            sk = 0;
+            skv = 0;
+            kick = 0;
+          }
         }
         el.style.setProperty('--tilt-y', `${(c.rx * max * 2).toFixed(2)}deg`);
         el.style.setProperty('--tilt-x', `${(-(c.ry + kick) * max * 2).toFixed(2)}deg`);
@@ -697,6 +711,13 @@
     const fmt = (v: number) => v.toLocaleString('en-GB');
     vols.forEach((v) => build(v, '£' + fmt(vol)));
     if (cntEl) build(cntEl, fmt(count));
+    // The green deltas grow in proportion: the "previous period" baselines
+    // are fixed (derived from the shipped +12.4% / +6.1%), so every payment
+    // that lands nudges the percentages up too.
+    const volPrev = 48210 / 1.124;
+    const cntPrev = 1284 / 1.061;
+    const dVols = Array.from(dashx.querySelectorAll<HTMLElement>('[data-odo-delta="vol"], [data-odo-delta="vol2"]'));
+    const dCnt = dashx.querySelector<HTMLElement>('[data-odo-delta="count"]');
     const tick = () => {
       if (media && media.classList.contains('is-live') && document.visibilityState === 'visible') {
         const n = 1 + Math.floor(Math.random() * 3);
@@ -706,10 +727,62 @@
         count += n;
         vols.forEach((v) => roll(v, '£' + fmt(vol)));
         if (cntEl) roll(cntEl, fmt(count));
+        const pv = ((vol / volPrev - 1) * 100).toFixed(1);
+        const pc = ((count / cntPrev - 1) * 100).toFixed(1);
+        dVols.forEach((el) => {
+          el.textContent = (el.dataset.odoDelta === 'vol2' ? '↑ ' : '↑ +') + pv + '%';
+        });
+        if (dCnt) dCnt.textContent = '↑ +' + pc + '%';
       }
       window.setTimeout(tick, 5200 + Math.random() * 4200);
     };
     window.setTimeout(tick, 3500);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Security evidence switcher (adoption #4) — buttons swap one panel.
+  // ---------------------------------------------------------------------------
+  const secev = document.querySelector('[data-secev]');
+  if (secev) {
+    const btns = Array.from(secev.querySelectorAll<HTMLElement>('[data-secev-btn]'));
+    const panels = Array.from(secev.querySelectorAll<HTMLElement>('[data-secev-panel]'));
+    btns.forEach((b) => {
+      b.addEventListener('click', () => {
+        btns.forEach((o) => o.setAttribute('aria-selected', String(o === b)));
+        panels.forEach((p) =>
+          p.classList.toggle('secev__panel--active', p.dataset.secevPanel === b.dataset.secevBtn)
+        );
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preview trade tabs (adoption #8) — three trades re-skin one mini page.
+  // ---------------------------------------------------------------------------
+  const ptdemo = document.querySelector('[data-ptdemo]');
+  if (ptdemo) {
+    const teaser = ptdemo.closest('.preview-teaser');
+    const bar = teaser?.querySelector<HTMLElement>('[data-pt-bar]');
+    const payEl = teaser?.querySelector<HTMLElement>('[data-pt-btn]');
+    const tagEl = teaser?.querySelector<HTMLElement>('[data-pt-tag-out]');
+    const mock = teaser?.querySelector<HTMLElement>('.preview-teaser__mock');
+    const tabs = Array.from(ptdemo.querySelectorAll<HTMLElement>('.preview-teaser__tab'));
+    tabs.forEach((t) => {
+      t.addEventListener('click', () => {
+        tabs.forEach((o) => o.setAttribute('aria-selected', String(o === t)));
+        if (bar) {
+          bar.textContent = t.dataset.ptName || '';
+          bar.style.background = t.dataset.ptBg || '';
+        }
+        if (payEl) payEl.style.background = t.dataset.ptAccent || '';
+        if (tagEl) tagEl.textContent = t.dataset.ptTag || '';
+        if (mock) {
+          mock.classList.remove('is-swapped');
+          void mock.offsetWidth;
+          mock.classList.add('is-swapped');
+        }
+      });
+    });
   }
 
   // ---------------------------------------------------------------------------

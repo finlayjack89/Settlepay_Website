@@ -5,7 +5,25 @@
  * posts nothing anywhere — it just lands on /preview/?url=… where
  * PreviewStudio auto-generates. Works with JS disabled. The submit is
  * deliberately NOT blue: the page's one blue ask stays "Send an Enquiry".
+ *
+ * Adoption #8 (Revolut scene tabs / Starling segmented control): three trade
+ * tabs re-skin one mini checkout — the "this could be mine" moment, feeding
+ * the same /preview/ tool. Brands come from the portfolio: Lockdales is the
+ * real client; the others carry the Illustrative label.
  */
+import { PORTFOLIO } from '../../data/portfolio.mjs';
+
+const tradeSlugs: [string, string][] = [
+  ['lockdales-auctioneers', 'Auction house'],
+  ['marsh-vale-plumbing', 'Plumbing & heating'],
+  ['rowan-physiotherapy', 'Physiotherapy clinic'],
+];
+const trades = tradeSlugs
+  .map(([slug, label]) => {
+    const e = PORTFOLIO.find((p) => p.slug === slug);
+    return e ? { label, e } : null;
+  })
+  .filter(Boolean) as { label: string; e: any }[];
 ---
 <section class="preview-teaser" aria-label="See your own page">
   <div class="container">
@@ -16,20 +34,51 @@
           Paste your website address and our preview tool drafts a payment page in your
           branding — logo, colours and type read from your own site.
         </p>
+        <div class="preview-teaser__demo" data-ptdemo>
+          <div class="preview-teaser__tabs" role="tablist" aria-label="The same page, different trades">
+            {trades.map(({ label, e }, i) => (
+              <button
+                type="button"
+                role="tab"
+                class="preview-teaser__tab"
+                aria-selected={i === 0 ? 'true' : 'false'}
+                data-pt-name={e.name}
+                data-pt-bg={e.brand.bg}
+                data-pt-accent={e.brand.accent}
+                data-pt-tag={e.live ? 'Live client' : 'Illustrative example'}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-      <form class="preview-teaser__form" action="/preview/" method="get">
-        <label class="sr-only" for="pt-url">Your website address</label>
-        <input
-          id="pt-url"
-          name="url"
-          type="text"
-          inputmode="url"
-          autocomplete="url"
-          placeholder="yourbusiness.co.uk"
-          required
-        />
-        <button type="submit" class="preview-teaser__btn">See Your Page</button>
-      </form>
+      <div class="preview-teaser__side">
+        <div class="preview-teaser__mock" aria-hidden="true">
+          <div class="preview-teaser__mockbar" data-pt-bar style={`background:${trades[0]?.e.brand.bg}`}>
+            {trades[0]?.e.name}
+          </div>
+          <span class="preview-teaser__mockline"></span>
+          <span class="preview-teaser__mockline preview-teaser__mockline--short"></span>
+          <div class="preview-teaser__mockbtn" data-pt-btn style={`background:${trades[0]?.e.brand.accent}`}>
+            Pay securely
+          </div>
+          <p class="preview-teaser__mocktag" data-pt-tag-out>Live client</p>
+        </div>
+        <form class="preview-teaser__form" action="/preview/" method="get">
+          <label class="sr-only" for="pt-url">Your website address</label>
+          <input
+            id="pt-url"
+            name="url"
+            type="text"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="yourbusiness.co.uk"
+            required
+          />
+          <button type="submit" class="preview-teaser__btn">See Your Page</button>
+        </form>
+      </div>
     </div>
   </div>
 </section>

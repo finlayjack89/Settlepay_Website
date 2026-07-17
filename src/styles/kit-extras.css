@@ -2335,3 +2335,394 @@ body { counter-reset: srcnote; }
     stroke-dashoffset: 0;
   }
 }
+
+/* =========================================================================
+   Fintech-sweep adoptions (deck #1 #2 #7 #9) — hero grammar, in-mockup
+   trust, dated badge strip, warm paper sections.
+   ========================================================================= */
+/* #7: grey eyebrow carries the offer; the headline takes the scale. */
+.hero__eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 1rem;
+}
+.hero__title {
+  font-size: clamp(2.75rem, 5.4vw, 4.1rem);
+}
+.hero__facts {
+  margin-top: 1.15rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}
+
+/* #1: trust evidence inside the checkout mockup, under the pay button. */
+.checkout-v2__trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+  font-size: 0.67rem;
+  color: var(--color-text-muted);
+}
+.checkout-v2__trust-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.checkout-v2__trust-mark {
+  height: 15px;
+  width: auto;
+  border-radius: 3px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  display: block;
+}
+
+/* #2: badge-only strip — marks as-is on white plates, one dated caption. */
+.trust-strip__row {
+  flex-direction: column;
+  row-gap: 0.55rem;
+}
+.trust-strip__marks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.45rem;
+}
+.trust-strip__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 0.55rem;
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #37415b;
+}
+.trust-strip__mark img {
+  height: 13px;
+  width: auto;
+  display: block;
+}
+.trust-strip__mark--wallet img {
+  height: 12px;
+}
+.trust-strip__caption {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+/* #9: warm paper under sections whose content is white cards/tiles. */
+.speed,
+.calculator {
+  background-color: var(--color-paper);
+}
+
+/* #6: number-led headline caveat under the FastStart header. */
+.speed__caveat {
+  text-align: center;
+  margin: -1.6rem 0 2.4rem;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+/* =========================================================================
+   Compare (adoption #3) — the elevated-column truth matrix.
+   ========================================================================= */
+.compare__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.compare__table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.92rem;
+}
+.compare__table thead th {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-primary-brand);
+  padding: 0.85rem 1rem;
+  text-align: center;
+  vertical-align: bottom;
+}
+.compare__table thead th:first-child {
+  text-align: left;
+}
+.compare__table tbody th {
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  max-width: 32ch;
+}
+.compare__table tbody td {
+  text-align: center;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+/* The winning column is one raised object: tint + side borders + shadow. */
+.compare__table .compare__col--win {
+  background: #f2f7ff;
+  border-inline: 1px solid rgba(59, 130, 246, 0.22);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+}
+.compare__table thead .compare__col--win {
+  border-top: 2px solid var(--color-primary-action);
+  border-radius: 12px 12px 0 0;
+}
+.compare__table tbody tr:last-child .compare__col--win {
+  border-bottom: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 0 0 12px 12px;
+}
+.compare__tick svg,
+.compare__cross svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+.compare__tick svg { color: #0f8a63; }
+.compare__cross svg { color: #b6bdcc; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   SecurityEvidence (adoption #4) — named protections switcher.
+   ========================================================================= */
+.secev {
+  background-color: var(--color-secondary-bg);
+}
+.secev__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1.5rem;
+  align-items: stretch;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+.secev__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.secev__btn {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+  text-align: left;
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.secev__btn svg {
+  width: 19px;
+  height: 19px;
+  color: var(--color-primary-action);
+  flex-shrink: 0;
+}
+.secev__btn:hover {
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.secev__btn:focus-visible {
+  outline: 2px solid var(--color-primary-action);
+  outline-offset: 2px;
+}
+.secev__btn[aria-selected='true'] {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: var(--shadow-sm);
+}
+.secev__panels {
+  position: relative;
+}
+.secev__panel {
+  display: none;
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  padding: 1.6rem 1.7rem;
+  height: 100%;
+}
+.secev__panel--active {
+  display: block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .secev__panel--active {
+    animation: secev-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes secev-in {
+    from { opacity: 0; translate: 0 8px; }
+  }
+}
+.secev__panel-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-primary-action);
+  margin-bottom: 0.9rem;
+}
+.secev__panel-icon svg { width: 22px; height: 22px; }
+.secev__panel-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+}
+.secev__panel-text {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--color-text-muted);
+  max-width: 52ch;
+}
+.secev__panel-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f8a63;
+}
+.secev__panel-detail svg { width: 15px; height: 15px; }
+@media (max-width: 820px) {
+  .secev__grid { grid-template-columns: 1fr; }
+}
+
+/* =========================================================================
+   PreviewTeaser trade tabs + mini mock (adoption #8).
+   ========================================================================= */
+.preview-teaser__demo {
+  margin-top: 1.2rem;
+}
+.preview-teaser__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.preview-teaser__tab {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 100px;
+  padding: 0.4rem 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.preview-teaser__tab:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.preview-teaser__tab:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+.preview-teaser__tab[aria-selected='true'] {
+  background: var(--color-pure-white);
+  border-color: var(--color-pure-white);
+  color: var(--color-primary-brand);
+}
+.preview-teaser__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.preview-teaser__mock {
+  background: var(--color-pure-white);
+  border-radius: 12px;
+  padding: 0.8rem;
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.35);
+  max-width: 300px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .preview-teaser__mock.is-swapped {
+    animation: pt-swap 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes pt-swap {
+    from { opacity: 0.35; }
+  }
+}
+.preview-teaser__mockbar {
+  border-radius: 7px;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.45rem 0.6rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.preview-teaser__mockline {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.1);
+  margin-top: 9px;
+}
+.preview-teaser__mockline--short { width: 55%; }
+.preview-teaser__mockbtn {
+  margin-top: 0.7rem;
+  border-radius: 100px;
+  color: #fff;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.45rem;
+}
+.preview-teaser__mocktag {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #55607a;
+}
+
+/* #10: the CTA band as the page's money moment — one radial glow, centred
+   behind the ask, nothing else new competing. */
+.cta-section--money {
+  position: relative;
+  background-image: radial-gradient(
+    75% 90% at 50% 0%,
+    rgba(59, 130, 246, 0.16) 0%,
+    rgba(30, 43, 69, 0) 60%
+  );
+  background-repeat: no-repeat;
+}
+.cta-section__quoteline {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin: -1rem 0 1.6rem;
+}

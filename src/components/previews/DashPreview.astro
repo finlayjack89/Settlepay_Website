@@ -27,7 +27,10 @@ const axis = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         <div class="dashx__kpi">
           <div class="dashx__kpi-label">{k.label}</div>
           <div class="dashx__kpi-value" {...(k.odo ? { 'data-odo': k.odo } : {})}>{k.value}</div>
-          <div class={'dashx__kpi-delta dashx__kpi-delta--' + k.dir}>
+          <div
+            class={'dashx__kpi-delta dashx__kpi-delta--' + k.dir}
+            {...(k.odo ? { 'data-odo-delta': k.odo } : {})}
+          >
             {k.dir === 'up' ? '↑ ' + k.delta : k.delta}
           </div>
         </div>
@@ -36,7 +39,7 @@ const axis = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     <div class="dashx__chartcard">
       <div class="dashx__chart-head">
         <div class="dashx__chart-title">Net volume · last 7 days</div>
-        <div class="dashx__chart-amount"><span data-odo="vol2">£48,210</span><span>↑ 12.4%</span></div>
+        <div class="dashx__chart-amount"><span data-odo="vol2">£48,210</span><span data-odo-delta="vol2">↑ 12.4%</span></div>
       </div>
       <div class="dashx__chart">
         <svg viewBox="0 0 400 100" fill="none" preserveAspectRatio="none" aria-hidden="true">

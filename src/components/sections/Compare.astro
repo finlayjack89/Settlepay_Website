@@ -1,0 +1,59 @@
+---
+/**
+ * Compare — adoption #3 (Curve's elevated column + Wise's comparison-as-
+ * trust): bank transfer vs generic payment link vs your branded page.
+ * Truth rows only — every tick/cross must stay defensible; no competitor
+ * names, no invented numbers. The SettlePay column is raised and tinted.
+ * Sits directly before the ROI calculator, which quantifies the win.
+ */
+import Icon from '../Icon.astro';
+import SectionHeader from '../SectionHeader.astro';
+
+const rows = [
+  { label: 'Customer sees your brand, not a bank form', cells: [false, false, true] },
+  { label: 'No card numbers read out over the phone', cells: [false, true, true] },
+  { label: 'Automatic receipts for every payment', cells: [false, true, true] },
+  { label: 'Payments matched to your invoices for you', cells: [false, false, true] },
+  { label: 'Apple Pay and Google Pay built in', cells: [false, false, true] },
+  { label: 'Designed, built and managed for you', cells: [false, false, true] },
+];
+const cols = ['Bank transfer & chasing', 'Generic payment link', 'Your branded page'];
+---
+<section class="compare section-pad" id="compare" data-screen-label="Comparison">
+  <div class="container">
+    <SectionHeader
+      eyebrow="The Alternatives"
+      title="Three Ways to Collect a Payment — "
+      blue="Only One Works for You"
+      subtitle="Most small businesses settle for bank transfers or a generic payment link. Here is what each actually gives your customer, and you."
+    />
+    <div class="compare__scroll" data-reveal>
+      <table class="compare__table">
+        <thead>
+          <tr>
+            <th scope="col"><span class="visually-hidden">Capability</span></th>
+            {cols.map((c, i) => (
+              <th scope="col" class={i === 2 ? 'compare__col--win' : ''}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr>
+              <th scope="row">{r.label}</th>
+              {r.cells.map((on, i) => (
+                <td class={i === 2 ? 'compare__col--win' : ''}>
+                  {on ? (
+                    <span class="compare__tick"><Icon name="check" sw={2.5} /><span class="visually-hidden">Yes</span></span>
+                  ) : (
+                    <span class="compare__cross"><Icon name="close" sw={2} /><span class="visually-hidden">No</span></span>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

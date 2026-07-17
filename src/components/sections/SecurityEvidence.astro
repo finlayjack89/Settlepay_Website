@@ -1,0 +1,67 @@
+---
+/**
+ * SecurityEvidence — adoption #4 (Monzo's switcher + Revolut's in-product
+ * evidence): security as concrete named features, not "bank-grade" copy.
+ * Three buttons swap one evidence panel; JS in SiteScripts ([data-secev]),
+ * no-JS shows the first panel expanded and all three summaries visible.
+ */
+import Icon from '../Icon.astro';
+import SectionHeader from '../SectionHeader.astro';
+
+const features = [
+  {
+    icon: 'shield',
+    name: '3-D Secure built in',
+    text: 'Every card payment runs through the bank’s own verification step before it is approved — the same check the big retailers use, handled by the processor.',
+    detail: 'Verified by the customer’s bank',
+  },
+  {
+    icon: 'lock',
+    name: 'Card details never touch your site',
+    text: 'Customers enter their card number on the processor’s secure page, not on your website — so there is nothing sensitive on your side to steal, and nothing for you to look after.',
+    detail: 'Hosted by an FCA-regulated processor',
+  },
+  {
+    icon: 'banknotes',
+    name: 'You see every payment land',
+    text: 'The moment money arrives, you and your customer both know — an automatic receipt for them, a matched invoice for you, and a settlement notification to your inbox.',
+    detail: 'Receipt, match and notification — automatic',
+  },
+];
+---
+<section class="secev section-pad" id="security" data-screen-label="Security evidence">
+  <div class="container">
+    <SectionHeader
+      eyebrow="Security"
+      title="Named Protections, "
+      blue="Not Promises"
+      subtitle="No vague claims about bank-grade anything. These are the specific protections every SettlePay-built page ships with, by construction."
+    />
+    <div class="secev__grid" data-secev>
+      <div class="secev__buttons" role="tablist" aria-label="Security features">
+        {features.map((f, i) => (
+          <button
+            class="secev__btn"
+            type="button"
+            role="tab"
+            aria-selected={i === 0 ? 'true' : 'false'}
+            data-secev-btn={i}
+          >
+            <Icon name={f.icon} sw={1.75} />
+            <span>{f.name}</span>
+          </button>
+        ))}
+      </div>
+      <div class="secev__panels">
+        {features.map((f, i) => (
+          <div class={'secev__panel' + (i === 0 ? ' secev__panel--active' : '')} data-secev-panel={i} role="tabpanel">
+            <div class="secev__panel-icon"><Icon name={f.icon} sw={1.5} /></div>
+            <h3 class="secev__panel-title">{f.name}</h3>
+            <p class="secev__panel-text">{f.text}</p>
+            <p class="secev__panel-detail"><Icon name="check" sw={2.5} />{f.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

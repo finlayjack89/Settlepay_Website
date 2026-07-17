@@ -32,12 +32,17 @@ const timeline = [
 ---
 <section class="speed section-pad" id="timeline" data-screen-label="Turnaround">
   <div class="container">
+    {/* Adoption #6: the number leads the headline; the caveat sits directly
+        beneath in small grey with a footnote to the ledger. */}
     <SectionHeader
       eyebrow="How fast"
-      title="Live in "
-      blue="Days, Not Weeks"
+      title="Taking Card Payments in as Little as "
+      blue="Two Working Days"
       subtitle="Getting set up isn’t a drawn-out project that swallows your calendar. Once your merchant account exists, we do the heavy lifting — you just point us at how you’d like to get paid."
     />
+    <p class="speed__caveat">
+      From your merchant account being approved.<a class="src-note" href="#src-4" aria-label="Footnote 4: what the two-day figure covers"></a>
+    </p>
     <div class="speed__reassure">
       {reassure.map((r) => (
         <div class="speed__chip"><Icon name="check" sw={2.5} />{r}</div>
