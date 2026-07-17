@@ -1635,8 +1635,14 @@ html.reveal-ready .section--dark .integration__step.is-current {
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.20);
 }
 
-.cta-section__card {
-  display: flex;
+/* Solo close (the PayCard now leads the page in CardMoment): one centred
+   column, narrower measure, actions centred under the ask. */
+.cta-section__inner--solo {
+  grid-template-columns: 1fr;
+  text-align: center;
+  max-width: 760px;
+}
+.cta-section__inner--solo .cta-section__actions {
   justify-content: center;
 }
 
@@ -1644,9 +1650,6 @@ html.reveal-ready .section--dark .integration__step.is-current {
   .cta-section__inner {
     grid-template-columns: 1fr;
     text-align: center;
-  }
-  .cta-section__card {
-    order: -1; /* card first on mobile — the hook before the ask */
   }
 }
 

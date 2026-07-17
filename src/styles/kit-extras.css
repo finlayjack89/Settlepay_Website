@@ -2628,3 +2628,74 @@ body { counter-reset: srcnote; }
   color: rgba(255, 255, 255, 0.85);
   margin: -1rem 0 1.6rem;
 }
+
+/* =========================================================================
+   CardMoment — the PBR card as a product-shot band high on the page. Light
+   ground + a soft blue spotlight under the card, so its dark body pops the
+   way it couldn't on the dark closing CTA. Card left, copy right (inverts
+   the hero's text-left/visual-right for rhythm).
+   ========================================================================= */
+.card-moment {
+  background:
+    radial-gradient(42% 55% at 27% 52%, rgba(59, 130, 246, 0.13), transparent 72%),
+    var(--color-pure-white);
+  padding-block: var(--space-section);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06); /* delineate from ValueProps (also white) */
+}
+.card-moment__inner {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  max-width: 1000px;
+  margin-inline: auto;
+}
+.card-moment__visual {
+  display: flex;
+  justify-content: center;
+}
+.card-moment__eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 0.9rem;
+}
+.card-moment__title {
+  font-size: clamp(1.9rem, 3.2vw, 2.7rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--color-primary-brand);
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+.card-moment__title span {
+  color: var(--color-primary-action);
+}
+.card-moment__text {
+  font-size: var(--text-lead);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+  max-width: 46ch;
+  margin: 0;
+}
+@media (max-width: 880px) {
+  .card-moment {
+    background:
+      radial-gradient(62% 40% at 50% 26%, rgba(59, 130, 246, 0.13), transparent 72%),
+      var(--color-pure-white);
+    text-align: center;
+  }
+  .card-moment__inner {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .card-moment__visual {
+    order: -1; /* card leads on mobile */
+  }
+  .card-moment__text {
+    margin-inline: auto;
+  }
+}
