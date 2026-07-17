@@ -1982,3 +1982,57 @@ body { counter-reset: srcnote; }
   text-underline-offset: 3px;
 }
 .hero__preview-link a:hover { color: var(--color-primary-action); }
+
+/* =========================================================================
+   Living-number odometer (dashboard mockup KPIs): old value slides up and
+   out, new value rises in — a payment just landed.
+   ========================================================================= */
+.odo {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+.odo .odo__new {
+  display: inline-block;
+  animation: odo-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.odo .odo__old {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: odo-out 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes odo-in {
+  from { transform: translateY(0.7em); opacity: 0; }
+}
+@keyframes odo-out {
+  to { transform: translateY(-0.7em); opacity: 0; }
+}
+
+/* Calculator: the year view + the commit pulse when a slider is released.
+   The cascade delay makes the four cards acknowledge the change in turn. */
+.calculator__annual {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+.calculator__annual strong {
+  color: var(--color-primary-brand);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .calculator__result-card.is-committed {
+    animation: calc-commit 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .calculator__result-card.is-committed:nth-child(2) { animation-delay: 70ms; }
+  .calculator__result-card.is-committed:nth-child(3) { animation-delay: 140ms; }
+  .calculator__result-card.is-committed:nth-child(4) { animation-delay: 210ms; }
+  @keyframes calc-commit {
+    30% {
+      translate: 0 -3px;
+      box-shadow: var(--shadow-md);
+    }
+  }
+}

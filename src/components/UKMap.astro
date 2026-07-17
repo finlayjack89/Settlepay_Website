@@ -27,18 +27,15 @@ attribute float aSize;
 attribute float aAlpha;
 attribute float aBlend;
 uniform float uDpr;
-uniform vec2 uPointer;
 varying float vAlpha;
 varying float vBlend;
 void main() {
-  float d = distance(aPos, uPointer);
-  float boost = smoothstep(0.22, 0.0, d);            /* pointer ripple */
+  /* Hover lives on the CPU now (per-dot eased energy, see draw) — a shader
+     ripple was instant and could only be a pure function of distance. */
   gl_Position = vec4(aPos.x * 2.0 - 1.0, 1.0 - aPos.y * 2.0, 0.0, 1.0);
-  gl_PointSize = (aSize + boost * 2.2) * uDpr;
-  /* Multiplicative, never additive: an additive boost resurrected the
-     invisible arc points and revealed dormant route paths on hover. */
-  vAlpha = min(aAlpha * (1.0 + boost * 0.75), 1.0);
-  vBlend = min(aBlend + boost * 0.35 * step(0.01, aAlpha), 1.0);
+  gl_PointSize = aSize * uDpr;
+  vAlpha = aAlpha;
+  vBlend = aBlend;
 }`;
 
   const FRAG = `
@@ -196,6 +193,13 @@ void main() {
       cityIdx[name] = cellIndex.get(`${c},${r}`) ?? 0;
     }
 
+    // Land-dot BASE state: twinkles/arc endpoints write here, and the hover
+    // pass composes base + hover energy into the vertex data each frame —
+    // hover can never accumulate into or stomp the other animations.
+    const bSize = new Float32Array(nLand).fill(BASE_SIZE);
+    const bAlpha = new Float32Array(nLand).fill(BASE_ALPHA);
+    const bBlend = new Float32Array(nLand);
+
     // Arc points: quadratic bezier per route, arched perpendicular to the
     // chord in physical (aspect-corrected) space so the curve isn't skewed.
     const arcBase = nLand;
@@ -234,8 +238,6 @@ void main() {
     attr('aBlend', 1, 16);
 
     const uDpr = gl.getUniformLocation(prog, 'uDpr');
-    const uPointer = gl.getUniformLocation(prog, 'uPointer');
-    gl.uniform2f(uPointer, -9, -9); // far away = no ripple
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const resize = () => {
@@ -250,18 +252,23 @@ void main() {
     resize();
     if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
 
+    let hoverX = -9;
+    let hoverY = -9;
     canvas.style.pointerEvents = 'auto';
     canvas.addEventListener('pointermove', (ev) => {
       const r = canvas.getBoundingClientRect();
-      gl.uniform2f(uPointer, (ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height);
+      hoverX = (ev.clientX - r.left) / r.width;
+      hoverY = (ev.clientY - r.top) / r.height;
     });
-    canvas.addEventListener('pointerleave', () => gl.uniform2f(uPointer, -9, -9));
+    canvas.addEventListener('pointerleave', () => {
+      hoverX = -9;
+      hoverY = -9;
+    });
 
     const setDot = (i: number, size: number, alpha: number, blend: number) => {
-      const o = i * 5;
-      data[o + 2] = size;
-      data[o + 3] = alpha;
-      data[o + 4] = blend;
+      bSize[i] = size;
+      bAlpha[i] = alpha;
+      bBlend[i] = blend;
     };
     const liftDot = (i: number, e: number, sizeBoost: number) => {
       setDot(i, BASE_SIZE + e * sizeBoost, BASE_ALPHA + e * 0.4, e);
@@ -269,9 +276,18 @@ void main() {
     // Cities reset each frame, then every lane bids for its endpoints — max
     // wins, so two arcs sharing a city never dim each other.
     const liftCity = (i: number, e: number, sizeBoost: number) => {
-      if (BASE_SIZE + e * sizeBoost <= data[i * 5 + 2]) return;
+      if (BASE_SIZE + e * sizeBoost <= bSize[i]) return;
       liftDot(i, e, sizeBoost);
     };
+
+    // Hover physics: each dot's energy CHASES its spatial target through an
+    // attack/decay lerp, so dots swell in sequence as the cursor approaches
+    // and relax in its wake rather than snapping with the pointer. Per-dot
+    // rate jitter keeps the rise organic instead of concentric.
+    const hoverE = new Float32Array(nLand);
+    const hoverJit = new Float32Array(nLand);
+    for (let i = 0; i < nLand; i++) hoverJit[i] = 0.7 + (((i * 2654435761) >>> 0) % 1000) * 0.0006;
+    let lastT = 0;
 
     // Arc timeline: origin turns blue -> line draws origin->destination ->
     // hold with the destination lit -> line erases in the SAME direction ->
@@ -350,6 +366,29 @@ void main() {
         applyRoute((cycles * LANES + lane) % ROUTES.length, tl % CYCLE);
       }
       applyTwinkles(t);
+      const dt = Math.min(Math.max(t - lastT, 0.001), 0.05);
+      lastT = t;
+      const attack = 1 - Math.exp(-dt / 0.11);
+      const decay = 1 - Math.exp(-dt / 0.32);
+      for (let i = 0; i < nLand; i++) {
+        let target = 0;
+        if (hoverX > -5) {
+          const dx = data[i * 5] - hoverX;
+          const dy = data[i * 5 + 1] - hoverY;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 0.22) {
+            const f = 1 - d / 0.22;
+            target = f * f * (3 - 2 * f);
+          }
+        }
+        const e = hoverE[i];
+        const he = e + (target - e) * Math.min(1, (target > e ? attack : decay) * hoverJit[i]);
+        hoverE[i] = he;
+        const o = i * 5;
+        data[o + 2] = bSize[i] + he * 2.4;
+        data[o + 3] = Math.min(bAlpha[i] * (1 + he * 0.7), 1);
+        data[o + 4] = Math.min(bBlend[i] + he * 0.4, 1);
+      }
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
       gl.clearColor(0, 0, 0, 0);

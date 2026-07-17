@@ -38,7 +38,9 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
     </div>
 
     <div class="hero__visual">
-      <div class="stage-dark hero-stage" data-tilt data-tilt-max="2.5">
+      {/* tilt-scroll 0.55: the hero breathes with scroll momentum, quieter
+          than the pay-card — it is a stage, not the hero object itself. */}
+      <div class="stage-dark hero-stage" data-tilt data-tilt-max="2.5" data-tilt-scroll="0.55">
         {/* WebGL island: quiet drifting particles behind the mockup. */}
         <ParticleField />
         {/* Stacked translucent layers behind the checkout — dimensional depth,

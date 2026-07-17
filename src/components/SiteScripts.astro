@@ -372,8 +372,39 @@
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (finePointer && !reducedMotion) {
+    // Scroll momentum, shared by every [data-tilt-scroll] element: smoothed
+    // scroll velocity that decays between events. Opted elements pitch as
+    // the page moves — like a physical object with drag — then spring back
+    // to rest as the velocity dies.
+    let scrollVel = 0; // px/ms, smoothed
+    let lastScrollY = window.scrollY;
+    let lastScrollTs = 0;
+    let lastDecayTs = 0;
+    // Idempotent per timestamp: several tilt loops share the velocity, but
+    // only the first caller in a frame actually decays it.
+    const decayScrollVel = (ts: number) => {
+      const d = Math.min(Math.max(ts - lastDecayTs, 0) / 1000, 0.1);
+      lastDecayTs = ts;
+      scrollVel *= Math.exp(-d / 0.18);
+    };
+    const scrollWakers: Array<() => void> = [];
+    window.addEventListener(
+      'scroll',
+      () => {
+        const now = performance.now();
+        const dtMs = Math.min(Math.max(now - lastScrollTs, 4), 100);
+        const v = (window.scrollY - lastScrollY) / dtMs;
+        lastScrollY = window.scrollY;
+        lastScrollTs = now;
+        scrollVel += (v - scrollVel) * 0.35;
+        scrollWakers.forEach((w) => w());
+      },
+      { passive: true }
+    );
+
     document.querySelectorAll<HTMLElement>('[data-tilt]').forEach((el) => {
       const max = parseFloat(el.dataset.tiltMax || '4');
+      const scrollGain = parseFloat(el.dataset.tiltScroll || '0');
       // Custom properties cannot transition, so every calc()-derived light
       // layer would snap on pointerleave — instead the written values chase
       // their targets through a short time-based lerp. Tilt rests flat (0,0)
@@ -395,11 +426,21 @@
           if (Math.abs(t[key] - c[key]) > 0.001) done = false;
           else c[key] = t[key];
         });
+        // Scroll kick: the SAME delta feeds the CSS pitch (ry) and the light
+        // var (py), so the GL card's world-fixed light stays in perfect sync
+        // with the visible tilt. Velocity decays here for a smooth spring-back.
+        let kick = 0;
+        if (scrollGain) {
+          decayScrollVel(ts);
+          kick = Math.max(-0.35, Math.min(0.35, -scrollVel * 0.12)) * scrollGain;
+          if (Math.abs(kick) > 0.002) done = false;
+          else kick = 0;
+        }
         el.style.setProperty('--tilt-y', `${(c.rx * max * 2).toFixed(2)}deg`);
-        el.style.setProperty('--tilt-x', `${(-c.ry * max * 2).toFixed(2)}deg`);
+        el.style.setProperty('--tilt-x', `${(-(c.ry + kick) * max * 2).toFixed(2)}deg`);
         // Normalised pointer position for light/sheen effects (PayCard).
         el.style.setProperty('--px', c.px.toFixed(3));
-        el.style.setProperty('--py', c.py.toFixed(3));
+        el.style.setProperty('--py', (c.py + kick).toFixed(3));
         // Pointer-from-centre (0..1): light layers scale intensity with it.
         el.style.setProperty('--pfc', Math.min(Math.hypot(c.px - 0.5, c.py - 0.5) * 2.4, 1).toFixed(3));
         if (!done) raf = requestAnimationFrame(step);
@@ -407,6 +448,7 @@
       const wake = () => {
         if (!raf) raf = requestAnimationFrame(step);
       };
+      if (scrollGain) scrollWakers.push(wake);
       el.addEventListener('pointermove', (ev) => {
         const r = el.getBoundingClientRect();
         const px = (ev.clientX - r.left) / r.width - 0.5;
@@ -515,6 +557,43 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Living dashboard mockup — the volume/count KPIs tick up now and then
+  // with an odometer roll while the tile is in view: payments arriving,
+  // quietly. Fictional demo numbers on an illustrative mockup, not claims.
+  // ---------------------------------------------------------------------------
+  const dashx = document.querySelector('.dashx');
+  if (dashx && !reducedMotion) {
+    const media = dashx.closest('[data-live]');
+    const vols = dashx.querySelectorAll('[data-odo="vol"], [data-odo="vol2"]');
+    const cntEl = dashx.querySelector('[data-odo="count"]');
+    let vol = 48210;
+    let count = 1284;
+    const roll = (el: Element, next: string) => {
+      const prev = el.textContent || '';
+      if (prev === next) return;
+      el.innerHTML = `<span class="odo__new">${next}</span><span class="odo__old">${prev}</span>`;
+      el.classList.add('odo');
+      window.setTimeout(() => {
+        el.classList.remove('odo');
+        el.textContent = next;
+      }, 540);
+    };
+    const tick = () => {
+      if (media && media.classList.contains('is-live') && document.visibilityState === 'visible') {
+        const n = 1 + Math.floor(Math.random() * 3);
+        let amt = 0;
+        for (let i = 0; i < n; i++) amt += 90 + Math.round(Math.random() * 420);
+        vol += amt;
+        count += n;
+        vols.forEach((v) => roll(v, '£' + vol.toLocaleString('en-GB')));
+        if (cntEl) roll(cntEl, count.toLocaleString('en-GB'));
+      }
+      window.setTimeout(tick, 5200 + Math.random() * 4200);
+    };
+    window.setTimeout(tick, 3500);
+  }
+
+  // ---------------------------------------------------------------------------
   // ROI calculator
   // ---------------------------------------------------------------------------
   const calc = document.querySelector('[data-calculator]');
@@ -534,6 +613,35 @@
         // `--fill` drives the track gradient in CSS (see .calculator__range).
         el.style.setProperty('--fill', pct + '%');
       };
+      // The results GLIDE to their new values instead of snapping — a
+      // spreadsheet snaps, a machine at work glides. The annual line turns
+      // the monthly figures into the year view (hours -> working days),
+      // always derived from the user's own inputs.
+      const annualOut = calc.querySelector('[data-out="annual"]');
+      const eased = { hours: 0, cost: 0, matched: 0 };
+      const target = { hours: 0, cost: 0, matched: 0 };
+      let outRaf = 0;
+      let outLast = 0;
+      let seeded = false;
+      const renderOuts = () => {
+        if (hoursOut) hoursOut.textContent = Math.round(eased.hours).toLocaleString() + ' hrs';
+        if (costOut) costOut.textContent = '£' + Math.round(eased.cost).toLocaleString();
+        if (matchedOut) matchedOut.textContent = Math.round(eased.matched).toLocaleString();
+      };
+      const stepOuts = (ts: number) => {
+        outRaf = 0;
+        const dt = Math.min((ts - outLast) / 1000, 0.05) || 1 / 60;
+        outLast = ts;
+        const k = 1 - Math.exp(-dt / 0.09);
+        let done = true;
+        (Object.keys(eased) as (keyof typeof eased)[]).forEach((key) => {
+          eased[key] += (target[key] - eased[key]) * k;
+          if (Math.abs(target[key] - eased[key]) > 0.5) done = false;
+          else eased[key] = target[key];
+        });
+        renderOuts();
+        if (!done) outRaf = requestAnimationFrame(stepOuts);
+      };
       const update = () => {
         const payments = Number(pEl.value);
         const mins = Number(mEl.value);
@@ -546,13 +654,41 @@
         if (pVal) pVal.textContent = String(payments);
         if (mVal) mVal.textContent = mins + ' min';
         if (rVal) rVal.textContent = '£' + rate;
-        if (hoursOut) hoursOut.textContent = hours.toLocaleString() + ' hrs';
-        if (costOut) costOut.textContent = '£' + cost.toLocaleString();
-        if (matchedOut) matchedOut.textContent = payments.toLocaleString();
+        target.hours = hours;
+        target.cost = cost;
+        target.matched = payments;
+        if (annualOut) {
+          const hoursY = hours * 12;
+          annualOut.innerHTML =
+            `Over a year that's <strong>${hoursY.toLocaleString()} hours</strong> — ` +
+            `${Math.round(hoursY / 7.5).toLocaleString()} working days — about ` +
+            `<strong>£${(cost * 12).toLocaleString()}</strong> in admin time reclaimed.`;
+        }
+        if (!seeded || reducedMotion) {
+          seeded = true;
+          eased.hours = hours;
+          eased.cost = cost;
+          eased.matched = payments;
+          renderOuts();
+        } else if (!outRaf) {
+          outRaf = requestAnimationFrame(stepOuts);
+        }
       };
-      pEl.addEventListener('input', update);
-      mEl.addEventListener('input', update);
-      if (rEl) rEl.addEventListener('input', update);
+      // Commit pulse on RELEASE (change), not while dragging — the reward
+      // lands when the user settles on their number.
+      const pulse = () => {
+        const cards = calc.querySelectorAll('.calculator__result-card');
+        cards.forEach((el) => el.classList.remove('is-committed'));
+        void (cards[0] as HTMLElement | undefined)?.offsetWidth;
+        cards.forEach((el) => el.classList.add('is-committed'));
+      };
+      [pEl, mEl, rEl].forEach((el) => {
+        if (!el) return;
+        el.addEventListener('input', update);
+        el.addEventListener('change', () => {
+          if (!reducedMotion) pulse();
+        });
+      });
       update();
     }
   }
