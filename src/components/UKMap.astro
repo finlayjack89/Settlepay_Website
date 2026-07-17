@@ -35,8 +35,10 @@ void main() {
   float boost = smoothstep(0.22, 0.0, d);            /* pointer ripple */
   gl_Position = vec4(aPos.x * 2.0 - 1.0, 1.0 - aPos.y * 2.0, 0.0, 1.0);
   gl_PointSize = (aSize + boost * 2.2) * uDpr;
-  vAlpha = min(aAlpha + boost * 0.5, 1.0);
-  vBlend = min(aBlend + boost * 0.35, 1.0);
+  /* Multiplicative, never additive: an additive boost resurrected the
+     invisible arc points and revealed dormant route paths on hover. */
+  vAlpha = min(aAlpha * (1.0 + boost * 0.75), 1.0);
+  vBlend = min(aBlend + boost * 0.35 * step(0.01, aAlpha), 1.0);
 }`;
 
   const FRAG = `

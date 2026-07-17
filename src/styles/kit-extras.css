@@ -836,18 +836,29 @@
 }
 .speed__chip svg { width: 16px; height: 16px; color: #10B981; flex-shrink: 0; }
 
-/* Timeline rail + connector */
+/* Timeline rail + connector — the dashes live BEHIND the nodes, so the node
+   tiles must be opaque or the rail reads as running straight through them. */
 .speed__track { position: relative; }
 .speed__track::before {
   content: "";
   position: absolute;
   top: 30px;            /* node center: 60px tall / 2 */
-  left: 16.66%;
-  right: 16.66%;
+  left: calc(16.66% + 46px);   /* start/stop clear of the node tiles */
+  right: calc(16.66% + 46px);
   height: 2px;
   background-image: linear-gradient(to right, rgba(59, 130, 246, 0.45) 60%, transparent 0);
   background-size: 12px 2px;
   background-repeat: repeat-x;
+}
+/* The rail draws itself left->right as the timeline scrolls into view. */
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .speed__track::before {
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+  }
+  html.reveal-ready .speed__track.is-live::before {
+    clip-path: inset(0 0 0 0);
+  }
 }
 .speed__steps {
   display: grid;
@@ -862,7 +873,10 @@
   margin: 0 auto 1.4rem;
   display: grid;
   place-items: center;
-  background: rgba(59, 130, 246, 0.08);
+  /* Opaque tile: a translucent one let the rail dashes show through. */
+  background: var(--color-pure-white);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  box-shadow: var(--shadow-sm);
   color: var(--color-primary-action);
   position: relative;
   z-index: 1;
@@ -1480,12 +1494,12 @@
   height: 100%;
   pointer-events: none;
 }
-/* Steel foil under the content: tight metal micro-bands + anisotropic
-   brushed grain, pre-darkened so color-dodge lifts it to metal instead of
-   blowing out (the brightness/contrast pre-pass is what keeps dodge in
-   range — it also runs hotter in Firefox). The counter-sliding ::after is
-   the interference shimmer: two band fields moving opposite ways is what
-   reads as foil rather than paint. Recipes: inspiration/card-lighting/. */
+/* Matte-metal veil under the content: fine isotropic (bead-blasted) grain +
+   a cool steel wash, pre-darkened so color-dodge lifts it to metal instead
+   of blowing out (the brightness/contrast pre-pass keeps dodge in range —
+   it also runs hotter in Firefox). No micro-banding: distinct bands read as
+   BRUSHED metal; matte shows only even grain and one broad sheen.
+   Recipes: inspiration/card-lighting/. */
 .pay-card__foil {
   position: absolute;
   inset: 0;
@@ -1494,57 +1508,39 @@
   --bgx: calc(37% + var(--px, 0.5) * 26%);
   --bgy: calc(37% + var(--py, 0.35) * 26%);
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.5' numOctaves='2'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23g)'/%3E%3C/svg%3E"),
-    linear-gradient(120deg, hsl(217, 20%, 46%), hsl(217, 42%, 54%)),
-    repeating-linear-gradient(
-      133deg,
-      #0E152E 0%,
-      #0E152E 3.2%,
-      hsl(215, 12%, 60%) 3.8%,
-      hsl(215, 30%, 68%) 4.5%,
-      hsl(215, 12%, 60%) 5.2%,
-      #0E152E 5.8%,
-      #0E152E 9%
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23g)'/%3E%3C/svg%3E"),
+    radial-gradient(
+      140% 180% at var(--bgx) var(--bgy),
+      hsl(217, 30%, 62%) 0%,
+      hsl(217, 22%, 48%) 45%,
+      hsl(219, 26%, 34%) 100%
     );
-  background-size: 44% 44%, 200% 200%, 340% 340%;
-  background-position: center, var(--bgx) var(--bgy), var(--bgx) var(--bgy);
-  background-blend-mode: screen, hue, hard-light;
-  filter: brightness(0.7) contrast(2.2) saturate(0.7);
+  background-size: 34% 34%, 100% 100%;
+  background-blend-mode: soft-light;
+  filter: brightness(0.72) contrast(1.9) saturate(0.75);
   mix-blend-mode: color-dodge;
   /* Calm at rest, wakes with the pointer (--pfc = distance from centre) —
      the brand ribbon must stay the lead voice when nobody is pointing. */
-  opacity: calc(0.26 + var(--pfc, 0) * 0.38);
+  opacity: calc(0.24 + var(--pfc, 0) * 0.3);
 }
-.pay-card__foil::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: inherit;
-  background-position: center, calc(100% - var(--bgx)) calc(100% - var(--bgy)),
-    calc(100% - var(--bgx)) calc(100% - var(--bgy));
-  mix-blend-mode: soft-light;
-}
-/* Fixed-light specular band: tilting the card one way sweeps the highlight
-   the other, and horizontal tilt ROTATES the light line — the strongest
-   "lit object, not decal" cue. Two-intensity profile (soft lobe + razor
-   core); a single soft band reads as plastic. Oversized layer + transform
-   only, so it stays on the compositor. */
+/* Fixed-light sheen: ONE broad, low-contrast lobe that sweeps opposite the
+   tilt and rotates with horizontal tilt. Matte metal never shows discrete
+   streak lines — width and softness are what sell the finish. Oversized
+   layer + transform only, so it stays on the compositor. */
 .pay-card__gloss {
   position: absolute;
   inset: -60%;
   pointer-events: none;
   background: linear-gradient(
     100deg,
-    transparent 41%,
-    rgba(214, 227, 245, 0.14) 46%,
-    rgba(228, 238, 252, 0.32) 49.4%,
-    rgba(255, 255, 255, 0.72) 50%,
-    rgba(228, 238, 252, 0.32) 50.6%,
-    rgba(214, 227, 245, 0.14) 54%,
-    transparent 59%
+    transparent 28%,
+    rgba(214, 227, 245, 0.1) 40%,
+    rgba(232, 240, 252, 0.26) 50%,
+    rgba(214, 227, 245, 0.1) 60%,
+    transparent 72%
   );
   mix-blend-mode: overlay;
-  opacity: calc(0.6 + var(--pfc, 0) * 0.4);
+  opacity: calc(0.65 + var(--pfc, 0) * 0.35);
   transform: translate3d(
       calc((var(--px, 0.5) - 0.5) * -52%),
       calc((var(--py, 0.35) - 0.35) * -18%),
@@ -1617,42 +1613,79 @@
   mask: url('/assets/logos/monogram-mark.svg') center / contain no-repeat;
   opacity: 0.9;
 }
+/* Embossing: raised metal, not printed ink. Every raised element carries a
+   lit rim on the side facing the light and a dark contact shade opposite;
+   both rims shift with the tilt (--lx/--ly derive from --px/--py), which is
+   what makes the relief read as physical rather than painted on. */
+.pay-card {
+  --lx: calc((var(--px, 0.5) - 0.5) * -1.6px);
+  --ly: calc((var(--py, 0.35) - 0.35) * -2.2px);
+}
 .pay-card__wave {
   position: absolute;
   top: 1.35rem;
   right: 1.4rem;
   width: 26px;
   height: 26px;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(228, 236, 248, 0.66);
+  filter: drop-shadow(calc(var(--lx) * 0.5) calc(var(--ly) * 0.5 - 0.5px) 0.4px rgba(255, 255, 255, 0.32))
+    drop-shadow(calc(var(--lx) * -0.6) calc(var(--ly) * -0.6 + 1px) 1px rgba(2, 6, 23, 0.6));
 }
 .pay-card__number {
   font-family: var(--font-mono);
   font-size: 1.05rem;
   letter-spacing: 0.08em;
   margin-bottom: 0.85rem;
-  color: rgba(255, 255, 255, 0.92);
   position: relative;
-  text-shadow: 0 1px 6px rgba(2, 6, 23, 0.55); /* stays legible over the art */
+  /* Silver metal glyphs (clipped gradient); shadows draw from the glyph
+     shape, so the emboss survives the transparent fill. */
+  color: transparent;
+  background: linear-gradient(180deg, #F4F7FB 8%, #C9D3E2 46%, #97A5BC 56%, #E6ECF5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow:
+    calc(var(--lx) * 1) calc(var(--ly) * 1 - 0.7px) 0.5px rgba(255, 255, 255, 0.34),
+    calc(var(--lx) * -1) calc(var(--ly) * -1 + 1.1px) 1.2px rgba(2, 6, 23, 0.68);
 }
 .pay-card__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: relative;
-  text-shadow: 0 1px 6px rgba(2, 6, 23, 0.55);
 }
 .pay-card__holder {
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(226, 233, 244, 0.78);
+  text-shadow:
+    calc(var(--lx) * 1) calc(var(--ly) * 1 - 0.6px) 0.4px rgba(255, 255, 255, 0.26),
+    calc(var(--lx) * -1) calc(var(--ly) * -1 + 1px) 1px rgba(2, 6, 23, 0.62);
 }
 .pay-card__mark {
   /* Silver monochrome wordmark straight on the card face — no plate. */
   height: 19px;
   width: auto;
   filter: drop-shadow(0 1px 1px rgba(2, 6, 23, 0.5));
+}
+
+/* The PBR face (WebGL island in PayCard.astro). Invisible until the island
+   has drawn its first real frame — pay-card--gl flips only then, so there is
+   never a blank-canvas flash; without WebGL nothing is ever hidden. */
+.pay-card__gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+.pay-card.pay-card--gl .pay-card__gl {
+  opacity: 1;
+}
+.pay-card.pay-card--gl > :not(.pay-card__gl) {
+  visibility: hidden;
 }
 
 /* Scroll-progressive subtitle fill in the dark chapter (Adyen word-fill,

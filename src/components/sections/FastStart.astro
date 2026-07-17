@@ -7,21 +7,23 @@ const reassure = [
   'No standing meetings',
   'No disruption to your day-to-day',
 ];
+// Icons tell the step's story at a glance: the merchant's business (store),
+// the page launching (rocket), the invoice reconciled (invoice + tick).
 const timeline = [
   {
-    icon: 'cog',
+    icon: 'store',
     day: 'Day 0',
     title: 'Your Merchant Account Is Created',
     text: 'You open your own account with the processor that fits — we guide you through it in a single sitting. That’s the starting gun; everything after is on us.',
   },
   {
-    icon: 'card',
+    icon: 'rocket',
     day: 'As little as 2 days',
     title: 'Core Payment Page Goes Live',
     text: 'We design, build and connect your branded checkout. In as little as two working days from your account being created, you’re taking card payments.',
   },
   {
-    icon: 'sparkles',
+    icon: 'invoice',
     day: 'As little as 5 days',
     title: 'Invoicing & Reconciliation Go Live',
     text: 'Invoicing templates, automatic payment links, accounting bridges and reconciliation — the deeper work that ties it all together follows in as little as five working days.',
@@ -41,7 +43,7 @@ const timeline = [
         <div class="speed__chip"><Icon name="check" sw={2.5} />{r}</div>
       ))}
     </div>
-    <div class="speed__track">
+    <div class="speed__track" data-live>
       <div class="speed__steps">
         {timeline.map((s) => (
           <div class="speed__step" data-reveal>
