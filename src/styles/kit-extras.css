@@ -1670,6 +1670,24 @@
   filter: drop-shadow(0 1px 1px rgba(2, 6, 23, 0.5));
 }
 
+/* The PBR face (WebGL island in PayCard.astro). Invisible until the island
+   has drawn its first real frame — pay-card--gl flips only then, so there is
+   never a blank-canvas flash; without WebGL nothing is ever hidden. */
+.pay-card__gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+.pay-card.pay-card--gl .pay-card__gl {
+  opacity: 1;
+}
+.pay-card.pay-card--gl > :not(.pay-card__gl) {
+  visibility: hidden;
+}
+
 /* Scroll-progressive subtitle fill in the dark chapter (Adyen word-fill,
    paragraph-level). JS writes --story-p (0..1); defaults to filled. */
 @media (prefers-reduced-motion: no-preference) {
