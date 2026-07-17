@@ -1,0 +1,27 @@
+---
+/**
+ * CardMoment — the PBR payment card as a product-shot moment, high on the
+ * page (right after the hero + trust strip). On a light ground with a soft
+ * blue spotlight, the card's dark body pops the way it couldn't on the dark
+ * closing CTA it used to live in. Copy keeps the card as the CUSTOMER's card
+ * — we build the page they pay on, we don't issue cards.
+ */
+import PayCard from '../PayCard.astro';
+---
+<section class="card-moment" data-screen-label="Payment card">
+  <div class="container">
+    <div class="card-moment__inner">
+      <div class="card-moment__visual">
+        <PayCard />
+      </div>
+      <div class="card-moment__copy" data-reveal>
+        <p class="card-moment__eyebrow">However They Choose to Pay</p>
+        <h2 class="card-moment__title">Meet Customers Where They <span>Already Pay</span></h2>
+        <p class="card-moment__text">
+          Card, phone or digital wallet — whatever’s in their pocket, your own branded page takes
+          it, and the payment reconciles itself. You just get paid.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
