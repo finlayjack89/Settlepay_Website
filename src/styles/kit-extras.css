@@ -836,18 +836,29 @@
 }
 .speed__chip svg { width: 16px; height: 16px; color: #10B981; flex-shrink: 0; }
 
-/* Timeline rail + connector */
+/* Timeline rail + connector — the dashes live BEHIND the nodes, so the node
+   tiles must be opaque or the rail reads as running straight through them. */
 .speed__track { position: relative; }
 .speed__track::before {
   content: "";
   position: absolute;
   top: 30px;            /* node center: 60px tall / 2 */
-  left: 16.66%;
-  right: 16.66%;
+  left: calc(16.66% + 46px);   /* start/stop clear of the node tiles */
+  right: calc(16.66% + 46px);
   height: 2px;
   background-image: linear-gradient(to right, rgba(59, 130, 246, 0.45) 60%, transparent 0);
   background-size: 12px 2px;
   background-repeat: repeat-x;
+}
+/* The rail draws itself left->right as the timeline scrolls into view. */
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .speed__track::before {
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+  }
+  html.reveal-ready .speed__track.is-live::before {
+    clip-path: inset(0 0 0 0);
+  }
 }
 .speed__steps {
   display: grid;
@@ -862,7 +873,10 @@
   margin: 0 auto 1.4rem;
   display: grid;
   place-items: center;
-  background: rgba(59, 130, 246, 0.08);
+  /* Opaque tile: a translucent one let the rail dashes show through. */
+  background: var(--color-pure-white);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  box-shadow: var(--shadow-sm);
   color: var(--color-primary-action);
   position: relative;
   z-index: 1;
