@@ -1,10 +1,12 @@
 ---
-/* Value-prop mockup: an unbranded merchant payments dashboard (no PSP name shown). */
+/* Value-prop mockup: an unbranded merchant payments dashboard (no PSP name
+   shown). The volume/count KPIs carry data-odo hooks: a SiteScripts module
+   ticks them up occasionally (odometer roll) so the dashboard reads live. */
 import Chrome from './Chrome.astro';
 const kpis = [
-  { label: 'Net volume', value: '£48,210', delta: '+12.4%', dir: 'up' },
-  { label: 'Payments', value: '1,284', delta: '+6.1%', dir: 'up' },
-  { label: 'Avg. settle', value: '1.2 days', delta: 'Steady', dir: 'flat' },
+  { label: 'Net volume', value: '£48,210', delta: '+12.4%', dir: 'up', odo: 'vol' },
+  { label: 'Payments', value: '1,284', delta: '+6.1%', dir: 'up', odo: 'count' },
+  { label: 'Avg. settle', value: '1.2 days', delta: 'Steady', dir: 'flat', odo: '' },
 ];
 const axis = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 ---
@@ -24,7 +26,7 @@ const axis = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       {kpis.map((k) => (
         <div class="dashx__kpi">
           <div class="dashx__kpi-label">{k.label}</div>
-          <div class="dashx__kpi-value">{k.value}</div>
+          <div class="dashx__kpi-value" {...(k.odo ? { 'data-odo': k.odo } : {})}>{k.value}</div>
           <div class={'dashx__kpi-delta dashx__kpi-delta--' + k.dir}>
             {k.dir === 'up' ? '↑ ' + k.delta : k.delta}
           </div>
@@ -34,7 +36,7 @@ const axis = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     <div class="dashx__chartcard">
       <div class="dashx__chart-head">
         <div class="dashx__chart-title">Net volume · last 7 days</div>
-        <div class="dashx__chart-amount">£48,210<span>↑ 12.4%</span></div>
+        <div class="dashx__chart-amount"><span data-odo="vol2">£48,210</span><span>↑ 12.4%</span></div>
       </div>
       <div class="dashx__chart">
         <svg viewBox="0 0 400 100" fill="none" preserveAspectRatio="none" aria-hidden="true">
