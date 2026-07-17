@@ -192,9 +192,10 @@ void main() {
   vec3 spec = D_GGX(NdH, a1) * renorm * V_Smith(NdV, NdL, a1) * F_Schlick(f0, LdH);
   vec3 col  = (diff / PI + spec) * NdL * uLightCol;
 
-  /* thin clearcoat on the painted face only — anodized coat, not chrome */
+  /* clearcoat on the painted face only — glossier lacquer over the navy,
+     while the metal zones keep their own finish */
   float cc = D_GGX(NdH, 0.16) * V_Smith(NdV, NdL, 0.16) * 0.04;
-  col += cc * 0.15 * (1.0 - metal) * NdL * uLightCol;
+  col += cc * 0.25 * (1.0 - metal) * NdL * uLightCol;
 
   /* hemisphere ambient + window-strip reflection, both AO-attenuated */
   vec3 amb = mix(vec3(0.045, 0.050, 0.065), vec3(0.21, 0.25, 0.33), N.y * 0.5 + 0.5);
@@ -352,17 +353,20 @@ void main() {
     };
 
     // zone encodes material as fill colour: R = roughness*255, G = metal*255.
-    // SATIN tuning (user call, Revolut-metal reference): bead-blast matte at
-    // 0.55 read too rough — satin sits in between, one smooth broad sheen.
+    // GLOSS pass (user call): face glossier satin; the brand ribbon is now
+    // METALLIC (blue albedo as F0 = pearlescent stripes, a visibly different
+    // finish from the coated face); details are ETCHED bare metal, not
+    // embossed — engraved into the face with alu showing underneath.
     const zone = (rough: number, metal: number) => `rgb(${Math.round(rough * 255)}, ${metal ? 255 : 0}, 0)`;
-    const Zface = zone(0.34, 0);
-    const Zribbon = zone(0.36, 0);
-    const Zstripe = zone(0.34, 0);
+    const Zface = zone(0.28, 0);
+    const Zribbon = zone(0.22, 1);
+    const Zstripe = zone(0.18, 1);
     const Zedge = zone(0.26, 1);
     const Zchip = zone(0.22, 1);
-    const Zglyph = zone(0.26, 1);
-    const Zvisa = zone(0.28, 1);
+    const Zglyph = zone(0.24, 1);
+    const Zvisa = zone(0.26, 1);
     const Zholo = zone(0.18, 1);
+    const Zetch = zone(0.24, 1);
 
     const drawTracked = (
       ctx: CanvasRenderingContext2D,
@@ -388,13 +392,20 @@ void main() {
     let monoFont = 'ui-monospace, monospace';
     let sansFont = 'sans-serif';
 
-    // layer: 'albedo' | 'height' | 'zone' — same geometry, different paint.
+    // layer: 'albedo' | 'height' | 'zone' | 'etch' — same geometry, four
+    // paints. 'etch' is white-on-black engraving depth, SUBTRACTED from the
+    // blurred height field in JS (the bake) — the details are cut INTO the
+    // face with bare metal underneath, not raised out of it.
     function paintCard(ctx: CanvasRenderingContext2D, layer: string) {
       const A = layer === 'albedo';
       const Hh = layer === 'height';
+      const E = layer === 'etch';
 
       // face
-      if (A) {
+      if (E) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, CARD_W, CARD_H);
+      } else if (A) {
         const lin = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
         lin.addColorStop(0, '#1E2B45');
         lin.addColorStop(0.55, '#131C30');
@@ -416,8 +427,8 @@ void main() {
         ctx.fillRect(0, 0, CARD_W, CARD_H);
       }
 
-      // brand ribbon (print: flat in height, its own roughness in zones)
-      if (!Hh) {
+      // brand ribbon: flat in height, METALLIC in zones (pearlescent finish)
+      if (!Hh && !E) {
         ctx.save();
         ctx.translate(190, 108);
         ctx.rotate((16 * Math.PI) / 180);
@@ -437,11 +448,12 @@ void main() {
         ctx.globalAlpha = 1;
       }
 
-      // dot field (print) — albedo only
-      if (A) {
-        ctx.fillStyle = '#93C5FD';
+      // dot field — ETCHED dimples, bare alu underneath, depth fading down
+      // the field (the alpha fade becomes an etch-depth fade)
+      if (!Hh) {
+        ctx.fillStyle = A ? '#D9E1EC' : E ? '#FFFFFF' : Zetch;
         for (let y = 16; y < 110; y += 12) {
-          ctx.globalAlpha = 0.4 * 0.9 * Math.max(0, 1 - (y - 14) / 96);
+          ctx.globalAlpha = (A ? 0.5 : 1) * 0.9 * Math.max(0, 1 - (y - 14) / 96);
           for (let x = 222; x < 370; x += 12) {
             ctx.beginPath();
             ctx.arc(x, y, 1.5, 0, 7);
@@ -453,12 +465,18 @@ void main() {
 
       // milled bare-alu edge band; in the height field the rim rolls to 0,
       // so its highlight arc rotates around the perimeter with tilt
-      rr(ctx, 1.5, 1.5, CARD_W - 3, CARD_H - 3, 16.5);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = A ? '#E4E8EC' : Hh ? '#000000' : Zedge;
-      ctx.stroke();
+      if (!E) {
+        rr(ctx, 1.5, 1.5, CARD_W - 3, CARD_H - 3, 16.5);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = A ? '#E4E8EC' : Hh ? '#000000' : Zedge;
+        ctx.stroke();
+      }
 
-      // chip: raised gold plateau with engraved grooves
+      // chip: raised gold plateau with engraved grooves (a real chip IS a
+      // raised part — it stays embossed while the print details etch)
+      if (E) {
+        // glyph/mark engraving only below; chip untouched in the etch pass
+      } else {
       ctx.save();
       ctx.translate(24, 22.4);
       if (A) {
@@ -486,42 +504,48 @@ void main() {
       rr(ctx, 15, 8.5, 16, 17, 3);
       ctx.stroke();
       ctx.restore();
-
-      // contactless wave: three raised steel arcs
-      ctx.save();
-      ctx.translate(331.6, 21.6);
-      ctx.scale(26 / 24, 26 / 24);
-      ctx.strokeStyle = A ? '#8E9BB3' : Hh ? '#C7C7C7' : Zglyph;
-      ctx.lineWidth = 1.8;
-      ctx.lineCap = 'round';
-      const spans: [number, number][] = [
-        [5.5, Math.asin(2.5 / 5.5)],
-        [9, Math.asin(4.5 / 9)],
-        [12.5, Math.asin(6.5 / 12.5)],
-      ];
-      for (const [r, half] of spans) {
-        ctx.beginPath();
-        ctx.arc(3.7, 12, r, -half, half);
-        ctx.stroke();
       }
-      ctx.restore();
 
-      // holo patch: thin sticker plateau; iridescence is added in the shader
-      if (holoImg) {
+      // contactless wave: etched into the face, bare alu in the grooves
+      if (!Hh) {
+        ctx.save();
+        ctx.translate(331.6, 21.6);
+        ctx.scale(26 / 24, 26 / 24);
+        ctx.strokeStyle = A ? '#B7C2D4' : E ? '#FFFFFF' : Zglyph;
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
+        const spans: [number, number][] = [
+          [5.5, Math.asin(2.5 / 5.5)],
+          [9, Math.asin(4.5 / 9)],
+          [12.5, Math.asin(6.5 / 12.5)],
+        ];
+        for (const [r, half] of spans) {
+          ctx.beginPath();
+          ctx.arc(3.7, 12, r, -half, half);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // holo monogram: ETCHED into the face too — the diffraction fringe
+      // (shader, masked by uMasks.r) now plays inside engraved bare metal
+      if (holoImg && !Hh) {
         const t = ctx2d(64, 64);
         t.drawImage(holoImg, 0, 0, 64, 64);
         t.globalCompositeOperation = 'source-in';
-        t.fillStyle = A ? '#8C8C8C' : Hh ? '#808080' : Zholo;
+        t.fillStyle = A ? '#9AA6B8' : E ? '#FFFFFF' : Zholo;
         t.fillRect(0, 0, 64, 64);
         ctx.drawImage(t.canvas, 302, 100.8, 54, 54);
       }
 
-      // embossed glyphs: number, holder — silver-tipped raised metal
-      ctx.fillStyle = A ? '#E8EBEB' : Hh ? '#D9D9D9' : Zglyph;
-      ctx.font = `600 16.8px ${monoFont}`;
-      drawTracked(ctx, '••••  ••••  ••••  4242', 24, 183, 1.34);
-      ctx.font = `600 11.2px ${sansFont}`;
-      drawTracked(ctx, 'YOUR CUSTOMER', 24, 210, 1.34);
+      // number + holder: etched engraving, bare metal underneath
+      if (!Hh) {
+        ctx.fillStyle = A ? '#E8EBEB' : E ? '#FFFFFF' : Zglyph;
+        ctx.font = `600 16.8px ${monoFont}`;
+        drawTracked(ctx, '••••  ••••  ••••  4242', 24, 183, 1.34);
+        ctx.font = `600 11.2px ${sansFont}`;
+        drawTracked(ctx, 'YOUR CUSTOMER', 24, 210, 1.34);
+      }
 
       // Visa wordmark: silver print — flat (no height), metal in zones
       if (!Hh) {
@@ -529,7 +553,7 @@ void main() {
         ctx.save();
         ctx.translate(293.4 - 45 * k, 197 - 134 * k);
         ctx.scale(k, k);
-        ctx.fillStyle = A ? '#C7CFDC' : Zvisa;
+        ctx.fillStyle = A ? '#C7CFDC' : E ? '#FFFFFF' : Zvisa;
         const p1 = new Path2D(
           'M278.198 334.228l33.36-195.763h53.358L331.566 334.228h-53.368zM524.307 142.687c-10.57-3.966-27.135-8.222-47.822-8.222-52.726 0-89.863 26.551-90.181 64.604-.318 28.129 26.514 43.822 46.754 53.185 20.771 9.598 27.752 15.716 27.652 24.283-.133 13.123-16.586 19.115-31.924 19.115-21.355 0-32.701-2.967-50.225-10.274l-6.878-3.112-7.487 43.822c12.463 5.467 35.508 10.199 59.438 10.445 56.09 0 92.502-26.248 92.916-66.885.199-22.27-14.016-39.215-44.801-53.188-18.65-9.056-30.072-15.099-29.951-24.269 0-8.137 9.668-16.838 30.56-16.838 17.286-.271 29.585 3.474 39.476 7.431l4.746 2.248 7.196-42.689l.531 2.344zM661.615 138.464h-41.23c-12.773 0-22.332 3.486-27.941 16.234l-79.245 179.402h56.031s9.159-24.121 11.231-29.418c6.123 0 60.555.084 68.336.084 1.596 6.854 6.492 29.334 6.492 29.334h49.512l-43.186-195.636zm-65.417 126.408c4.414-11.279 21.26-54.724 21.26-54.724-.316.521 4.381-11.334 7.074-18.684l3.606 16.878s10.217 46.729 12.353 56.527h-44.293v.003zM232.903 138.464L180.664 271.96l-5.565-27.129c-9.726-31.274-40.025-65.157-73.898-82.12l47.767 171.204 56.455-.066 84.004-195.386h-56.524'
         );
@@ -566,6 +590,7 @@ void main() {
       const albCtx = mk('albedo');
       const hgtCtx = mk('height');
       const zonCtx = mk('zone');
+      const etchCtx = mk('etch');
       await idle();
 
       // height: Float32 until after differentiation
@@ -588,6 +613,14 @@ void main() {
           h[i] = 0.35 + Math.pow(Math.min(1, t * 1.35), 0.8) * 0.5;
         }
       }
+
+      // etch: engraving depth subtracted from the height field in JS — a
+      // lighter blur than the emboss bevels, so the cut walls stay crisp
+      const etchData = etchCtx.getImageData(0, 0, W, H).data;
+      const et = new Float32Array(n);
+      for (let i = 0; i < n; i++) et[i] = etchData[i * 4] / 255;
+      gaussBlur(et, scratch, W, H, Math.max(0.8, 0.8 * (s / 2)));
+      for (let i = 0; i < n; i++) h[i] -= et[i] * 0.17;
 
       // AO from the pre-grain relief: wide blur minus local height
       const hWide = new Float32Array(h);
@@ -707,7 +740,8 @@ void main() {
       gl.uniformMatrix3fv(uRot, false, rot);
       // PHASE0 calibrated by eye so the REST pose reads brand blue (warm
       // hues only at the tilt extremes): 4.4 → green, 2.3 → pink, 3.3 → blue
-      gl.uniform1f(uHoloPhase, 2.6 * (px - 0.5) + 1.3 * (py - 0.35) + 3.6);
+      // (re-tuned after the etch pass shifted the normals under the patch)
+      gl.uniform1f(uHoloPhase, 2.6 * (px - 0.5) + 1.3 * (py - 0.35) + 3.95);
     };
     const draw = () => gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
