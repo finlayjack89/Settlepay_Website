@@ -507,7 +507,7 @@
     // Idle demo loop — this audience won't click a mockup, so after ~4s in
     // view untouched the checkout demonstrates itself: the security code types
     // in, the pay button presses, processes and lands on a green confirmation,
-    // then the Klarna panel peeks open before everything resets. The FIRST
+    // then the next method panel peeks open before everything resets. The FIRST
     // pointer/keyboard interaction inside the mockup kills the loop for good.
     // Skipped under reduced motion; IO-gated like every other island.
     // -------------------------------------------------------------------------
@@ -550,7 +550,7 @@
           payBtn.classList.add('is-success');
           payBtn.textContent = 'Payment received';
         });
-        // 3. Reset, peek at Klarna, settle back on card.
+        // 3. Reset, peek at the next method, settle back on card.
         at(4600, resetDemo);
         at(5100, () => { if (panels[1]) activate(panels[1]); });
         at(7000, () => activate(panels[0]));
@@ -752,35 +752,6 @@
         panels.forEach((p) =>
           p.classList.toggle('secev__panel--active', p.dataset.secevPanel === b.dataset.secevBtn)
         );
-      });
-    });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Preview trade tabs (adoption #8) — three trades re-skin one mini page.
-  // ---------------------------------------------------------------------------
-  const ptdemo = document.querySelector('[data-ptdemo]');
-  if (ptdemo) {
-    const teaser = ptdemo.closest('.preview-teaser');
-    const bar = teaser?.querySelector<HTMLElement>('[data-pt-bar]');
-    const payEl = teaser?.querySelector<HTMLElement>('[data-pt-btn]');
-    const tagEl = teaser?.querySelector<HTMLElement>('[data-pt-tag-out]');
-    const mock = teaser?.querySelector<HTMLElement>('.preview-teaser__mock');
-    const tabs = Array.from(ptdemo.querySelectorAll<HTMLElement>('.preview-teaser__tab'));
-    tabs.forEach((t) => {
-      t.addEventListener('click', () => {
-        tabs.forEach((o) => o.setAttribute('aria-selected', String(o === t)));
-        if (bar) {
-          bar.textContent = t.dataset.ptName || '';
-          bar.style.background = t.dataset.ptBg || '';
-        }
-        if (payEl) payEl.style.background = t.dataset.ptAccent || '';
-        if (tagEl) tagEl.textContent = t.dataset.ptTag || '';
-        if (mock) {
-          mock.classList.remove('is-swapped');
-          void mock.offsetWidth;
-          mock.classList.add('is-swapped');
-        }
       });
     });
   }

@@ -14,10 +14,6 @@
   --color-primary-action:      #3B82F6;
   --color-primary-action-hover: #2563EB;
   --color-secondary-bg:        #F1F5F9;
-  /* Warm paper (adoption #9, Starling/N26): a faintly warm off-white for
-     alternating sections so white cards and mockups read as objects. Kept
-     barely warm — the palette stays cool navy/blue. */
-  --color-paper:               #F7F5F1;
   --color-pure-white:          #FFFFFF;
   /* Muted-but-legible text — solid tokens, not opacity dimming, so attributions
      and disclosures composite to >=4.5:1 on their real backgrounds (WCAG AA). */
