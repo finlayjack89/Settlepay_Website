@@ -625,20 +625,78 @@
   const dashx = document.querySelector('.dashx');
   if (dashx && !reducedMotion) {
     const media = dashx.closest('[data-live]');
-    const vols = dashx.querySelectorAll('[data-odo="vol"], [data-odo="vol2"]');
+    const vols = Array.from(dashx.querySelectorAll('[data-odo="vol"], [data-odo="vol2"]'));
     const cntEl = dashx.querySelector('[data-odo="count"]');
     let vol = 48210;
     let count = 1284;
-    const roll = (el: Element, next: string) => {
-      const prev = el.textContent || '';
-      if (prev === next) return;
-      el.innerHTML = `<span class="odo__new">${next}</span><span class="odo__old">${prev}</span>`;
-      el.classList.add('odo');
-      window.setTimeout(() => {
-        el.classList.remove('odo');
-        el.textContent = next;
-      }, 540);
+    // Slot-machine wheels: every digit is its own vertical strip that rolls
+    // forward (through 9 -> 0, never backwards) and settles independently,
+    // least-significant digit first. Cells are fixed-size, so the layout
+    // never shifts and the delta line below stays perfectly still.
+    const build = (el: Element, text: string) => {
+      el.classList.add('odow');
+      el.textContent = '';
+      for (const ch of text) {
+        if (/\d/.test(ch)) {
+          const cell = document.createElement('span');
+          cell.className = 'odow__cell';
+          cell.dataset.digit = ch;
+          const strip = document.createElement('span');
+          strip.className = 'odow__strip';
+          for (let d = 0; d < 20; d++) {
+            const dEl = document.createElement('span');
+            dEl.textContent = String(d % 10);
+            strip.appendChild(dEl);
+          }
+          strip.style.transform = `translateY(-${ch}em)`;
+          cell.appendChild(strip);
+          el.appendChild(cell);
+        } else {
+          const sep = document.createElement('span');
+          sep.className = 'odow__sep';
+          sep.textContent = ch;
+          el.appendChild(sep);
+        }
+      }
     };
+    const shape = (t: string) => t.replace(/\d/g, '#');
+    const current = (el: Element) =>
+      Array.from(el.children)
+        .map((c) => (c as HTMLElement).dataset.digit ?? c.textContent)
+        .join('');
+    const roll = (el: Element, text: string) => {
+      if (!el.classList.contains('odow') || shape(current(el)) !== shape(text)) {
+        build(el, text); // digit-count change: rebuild without animation
+        return;
+      }
+      const cells = Array.from(el.querySelectorAll<HTMLElement>('.odow__cell'));
+      const digits = text.replace(/\D/g, '');
+      cells.forEach((cell, i) => {
+        const cur = Number(cell.dataset.digit);
+        const next = Number(digits[i]);
+        if (cur === next) return;
+        const strip = cell.firstElementChild as HTMLElement;
+        const stop = next > cur ? next : next + 10; // wheels only roll forward
+        strip.style.transitionDelay = `${(cells.length - 1 - i) * 60}ms`;
+        strip.style.transform = `translateY(-${stop}em)`;
+        cell.dataset.digit = String(next);
+        if (stop > 9) {
+          // rolled past 9 into the strip's second decade — snap back to the
+          // canonical row, transitionless, once the roll lands
+          strip.addEventListener('transitionend', function snap() {
+            strip.removeEventListener('transitionend', snap);
+            strip.style.transition = 'none';
+            strip.style.transitionDelay = '0ms';
+            strip.style.transform = `translateY(-${next}em)`;
+            void strip.offsetWidth;
+            strip.style.transition = '';
+          });
+        }
+      });
+    };
+    const fmt = (v: number) => v.toLocaleString('en-GB');
+    vols.forEach((v) => build(v, '£' + fmt(vol)));
+    if (cntEl) build(cntEl, fmt(count));
     const tick = () => {
       if (media && media.classList.contains('is-live') && document.visibilityState === 'visible') {
         const n = 1 + Math.floor(Math.random() * 3);
@@ -646,8 +704,8 @@
         for (let i = 0; i < n; i++) amt += 90 + Math.round(Math.random() * 420);
         vol += amt;
         count += n;
-        vols.forEach((v) => roll(v, '£' + vol.toLocaleString('en-GB')));
-        if (cntEl) roll(cntEl, count.toLocaleString('en-GB'));
+        vols.forEach((v) => roll(v, '£' + fmt(vol)));
+        if (cntEl) roll(cntEl, fmt(count));
       }
       window.setTimeout(tick, 5200 + Math.random() * 4200);
     };

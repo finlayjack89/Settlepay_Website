@@ -425,7 +425,9 @@
 }
 .dashx__chart-title { font-size: 0.78rem; font-weight: 700; }
 .dashx__chart-amount { font-size: 0.92rem; font-weight: 700; letter-spacing: -0.01em; }
-.dashx__chart-amount span { font-size: 0.64rem; font-weight: 600; color: #0f8a63; margin-left: 5px; }
+/* Only the trailing delta chip — the leading span is the odometer value,
+   whose injected wheel spans must inherit the amount's own type. */
+.dashx__chart-amount > span:last-child { font-size: 0.64rem; font-weight: 600; color: #0f8a63; margin-left: 5px; }
 .dashx__chart { height: 92px; width: 100%; position: relative; }
 .dashx__chart svg { width: 100%; height: 100%; display: block; }
 .dashx__chart-axis {
@@ -1984,29 +1986,41 @@ body { counter-reset: srcnote; }
 .hero__preview-link a:hover { color: var(--color-primary-action); }
 
 /* =========================================================================
-   Living-number odometer (dashboard mockup KPIs): old value slides up and
-   out, new value rises in — a payment just landed.
+   Living-number odometer (dashboard mockup KPIs): true slot-machine wheels.
+   Each digit is its own vertical strip inside a fixed-size clipped cell —
+   digits roll independently (always forward, staggered from the least
+   significant) and the fixed cells mean zero layout shift: the delta line
+   below never moves.
    ========================================================================= */
-.odo {
-  position: relative;
+.odow {
+  display: inline-flex;
+  line-height: 1;
+}
+.odow__cell {
   display: inline-block;
+  width: 1ch;
+  height: 1em;
   overflow: hidden;
+  text-align: center;
 }
-.odo .odo__new {
+.odow__cell,
+.odow__sep {
+  font-variant-numeric: tabular-nums;
+}
+.odow__sep {
   display: inline-block;
-  animation: odo-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  height: 1em;
 }
-.odo .odo__old {
-  position: absolute;
-  left: 0;
-  top: 0;
-  animation: odo-out 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.odow__strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.85s cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: transform;
 }
-@keyframes odo-in {
-  from { transform: translateY(0.7em); opacity: 0; }
-}
-@keyframes odo-out {
-  to { transform: translateY(-0.7em); opacity: 0; }
+.odow__strip span {
+  display: block;
+  height: 1em;
+  line-height: 1;
 }
 
 /* Calculator: the year view + the commit pulse when a slider is released.
