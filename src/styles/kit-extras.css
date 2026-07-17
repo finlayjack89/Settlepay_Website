@@ -2699,3 +2699,12 @@ body { counter-reset: srcnote; }
     margin-inline: auto;
   }
 }
+
+/* Free edge: with the GL face live, the element's own 1px light border and
+   inset rim read as a frame around the render — the card's edge is just the
+   radius clip now. The DOM fallback keeps its border (it needs the edge
+   definition the shader otherwise provides). */
+.pay-card.pay-card--gl {
+  border-color: transparent;
+  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
+}
