@@ -90,10 +90,16 @@ html {
   }
 }
 
-/* Cross-document view transitions (MPA) — a ~180ms fade between pages, with
-   the nav pill persisting rather than repainting. CSS-only: no ClientRouter,
-   so the WebGL islands' lifecycle is untouched. Firefox degrades to normal
-   navigation; reduced motion gets none. */
+/* Cross-document view transitions (MPA) — a ~180ms fade between pages. CSS-only:
+   no ClientRouter, so the WebGL islands' lifecycle is untouched. Firefox degrades
+   to normal navigation; reduced motion gets none.
+
+   Deliberately NO `view-transition-name` on the nav. Naming an element lifts it
+   into its own transition snapshot, isolated from the page's root snapshot — which
+   starves the nav pill's `backdrop-filter` of a backdrop, so the frosted glass
+   silently stops rendering (reads as flat translucency). The nav is identical on
+   every page, so letting it fade with the root is visually indistinguishable from
+   persisting it — and keeps the frost. */
 @media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
@@ -101,9 +107,6 @@ html {
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 0.18s;
-  }
-  #navbar {
-    view-transition-name: site-nav;
   }
 }
 
