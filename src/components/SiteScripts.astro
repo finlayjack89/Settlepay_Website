@@ -554,6 +554,67 @@
       }, { threshold: 0.6 });
       demoIo.observe(checkout);
     }
+
+    // -------------------------------------------------------------------------
+    // Wallet vignettes — pressing Apple Pay / Google Pay plays a miniature of
+    // the real sheet flow (Apple: sheet up -> Face ID pulse -> ring tick ->
+    // Done; Google: popup -> spinner -> card + Continue auto-press -> close,
+    // success lands on the page, faithfully to the real GPay window). Both
+    // end on the same "Payment received" state as every other method. One at
+    // a time; the first press also kills the idle demo via the existing
+    // once/capture listeners. Storyboard: fintech-2026-07/ADOPTION-PLAN.md.
+    // -------------------------------------------------------------------------
+    const appleBtn = checkout.querySelector('.express-btn--apple');
+    const gpayBtn = checkout.querySelector('.express-btn--gpay');
+    const walletBtn = checkout.querySelector<HTMLElement>('.checkout-v2__applepay-big');
+    const sheetStatus = checkout.querySelector('.paysheet__status');
+    if (appleBtn && gpayBtn && walletBtn) {
+      const walletLabel = walletBtn.textContent;
+      let running = false;
+      const setW = (s: string) => (checkout as HTMLElement).setAttribute('data-wallet', s);
+      const chain = (steps: Array<[number, () => void]>) => {
+        let t = 0;
+        steps.forEach(([d, fn]) => {
+          t += d;
+          window.setTimeout(fn, t);
+        });
+      };
+      const finish = () => {
+        (checkout as HTMLElement).removeAttribute('data-wallet');
+        walletBtn.classList.add('is-success');
+        walletBtn.textContent = 'Payment received';
+        window.setTimeout(() => {
+          walletBtn.classList.remove('is-success');
+          walletBtn.textContent = walletLabel;
+          running = false;
+        }, 1500);
+      };
+      appleBtn.addEventListener('click', () => {
+        if (running) return;
+        running = true;
+        if (sheetStatus) sheetStatus.textContent = 'Confirm with Face ID';
+        setW('apple-sheet');
+        chain([
+          [1300, () => {
+            setW('apple-tick');
+            if (sheetStatus) sheetStatus.textContent = 'Done';
+          }],
+          [1600, () => setW('apple-exit')],
+          [500, finish],
+        ]);
+      });
+      gpayBtn.addEventListener('click', () => {
+        if (running) return;
+        running = true;
+        setW('gpay-open');
+        chain([
+          [1000, () => setW('gpay-ready')],
+          [1100, () => setW('gpay-press')],
+          [250, () => setW('gpay-exit')],
+          [280, finish],
+        ]);
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------

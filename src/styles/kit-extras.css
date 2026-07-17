@@ -2036,3 +2036,288 @@ body { counter-reset: srcnote; }
     }
   }
 }
+
+/* =========================================================================
+   Wallet vignettes — miniature Apple Pay sheet + Google Pay popup inside
+   the hero checkout frame. Driven by data-wallet states on [data-checkout];
+   provider marks are never moved or restyled, the sheets animate AROUND
+   them. Reduced motion: short cross-fades, ticks appear without drawing.
+   ========================================================================= */
+.checkout-v2 {
+  position: relative;
+}
+.wallet-vignette {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+  z-index: 5;
+}
+[data-wallet] .wallet-vignette {
+  visibility: visible;
+}
+.wallet-vignette__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+[data-wallet] .wallet-vignette__scrim {
+  opacity: 1;
+}
+[data-wallet='apple-exit'] .wallet-vignette__scrim,
+[data-wallet='gpay-exit'] .wallet-vignette__scrim {
+  opacity: 0;
+}
+
+/* --- Apple sheet: slides up from the mockup's bottom edge --- */
+.paysheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  background: var(--color-pure-white);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 -14px 34px rgba(2, 6, 23, 0.28);
+  transform: translateY(115%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-wallet^='apple'] .paysheet {
+  transform: translateY(0);
+}
+[data-wallet='apple-exit'] .paysheet {
+  transform: translateY(115%);
+}
+.paysheet__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.paysheet__cardart {
+  height: 22px;
+  width: auto;
+  border-radius: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.paysheet__lines {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  flex: 1;
+}
+.paysheet__lines strong {
+  font-size: 0.82rem;
+  color: var(--color-primary-brand);
+}
+.paysheet__lines span {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+.paysheet__amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary-brand);
+  font-variant-numeric: tabular-nums;
+}
+.paysheet__auth {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 0.7rem;
+}
+.paysheet__faceid {
+  width: 32px;
+  height: 32px;
+  color: var(--color-primary-brand);
+  animation: faceid-pulse 0.5s ease-in-out 0.45s 2;
+}
+.paysheet__tick {
+  width: 32px;
+  height: 32px;
+  color: #10b981;
+  display: none;
+}
+[data-wallet='apple-tick'] .paysheet__faceid,
+[data-wallet='apple-exit'] .paysheet__faceid {
+  display: none;
+}
+[data-wallet='apple-tick'] .paysheet__tick,
+[data-wallet='apple-exit'] .paysheet__tick {
+  display: block;
+}
+.paysheet__tick-ring,
+.paysheet__tick-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+[data-wallet='apple-tick'] .paysheet__tick-ring,
+[data-wallet='apple-exit'] .paysheet__tick-ring {
+  animation: wallet-draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+[data-wallet='apple-tick'] .paysheet__tick-check,
+[data-wallet='apple-exit'] .paysheet__tick-check {
+  animation: wallet-draw 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+}
+.paysheet__status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary-brand);
+}
+@keyframes faceid-pulse {
+  50% {
+    scale: 1.14;
+  }
+}
+@keyframes wallet-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* --- Google popup: centred window, faithful to the real GPay desktop flow
+   (no tick inside — success lands on the page after it closes) --- */
+.gpaypop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(272px, 86%);
+  translate: -50% -50%;
+  background: var(--color-pure-white);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.32);
+  padding: 0.9rem 1rem;
+  opacity: 0;
+  scale: 0.96;
+  visibility: hidden;
+  transition: opacity 0.25s ease, scale 0.25s ease;
+}
+[data-wallet^='gpay'] .gpaypop {
+  visibility: visible;
+}
+[data-wallet='gpay-open'] .gpaypop,
+[data-wallet='gpay-ready'] .gpaypop,
+[data-wallet='gpay-press'] .gpaypop {
+  opacity: 1;
+  scale: 1;
+}
+[data-wallet='gpay-exit'] .gpaypop {
+  opacity: 0;
+  scale: 0.97;
+}
+.gpaypop__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding-bottom: 0.5rem;
+}
+.gpaypop__head img {
+  height: 18px;
+  width: auto;
+}
+.gpaypop__head span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #5f6368;
+}
+.gpaypop__spin {
+  display: block;
+  margin: 0.8rem auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(15, 23, 42, 0.14);
+  border-top-color: #1a73e8;
+  animation: gpay-spin 0.8s linear infinite;
+}
+[data-wallet='gpay-ready'] .gpaypop__spin,
+[data-wallet='gpay-press'] .gpaypop__spin,
+[data-wallet='gpay-exit'] .gpaypop__spin {
+  display: none;
+}
+.gpaypop__body {
+  display: none;
+}
+[data-wallet='gpay-ready'] .gpaypop__body,
+[data-wallet='gpay-press'] .gpaypop__body,
+[data-wallet='gpay-exit'] .gpaypop__body {
+  display: block;
+}
+.gpaypop__row {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+  padding: 0.35rem 0 0.5rem;
+}
+.gpaypop__row strong {
+  font-size: 0.82rem;
+  color: var(--color-primary-brand);
+}
+.gpaypop__row span {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+.gpaypop__total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--color-primary-brand);
+  padding-bottom: 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.gpaypop__continue {
+  /* Google's own action blue inside a faithful GPay window replica — the
+     same as-is principle as the payment marks, not a brand-blue breach. */
+  display: block;
+  text-align: center;
+  background: #1a73e8;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: scale 0.12s ease, filter 0.12s ease;
+}
+[data-wallet='gpay-press'] .gpaypop__continue {
+  scale: 0.97;
+  filter: brightness(0.9);
+}
+@keyframes gpay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wallet-vignette__scrim,
+  .gpaypop {
+    transition-duration: 0.15s;
+  }
+  .paysheet {
+    transition: opacity 0.15s ease;
+    transform: none;
+    opacity: 0;
+  }
+  [data-wallet^='apple'] .paysheet {
+    opacity: 1;
+  }
+  [data-wallet='apple-exit'] .paysheet {
+    opacity: 0;
+  }
+  .paysheet__faceid {
+    animation: none;
+  }
+  [data-wallet='apple-tick'] .paysheet__tick-ring,
+  [data-wallet='apple-exit'] .paysheet__tick-ring,
+  [data-wallet='apple-tick'] .paysheet__tick-check,
+  [data-wallet='apple-exit'] .paysheet__tick-check {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

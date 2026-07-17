@@ -127,6 +127,49 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 
               <button class="checkout-v2__applepay-big" type="button" tabindex="-1">Check Out Now</button>
             </div>
+            {/* Wallet vignettes — pressing Apple Pay / Google Pay plays a
+                miniature of the real sheet flow inside the mockup frame
+                (storyboard: inspiration/fintech-2026-07/ADOPTION-PLAN.md §1).
+                Provider marks render as-is; the sheets animate AROUND them.
+                The Face ID-style glyph is our own drawing, not an Apple mark. */}
+            <div class="wallet-vignette" aria-hidden="true">
+              <div class="wallet-vignette__scrim"></div>
+              <div class="paysheet">
+                <div class="paysheet__row">
+                  <img src="/assets/payment/Visa.svg" alt="" class="paysheet__cardart" />
+                  <div class="paysheet__lines">
+                    <strong>Visa •••• 4242</strong>
+                    <span>Invoice INV-2041</span>
+                  </div>
+                  <span class="paysheet__amount">£850.00</span>
+                </div>
+                <div class="paysheet__auth">
+                  <svg class="paysheet__faceid" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 13 V10 a4 4 0 0 1 4-4 h3 M27 6 h3 a4 4 0 0 1 4 4 v3 M34 27 v3 a4 4 0 0 1 -4 4 h-3 M13 34 h-3 a4 4 0 0 1 -4 -4 v-3" />
+                    <path d="M14 16.5 v3.5 M26 16.5 v3.5 M20.5 16.5 v6.5 h-2 M14.5 27 a8 8 0 0 0 11 0" />
+                  </svg>
+                  <svg class="paysheet__tick" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="20" cy="20" r="16.5" pathLength="1" class="paysheet__tick-ring" />
+                    <path d="M13 20.5 18 25.5 27.5 15.5" pathLength="1" class="paysheet__tick-check" />
+                  </svg>
+                  <span class="paysheet__status">Confirm with Face ID</span>
+                </div>
+              </div>
+              <div class="gpaypop">
+                <div class="gpaypop__head">
+                  <img src="/assets/payment/google-g.svg" alt="" /><span>Pay</span>
+                </div>
+                <div class="gpaypop__spin"></div>
+                <div class="gpaypop__body">
+                  <div class="gpaypop__row">
+                    <strong>Visa •••• 4242</strong>
+                    <span>Invoice INV-2041</span>
+                  </div>
+                  <div class="gpaypop__total"><span>Total</span><strong>£850.00</strong></div>
+                  <span class="gpaypop__continue">Continue</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
