@@ -1,14 +1,16 @@
 ---
 /**
- * Sources — the single numbered register every sourced-claim superscript on
- * the page links to (Mercury's footnote pattern, and the practical face of
- * the no-invented-metrics rule). CSS counters number the superscripts in DOM
- * order, so entries here must stay in the same order as the .src-note anchors.
+ * Sources — the single numbered register every sourced-claim and footnote
+ * superscript on the page links to (Mercury's footnote-ledger pattern, and
+ * the practical face of the no-invented-metrics rule; adoption #5 extends it
+ * with claim-qualifying footnotes). CSS counters number the superscripts in
+ * DOM order, so entries here must stay in the same order as the .src-note
+ * anchors appear on the page.
  */
 ---
-<section class="sources" id="sources" aria-label="Sources">
+<section class="sources" id="sources" aria-label="Sources and footnotes">
   <div class="container">
-    <h2 class="sources__title">Sources</h2>
+    <h2 class="sources__title">Sources &amp; Footnotes</h2>
     <ol class="sources__list">
       <li id="src-1">
         UK Finance, card spending data, 2024 — total UK debit and credit card spending £1,046bn
@@ -23,6 +25,15 @@
         Small Business Commissioner and Department for Business &amp; Trade research, 2025 — business
         owners spend an average of 86 hours a year chasing unpaid invoices.
         <a href="https://www.smallbusinesscommissioner.gov.uk/late-payments-research-2/" target="_blank" rel="noopener">smallbusinesscommissioner.gov.uk</a>
+      </li>
+      <li id="src-4">
+        The two-working-day figure covers your core payment page, from your merchant account being
+        approved. Invoicing, accounting bridges and reconciliation follow in as little as five
+        working days.
+      </li>
+      <li id="src-5">
+        Payments are processed by FCA-regulated partners such as Stripe, Adyen and Checkout.com.
+        SettlePay builds and manages your payment page and never holds your funds.
       </li>
     </ol>
   </div>

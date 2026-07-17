@@ -1,23 +1,29 @@
 ---
 /**
- * TrustBar — slim one-line proof strip directly under the hero (styles in
- * kit-extras.css .trust-strip). Items come from SITE.trustPoints; the green
- * pill names the one real live client.
+ * TrustBar — dated, badge-only trust strip directly under the hero
+ * (adoption #2: Chase's badge row + Monzo's dated caption). External marks
+ * only, one dated caption, no self-claims; the green pill names the one
+ * real live client. Update the "Correct as of" date when marks change.
  */
-import Icon from '../Icon.astro';
-import { SITE } from '../../data/site.mjs';
-
-const trust = SITE.trustPoints;
+const marks = ['Visa', 'Mastercard', 'Amex', 'Klarna', 'PayPal'];
 ---
 <section class="trust-strip" data-screen-label="Trust strip">
   <div class="container">
     <div class="trust-strip__row">
-      {trust.map((b) => (
-        <div class="trust-strip__item">
-          <Icon name={b.icon} sw={1.75} />
-          {b.title}
-        </div>
-      ))}
+      <div class="trust-strip__marks">
+        {marks.map((m) => (
+          <span class="trust-strip__mark"><img src={`/assets/payment/${m}.svg`} alt={m} loading="lazy" /></span>
+        ))}
+        <span class="trust-strip__mark trust-strip__mark--wallet">
+          <img src="/assets/payment/apple-logo.svg" alt="" loading="lazy" /> Pay
+        </span>
+        <span class="trust-strip__mark trust-strip__mark--wallet">
+          <img src="/assets/payment/google-g.svg" alt="" loading="lazy" /> Pay
+        </span>
+      </div>
+      <p class="trust-strip__caption">
+        Payments processed by FCA-regulated partners · Correct as of July 2026
+      </p>
       <a class="trust-strip__live" href="/work/lockdales-auctioneers/">Live with Lockdales Auctioneers</a>
     </div>
   </div>

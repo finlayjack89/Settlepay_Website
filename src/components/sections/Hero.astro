@@ -10,16 +10,16 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 <section class="hero" id="hero" data-screen-label="Hero">
   <div class="container">
     <div class="hero__content">
-      <div class="hero__badge">
-        <Icon name="sparkles" sw={2.5} /> For UK Small Businesses
-      </div>
+      {/* Revolut hero grammar (adoption #7): grey eyebrow carries the offer,
+          the headline gets the scale, ONE sentence under it, then the ask.
+          The dot-separated line under the actions states real facts only. */}
+      <p class="hero__eyebrow">Bespoke payment pages, built for your business</p>
       <h1 class="hero__title">
-        Bespoke <span>Payment Pages</span> for UK Businesses
+        Get Paid Like a <span>Bigger Business</span>
       </h1>
       <p class="hero__subtitle">
-        Still chasing bank transfers, cheques or card payments taken over the phone? We design and
-        build a branded checkout page for your business and connect it to a trusted payment processor
-        — so you get paid faster, look professional, and stop reconciling payments by hand.
+        We design and build your branded checkout page and connect it to a trusted payment
+        processor — you get paid faster, and the admin does itself.
       </p>
       <div class="hero__actions">
         <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
@@ -28,13 +28,10 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
       <p class="hero__preview-link">
         Or <a href="/preview/">paste your website address and see your own page first</a> →
       </p>
-      <div class="hero__trust-note">
-        <p class="hero__trust-text">
-          Your checkout runs on FCA-regulated processors like{' '}
-          <strong>Stripe</strong>, <strong>Adyen</strong> and <strong>Checkout.com</strong> — trusted by millions of
-          businesses globally
-        </p>
-      </div>
+      <p class="hero__facts">
+        Bespoke build · Your own merchant account · Fixed written quote · Payments processed by
+        FCA-regulated partners
+      </p>
     </div>
 
     <div class="hero__visual">
@@ -126,6 +123,16 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
               </div>
 
               <button class="checkout-v2__applepay-big" type="button" tabindex="-1">Check Out Now</button>
+              {/* Adoption #1: trust evidence where a paying customer meets it —
+                  inside the product, not in a separate badge section. */}
+              <div class="checkout-v2__trust">
+                <span class="checkout-v2__trust-marks">
+                  {cardMarks.map((k) => (
+                    <img src={`/assets/payment/${k}.svg`} alt="" class="checkout-v2__trust-mark" />
+                  ))}
+                </span>
+                <span>Processed by FCA-regulated partners</span>
+              </div>
             </div>
             {/* Wallet vignettes — pressing Apple Pay / Google Pay plays a
                 miniature of the real sheet flow inside the mockup frame

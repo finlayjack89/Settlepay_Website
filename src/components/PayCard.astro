@@ -466,9 +466,12 @@ void main() {
       // milled bare-alu edge band; in the height field the rim rolls to 0,
       // so its highlight arc rotates around the perimeter with tilt
       if (!E) {
-        rr(ctx, 1.5, 1.5, CARD_W - 3, CARD_H - 3, 16.5);
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = A ? '#E4E8EC' : Hh ? '#000000' : Zedge;
+        // Slim edge: a 3px band read as a hard border around the whole card.
+        // The height rolloff stays a touch wider than the visible band so the
+        // rim highlight still arcs with tilt.
+        rr(ctx, 1.2, 1.2, CARD_W - 2.4, CARD_H - 2.4, 16.8);
+        ctx.lineWidth = Hh ? 2.2 : 1.6;
+        ctx.strokeStyle = A ? '#D9DEE6' : Hh ? '#000000' : Zedge;
         ctx.stroke();
       }
 
@@ -614,20 +617,28 @@ void main() {
         }
       }
 
-      // etch: engraving depth subtracted from the height field in JS — a
-      // lighter blur than the emboss bevels, so the cut walls stay crisp
-      const etchData = etchCtx.getImageData(0, 0, W, H).data;
-      const et = new Float32Array(n);
-      for (let i = 0; i < n; i++) et[i] = etchData[i * 4] / 255;
-      gaussBlur(et, scratch, W, H, Math.max(0.8, 0.8 * (s / 2)));
-      for (let i = 0; i < n; i++) h[i] -= et[i] * 0.17;
-
-      // AO from the pre-grain relief: wide blur minus local height
+      // AO from the RAISED relief only (chip, rim). Computing it after the
+      // etch subtraction put a wide dark halo around every engraved glyph —
+      // which read as a thick coating with soft holes, not clean cuts.
       const hWide = new Float32Array(h);
       gaussBlur(hWide, scratch, W, H, 4 * sigma);
       const ao = new Float32Array(n);
       for (let i = 0; i < n; i++) {
         ao[i] = Math.min(1, Math.max(0.55, 1 - 1.8 * Math.max(0, hWide[i] - h[i])));
+      }
+
+      // etch: engraving depth subtracted from the height field in JS. ONE
+      // light box pass (not the 3-pass gaussian) keeps the cut walls sharp —
+      // laser etching has crisp edges, not soft shoulders — and the cut's
+      // own occlusion is applied tightly, following the engraving exactly.
+      const etchData = etchCtx.getImageData(0, 0, W, H).data;
+      const et = new Float32Array(n);
+      for (let i = 0; i < n; i++) et[i] = etchData[i * 4] / 255;
+      boxH(et, scratch, W, H, 1);
+      boxV(scratch, et, W, H, 1);
+      for (let i = 0; i < n; i++) {
+        h[i] -= et[i] * 0.2;
+        ao[i] = Math.max(0.55, Math.min(ao[i], 1 - 0.4 * et[i]));
       }
 
       // fine isotropic grain — satin: felt more than seen, and quiet enough
@@ -657,8 +668,10 @@ void main() {
           let rough = zonData[o] / 255;
           const metal = zonData[o + 1] / 255;
           const grad = Math.hypot(gx, gy);
-          // fillets: smoother than tops -> sharp glints on light-facing edges
-          if (metal > 0.5 && grad > 0.06) rough = 0.16;
+          // fillets: smoother than tops -> sharp glints on light-facing
+          // edges. Threshold raised so the glint band hugs the actual cut
+          // walls instead of outlining every glyph.
+          if (metal > 0.5 && grad > 0.09) rough = 0.16;
           // baked Toksvig (reduced coeff): anti-crawl where normals vary fast
           rough = Math.min(1, Math.sqrt(rough * rough + 0.1 * (gx * gx + gy * gy) * S * S));
           // sparse sparkle: ~0.5% of texels scintillate as the card moves
