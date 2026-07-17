@@ -1,19 +1,20 @@
 ---
 /**
- * /p/render/?s=<slug>&device=mobile|desktop&theme=light|dark — the bare render
+ * /render/?s=<slug>&device=mobile|desktop&theme=light|dark — the bare render
  * target for downloadable images. Nothing but the painted payment page on a
  * neutral backdrop: the brand-preview function points Firecrawl at this page
  * (in production) and screenshots it, so the downloaded image is pixel-for-
- * pixel what the browser renders.
+ * pixel what the browser renders — just the card, no site chrome.
  *
- * Not a user destination: no site chrome, noindex, covered by the robots
- * Disallow on /p/. Renders only server-side share snapshots (same trust rules
- * as /p/).
+ * Lives at the top level (NOT under /p/) so the `/p/:slug` Vercel rewrite can't
+ * swallow it and serve the full share page instead. Not a user destination:
+ * noindex, robots-disallowed. Renders only server-side share snapshots (same
+ * trust rules as /p/).
  */
-import '../../styles/styles.css';
-import '../../styles/kit-extras.css';
-import PaymentPagePreview from '../../components/preview/PaymentPagePreview.astro';
-import { SITE } from '../../data/site.mjs';
+import '../styles/styles.css';
+import '../styles/kit-extras.css';
+import PaymentPagePreview from '../components/preview/PaymentPagePreview.astro';
+import { SITE } from '../data/site.mjs';
 ---
 <html lang="en-GB">
   <head>
@@ -41,7 +42,7 @@ import { SITE } from '../../data/site.mjs';
     </style>
 
     <script>
-      import { resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
+      import { resolveBrief, paintBrief } from '../scripts/paymentPage.mjs';
 
       const root = document.querySelector('[data-prender]');
       const wrap = document.querySelector('[data-prender-wrap]');

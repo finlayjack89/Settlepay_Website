@@ -408,10 +408,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Download: Firecrawl screenshots the production /p/render/ page for this
-  // share and the image bytes are proxied straight back (their signed URL has
-  // no CORS for browser fetches). Costs one Firecrawl credit per call, so it
-  // shares the per-minute rate limit with generation.
+  // Download: Firecrawl screenshots the production /render/ page (card only, NOT
+  // under /p/ so the /p/:slug rewrite can't swallow it into the full share page)
+  // and the image bytes are proxied straight back (their signed URL has no CORS
+  // for browser fetches). One Firecrawl credit per call → shares the rate limit.
   if (payload.renderShare) {
     const slug = String(payload.renderShare.slug || '').toLowerCase();
     if (!/^[a-z0-9]{8,16}$/.test(slug)) return json({ error: 'invalid-share' }, 400);
@@ -446,7 +446,7 @@ Deno.serve(async (req) => {
       // crisp; raster logos are as sharp as their source allows.
       const scale = Math.min(4, Math.max(1, Number(Deno.env.get('RENDER_SCALE') ?? '4') || 4));
       const target =
-        base + '/p/render/?s=' + slug + '&device=' + device + (theme ? '&theme=' + theme : '') + '&scale=' + scale;
+        base + '/render/?s=' + slug + '&device=' + device + (theme ? '&theme=' + theme : '') + '&scale=' + scale;
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 30_000);
       const shot = await fetch('https://api.firecrawl.dev/v2/scrape', {
