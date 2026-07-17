@@ -361,7 +361,6 @@ void main() {
     const Zface = zone(0.28, 0);
     const Zribbon = zone(0.22, 1);
     const Zstripe = zone(0.18, 1);
-    const Zedge = zone(0.26, 1);
     const Zchip = zone(0.22, 1);
     const Zglyph = zone(0.24, 1);
     const Zvisa = zone(0.26, 1);
@@ -463,17 +462,9 @@ void main() {
         ctx.globalAlpha = 1;
       }
 
-      // milled bare-alu edge band; in the height field the rim rolls to 0,
-      // so its highlight arc rotates around the perimeter with tilt
-      if (!E) {
-        // Slim edge: a 3px band read as a hard border around the whole card.
-        // The height rolloff stays a touch wider than the visible band so the
-        // rim highlight still arcs with tilt.
-        rr(ctx, 1.2, 1.2, CARD_W - 2.4, CARD_H - 2.4, 16.8);
-        ctx.lineWidth = Hh ? 2.2 : 1.6;
-        ctx.strokeStyle = A ? '#D9DEE6' : Hh ? '#000000' : Zedge;
-        ctx.stroke();
-      }
+      // No edge band: every version of it (3px, 1.6px, rim rolloff) read as
+      // a border around the card. The face now runs clean to the CSS
+      // border-radius clip — a regular free edge (user call).
 
       // chip: raised gold plateau with engraved grooves (a real chip IS a
       // raised part — it stays embossed while the print details etch)
@@ -572,7 +563,12 @@ void main() {
     let baked = false;
     async function bake() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const s = (Math.min(card.clientWidth || CARD_W, CARD_W) / CARD_W) * dpr;
+      // 2x SUPERSAMPLE: bake and render at twice the display density, then
+      // let the compositor downscale the canvas. This is the fidelity lever:
+      // true SSAA for the near-binary etch edges, and glyphs rasterised at
+      // double size. The shader is cheap enough that 4x the fragments is
+      // still trivial; the bake runs once, idle-chunked, off critical path.
+      const s = (Math.min(card.clientWidth || CARD_W, CARD_W) / CARD_W) * dpr * 2;
       const W = Math.round(CARD_W * s);
       const H = Math.round(CARD_H * s);
 
@@ -672,7 +668,9 @@ void main() {
           const grad = Math.hypot(gx, gy);
           // fillets: much smoother than tops -> the sharp mirror glint that
           // reads as a crisp cut edge on the near-vertical etch walls.
-          if (metal > 0.5 && grad > 0.06) rough = 0.12;
+          // Threshold is resolution-relative: per-texel gradients shrink as
+          // the bake res rises, so a fixed cutoff would miss the walls.
+          if (metal > 0.5 && grad > 0.072 / sigma) rough = 0.12;
           // baked Toksvig, LOW coeff: too much anti-crawl re-softens exactly
           // the walls we just sharpened (it widens roughness where normals
           // vary fastest — i.e. on the cut edges). Keep it minimal.
