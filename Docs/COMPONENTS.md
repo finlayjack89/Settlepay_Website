@@ -100,6 +100,12 @@ The free-consultation form (business, name, email, message + honeypot). Rendered
 opened by any `[data-enquire]` button. Submits to `SITE.formEndpoint` if set, else a mailto fallback.
 No props.
 
+### `StickyCta.astro`
+Mobile-only frosted action bar (glass: `--blur-glass-bar` + `--glass-saturate-soft`) carrying the
+primary ask. Shown/hidden by `SiteScripts` via IO: slides in (`--curve-spring`) once the hero
+scrolls away, hides whenever the CTA band or footer is on screen so it never doubles the real
+button. Homepage only. No props.
+
 ### `BaseHead.astro`
 All `<head>` SEO. Driven by props from the page/layout.
 
@@ -113,9 +119,15 @@ All `<head>` SEO. Driven by props from the page/layout.
 | `jsonLd` | array of JSON-LD objects (one `<script>` each) |
 
 ### `SiteScripts.astro`
-All client behaviour (mobile nav, checkout accordion, ROI calculator, modal, scroll reveals,
-pointer tilt, step spotlight, story fill, MarketShift counter scrub, booking slot picker). One
-bundled module, guarded per page. Rendered once by `BaseLayout`. No props.
+All client behaviour, one bundled module, guarded per page; rendered once by `BaseLayout`. No props.
+Covers: mobile nav + navbar scroll-collapse (`--nav-scroll-p`) + dark-glass flip
+(`.navbar--over-dark` via IO), scroll reveals (`[data-reveal]`), checkout accordion + idle hero
+self-demo, wallet vignettes (Apple/Google Pay sheets), living-dashboard odometer (per-digit wheels,
+visibility-paused), pointer tilt + shared scroll-momentum spring (`[data-tilt]`,
+`[data-tilt-scroll]`), step spotlight, story fill (`--story-p`), MarketShift counter scrub, ROI
+calculator glide, security-evidence switcher, legal TOC scrollspy, booking slot picker, modal.
+The recipes behind these are documented in DESIGN-SYSTEM §9 — reuse them rather than inventing
+new mechanisms.
 
 ---
 
@@ -145,16 +157,22 @@ Compose these in `src/pages/index.astro`. Each is self-contained (copy lives ins
 |---|---|---|
 | `Hero.astro` | Headline + sub + CTAs + interactive checkout mockup on a navy `.stage-dark` with floating `StatusChip`s | `#hero` |
 | `TrustBar.astro` | Slim one-line proof strip (trust points + live-client pill) | — |
+| `CardMoment.astro` | The PBR `PayCard` as a product-shot moment high on the page — light ground, soft blue spotlight. Copy keeps it the CUSTOMER's card (we build the page they pay on, we don't issue cards). | — |
 | `ValueProps.astro` | 2×2 bento of value-prop cards, each with a top-cropped mockup preview | `#about` |
 | `OurWork.astro` | Split-scroll: sticky rail (header + `UKMap` canvas + link) beside stacked tilting portfolio cards | `#work` |
+| `PreviewTeaser.astro` | "See Your Own Page Before You Decide" — URL form feeding the `/preview/` tool | — |
 | `HowItWorks.astro` | Dark chapter: sticky dashboard + step spotlight + `FlowScene` canvas + "manual vs automated" modes | `#integration` |
 | `MarketShift.astro` | Scroll-scrubbed counter pinning while the number ticks to the true UK Finance figure, then sourced stats reveal. Figures are real and attributed — verify against the named sources before changing any number. | — |
 | `FastStart.astro` | Reassurance chips + 3-stage timeline + urgent-service note (slate band) | `#timeline` |
+| `Compare.astro` | "Three Ways to Collect a Payment" — honest side-by-side of the alternatives | `#compare` |
+| `SecurityEvidence.astro` | "Named Protections" — security evidence switcher (specific, verifiable claims only) | `#security` |
 | `Calculator.astro` | Live ROI calculator (sliders → hours saved) | `#pricing` |
-| `CtaBand.astro` | CTA band: copy + trust list beside the tilting `PayCard` | `#enquire` |
+| `CtaBand.astro` | Closing CTA band: copy + trust list (the `PayCard` moved to `CardMoment`) | `#enquire` |
+| `Sources.astro` | On-page numbered attributions for every cited figure | `#sources` |
 
-The landing-page order in `index.astro` is: Hero, TrustBar, ValueProps, OurWork, HowItWorks,
-MarketShift, FastStart, Calculator, CtaBand.
+The landing-page order in `index.astro` is: Hero, TrustBar, CardMoment, ValueProps, OurWork,
+PreviewTeaser, HowItWorks, MarketShift, FastStart, Compare, SecurityEvidence, Calculator, CtaBand,
+Sources.
 
 To add a new section: create `src/components/sections/MySection.astro`, use `SectionHeader` +
 `.section-pad` + `.container`, reuse tokens, and add it to `index.astro`.
@@ -194,7 +212,7 @@ DPR capped at 2.
 | `ParticleField.astro` | Ambient drifting particles behind the hero stage. |
 | `FlowScene.astro` | Dark-chapter money-flow diagram: bezier tracks + travelling pulses between DOM node chips. Caption states SettlePay never holds funds. |
 | `UKMap.astro` | Dot-matrix UK silhouette (mask rasterised from Natural Earth data — a hand-editable string grid). Payment arcs draw origin→destination then erase the same way, on three staggered lanes so 2–3 are usually in flight; random dots blink blue as local payments; pointer proximity lifts and warms dots. |
-| `PayCard.astro` | The customer's card in the CTA band, rendered two ways. **Live**: the fourth WebGL island — one PBR quad (GGX + area key light + env strip) built from textures baked at runtime (albedo art, height→normal map for real embossing, roughness/metal zones, AO); the CSS `[data-tilt]` still rotates the element while the shader counter-rotates the world-fixed light, so highlights slide across the tilting face physically. Design + tuned numbers live in `inspiration/card-lighting-v2/BLUEPRINT.md`. **Fallback** (no WebGL / bake failure / context loss): the layered CSS/SVG card driven by the lerped `--px/--py/--pfc` vars — must always look finished on its own. The monogram is a hologram patch, not an issuer mark — the card must keep reading as the *customer's*; the Visa wordmark is monochrome silver (DESIGN-SYSTEM §12 exception). |
+| `PayCard.astro` | The customer's card in `CardMoment`, rendered two ways. **Live**: the fourth WebGL island — one PBR quad (GGX + area key light + env strip) built from textures baked at runtime (albedo art, height→normal map for real embossing, roughness/metal zones, AO); the CSS `[data-tilt]` still rotates the element while the shader counter-rotates the world-fixed light, so highlights slide across the tilting face physically. Design + tuned numbers live in `inspiration/card-lighting-v2/BLUEPRINT.md`. **Fallback** (no WebGL / bake failure / context loss): the layered CSS/SVG card driven by the lerped `--px/--py/--pfc` vars — must always look finished on its own. The monogram is a hologram patch, not an issuer mark — the card must keep reading as the *customer's*; the Visa wordmark is monochrome silver (DESIGN-SYSTEM §12 exception). |
 
 ---
 

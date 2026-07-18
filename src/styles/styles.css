@@ -20,15 +20,37 @@
   --color-text-muted:          #55607A; /* on white/slate */
   --color-text-on-dark-muted:  rgba(255, 255, 255, 0.72); /* on navy */
 
+  /* Ink-opacity ramp — the rgba(15,23,42, …) values used throughout the CSS
+     (borders, hairlines, supporting copy). Use these, not fresh rgba() literals. */
+  --color-ink-90: rgba(15, 23, 42, 0.90); /* near-black text on light */
+  --color-ink-65: rgba(15, 23, 42, 0.65); /* secondary body text */
+  --color-ink-55: rgba(15, 23, 42, 0.55); /* tertiary / supporting copy */
+  --color-ink-45: rgba(15, 23, 42, 0.45); /* muted labels, timestamps */
+  --color-ink-12: rgba(15, 23, 42, 0.12); /* default control borders */
+  --color-ink-06: rgba(15, 23, 42, 0.06); /* hairline dividers, subtle fills */
+
+  /* On-dark ramp (text/line over navy) */
+  --color-on-dark-60: rgba(255, 255, 255, 0.60);
+  --color-on-dark-40: rgba(255, 255, 255, 0.40);
+  --color-on-dark-20: rgba(255, 255, 255, 0.20);
+  --color-on-dark-08: rgba(255, 255, 255, 0.08);
+
+  /* Action-blue tints (FILL behind icons/badges — never decorative text) */
+  --color-action-tint-15: rgba(59, 130, 246, 0.15);
+  --color-action-tint-08: rgba(59, 130, 246, 0.08);
+
   /* Typography — Change 1 */
   --font-primary: 'Satoshi', system-ui, sans-serif;
   --text-base:    clamp(1rem, 0.95vw + 0.76rem, 1.125rem);
 
   /* Geometry */
   --radius-button: 100px; /* pill — primary/secondary buttons (per design system) */
-  --radius-input:  8px;   /* inputs & small controls */
+  --radius-input:  8px;   /* inputs & small controls — never the pill */
   --radius-card:   24px;
   --radius-icon:   12px;  /* icon tiles */
+  --radius-soft:   16px;  /* "soft cards": ROI results, FAQ items, fact tiles */
+  /* Inset hairline used by the bezel wrapper and the floating nav */
+  --ring-inset: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
 
   /* Anchor-scroll offset — clears the shrunk floating nav. Keep in sync with the
      scrolled navbar height + a small gap (see .navbar.is-scrolled). */
@@ -39,6 +61,10 @@
   --color-warning: #F59E0B;
   --color-info:    #8B5CF6;
   --color-error:   #DC2626;
+  --color-success-tint: rgba(16, 185, 129, 0.10);
+  --color-warning-tint: rgba(245, 158, 11, 0.08);
+  --color-info-tint:    rgba(139, 92, 246, 0.08);
+  --color-error-tint:   rgba(220, 38, 38, 0.08);
 
   /* Fonts (secondary) */
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -50,21 +76,75 @@
   --shadow-cta: 0 2px 8px rgba(59, 130, 246, 0.25);
   --shadow-cta-hover: 0 4px 16px rgba(59, 130, 246, 0.30);
 
-  /* Animation */
-  --ease-snappy:    0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-cinematic: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring:    400ms cubic-bezier(0.34, 1.25, 0.64, 1); /* overshoots — nav collapse */
+  /* Frosted glass — a system, not a single moment (DESIGN-SYSTEM §8). Pair with a
+     translucent fill + hairline edge. -webkit- prefixed declaration FIRST, standard
+     LAST. On-dark stage internals (hero layers 6px, flow nodes 8px) stay local. */
+  --blur-glass-veil: 4px;   /* modal overlay — soften, don't frost */
+  --blur-glass-chip: 14px;  /* StatusChip pills over imagery/dark stages */
+  --blur-glass-bar:  16px;  /* StickyCta mobile action bar (saturate-soft) */
+  --blur-glass-nav:  18px;  /* the floating-island nav pill */
+  --glass-saturate:      1.8; /* default frost saturation (nav, chips) */
+  --glass-saturate-soft: 1.4; /* larger sheets (StickyCta) */
+
+  /* Animation — curve/duration split; the bundled --ease-* compositions are the
+     everyday shorthand. Curves alone for keyframes/bespoke durations. */
+  --curve-snappy:    cubic-bezier(0.4, 0, 0.2, 1);      /* micro feedback */
+  --curve-cinematic: cubic-bezier(0.22, 1, 0.36, 1);    /* reveals, card lift */
+  --curve-spring:    cubic-bezier(0.34, 1.25, 0.64, 1); /* overshoots — nav collapse */
+  --duration-snappy:    0.15s;
+  --duration-cinematic: 0.6s;
+  --duration-spring:    400ms;
+  --ease-snappy:    var(--duration-snappy) var(--curve-snappy);
+  --ease-cinematic: var(--duration-cinematic) var(--curve-cinematic);
+  --ease-spring:    var(--duration-spring) var(--curve-spring);
 
   /* Vertical rhythm — clamps cover mobile, no per-breakpoint overrides needed */
   --space-section:         clamp(3.5rem, 2.75rem + 2.5vw, 4.75rem);
   --space-section-compact: clamp(2.25rem, 2rem + 1.25vw, 3rem); /* slim bands: trust strip, mini-cta */
   --space-header-gap:      2.5rem; /* SectionHeader → section content */
 
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.5rem;
+  --space-8: 3rem;
+  --container: 1200px;
+
   /* Type scale */
   --text-display:    clamp(2.1rem, 3.2vw + 1rem, 3.6rem);   /* hero H1 */
   --text-title:      clamp(1.65rem, 2vw + 0.75rem, 2.4rem); /* section H2 */
   --text-page-title: clamp(1.9rem, 2.2vw + 1rem, 2.6rem);   /* interior page H1 */
   --text-lead:       1.1rem;
+  --text-card:       1.35rem; /* card / feature title */
+  --text-step:       1.15rem; /* step / sub-title (H3) */
+  --text-body:       1rem;    /* default body */
+  --text-sm:         0.9rem;  /* dense UI text */
+  --text-label:      0.75rem; /* eyebrow / badge / category labels */
+  --text-micro:      0.7rem;  /* timestamps, fine print (never reading copy) */
+
+  /* Weights — avoid thin/light for body */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* Line heights */
+  --leading-tight:   1.05; /* display */
+  --leading-snug:    1.15; /* headings */
+  --leading-normal:  1.6;  /* UI */
+  --leading-relaxed: 1.75; /* long body — comfortable for older readers */
+
+  /* Letter spacing */
+  --tracking-display: -0.035em;
+  --tracking-heading: -0.02em;
+  --tracking-eyebrow:  0.05em; /* uppercase labels */
+
+  /* Constrained measure for readability (~50–75ch) */
+  --measure: 62ch;
 }
 
 /* ---------------------------------------------------------
@@ -171,7 +251,7 @@ body::after {
    --------------------------------------------------------- */
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--container);
   margin-inline: auto;
   padding-inline: 1.5rem;
 }
@@ -373,8 +453,8 @@ html.reveal-ready [data-reveal].is-revealed {
      pair and keeps only the final declaration — standard-first order ships
      webkit-only CSS that modern Chromium ignores (frost silently dies in
      production builds while the unminified dev server looks fine). */
-  -webkit-backdrop-filter: blur(18px) saturate(1.8);
-  backdrop-filter: blur(18px) saturate(1.8);
+  -webkit-backdrop-filter: blur(var(--blur-glass-nav)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--blur-glass-nav)) saturate(var(--glass-saturate));
   /* Definition so the bar reads as a frosted-glass surface even over the white
      hero (where the blur alone has nothing behind it to soften):
      1) a bottom hairline at the top state that fades as it collapses to a pill,
@@ -398,7 +478,7 @@ html.reveal-ready [data-reveal].is-revealed {
   align-items: center;
   padding-block: 0.5rem;
   padding-inline: calc(1.5rem - 0.75rem * var(--nav-scroll-p, 0));
-  max-width: 1200px;
+  max-width: var(--container);
   transition: padding var(--ease-spring);
 }
 
@@ -1535,7 +1615,7 @@ html.reveal-ready .section--dark .integration__step.is-current {
 
 .calculator__result-card {
   background: var(--color-secondary-bg);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   padding: 1.5rem 1.75rem;
   display: flex;
   align-items: center;
