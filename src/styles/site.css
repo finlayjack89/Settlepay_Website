@@ -337,7 +337,7 @@
 .about-flow__step {
   background: var(--color-secondary-bg);
   border: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   padding: 1.4rem 1.5rem;
 }
 .about-flow__num {
@@ -442,7 +442,7 @@
 }
 .faq-item {
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   background: var(--color-pure-white);
   overflow: hidden;
   transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy);
@@ -563,7 +563,7 @@
   gap: 0.45rem;
   padding: 1.1rem 1.2rem;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   background: var(--color-pure-white);
   text-decoration: none;
   color: inherit;
@@ -721,7 +721,7 @@ body:has(.ps.is-generated) .mini-cta { display: none; }
   display: flex; align-items: flex-start; gap: 0.85rem;
   background: var(--color-secondary-bg);
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   padding: 1rem 1.15rem;
   margin: 0 0 1.4rem;
 }
