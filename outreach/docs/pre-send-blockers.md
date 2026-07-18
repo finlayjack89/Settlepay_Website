@@ -1,9 +1,10 @@
 # Pre-live-send blockers — scope & what's built
 
-The two things that must exist before `G_SEND` is ever set. Both have their
-**mechanism built and tested now**; both have a **provisioning step that is yours**
-(credentials / DNS) because I can't and shouldn't create those. Live sending stays
-hard-gated until you complete the provisioning and clear the gates.
+The blockers that must be cleared before `G_SEND` is ever set. Each has its
+**mechanism built and tested now**; the infrastructure blockers (A, B) also have a
+**provisioning step that is yours** (credentials / DNS) because I can't and
+shouldn't create those. Live sending stays hard-gated until you complete the
+provisioning and clear the gates.
 
 ---
 
@@ -74,6 +75,36 @@ full volume from day one, lands in spam — wasting the entire funnel at the las
 
 ---
 
+## Blocker C — Drafting playbook v1 (real copy + cadence)
+
+**Why it blocks go-live:** the pipeline can produce structurally-compliant emails
+from a placeholder, but sending empty, strategy-free copy wastes the domain and the
+leads. Live send needs approved, real conversion copy.
+
+### ✅ Delivered — `prompts/draft_email.md` (v1), wired in
+- Real v1 playbook: **new-payment-infrastructure** angle for cash / bank-transfer
+  small businesses (branded card-payment page + invoicing + automatic
+  reconciliation), signal-led opening, to the full compliance envelope.
+- **2-touch cadence** (`sequence_config.json`): initial + one follow-up 4 working
+  days later; send window **Tue–Thu 09:00–16:00 UK**.
+- Wired into the mechanism (`draft.py`, `PROMPT_VERSION=playbook-v1`, version-gated
+  loader). Every draft is checked against `check_envelope()` before it is stored;
+  demonstrated on real ICP leads (salon / dental / auctioneer) — all compliant.
+
+### 🔧 Yours to approve
+- **Read the copy** in `prompts/draft_email.md` and edit the angle/tone to taste —
+  it's the editable playbook by design.
+- **A real send test** to your own inbox to see the rendered email.
+- For unattended drafting set `LLM_PROVIDER=api` (+ Anthropic key; confirm the model
+  id against `~/.claude/LLM_MODELS.md`); otherwise drafts are authored attended
+  (under /loop) or fall back to a safe provisional message.
+- **Signal depth caveat:** current enrichment signals are thin (`trade + town`) and
+  some discovered sites are wrong. Deeper, payment-specific signals (the parked
+  Clay/Claygent enhancement or a better inline-enrich prompt) would sharpen
+  personalisation materially.
+
+---
+
 ## Go-live checklist (all must be true before setting `G_SEND`)
 
 - [ ] Dedicated Google Workspace sending domain + mailbox provisioned (not `@settlepay.uk`)
@@ -82,7 +113,7 @@ full volume from day one, lands in spam — wasting the entire funnel at the las
 - [ ] `python -m outreach.inbound` scheduled (opt-outs/bounces honoured continuously)
 - [ ] Warm-up underway; `PER_INBOX_DAILY_CAP` still conservative
 - [ ] Legitimate-interests assessment (LIA) documented for the sending domain
-- [ ] Drafting **playbook v1** approved (real copy + cadence) — separate workstream
+- [ ] Drafting **playbook v1** — ✅ written & wired (real copy + 2-touch cadence); needs your **sign-off on the copy**
 - [ ] A human sets `G_SEND` (the loop never can). Risky/catch-all tier also needs
       `RISKY_SEND_ENABLED`.
 

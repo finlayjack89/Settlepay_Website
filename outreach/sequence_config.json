@@ -1,14 +1,14 @@
 {
-  "_note": "PLACEHOLDER timing. Cadence / follow-up delays / send windows are DEFERRED — they come from the researched drafting playbook. The mechanism READS these values; timing must never be hardcoded elsewhere. The `graduation` thresholds below are operational policy (from the brief) and are real, not placeholders.",
+  "_note": "v1 timing, from drafting playbook v1 (prompts/draft_email.md). Cadence / follow-up delays / send windows are real. The mechanism READS these values; timing must never be hardcoded elsewhere. The `graduation` thresholds below are operational policy and are real.",
   "send_window": {
     "start_hour": 9,
-    "end_hour": 17,
-    "days": [0, 1, 2, 3],
-    "_comment": "PLACEHOLDER — weekday ints (Mon=0). Real send window TBD from playbook."
+    "end_hour": 16,
+    "days": [1, 2, 3],
+    "_comment": "v1 — weekday ints (Mon=0). Send Tue–Thu, 09:00–16:00 UK: avoids the Monday inbox pile-up and the Friday wind-down."
   },
-  "follow_up_delays_days": [3, 7],
-  "max_follow_ups": 2,
-  "_follow_up_note": "PLACEHOLDER follow-up cadence (days after previous touch). TBD from playbook.",
+  "follow_up_delays_days": [4],
+  "max_follow_ups": 1,
+  "_follow_up_note": "v1 — 2-touch sequence: a single follow-up 4 working days after touch 1, sent only if the lead has not replied, opted out, or bounced.",
   "warmup": {
     "daily_caps": [5, 8, 12, 18, 25, 35, 45, 50],
     "steady": 50,

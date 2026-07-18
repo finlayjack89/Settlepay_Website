@@ -757,7 +757,7 @@ def settings():
       <dt>Per-inbox cap</dt><dd>{s['cap']} / day</dd>
       <dt>Risky (catch-all) send</dt><dd>{'<span class="badge b-error">ENABLED</span>' if s['risky_send'] else '<span class="badge b-success">off — needs RISKY_SEND_ENABLED</span>'}</dd>
       <dt>Sending domain</dt><dd>{html.escape(s['sender'])}</dd>
-      <dt>Send window</dt><dd>{win.get('start_hour','?')}:00–{win.get('end_hour','?')}:00 <span class="muted">(placeholder)</span></dd>
+      <dt>Send window</dt><dd>{win.get('start_hour','?')}:00–{win.get('end_hour','?')}:00 UK <span class="muted">(Tue–Thu)</span></dd>
     </dl></div>
   <div class="panel"><h2>Pipeline config</h2>
     <div class="hint">From outreach/.env — secrets never shown.</div>
