@@ -868,10 +868,41 @@
     const noteEl = modal.querySelector('[data-form-note]') as HTMLElement;
     let lastFocused: HTMLElement | null = null;
 
+    // iOS ignores overflow:hidden on the body: the page keeps scrolling behind
+    // the modal, Safari's toolbar keeps resizing, and the veil chases a moving
+    // viewport. Pinning the body (position:fixed at the current offset) is the
+    // lock that actually holds; scroll is restored on close. scrollbar-gutter
+    // on <html> keeps the desktop layout from shifting when the bar vanishes.
+    let lockedScrollY = 0;
+    const lockBody = () => {
+      lockedScrollY = window.scrollY;
+      const b = document.body.style;
+      b.position = 'fixed';
+      b.top = `-${lockedScrollY}px`;
+      b.left = '0';
+      b.right = '0';
+      b.width = '100%';
+      b.overflow = 'hidden';
+    };
+    const unlockBody = () => {
+      const b = document.body.style;
+      b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = ''; b.overflow = '';
+      const html = document.documentElement;
+      const prevBehavior = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto'; // restore instantly, not smooth-scrolled
+      window.scrollTo(0, lockedScrollY);
+      html.style.scrollBehavior = prevBehavior;
+    };
+    // Safari tints its status bar / toolbar from theme-color, and those zones
+    // sit outside any web-paintable area — retint them to the veil while the
+    // modal is open so the system chrome doesn't read as a gap in the veil.
+    const themeMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+    const themeDefault = themeMeta?.content || '';
     const openModal = () => {
       lastFocused = document.activeElement as HTMLElement;
       (modal as HTMLElement).hidden = false;
-      document.body.style.overflow = 'hidden';
+      lockBody();
+      if (themeMeta) themeMeta.content = '#7B7F8A'; // the veil composited over a light page
       formView.hidden = false;
       successView.hidden = true;
       const first = form?.querySelector('input, textarea') as HTMLElement | null;
@@ -879,7 +910,8 @@
     };
     const closeModal = () => {
       (modal as HTMLElement).hidden = true;
-      document.body.style.overflow = '';
+      unlockBody();
+      if (themeMeta) themeMeta.content = themeDefault;
       lastFocused?.focus();
     };
     const modalFooter = modal.querySelector('[data-modal-footer]') as HTMLElement | null;

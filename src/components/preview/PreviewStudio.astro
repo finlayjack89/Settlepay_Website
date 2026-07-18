@@ -522,7 +522,9 @@ const CARDS = [0, 1, 2, 3];
   /* ---- unveil: one-shot clip-path wipe as the generated page arrives ---- */
   @media (prefers-reduced-motion: no-preference) {
     .ps__card.is-unveiling .ps__card-frame {
-      animation: psUnveil 0.65s var(--ease-cinematic);
+      /* --curve-*, not --ease-*: --ease-* bundles a duration, which `animation`
+         would parse as a delay — visible as an unveil-then-blink. */
+      animation: psUnveil 0.65s var(--curve-cinematic);
     }
   }
   @keyframes psUnveil {

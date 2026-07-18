@@ -17,6 +17,12 @@ import Button from './Button.astro';
   aria-labelledby="enquire-title"
   hidden
 >
+  <!-- Coverage and frost are separate layers: iOS clips a backdrop-filtered
+       element's paint to the layout viewport it can sample, so the filtered
+       layer can never reach the status-bar/toolbar zones — the filter-free
+       overscanned scrim covers those instead. Styles in kit-extras.css. -->
+  <div class="sp-modal__scrim" aria-hidden="true"></div>
+  <div class="sp-modal__frost" aria-hidden="true"></div>
   <div class="sp-modal">
     <button class="sp-modal__close" data-modal-close aria-label="Close consultation form">
       <Icon name="close" sw={2} />
@@ -117,7 +123,9 @@ import Button from './Button.astro';
     from { opacity: 0; transform: translateY(8px) scale(0.99); }
     to   { opacity: 1; transform: none; }
   }
-  .sp-modal__success:not([hidden]) { animation: spSuccessIn 0.32s var(--ease-cinematic); }
+  /* --curve-*, not --ease-*: the ease shorthands bundle a duration, which the
+     animation shorthand would parse as a DELAY — visible as an open-then-blink. */
+  .sp-modal__success:not([hidden]) { animation: spSuccessIn 0.32s var(--curve-cinematic); }
   @media (prefers-reduced-motion: reduce) {
     .sp-modal__success:not([hidden]) { animation: none; }
   }

@@ -5,12 +5,22 @@
  * Shown/hidden by SiteScripts via IntersectionObserver: slides in once the hero
  * has scrolled away, and hides whenever the final CTA band or footer is on screen
  * so it never doubles up on the real button. Homepage only.
+ *
+ * Structure is deliberate: iOS Safari clips a backdrop-filtered element's paint
+ * — including its descendants' — to the backdrop region it can sample, i.e. the
+ * layout viewport. Anything meant to paint BELOW the viewport (covering the page
+ * canvas iOS shows behind the collapsed toolbar / home indicator) must therefore
+ * live OUTSIDE the frosted element. So: an unfiltered fixed root carries the
+ * slide animation, the frost lives on an inner bar, and the bleed is the bar's
+ * filter-free sibling.
  */
 import { SITE } from '../data/site.mjs';
 import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
-  <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+  <div class="sticky-cta__bar">
+    <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+  </div>
   <div class="sticky-cta__bleed" aria-hidden="true"></div>
 </div>
 
@@ -22,15 +32,6 @@ import Button from './Button.astro';
     bottom: 0;
     z-index: 90; /* below the nav (100) and modal overlay */
     display: none; /* desktop: never */
-    justify-content: center;
-    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.85);
-    /* Prefix first, standard last — the minifier keeps only the final one. */
-    -webkit-backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
-    backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
-    box-shadow:
-      0 -1px 0 rgba(15, 23, 42, 0.06),
-      0 -8px 24px rgba(15, 23, 42, 0.08);
     /* Off-screen + non-focusable until shown; visibility flips after the slide-out. */
     transform: translateY(130%);
     visibility: hidden;
@@ -40,24 +41,34 @@ import Button from './Button.astro';
   }
 
   @media (max-width: 768px) {
-    .sticky-cta { display: flex; }
+    .sticky-cta { display: block; }
   }
 
-  /* iOS positions fixed elements against the SMALL viewport, so when
-     Safari's toolbar collapses a strip of page shows between bottom:0 and
-     the physical screen edge. A real element (an iOS quirk can render a
-     backdrop-filtered pseudo fully invisible — no filter here) bleeds the
-     bar's background down a full viewport so the bottom is always filled,
-     on every device size. Off-screen when the bar sits flush; slides away
-     with the bar. */
+  .sticky-cta__bar {
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.85);
+    /* Prefix first, standard last — the minifier keeps only the final one. */
+    -webkit-backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
+    backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
+    box-shadow:
+      0 -1px 0 rgba(15, 23, 42, 0.06),
+      0 -8px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  /* Fills the strip iOS exposes between the layout-viewport bottom (where the
+     fixed bar sits) and the physical screen edge. Filter-free on purpose — see
+     the component comment — and overscanned a full viewport so no device or
+     toolbar state outruns it. Slides away with the bar. */
   .sticky-cta__bleed {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
     height: 100vh;
-    height: 100lvh;
-    background: rgba(255, 255, 255, 0.94);
+    background: rgba(255, 255, 255, 0.96);
+    pointer-events: none;
   }
 
   .sticky-cta.is-visible {
