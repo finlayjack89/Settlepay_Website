@@ -6,6 +6,36 @@
 ---
 <script>
   // ---------------------------------------------------------------------------
+  // First-party, cookieless analytics beacon. Fire-and-forget: no cookies, no
+  // device storage; the events function stores only aggregate funnel events
+  // (see supabase/functions/events + /privacy/). Must never break the page.
+  // ---------------------------------------------------------------------------
+  const track = (event: string, extra: Record<string, unknown> = {}) => {
+    const url = document.body.dataset.events;
+    if (!url) return;
+    // Production only — localhost/preview traffic must never pollute the data.
+    if (!location.hostname.endsWith('settlepay.uk')) return;
+    try {
+      const payload = JSON.stringify({
+        event,
+        path: location.pathname,
+        ref: event === 'pageview' ? document.referrer : undefined,
+        ...extra,
+      });
+      // text/plain keeps this a CORS "simple request" — beacons cannot
+      // preflight, and Chrome refuses application/json Blobs cross-origin.
+      // The events function parses the body as JSON regardless of type.
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([payload], { type: 'text/plain' }));
+      } else {
+        fetch(url, { method: 'POST', body: payload, keepalive: true }).catch(() => {});
+      }
+    } catch { /* analytics failures are invisible by design */ }
+  };
+  (window as unknown as { spTrack: typeof track }).spTrack = track;
+  track('pageview');
+
+  // ---------------------------------------------------------------------------
   // Mobile navigation drawer
   // ---------------------------------------------------------------------------
   const nav = document.getElementById('navbar');
@@ -22,6 +52,12 @@
     navMobile.querySelectorAll('[data-nav-link]').forEach((l) =>
       l.addEventListener('click', () => setNav(false))
     );
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setNav(false);
+        (navToggle as HTMLElement).focus();
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -83,6 +119,37 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Nav dark variant — while any dark surface sits under the nav band, the
+  // light frost flips to dark glass (.navbar--over-dark). IO with a top-band
+  // rootMargin; rebuilt on resize since rootMargin is viewport-dependent.
+  // ---------------------------------------------------------------------------
+  {
+    const navEl = document.getElementById('navbar');
+    const darkSurfaces = Array.from(
+      document.querySelectorAll('.section--dark, .cta-section__inner, .preview-teaser__inner, .footer, .sources')
+    );
+    if (navEl && darkSurfaces.length && 'IntersectionObserver' in window) {
+      const under = new Set<Element>();
+      let darkIo: IntersectionObserver | null = null;
+      const build = () => {
+        darkIo?.disconnect();
+        under.clear();
+        darkIo = new IntersectionObserver((entries) => {
+          entries.forEach((e) => { e.isIntersecting ? under.add(e.target) : under.delete(e.target); });
+          navEl.classList.toggle('navbar--over-dark', under.size > 0);
+        }, { rootMargin: `0px 0px -${Math.max(window.innerHeight - 90, 0)}px 0px` });
+        darkSurfaces.forEach((el) => darkIo!.observe(el));
+      };
+      build();
+      let navDarkResize = 0;
+      window.addEventListener('resize', () => {
+        clearTimeout(navDarkResize);
+        navDarkResize = window.setTimeout(build, 200) as unknown as number;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Mobile sticky booking bar — slides in after the hero, hides whenever the
   // final CTA band or footer is on screen so it never doubles up. Homepage only
   // (the bar is only rendered there). Per-element Map because the IO callback
@@ -90,7 +157,9 @@
   // ---------------------------------------------------------------------------
   const stickyCta = document.querySelector('[data-sticky-cta]');
   if (stickyCta) {
-    const hero = document.getElementById('hero');
+    // On interior pages the page-header stands in for the hero: the bar slides
+    // in once the header scrolls away, never on first paint.
+    const hero = document.getElementById('hero') || document.querySelector('.page-header');
     // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
     // selector here if consent UI is ever added.)
     const suppressors = ['.cta-section', '.footer']
@@ -110,6 +179,302 @@
     }, { threshold: 0 });
     watched.forEach((el) => stickyIo.observe(el));
     syncSticky();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scroll reveals — subtle enter for [data-reveal] groups. The hidden state
+  // only exists under html.reveal-ready, so no-JS visitors see everything.
+  // Stagger is per parent group (capped) via --reveal-delay.
+  // ---------------------------------------------------------------------------
+  const revealEls = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+  if (revealEls.length) {
+    document.documentElement.classList.add('reveal-ready');
+    revealEls.forEach((el) => {
+      const parent = el.parentElement;
+      if (!parent) return;
+      const group = Array.from(parent.children).filter((c) => c.hasAttribute('data-reveal'));
+      const idx = group.indexOf(el);
+      if (idx > 0) el.style.setProperty('--reveal-delay', `${Math.min(idx, 5) * 70}ms`);
+    });
+    if ('IntersectionObserver' in window) {
+      const revealIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-revealed');
+            revealIo.unobserve(e.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -8% 0px' });
+      revealEls.forEach((el) => revealIo.observe(el));
+    } else {
+      revealEls.forEach((el) => el.classList.add('is-revealed'));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dark-chapter subtitle fill — writes --story-p (0..1) as the section
+  // scrolls through the first half of the viewport journey. CSS defaults the
+  // var to 1, so no-JS and reduced-motion render fully filled text.
+  // ---------------------------------------------------------------------------
+  const storySection = document.querySelector<HTMLElement>('.section--dark');
+  if (storySection && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    let storyTick = false;
+    const writeStory = () => {
+      storyTick = false;
+      const r = storySection.getBoundingClientRect();
+      const p = Math.min(Math.max((window.innerHeight * 0.9 - r.top) / (window.innerHeight * 0.55), 0), 1);
+      storySection.style.setProperty('--story-p', p.toFixed(3));
+    };
+    window.addEventListener('scroll', () => {
+      if (!storyTick) {
+        storyTick = true;
+        requestAnimationFrame(writeStory);
+      }
+    }, { passive: true });
+    writeStory();
+  }
+
+  // ---------------------------------------------------------------------------
+  // MarketShift counter — the number scrubs with scroll through the tall
+  // section (stage is sticky) and settles on the true figure shipped in the
+  // markup; .is-settled reveals the sourced supporting stats. Skipped under
+  // reduced motion, where the section stays a static band with the real stat.
+  // ---------------------------------------------------------------------------
+  const countSection = document.querySelector<HTMLElement>('[data-countup]');
+  if (countSection && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const countValue = countSection.querySelector<HTMLElement>('[data-count-value]');
+    const countTarget = parseInt(countSection.dataset.countTarget || '0', 10);
+    if (countValue && countTarget > 0) {
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      // Wheel clicks land as instant scroll steps, so the shown progress
+      // chases the real one through a time-based lerp — the wheel gets the
+      // same momentum feel as a trackpad, and 60Hz/120Hz displays match.
+      let targetP = 0;
+      let shownP = 0;
+      let rafId = 0;
+      let lastTs = 0;
+      const readTarget = () => {
+        const r = countSection.getBoundingClientRect();
+        const travel = r.height - window.innerHeight;
+        if (travel > 0) targetP = Math.min(Math.max(-r.top / travel, 0), 1);
+      };
+      const writeCount = (ts: number) => {
+        rafId = 0;
+        const dt = Math.min((ts - lastTs) / 1000, 0.1) || 1 / 60;
+        lastTs = ts;
+        shownP += (targetP - shownP) * (1 - Math.exp(-dt / 0.12));
+        if (Math.abs(targetP - shownP) < 0.0006) shownP = targetP;
+        countValue.textContent = Math.round(easeOutCubic(shownP) * countTarget).toLocaleString('en-GB');
+        if (shownP >= 0.96) countSection.classList.add('is-settled');
+        if (shownP !== targetP) rafId = requestAnimationFrame(writeCount);
+      };
+      window.addEventListener('scroll', () => {
+        readTarget();
+        if (!rafId) rafId = requestAnimationFrame(writeCount);
+      }, { passive: true });
+      readTarget();
+      shownP = targetP; // a mid-page load starts on the right value, no chase
+      rafId = requestAnimationFrame(writeCount);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legal TOC scrollspy — the sticky rail darkens the section you're reading.
+  // ---------------------------------------------------------------------------
+  const legalToc = document.querySelector('[data-legal-toc]');
+  if (legalToc && 'IntersectionObserver' in window) {
+    const tocLinks = Array.from(legalToc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'));
+    const byId = new Map(tocLinks.map((a) => [a.getAttribute('href')!.slice(1), a]));
+    const heads = Array.from(document.querySelectorAll<HTMLElement>('.prose h2[id]'))
+      .filter((h) => byId.has(h.id));
+    if (heads.length) {
+      const spy = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          tocLinks.forEach((a) => a.classList.toggle('is-current', a === byId.get((e.target as HTMLElement).id)));
+        });
+      }, { rootMargin: '-15% 0px -70% 0px' });
+      heads.forEach((h) => spy.observe(h));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FAQ deep links — a hash-targeted answer opens itself (outreach emails link
+  // straight to "Are you FCA regulated?"), and every answer offers a copy-link.
+  // ---------------------------------------------------------------------------
+  const faqItems = document.querySelectorAll<HTMLDetailsElement>('details.faq-item[id]');
+  if (faqItems.length) {
+    const openFromHash = () => {
+      const target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+      if (target instanceof HTMLDetailsElement) target.open = true;
+    };
+    window.addEventListener('hashchange', openFromHash);
+    openFromHash();
+    document.querySelectorAll<HTMLAnchorElement>('[data-faq-copy]').forEach((a) => {
+      a.addEventListener('click', () => {
+        const url = location.origin + location.pathname + a.getAttribute('href');
+        navigator.clipboard?.writeText(url).then(() => {
+          const label = a.lastChild;
+          if (!label) return;
+          const original = label.textContent;
+          label.textContent = ' Link copied';
+          setTimeout(() => { label.textContent = original; }, 1800);
+        }).catch(() => {});
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Split-scroll step spotlight — the integration step nearest the viewport
+  // centre carries .is-current (dimming is CSS-gated on html.reveal-ready, so
+  // no-JS keeps every step fully legible).
+  // ---------------------------------------------------------------------------
+  const storySteps = Array.from(document.querySelectorAll('.integration__step'));
+  if (storySteps.length && 'IntersectionObserver' in window) {
+    storySteps[0].classList.add('is-current');
+    const stepIo = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          storySteps.forEach((s) => s.classList.toggle('is-current', s === e.target));
+        }
+      });
+    }, { rootMargin: '-38% 0px -48% 0px' });
+    storySteps.forEach((s) => stepIo.observe(s));
+  } else {
+    storySteps.forEach((s) => s.classList.add('is-current'));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Live mockups — one-shot .is-live when a [data-live] asset is ~1/3 visible;
+  // CSS keyframes (chart draw, tick pops, node pulse) key off the class.
+  // ---------------------------------------------------------------------------
+  const liveEls = Array.from(document.querySelectorAll('[data-live]'));
+  if (liveEls.length) {
+    if ('IntersectionObserver' in window) {
+      const liveIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-live');
+            liveIo.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.35 });
+      liveEls.forEach((el) => liveIo.observe(el));
+    } else {
+      liveEls.forEach((el) => el.classList.add('is-live'));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pointer-tracked 3D tilt on [data-tilt] (hero stage, portfolio cards).
+  // Desktop pointers only; skipped entirely under prefers-reduced-motion.
+  // ---------------------------------------------------------------------------
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (finePointer && !reducedMotion) {
+    // Scroll momentum, shared by every [data-tilt-scroll] element: smoothed
+    // scroll velocity that decays between events. Opted elements pitch as
+    // the page moves — like a physical object with drag — then spring back
+    // to rest as the velocity dies.
+    let scrollVel = 0; // px/ms, smoothed
+    let lastScrollY = window.scrollY;
+    let lastScrollTs = 0;
+    let lastDecayTs = 0;
+    // Idempotent per timestamp: several tilt loops share the velocity, but
+    // only the first caller in a frame actually decays it.
+    const decayScrollVel = (ts: number) => {
+      const d = Math.min(Math.max(ts - lastDecayTs, 0) / 1000, 0.1);
+      lastDecayTs = ts;
+      scrollVel *= Math.exp(-d / 0.3);
+    };
+    const scrollWakers: Array<() => void> = [];
+    window.addEventListener(
+      'scroll',
+      () => {
+        const now = performance.now();
+        const dtMs = Math.min(Math.max(now - lastScrollTs, 4), 100);
+        const v = (window.scrollY - lastScrollY) / dtMs;
+        lastScrollY = window.scrollY;
+        lastScrollTs = now;
+        scrollVel += (v - scrollVel) * 0.35;
+        scrollWakers.forEach((w) => w());
+      },
+      { passive: true }
+    );
+
+    document.querySelectorAll<HTMLElement>('[data-tilt]').forEach((el) => {
+      const max = parseFloat(el.dataset.tiltMax || '4');
+      const scrollGain = parseFloat(el.dataset.tiltScroll || '0');
+      // Custom properties cannot transition, so every calc()-derived light
+      // layer would snap on pointerleave — instead the written values chase
+      // their targets through a short time-based lerp. Tilt rests flat (0,0)
+      // while the light vars rest at (0.5, 0.35): the fixed light stays
+      // slightly high even when nobody is pointing.
+      const REST = { px: 0.5, py: 0.35, rx: 0, ry: 0 };
+      let t = { ...REST };
+      const c = { ...REST };
+      let raf = 0;
+      let last = 0;
+      let sk = 0; // scroll-spring position
+      let skv = 0; // scroll-spring velocity
+      const step = (ts: number) => {
+        raf = 0;
+        const dt = Math.min((ts - last) / 1000, 0.05) || 1 / 60;
+        last = ts;
+        const k = 1 - Math.exp(-dt / 0.06);
+        let done = true;
+        (Object.keys(c) as (keyof typeof c)[]).forEach((key) => {
+          c[key] += (t[key] - c[key]) * k;
+          if (Math.abs(t[key] - c[key]) > 0.001) done = false;
+          else c[key] = t[key];
+        });
+        // Scroll kick: the SAME delta feeds the CSS pitch (ry) and the light
+        // var (py), so the GL card's world-fixed light stays in perfect sync
+        // with the visible tilt. Velocity decays here for a smooth spring-back.
+        let kick = 0;
+        if (scrollGain) {
+          decayScrollVel(ts);
+          // Under-damped spring chasing the velocity target: the card LEANS
+          // while you scroll and visibly wobbles back to rest when you stop.
+          // (Pure exponential decay at 0.12 gain read as nothing at real
+          // trackpad speeds — the whole card is translating at the time.)
+          const kTarget = Math.max(-0.5, Math.min(0.5, -scrollVel * 0.3)) * scrollGain;
+          skv += ((kTarget - sk) * 130 - skv * 9) * dt;
+          sk += skv * dt;
+          kick = sk;
+          if (Math.abs(sk) > 0.0015 || Math.abs(skv) > 0.01 || Math.abs(kTarget) > 0.0015) {
+            done = false;
+          } else {
+            sk = 0;
+            skv = 0;
+            kick = 0;
+          }
+        }
+        el.style.setProperty('--tilt-y', `${(c.rx * max * 2).toFixed(2)}deg`);
+        el.style.setProperty('--tilt-x', `${(-(c.ry + kick) * max * 2).toFixed(2)}deg`);
+        // Normalised pointer position for light/sheen effects (PayCard).
+        el.style.setProperty('--px', c.px.toFixed(3));
+        el.style.setProperty('--py', (c.py + kick).toFixed(3));
+        // Pointer-from-centre (0..1): light layers scale intensity with it.
+        el.style.setProperty('--pfc', Math.min(Math.hypot(c.px - 0.5, c.py - 0.5) * 2.4, 1).toFixed(3));
+        if (!done) raf = requestAnimationFrame(step);
+      };
+      const wake = () => {
+        if (!raf) raf = requestAnimationFrame(step);
+      };
+      if (scrollGain) scrollWakers.push(wake);
+      el.addEventListener('pointermove', (ev) => {
+        const r = el.getBoundingClientRect();
+        const px = (ev.clientX - r.left) / r.width - 0.5;
+        const py = (ev.clientY - r.top) / r.height - 0.5;
+        t = { px: px + 0.5, py: py + 0.5, rx: px, ry: py };
+        wake();
+      });
+      el.addEventListener('pointerleave', () => {
+        t = { ...REST };
+        wake();
+      });
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -137,6 +502,258 @@
         }
       });
     });
+
+    // -------------------------------------------------------------------------
+    // Idle demo loop — this audience won't click a mockup, so after ~4s in
+    // view untouched the checkout demonstrates itself: the security code types
+    // in, the pay button presses, processes and lands on a green confirmation,
+    // then the next method panel peeks open before everything resets. The FIRST
+    // pointer/keyboard interaction inside the mockup kills the loop for good.
+    // Skipped under reduced motion; IO-gated like every other island.
+    // -------------------------------------------------------------------------
+    const payBtn = checkout.querySelector('.checkout-v2__applepay-big') as HTMLElement | null;
+    const cvcInput = checkout.querySelector('[data-demo-cvc]') as HTMLInputElement | null;
+    if (payBtn && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const payLabel = payBtn.textContent;
+      let demoDead = false;
+      let demoTimers: number[] = [];
+      const clearDemo = () => { demoTimers.forEach(clearTimeout); demoTimers = []; };
+      const resetDemo = () => {
+        payBtn.classList.remove('is-pressed', 'is-busy', 'is-success');
+        payBtn.textContent = payLabel;
+        if (cvcInput) cvcInput.value = '';
+      };
+      const killDemo = () => {
+        demoDead = true;
+        clearDemo();
+        resetDemo();
+        activate(panels[0]);
+      };
+      ['pointerdown', 'pointerover', 'focusin'].forEach((ev) =>
+        checkout.addEventListener(ev, killDemo, { once: true, capture: true })
+      );
+
+      const at = (ms: number, fn: () => void) => demoTimers.push(window.setTimeout(fn, ms));
+      const runCycle = () => {
+        if (demoDead) return;
+        // 1. The security code types itself in.
+        if (cvcInput) '123'.split('').forEach((ch, i) => at(200 + i * 160, () => { cvcInput.value += ch; }));
+        // 2. Press -> processing -> paid.
+        at(900, () => payBtn.classList.add('is-pressed'));
+        at(1100, () => {
+          payBtn.classList.remove('is-pressed');
+          payBtn.classList.add('is-busy');
+          payBtn.textContent = 'Processing…';
+        });
+        at(2300, () => {
+          payBtn.classList.remove('is-busy');
+          payBtn.classList.add('is-success');
+          payBtn.textContent = 'Payment received';
+        });
+        // 3. Reset, peek at the next method, settle back on card.
+        at(4600, resetDemo);
+        at(5100, () => { if (panels[1]) activate(panels[1]); });
+        at(7000, () => activate(panels[0]));
+        at(9000, () => { if (!demoDead && demoVisible) runCycle(); });
+      };
+
+      let demoVisible = false;
+      let demoStarted = false;
+      const demoIo = new IntersectionObserver(([e]) => {
+        demoVisible = e.isIntersecting;
+        if (demoVisible && !demoStarted && !demoDead) {
+          demoStarted = true;
+          at(4000, runCycle);
+        }
+      }, { threshold: 0.6 });
+      demoIo.observe(checkout);
+    }
+
+    // -------------------------------------------------------------------------
+    // Wallet vignettes — pressing Apple Pay / Google Pay plays a miniature of
+    // the real sheet flow (Apple: sheet up -> Face ID pulse -> ring tick ->
+    // Done; Google: popup -> spinner -> card + Continue auto-press -> close,
+    // success lands on the page, faithfully to the real GPay window). Both
+    // end on the same "Payment received" state as every other method. One at
+    // a time; the first press also kills the idle demo via the existing
+    // once/capture listeners. Storyboard: fintech-2026-07/ADOPTION-PLAN.md.
+    // -------------------------------------------------------------------------
+    const appleBtn = checkout.querySelector('.express-btn--apple');
+    const gpayBtn = checkout.querySelector('.express-btn--gpay');
+    const walletBtn = checkout.querySelector<HTMLElement>('.checkout-v2__applepay-big');
+    const sheetStatus = checkout.querySelector('.paysheet__status');
+    if (appleBtn && gpayBtn && walletBtn) {
+      const walletLabel = walletBtn.textContent;
+      let running = false;
+      const setW = (s: string) => (checkout as HTMLElement).setAttribute('data-wallet', s);
+      const chain = (steps: Array<[number, () => void]>) => {
+        let t = 0;
+        steps.forEach(([d, fn]) => {
+          t += d;
+          window.setTimeout(fn, t);
+        });
+      };
+      const finish = () => {
+        (checkout as HTMLElement).removeAttribute('data-wallet');
+        walletBtn.classList.add('is-success');
+        walletBtn.textContent = 'Payment received';
+        window.setTimeout(() => {
+          walletBtn.classList.remove('is-success');
+          walletBtn.textContent = walletLabel;
+          running = false;
+        }, 1500);
+      };
+      appleBtn.addEventListener('click', () => {
+        if (running) return;
+        running = true;
+        if (sheetStatus) sheetStatus.textContent = 'Confirm with Face ID';
+        setW('apple-sheet');
+        chain([
+          [1300, () => {
+            setW('apple-tick');
+            if (sheetStatus) sheetStatus.textContent = 'Done';
+          }],
+          [1600, () => setW('apple-exit')],
+          [500, finish],
+        ]);
+      });
+      gpayBtn.addEventListener('click', () => {
+        if (running) return;
+        running = true;
+        setW('gpay-open');
+        chain([
+          [1000, () => setW('gpay-ready')],
+          [1100, () => setW('gpay-press')],
+          [250, () => setW('gpay-exit')],
+          [280, finish],
+        ]);
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Living dashboard mockup — the volume/count KPIs tick up now and then
+  // with an odometer roll while the tile is in view: payments arriving,
+  // quietly. Fictional demo numbers on an illustrative mockup, not claims.
+  // ---------------------------------------------------------------------------
+  const dashx = document.querySelector('.dashx');
+  if (dashx && !reducedMotion) {
+    const media = dashx.closest('[data-live]');
+    const vols = Array.from(dashx.querySelectorAll('[data-odo="vol"], [data-odo="vol2"]'));
+    const cntEl = dashx.querySelector('[data-odo="count"]');
+    let vol = 48210;
+    let count = 1284;
+    // Slot-machine wheels: every digit is its own vertical strip that rolls
+    // forward (through 9 -> 0, never backwards) and settles independently,
+    // least-significant digit first. Cells are fixed-size, so the layout
+    // never shifts and the delta line below stays perfectly still.
+    const build = (el: Element, text: string) => {
+      el.classList.add('odow');
+      el.textContent = '';
+      for (const ch of text) {
+        if (/\d/.test(ch)) {
+          const cell = document.createElement('span');
+          cell.className = 'odow__cell';
+          cell.dataset.digit = ch;
+          const strip = document.createElement('span');
+          strip.className = 'odow__strip';
+          for (let d = 0; d < 20; d++) {
+            const dEl = document.createElement('span');
+            dEl.textContent = String(d % 10);
+            strip.appendChild(dEl);
+          }
+          strip.style.transform = `translateY(-${ch}em)`;
+          cell.appendChild(strip);
+          el.appendChild(cell);
+        } else {
+          const sep = document.createElement('span');
+          sep.className = 'odow__sep';
+          sep.textContent = ch;
+          el.appendChild(sep);
+        }
+      }
+    };
+    const shape = (t: string) => t.replace(/\d/g, '#');
+    const current = (el: Element) =>
+      Array.from(el.children)
+        .map((c) => (c as HTMLElement).dataset.digit ?? c.textContent)
+        .join('');
+    const roll = (el: Element, text: string) => {
+      if (!el.classList.contains('odow') || shape(current(el)) !== shape(text)) {
+        build(el, text); // digit-count change: rebuild without animation
+        return;
+      }
+      const cells = Array.from(el.querySelectorAll<HTMLElement>('.odow__cell'));
+      const digits = text.replace(/\D/g, '');
+      cells.forEach((cell, i) => {
+        const cur = Number(cell.dataset.digit);
+        const next = Number(digits[i]);
+        if (cur === next) return;
+        const strip = cell.firstElementChild as HTMLElement;
+        const stop = next > cur ? next : next + 10; // wheels only roll forward
+        strip.style.transitionDelay = `${(cells.length - 1 - i) * 60}ms`;
+        strip.style.transform = `translateY(-${stop}em)`;
+        cell.dataset.digit = String(next);
+        if (stop > 9) {
+          // rolled past 9 into the strip's second decade — snap back to the
+          // canonical row, transitionless, once the roll lands
+          strip.addEventListener('transitionend', function snap() {
+            strip.removeEventListener('transitionend', snap);
+            strip.style.transition = 'none';
+            strip.style.transitionDelay = '0ms';
+            strip.style.transform = `translateY(-${next}em)`;
+            void strip.offsetWidth;
+            strip.style.transition = '';
+          });
+        }
+      });
+    };
+    const fmt = (v: number) => v.toLocaleString('en-GB');
+    vols.forEach((v) => build(v, '£' + fmt(vol)));
+    if (cntEl) build(cntEl, fmt(count));
+    // The green deltas grow in proportion: the "previous period" baselines
+    // are fixed (derived from the shipped +12.4% / +6.1%), so every payment
+    // that lands nudges the percentages up too.
+    const volPrev = 48210 / 1.124;
+    const cntPrev = 1284 / 1.061;
+    const dVols = Array.from(dashx.querySelectorAll<HTMLElement>('[data-odo-delta="vol"], [data-odo-delta="vol2"]'));
+    const dCnt = dashx.querySelector<HTMLElement>('[data-odo-delta="count"]');
+    const tick = () => {
+      if (media && media.classList.contains('is-live') && document.visibilityState === 'visible') {
+        const n = 1 + Math.floor(Math.random() * 3);
+        let amt = 0;
+        for (let i = 0; i < n; i++) amt += 90 + Math.round(Math.random() * 420);
+        vol += amt;
+        count += n;
+        vols.forEach((v) => roll(v, '£' + fmt(vol)));
+        if (cntEl) roll(cntEl, fmt(count));
+        const pv = ((vol / volPrev - 1) * 100).toFixed(1);
+        const pc = ((count / cntPrev - 1) * 100).toFixed(1);
+        dVols.forEach((el) => {
+          el.textContent = (el.dataset.odoDelta === 'vol2' ? '↑ ' : '↑ +') + pv + '%';
+        });
+        if (dCnt) dCnt.textContent = '↑ +' + pc + '%';
+      }
+      window.setTimeout(tick, 5200 + Math.random() * 4200);
+    };
+    window.setTimeout(tick, 3500);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Security evidence switcher (adoption #4) — buttons swap one panel.
+  // ---------------------------------------------------------------------------
+  const secev = document.querySelector('[data-secev]');
+  if (secev) {
+    const btns = Array.from(secev.querySelectorAll<HTMLElement>('[data-secev-btn]'));
+    const panels = Array.from(secev.querySelectorAll<HTMLElement>('[data-secev-panel]'));
+    btns.forEach((b) => {
+      b.addEventListener('click', () => {
+        btns.forEach((o) => o.setAttribute('aria-selected', String(o === b)));
+        panels.forEach((p) =>
+          p.classList.toggle('secev__panel--active', p.dataset.secevPanel === b.dataset.secevBtn)
+        );
+      });
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -159,6 +776,35 @@
         // `--fill` drives the track gradient in CSS (see .calculator__range).
         el.style.setProperty('--fill', pct + '%');
       };
+      // The results GLIDE to their new values instead of snapping — a
+      // spreadsheet snaps, a machine at work glides. The annual line turns
+      // the monthly figures into the year view (hours -> working days),
+      // always derived from the user's own inputs.
+      const annualOut = calc.querySelector('[data-out="annual"]');
+      const eased = { hours: 0, cost: 0, matched: 0 };
+      const target = { hours: 0, cost: 0, matched: 0 };
+      let outRaf = 0;
+      let outLast = 0;
+      let seeded = false;
+      const renderOuts = () => {
+        if (hoursOut) hoursOut.textContent = Math.round(eased.hours).toLocaleString() + ' hrs';
+        if (costOut) costOut.textContent = '£' + Math.round(eased.cost).toLocaleString();
+        if (matchedOut) matchedOut.textContent = Math.round(eased.matched).toLocaleString();
+      };
+      const stepOuts = (ts: number) => {
+        outRaf = 0;
+        const dt = Math.min((ts - outLast) / 1000, 0.05) || 1 / 60;
+        outLast = ts;
+        const k = 1 - Math.exp(-dt / 0.09);
+        let done = true;
+        (Object.keys(eased) as (keyof typeof eased)[]).forEach((key) => {
+          eased[key] += (target[key] - eased[key]) * k;
+          if (Math.abs(target[key] - eased[key]) > 0.5) done = false;
+          else eased[key] = target[key];
+        });
+        renderOuts();
+        if (!done) outRaf = requestAnimationFrame(stepOuts);
+      };
       const update = () => {
         const payments = Number(pEl.value);
         const mins = Number(mEl.value);
@@ -171,13 +817,41 @@
         if (pVal) pVal.textContent = String(payments);
         if (mVal) mVal.textContent = mins + ' min';
         if (rVal) rVal.textContent = '£' + rate;
-        if (hoursOut) hoursOut.textContent = hours.toLocaleString() + ' hrs';
-        if (costOut) costOut.textContent = '£' + cost.toLocaleString();
-        if (matchedOut) matchedOut.textContent = payments.toLocaleString();
+        target.hours = hours;
+        target.cost = cost;
+        target.matched = payments;
+        if (annualOut) {
+          const hoursY = hours * 12;
+          annualOut.innerHTML =
+            `Over a year that's <strong>${hoursY.toLocaleString()} hours</strong> — ` +
+            `${Math.round(hoursY / 7.5).toLocaleString()} working days — about ` +
+            `<strong>£${(cost * 12).toLocaleString()}</strong> in admin time reclaimed.`;
+        }
+        if (!seeded || reducedMotion) {
+          seeded = true;
+          eased.hours = hours;
+          eased.cost = cost;
+          eased.matched = payments;
+          renderOuts();
+        } else if (!outRaf) {
+          outRaf = requestAnimationFrame(stepOuts);
+        }
       };
-      pEl.addEventListener('input', update);
-      mEl.addEventListener('input', update);
-      if (rEl) rEl.addEventListener('input', update);
+      // Commit pulse on RELEASE (change), not while dragging — the reward
+      // lands when the user settles on their number.
+      const pulse = () => {
+        const cards = calc.querySelectorAll('.calculator__result-card');
+        cards.forEach((el) => el.classList.remove('is-committed'));
+        void (cards[0] as HTMLElement | undefined)?.offsetWidth;
+        cards.forEach((el) => el.classList.add('is-committed'));
+      };
+      [pEl, mEl, rEl].forEach((el) => {
+        if (!el) return;
+        el.addEventListener('input', update);
+        el.addEventListener('change', () => {
+          if (!reducedMotion) pulse();
+        });
+      });
       update();
     }
   }
@@ -208,13 +882,36 @@
       document.body.style.overflow = '';
       lastFocused?.focus();
     };
+    const modalFooter = modal.querySelector('[data-modal-footer]') as HTMLElement | null;
     const showSuccess = () => {
       formView.hidden = true;
       successView.hidden = false;
+      if (modalFooter) modalFooter.hidden = true; // success has its own booking CTA
       form?.reset();
     };
 
-    document.querySelectorAll('[data-enquire]').forEach((b) => b.addEventListener('click', openModal));
+    document.querySelectorAll('[data-enquire]').forEach((b) =>
+      b.addEventListener('click', () => {
+        // Attribute the open to the surface that triggered it (funnel analytics).
+        const source =
+          (b as HTMLElement).dataset.enquireSource ||
+          b.closest('section[id]')?.id ||
+          (b.closest('nav') ? 'nav' : b.closest('.sticky-cta') ? 'sticky-cta' : 'page');
+        track('enquiry_open', { source });
+        // Preview-aware prefill: a generated preview is the hottest intent
+        // signal on the site — carry it into the conversation.
+        const pctx = (window as any).__previewContext as { domain?: string; slug?: string } | undefined;
+        if (pctx?.domain && form) {
+          const msg = form.querySelector('[name="message"]') as HTMLTextAreaElement | null;
+          if (msg && !msg.value) {
+            msg.value = `I generated a preview for ${pctx.domain} and I'd like to talk about the real thing.`;
+          }
+          const ctxField = form.querySelector('[name="context"]') as HTMLInputElement | null;
+          if (ctxField) ctxField.value = `preview:${pctx.domain}${pctx.slug ? ` /p/${pctx.slug}` : ''}`;
+        }
+        openModal();
+      })
+    );
     modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeModal));
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', (e) => {
@@ -250,8 +947,11 @@
         const data = Object.fromEntries(fd.entries()) as Record<string, string>;
         const endpoint = form.dataset.endpoint;
         const mailto = form.dataset.mailto || 'hello@settlepay.uk';
-        const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement;
+        const submitBtn = form.querySelector('[data-submit-btn]') as HTMLButtonElement;
+        const submitLabel = submitBtn.innerHTML;
         submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.innerHTML = 'Sending…';
         try {
           if (endpoint) {
             const res = await fetch(endpoint, {
@@ -260,6 +960,7 @@
               body: fd,
             });
             if (!res.ok) throw new Error('bad-status');
+            track('enquiry_submitted');
             showSuccess();
           } else {
             const subject = encodeURIComponent('Consultation enquiry — ' + (data.business || 'SettlePay'));
@@ -277,10 +978,382 @@
         } catch {
           errEl.textContent = `Sorry — something went wrong. Please email us directly at ${mailto}.`;
           errEl.hidden = false;
+          errEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         } finally {
           submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+          submitBtn.innerHTML = submitLabel;
         }
       });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared month-grid calendar (used by /book/ and /manage/ reschedule).
+  // Renders availability days into a BookingCalendar shell: a month grid on the
+  // left (available days are clickable) and the selected day's times on the
+  // right. onPick receives { start, timeLabel, dayLabel } when a time is chosen.
+  // ---------------------------------------------------------------------------
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function buildCalendar(mount: HTMLElement | null, days: any[], onPick: (p: any) => void) {
+    if (!mount) return;
+    const grid = mount.querySelector('[data-cal-grid]') as HTMLElement | null;
+    const title = mount.querySelector('[data-cal-title]') as HTMLElement | null;
+    const prev = mount.querySelector('[data-cal-prev]') as HTMLButtonElement | null;
+    const next = mount.querySelector('[data-cal-next]') as HTMLButtonElement | null;
+    const timesLabel = mount.querySelector('[data-times-label]') as HTMLElement | null;
+    const timesList = mount.querySelector('[data-times-list]') as HTMLElement | null;
+    if (!grid || !title || !timesLabel || !timesList) return;
+
+    const byDate = new Map<string, any>();
+    for (const d of days) byDate.set(d.date, d);
+    const keys = [...byDate.keys()].sort();
+
+    if (!keys.length) {
+      grid.innerHTML = '';
+      title.textContent = '';
+      timesLabel.textContent = '';
+      timesList.innerHTML =
+        "<p class=\"sp-cal__empty\">No times available in the next couple of weeks — please <a href=\"#book-message\">send a message</a> and we'll find a slot.</p>";
+      if (prev) prev.disabled = true;
+      if (next) next.disabled = true;
+      return;
+    }
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const ymOf = (key: string) => { const [y, m] = key.split('-').map(Number); return y * 12 + (m - 1); };
+
+    // "First available" quick-pick — one tap books the soonest slot without
+    // touching the calendar. Rebuilt fresh on every buildCalendar call.
+    mount.querySelector('.sp-cal__quick')?.remove();
+    const firstDay = byDate.get(keys[0]);
+    const firstSlot = firstDay?.slots?.[0];
+    if (firstSlot) {
+      const quick = document.createElement('button');
+      quick.type = 'button';
+      quick.className = 'sp-cal__quick';
+      quick.innerHTML = `<span>First available: <strong>${firstDay.label} at ${firstSlot.label}</strong></span><span class="sp-cal__quick-cta">Book it</span>`;
+      quick.addEventListener('click', () =>
+        onPick({ start: firstSlot.start, timeLabel: firstSlot.label, dayLabel: firstDay.label })
+      );
+      mount.prepend(quick);
+    }
+    const firstYM = ymOf(keys[0]);
+    const lastYM = ymOf(keys[keys.length - 1]);
+    let viewY = Number(keys[0].slice(0, 4));
+    let viewM = Number(keys[0].slice(5, 7)) - 1;
+    let selectedKey: string | null = null;
+
+    const fullDayLabel = (key: string, slotIso?: string) => {
+      try {
+        return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(slotIso!));
+      } catch { return byDate.get(key)?.label || key; }
+    };
+
+    const renderTimes = (key: string) => {
+      const day = byDate.get(key);
+      timesList.innerHTML = '';
+      if (!day) { timesLabel.textContent = ''; timesList.innerHTML = '<p class="sp-cal__times-empty">Select a date to see available times.</p>'; return; }
+      timesLabel.textContent = fullDayLabel(key, day.slots[0] && day.slots[0].start);
+      for (const s of day.slots) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sp-cal__slot';
+        b.textContent = s.label;
+        b.addEventListener('click', () => {
+          const fire = () => onPick({ start: s.start, timeLabel: s.label, dayLabel: timesLabel.textContent });
+          // A brief settle: the chip fills navy before the step advances, so
+          // the click feels acknowledged. Instant under reduced motion.
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { fire(); return; }
+          b.classList.add('is-picked');
+          setTimeout(fire, 190);
+        });
+        timesList.appendChild(b);
+      }
+    };
+
+    const renderMonth = () => {
+      const curYM = viewY * 12 + viewM;
+      title.textContent = `${MONTHS[viewM]} ${viewY}`;
+      if (prev) prev.disabled = curYM <= firstYM;
+      if (next) next.disabled = curYM >= lastYM;
+      grid.innerHTML = '';
+      const lead = (new Date(viewY, viewM, 1).getDay() + 6) % 7; // Monday-first
+      const dim = new Date(viewY, viewM + 1, 0).getDate();
+      for (let i = 0; i < lead; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'sp-cal__cell sp-cal__cell--empty';
+        grid.appendChild(cell);
+      }
+      for (let day = 1; day <= dim; day++) {
+        const key = `${viewY}-${pad(viewM + 1)}-${pad(day)}`;
+        const entry = byDate.get(key);
+        if (entry) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'sp-cal__cell' + (key === selectedKey ? ' sp-cal__cell--selected' : '');
+          b.textContent = String(day);
+          const n = entry.slots.length;
+          b.setAttribute('aria-label', `${day} ${MONTHS[viewM]}, ${n} time${n === 1 ? '' : 's'} available`);
+          if (key === selectedKey) b.setAttribute('aria-current', 'date');
+          b.addEventListener('click', () => selectDate(key));
+          grid.appendChild(b);
+        } else {
+          const cell = document.createElement('div');
+          cell.className = 'sp-cal__cell';
+          cell.textContent = String(day);
+          grid.appendChild(cell);
+        }
+      }
+    };
+
+    const selectDate = (key: string) => {
+      selectedKey = key;
+      const ym = ymOf(key);
+      viewY = Math.floor(ym / 12);
+      viewM = ym % 12;
+      renderMonth();
+      renderTimes(key);
+    };
+
+    if (prev) prev.onclick = () => { const ym = viewY * 12 + viewM - 1; if (ym < firstYM) return; viewY = Math.floor(ym / 12); viewM = ym % 12; renderMonth(); };
+    if (next) next.onclick = () => { const ym = viewY * 12 + viewM + 1; if (ym > lastYM) return; viewY = Math.floor(ym / 12); viewM = ym % 12; renderMonth(); };
+
+    selectDate(keys[0]); // preselect the earliest available date so times show immediately
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bespoke booking slot picker (/book/) — fetch availability, pick, confirm
+  // ---------------------------------------------------------------------------
+  const booking = document.getElementById('sp-booking');
+  if (booking) {
+    const availUrl = booking.dataset.availability!;
+    const bookUrl = booking.dataset.book!;
+    const steps = {
+      loading: booking.querySelector('[data-step="loading"]') as HTMLElement,
+      error: booking.querySelector('[data-step="error"]') as HTMLElement,
+      slots: booking.querySelector('[data-step="slots"]') as HTMLElement,
+      details: booking.querySelector('[data-step="details"]') as HTMLElement,
+      success: booking.querySelector('[data-step="success"]') as HTMLElement,
+    };
+    const calMount = booking.querySelector('[data-calendar]') as HTMLElement | null;
+    const chosenEl = booking.querySelector('[data-chosen]') as HTMLElement;
+    const form = booking.querySelector('[data-book-form]') as HTMLFormElement;
+    const submitBtn = booking.querySelector('[data-book-submit]') as HTMLButtonElement;
+    const bookErr = booking.querySelector('[data-book-error]') as HTMLElement;
+    const backBtn = booking.querySelector('[data-back]') as HTMLElement | null;
+    const successWhen = booking.querySelector('[data-success-when]') as HTMLElement;
+    const joinLink = booking.querySelector('[data-join-link]') as HTMLAnchorElement;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London';
+    let selected: { start: string; label: string; day: string } | null = null;
+
+    const show = (name: keyof typeof steps) => {
+      (Object.keys(steps) as (keyof typeof steps)[]).forEach((k) => { steps[k].hidden = k !== name; });
+      // Move focus to the confirmation so screen readers announce the booking.
+      if (name === 'success') steps.success.focus();
+    };
+    track('booking_view');
+
+    const load = async () => {
+      show('loading');
+      try {
+        const res = await fetch(availUrl);
+        if (!res.ok) throw new Error('bad');
+        const data = await res.json();
+        buildCalendar(calMount, data.days || [], (pick: any) => {
+          selected = { start: pick.start, label: pick.timeLabel, day: pick.dayLabel };
+          chosenEl.textContent = `${pick.dayLabel} at ${pick.timeLabel} (UK time)`;
+          bookErr.hidden = true;
+          track('booking_slot_selected');
+          show('details');
+          (form.querySelector('#b-name') as HTMLElement | null)?.focus();
+        });
+        show('slots');
+      } catch {
+        show('error');
+      }
+    };
+
+    backBtn?.addEventListener('click', () => show('slots'));
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      bookErr.hidden = true;
+      if (!selected) { show('slots'); return; }
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      const honeypot = form.querySelector('[name="_gotcha"]') as HTMLInputElement | null;
+      if (honeypot?.value) { show('success'); return; }
+      const fd = new FormData(form);
+      const label = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+      submitBtn.innerHTML = 'Booking…';
+      track('booking_details_submitted');
+      try {
+        const res = await fetch(bookUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            start: selected.start,
+            name: fd.get('name'),
+            email: fd.get('email'),
+            business: fd.get('business'),
+            notes: fd.get('notes'),
+            timezone: tz,
+            _gotcha: fd.get('_gotcha'),
+          }),
+        });
+        const out = await res.json();
+        if (res.ok && out.ok) {
+          successWhen.textContent = `${out.date} at ${out.time}`;
+          if (out.meetUrl) { joinLink.href = out.meetUrl; joinLink.hidden = false; }
+          track('booking_confirmed');
+          show('success');
+        } else if (res.status === 409) {
+          bookErr.textContent = 'Sorry — that time was just taken. Please pick another.';
+          bookErr.hidden = false;
+          await load();
+        } else {
+          throw new Error('book-failed');
+        }
+      } catch {
+        bookErr.textContent = "Something went wrong. Please email hello@settlepay.uk and we'll sort a time.";
+        bookErr.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+        submitBtn.innerHTML = label;
+      }
+    });
+
+    load();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Booking self-management (/manage/) — reschedule or cancel via manage_token
+  // ---------------------------------------------------------------------------
+  const manage = document.getElementById('sp-manage');
+  if (manage) {
+    const manageUrl = manage.dataset.manage!;
+    const mAvailUrl = manage.dataset.availability!;
+    const token = new URLSearchParams(location.search).get('t') || '';
+    const mtz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London';
+    const q = (sel: string) => manage.querySelector(sel) as HTMLElement;
+    const mErr = q('[data-merror]');
+    const mstep = (name: string) => manage.querySelectorAll('[data-mstep]').forEach((el) => {
+      (el as HTMLElement).hidden = (el as HTMLElement).dataset.mstep !== name;
+    });
+
+    // Branded replacements for confirm()/alert(): an inline card the JS moves
+    // into the active step, and a tone-aware banner. Falls back to the native
+    // dialog if the markup is ever missing.
+    const confirmCard = q('[data-mconfirm]');
+    const confirmTextEl = q('[data-mconfirm-text]');
+    const confirmYes = q('[data-mconfirm-yes]') as HTMLButtonElement | null;
+    const confirmNo = q('[data-mconfirm-no]') as HTMLButtonElement | null;
+    let confirmResolve: ((v: boolean) => void) | null = null;
+    const settleConfirm = (v: boolean) => {
+      if (confirmCard) confirmCard.hidden = true;
+      const r = confirmResolve;
+      confirmResolve = null;
+      r?.(v);
+    };
+    confirmYes?.addEventListener('click', () => settleConfirm(true));
+    confirmNo?.addEventListener('click', () => settleConfirm(false));
+    const askConfirm = (host: Element | null, text: string, yesLabel: string): Promise<boolean> => {
+      if (!confirmCard || !confirmTextEl || !confirmYes || !host) {
+        return Promise.resolve(window.confirm(text));
+      }
+      return new Promise((resolve) => {
+        confirmTextEl.textContent = text;
+        confirmYes.textContent = yesLabel;
+        host.appendChild(confirmCard);
+        confirmCard.hidden = false;
+        confirmResolve = resolve;
+        confirmYes.focus();
+      });
+    };
+    const mBanner = q('[data-mbanner]');
+    const showBanner = (host: Element | null, text: string, tone: 'warn' | 'error') => {
+      if (!mBanner || !host) { window.alert(text); return; }
+      mBanner.textContent = text;
+      mBanner.classList.toggle('is-error', tone === 'error');
+      host.appendChild(mBanner);
+      mBanner.hidden = false;
+    };
+
+    const renderSummary = (b: any) => {
+      q('[data-msummary]').textContent = `${b.date} at ${b.time}`;
+      q('[data-mstatus]').textContent = b.status === 'cancelled'
+        ? 'This booking has been cancelled.'
+        : b.canManage ? 'Shown in UK time. You can reschedule or cancel below.' : 'This booking has passed.';
+      const join = q('[data-mjoin]') as HTMLAnchorElement;
+      if (b.meetUrl && b.canManage) { join.href = b.meetUrl; join.hidden = false; } else { join.hidden = true; }
+      (q('[data-mreschedule]')).hidden = !b.canManage;
+      (q('[data-mcancel]')).hidden = !b.canManage;
+      mstep('summary');
+    };
+
+    const loadSummary = async () => {
+      if (!token) { mstep('notfound'); return; }
+      try {
+        const res = await fetch(`${manageUrl}?t=${encodeURIComponent(token)}`);
+        if (!res.ok) { mstep('notfound'); return; }
+        renderSummary(await res.json());
+      } catch { mstep('notfound'); }
+    };
+
+    q('[data-mcancel]')?.addEventListener('click', async () => {
+      const host = manage.querySelector('[data-mstep="summary"]');
+      if (!(await askConfirm(host, 'Cancel this consultation? This cannot be undone.', 'Yes, cancel it'))) return;
+      mErr.hidden = true;
+      try {
+        const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'cancel' }) });
+        if (!res.ok) throw new Error();
+        q('[data-mdone-title]').textContent = 'Booking Cancelled';
+        q('[data-mdone-when]').textContent = '';
+        q('[data-mdone-note]').innerHTML = 'No problem at all. You can <a href="/book/">book another time</a> whenever suits.';
+        mstep('done');
+      } catch { mErr.textContent = 'Could not cancel — please email hello@settlepay.uk.'; mErr.hidden = false; }
+    });
+
+    q('[data-mback]')?.addEventListener('click', () => mstep('summary'));
+
+    const rescheduleTo = async (start: string) => {
+      try {
+        const res = await fetch(manageUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: token, action: 'reschedule', start, timezone: mtz }) });
+        const out = await res.json();
+        if (res.ok && out.ok) {
+          q('[data-mdone-title]').textContent = 'Booking Rescheduled';
+          q('[data-mdone-when]').textContent = `${out.date} at ${out.time}`;
+          q('[data-mdone-note]').textContent = "We've sent you an updated confirmation.";
+          mstep('done');
+        } else if (res.status === 409) {
+          showBanner(manage.querySelector('[data-mstep="reschedule"]'), 'Sorry — that time was just taken. Please pick another.', 'warn');
+        } else throw new Error();
+      } catch {
+        showBanner(manage.querySelector('[data-mstep="reschedule"]'), 'Could not reschedule — please email hello@settlepay.uk.', 'error');
+      }
+    };
+
+    const mCalMount = manage.querySelector('[data-mstep="reschedule"] [data-calendar]') as HTMLElement | null;
+    q('[data-mreschedule]')?.addEventListener('click', async () => {
+      mstep('reschedule');
+      const mTimes = mCalMount?.querySelector('[data-times-list]') as HTMLElement | null;
+      if (mTimes) mTimes.innerHTML = '<p class="sp-cal__times-empty">Loading times…</p>';
+      try {
+        const data = await (await fetch(mAvailUrl)).json();
+        buildCalendar(mCalMount, data.days || [], async (pick: any) => {
+          if (mBanner) mBanner.hidden = true;
+          const host = manage.querySelector('[data-mstep="reschedule"]');
+          if (!(await askConfirm(host, `Move your consultation to ${pick.dayLabel} at ${pick.timeLabel}?`, 'Yes, move it'))) return;
+          rescheduleTo(pick.start);
+        });
+      } catch {
+        if (mTimes) mTimes.innerHTML = '<p class="sp-cal__times-empty">Could not load times. Email hello@settlepay.uk.</p>';
+      }
+    });
+
+    loadSummary();
   }
 </script>

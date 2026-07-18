@@ -1,0 +1,35 @@
+---
+/**
+ * PreviewTeaser — puts the preview tool on the front door. A slim navy panel
+ * (echoing the CTA band's language) with a single-field GET form: the form
+ * posts nothing anywhere — it just lands on /preview/?url=… where
+ * PreviewStudio auto-generates. Works with JS disabled. The submit is
+ * deliberately NOT blue: the page's one blue ask stays "Send an Enquiry".
+ */
+---
+<section class="preview-teaser" aria-label="See your own page">
+  <div class="container">
+    <div class="preview-teaser__inner" data-reveal>
+      <div class="preview-teaser__copy">
+        <h2 class="preview-teaser__title">See Your Own Page Before You Decide</h2>
+        <p class="preview-teaser__text">
+          Paste your website address and our preview tool drafts a payment page in your
+          branding — logo, colours and type read from your own site.
+        </p>
+      </div>
+      <form class="preview-teaser__form" action="/preview/" method="get">
+        <label class="sr-only" for="pt-url">Your website address</label>
+        <input
+          id="pt-url"
+          name="url"
+          type="text"
+          inputmode="url"
+          autocomplete="url"
+          placeholder="yourbusiness.co.uk"
+          required
+        />
+        <button type="submit" class="preview-teaser__btn">See Your Page</button>
+      </form>
+    </div>
+  </div>
+</section>

@@ -26,13 +26,12 @@ The only way to render a button or button-styled link. Pills (100px), one primar
 | `class` | string | — | extra classes (rare) |
 
 ```astro
-<Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-<Button variant="secondary" href="/faq/">Read the FAQ</Button>
-<Button variant="primary" size="large" onDark enquire>Book a Free Consultation</Button>
+<Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+<Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
 ```
 **Use when:** any call to action. For "open the enquiry form" use `enquire`; for navigation use `href`.
-Standard CTA labels: **"Enquire Now"** in compact chrome (nav/hero), **"Book a Free Consultation"** for
-long-form CTAs.
+CTA labels come from `SITE.cta` in `src/data/site.mjs` — primary **"Send an Enquiry"** (always the
+modal), secondary **"Book a Free Call"** (always `/book/`). Don't hardcode funnel labels.
 
 ### `Icon.astro`
 Heroicons v2 outline, inline SVG, `currentColor`.
@@ -44,12 +43,14 @@ Heroicons v2 outline, inline SVG, `currentColor`.
 | `class` / `style` | — | — |
 
 Available names: `phone, mail, clock, arrow, sparkles, cog, refresh, users, card, shield, lock, globe,
-check, chevron, close, menu, store, scale, chat`. **Add new glyphs to the `P` map in `Icon.astro`**
+check, chevron, close, menu, store, scale, chat, banknotes`. **Add new glyphs to the `P` map in `Icon.astro`**
 (copy the exact Heroicons outline path) — never inline ad-hoc SVGs. `sw` 1.5 = decorative tiles,
 2–2.5 = inline UI.
 
 ### `SectionHeader.astro`
-Centred eyebrow + title (with one optional blue highlight word) + subtitle. Used atop most sections.
+Eyebrow + title (with one optional blue highlight word) + subtitle. Used atop most sections.
+Centred by default; `align="left"` for sections whose content runs header-left / content-right
+(HowItWorks, Calculator).
 
 | Prop | Type | Notes |
 |---|---|---|
@@ -59,10 +60,24 @@ Centred eyebrow + title (with one optional blue highlight word) + subtitle. Used
 | `blue` | string | the highlighted word/phrase (rendered blue) |
 | `titleAfter` | string | text after the blue word |
 | `subtitle` | string | supporting line |
+| `align` | `"center" \| "left"` | default `"center"` |
 
 ```astro
-<SectionHeader eyebrow="How It Works" title="The Plumbing, " blue="Explained" subtitle="…" />
+<SectionHeader align="left" eyebrow="How It Works" title="The Plumbing, " blue="Explained" subtitle="…" />
 ```
+
+### `StatusChip.astro`
+Small glass notification chip floated over dark product stages (`.stage-dark`) — narrates an outcome
+("Payment received · £850.00"). Decorative: wrap chip groups in `aria-hidden="true"`. Styles in
+`kit-extras.css` (`.status-chip`).
+
+| Prop | Type | Notes |
+|---|---|---|
+| `icon` | Heroicon name | rendered in a tinted 30px tile |
+| `label` | string | the message |
+| `value` | string | optional bold value appended after "·" |
+| `tone` | `"neutral" \| "success"` | success = green tint (functional colour, never blue) |
+| `class` | string | positioning classes (e.g. `hero-chip hero-chip--1`) |
 
 ### `Breadcrumbs.astro`
 `items={[{ name, path }]}` — last item is the current page. Used on all inner pages (also feeds
@@ -73,8 +88,8 @@ Centred eyebrow + title (with one optional blue highlight word) + subtitle. Used
 ## Chrome (site-wide)
 
 ### `Nav.astro`
-Sticky floating-island nav. Links from `SITE.nav`, primary "Enquire Now" (opens modal), mobile drawer
-(hamburger < 768px). No props. Edit links in `src/data/site.mjs`.
+Sticky floating-island nav. Links from `SITE.nav`, primary `SITE.cta.primary.label` (opens modal),
+mobile drawer (hamburger < 768px). No props. Edit links in `src/data/site.mjs`.
 
 ### `Footer.astro`
 Two-column footer with the **honest sole-trader disclosure** (no "Ltd"). Links from `SITE.footerLinks`,
@@ -84,6 +99,12 @@ contact from `SITE`. No props.
 The free-consultation form (business, name, email, message + honeypot). Rendered once by `BaseLayout`;
 opened by any `[data-enquire]` button. Submits to `SITE.formEndpoint` if set, else a mailto fallback.
 No props.
+
+### `StickyCta.astro`
+Mobile-only frosted action bar (glass: `--blur-glass-bar` + `--glass-saturate-soft`) carrying the
+primary ask. Shown/hidden by `SiteScripts` via IO: slides in (`--curve-spring`) once the hero
+scrolls away, hides whenever the CTA band or footer is on screen so it never doubles the real
+button. Homepage only. No props.
 
 ### `BaseHead.astro`
 All `<head>` SEO. Driven by props from the page/layout.
@@ -98,8 +119,15 @@ All `<head>` SEO. Driven by props from the page/layout.
 | `jsonLd` | array of JSON-LD objects (one `<script>` each) |
 
 ### `SiteScripts.astro`
-All client behaviour (mobile nav, checkout accordion, ROI calculator, modal). One bundled module,
-guarded per page. Rendered once by `BaseLayout`. No props.
+All client behaviour, one bundled module, guarded per page; rendered once by `BaseLayout`. No props.
+Covers: mobile nav + navbar scroll-collapse (`--nav-scroll-p`) + dark-glass flip
+(`.navbar--over-dark` via IO), scroll reveals (`[data-reveal]`), checkout accordion + idle hero
+self-demo, wallet vignettes (Apple/Google Pay sheets), living-dashboard odometer (per-digit wheels,
+visibility-paused), pointer tilt + shared scroll-momentum spring (`[data-tilt]`,
+`[data-tilt-scroll]`), step spotlight, story fill (`--story-p`), MarketShift counter scrub, ROI
+calculator glide, security-evidence switcher, legal TOC scrollspy, booking slot picker, modal.
+The recipes behind these are documented in DESIGN-SYSTEM §9 — reuse them rather than inventing
+new mechanisms.
 
 ---
 
@@ -127,17 +155,24 @@ Compose these in `src/pages/index.astro`. Each is self-contained (copy lives ins
 
 | Component | What it is | Section `id` |
 |---|---|---|
-| `Hero.astro` | Headline + sub + CTAs + interactive branded-checkout mockup | `#hero` |
-| `TrustBar.astro` | Elevated white bar of 4 trust badges | — |
-| `ValueProps.astro` | Four zig-zag value props, each with a live mockup preview | `#about` |
-| `OurWork.astro` | Portfolio teaser cards (Live client / Illustrative demo) + disclaimer + link to `/work/` | `#work` |
-| `HowItWorks.astro` | 3 numbered steps + dashboard mockup + "manual vs automated" modes | `#integration` |
-| `FastStart.astro` | Reassurance chips + 3-stage timeline + urgent-service callout | `#timeline` |
+| `Hero.astro` | Headline + sub + CTAs + interactive checkout mockup on a navy `.stage-dark` with floating `StatusChip`s | `#hero` |
+| `TrustBar.astro` | Slim one-line proof strip (trust points + live-client pill) | — |
+| `CardMoment.astro` | The PBR `PayCard` as a product-shot moment high on the page — light ground, soft blue spotlight. Copy keeps it the CUSTOMER's card (we build the page they pay on, we don't issue cards). | — |
+| `ValueProps.astro` | 2×2 bento of value-prop cards, each with a top-cropped mockup preview | `#about` |
+| `OurWork.astro` | Split-scroll: sticky rail (header + `UKMap` canvas + link) beside stacked tilting portfolio cards | `#work` |
+| `PreviewTeaser.astro` | "See Your Own Page Before You Decide" — URL form feeding the `/preview/` tool | — |
+| `HowItWorks.astro` | Dark chapter: sticky dashboard + step spotlight + `FlowScene` canvas + "manual vs automated" modes | `#integration` |
+| `MarketShift.astro` | Scroll-scrubbed counter pinning while the number ticks to the true UK Finance figure, then sourced stats reveal. Figures are real and attributed — verify against the named sources before changing any number. | — |
+| `FastStart.astro` | Reassurance chips + 3-stage timeline + urgent-service note (slate band) | `#timeline` |
+| `Compare.astro` | "Three Ways to Collect a Payment" — honest side-by-side of the alternatives | `#compare` |
+| `SecurityEvidence.astro` | "Named Protections" — security evidence switcher (specific, verifiable claims only) | `#security` |
 | `Calculator.astro` | Live ROI calculator (sliders → hours saved) | `#pricing` |
-| `CtaBand.astro` | Dark CTA band, primary + secondary | `#enquire` |
+| `CtaBand.astro` | Closing CTA band: copy + trust list (the `PayCard` moved to `CardMoment`) | `#enquire` |
+| `Sources.astro` | On-page numbered attributions for every cited figure | `#sources` |
 
-The landing-page order in `index.astro` is: Hero, TrustBar, ValueProps, OurWork, HowItWorks,
-FastStart, Calculator, CtaBand.
+The landing-page order in `index.astro` is: Hero, TrustBar, CardMoment, ValueProps, OurWork,
+PreviewTeaser, HowItWorks, MarketShift, FastStart, Compare, SecurityEvidence, Calculator, CtaBand,
+Sources.
 
 To add a new section: create `src/components/sections/MySection.astro`, use `SectionHeader` +
 `.section-pad` + `.container`, reuse tokens, and add it to `index.astro`.
@@ -163,6 +198,21 @@ Pure CSS/SVG. Decorative; the only interactive one is the hero checkout (in `Her
 **Mockups intentionally use their own 4–8px radius language** (Shopify-style) — keep them visually
 distinct from the real SettlePay UI (pills + 24px cards). They are illustrative: never present them as
 a real product screenshot or attach real client data.
+
+---
+
+## Canvas islands & hero objects (`src/components/`)
+
+Raw WebGL, zero dependencies. Shared contract: `data-gl-state` = `live | static | unsupported`
+(reduced motion draws one static frame; no WebGL leaves the DOM telling the story), IO-gated RAF,
+DPR capped at 2.
+
+| Component | What it is |
+|---|---|
+| `ParticleField.astro` | Ambient drifting particles behind the hero stage. |
+| `FlowScene.astro` | Dark-chapter money-flow diagram: bezier tracks + travelling pulses between DOM node chips. Caption states SettlePay never holds funds. |
+| `UKMap.astro` | Dot-matrix UK silhouette (mask rasterised from Natural Earth data — a hand-editable string grid). Payment arcs draw origin→destination then erase the same way, on three staggered lanes so 2–3 are usually in flight; random dots blink blue as local payments; pointer proximity lifts and warms dots. |
+| `PayCard.astro` | The customer's card in `CardMoment`, rendered two ways. **Live**: the fourth WebGL island — one PBR quad (GGX + area key light + env strip) built from textures baked at runtime (albedo art, height→normal map for real embossing, roughness/metal zones, AO); the CSS `[data-tilt]` still rotates the element while the shader counter-rotates the world-fixed light, so highlights slide across the tilting face physically. Design + tuned numbers live in `inspiration/card-lighting-v2/BLUEPRINT.md`. **Fallback** (no WebGL / bake failure / context loss): the layered CSS/SVG card driven by the lerped `--px/--py/--pfc` vars — must always look finished on its own. The monogram is a hologram patch, not an issuer mark — the card must keep reading as the *customer's*; the Visa wordmark is monochrome silver (DESIGN-SYSTEM §12 exception). |
 
 ---
 

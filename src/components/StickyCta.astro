@@ -1,14 +1,16 @@
 ---
 /**
- * StickyCta — mobile-only sticky booking bar. Opens the enquiry modal (the site's
- * primary booking action). Shown/hidden by SiteScripts via IntersectionObserver:
- * slides in once the hero has scrolled away, and hides whenever the final CTA band
- * or footer is on screen so it never doubles up on the real button. Homepage only.
+ * StickyCta — mobile-only sticky enquiry bar, matching the site-wide primary
+ * ask (SITE.cta.primary opens the enquiry modal).
+ * Shown/hidden by SiteScripts via IntersectionObserver: slides in once the hero
+ * has scrolled away, and hides whenever the final CTA band or footer is on screen
+ * so it never doubles up on the real button. Homepage only.
  */
+import { SITE } from '../data/site.mjs';
 import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
-  <Button variant="primary" size="large" icon="arrow" enquire>Book a Free Consultation</Button>
+  <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
 </div>
 
 <style>
@@ -22,8 +24,9 @@ import Button from './Button.astro';
     justify-content: center;
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(16px) saturate(1.4);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    /* Prefix first, standard last — the minifier keeps only the final one. */
+    -webkit-backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
+    backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
     box-shadow:
       0 -1px 0 rgba(15, 23, 42, 0.06),
       0 -8px 24px rgba(15, 23, 42, 0.08);
@@ -31,7 +34,7 @@ import Button from './Button.astro';
     transform: translateY(130%);
     visibility: hidden;
     transition:
-      transform 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+      transform 400ms var(--curve-spring),
       visibility 0s linear 400ms;
   }
 
@@ -43,7 +46,7 @@ import Button from './Button.astro';
     transform: translateY(0);
     visibility: visible;
     transition:
-      transform 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+      transform 400ms var(--curve-spring),
       visibility 0s;
   }
 

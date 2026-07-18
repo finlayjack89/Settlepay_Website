@@ -3,6 +3,7 @@
  * EnquireModal — the free-consultation form. Opened by any [data-enquire] button.
  * Submission is progressively enhanced: it POSTs to SITE.formEndpoint when set,
  * otherwise falls back to a mailto: so it works with no backend (localhost).
+ * Visitors who'd rather self-schedule can jump straight to /book/.
  */
 import { SITE } from '../data/site.mjs';
 import Icon from './Icon.astro';
@@ -59,29 +60,46 @@ import Button from './Button.astro';
         </p>
         <!-- Honeypot: bots fill this; humans never see it. -->
         <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
-        <Button type="submit" icon="arrow">Request My Consultation</Button>
+        <!-- Funnel context (e.g. which preview the enquirer generated) — set by JS. -->
+        <input type="hidden" name="context" value="" />
+        <!-- Trust is zone-local: reassurance sits at the point of commitment. -->
+        <ul class="sp-modal__assure" aria-label="What to expect">
+          <li><Icon name="check" sw={2.5} />No card details requested</li>
+          <li><Icon name="check" sw={2.5} />A reply within one working day</li>
+          <li><Icon name="check" sw={2.5} />Payments are processed by FCA-regulated partners</li>
+        </ul>
+        <Button type="submit" icon="arrow" data-submit-btn>Send My Enquiry</Button>
         <p class="sp-field__hint">
           By submitting, you agree to our <a href="/privacy/">Privacy Policy</a>.
         </p>
-        <p class="sp-field__hint">
-          Prefer to book a time now? <a href={SITE.bookingUrl} target="_blank" rel="noopener">Book a free consultation</a>.
-        </p>
-        <p class="sp-field__hint">
-          Prefer email? Write to us at <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a>
-        </p>
         <p class="sp-field__hint" data-form-note hidden aria-live="polite"></p>
-        <p class="sp-field__hint" data-form-error hidden aria-live="polite" style="color:var(--color-error)"></p>
+        <p class="sp-field__hint" data-form-error hidden role="alert" aria-live="assertive" style="color:var(--color-error)"></p>
       </form>
+    </div>
+
+    <!-- Non-scrolling footer: the self-schedule fork must never hide below the
+         form's internal scroll fold — both funnel paths stay on screen. -->
+    <div class="sp-modal__footer" data-modal-footer>
+      <div class="sp-modal__or"><span>or</span></div>
+      <a href="/book/" class="btn-secondary sp-modal__book">
+        Pick a Time Now<Icon name="arrow" sw={2.5} />
+      </a>
+      <p class="sp-field__hint sp-modal__alt-note">
+        Prefer email? Write to us at <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a>
+      </p>
     </div>
 
     <div class="sp-modal__success" data-modal-success hidden>
       <div class="sp-modal__success-icon"><Icon name="check" sw={2.5} /></div>
-      <h3>Thank You — We'll Be in Touch</h3>
+      <h3>Thank You — Your Enquiry Is In</h3>
       <p>
         Finlay, SettlePay's founder, will email you within one working day to arrange your free,
-        no-obligation consultation.
+        no-obligation consultation. Keep an eye on your inbox for a confirmation.
       </p>
-      <Button variant="secondary" data-modal-close>Close</Button>
+      <a href="/book/" class="btn-primary sp-modal__book">
+        Skip the Wait — Pick a Time Now<Icon name="arrow" sw={2.5} />
+      </a>
+      <button type="button" class="sp-modal__success-close" data-modal-close>Close</button>
     </div>
   </div>
 </div>
@@ -91,4 +109,78 @@ import Button from './Button.astro';
   .sp-modal-overlay[hidden] { display: none; }
   .sp-modal__success[hidden] { display: none; }
   .sp-modal__view[hidden] { display: none; }
+
+  /* Smooth cross-fade when the form is swapped for the thank-you confirmation. */
+  @keyframes spSuccessIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.99); }
+    to   { opacity: 1; transform: none; }
+  }
+  .sp-modal__success:not([hidden]) { animation: spSuccessIn 0.32s var(--ease-cinematic); }
+  @media (prefers-reduced-motion: reduce) {
+    .sp-modal__success:not([hidden]) { animation: none; }
+  }
+
+  /* Zone-local reassurance at the submit button. */
+  .sp-modal__assure {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0.2rem 0 0.55rem;
+  }
+  .sp-modal__assure li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+  .sp-modal__assure li :global(svg) {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    color: var(--color-success);
+  }
+
+  /* Pinned footer: sits outside the scrolling view, hidden on success. */
+  .sp-modal__footer {
+    flex-shrink: 0;
+    padding-top: 0.55rem;
+    margin-top: 0.55rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .sp-modal__footer[hidden] { display: none; }
+
+  /* "or" divider between the form and the self-schedule shortcut. */
+  .sp-modal__or {
+    display: flex; align-items: center; text-align: center;
+    gap: 0.75rem; margin: 0.4rem 0 0.1rem;
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: rgba(15, 23, 42, 0.4);
+  }
+  .sp-modal__or::before,
+  .sp-modal__or::after {
+    content: ''; flex: 1; height: 1px; background: rgba(15, 23, 42, 0.1);
+  }
+
+  /* Self-schedule shortcut, styled to fill the modal like the submit button. */
+  .sp-modal__book {
+    width: 100%; box-sizing: border-box;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    text-decoration: none;
+  }
+  .sp-modal__success .sp-modal__book { margin-bottom: 0.85rem; }
+  .sp-modal__alt-note { text-align: center; margin-top: 0.1rem; }
+
+  .sp-modal__success-close {
+    background: none; border: none; cursor: pointer;
+    font: inherit; font-size: 0.85rem; color: var(--color-primary-brand);
+    opacity: 0.55; text-decoration: underline; padding: 0.25rem;
+    transition: opacity var(--ease-snappy);
+  }
+  .sp-modal__success-close:hover { opacity: 0.85; }
+
+  /* The submit button shows a non-interactive "Sending…" state mid-request. */
+  .sp-modal__form [data-submit-btn][aria-busy='true'] {
+    opacity: 0.8; cursor: progress;
+  }
 </style>

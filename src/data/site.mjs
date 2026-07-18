@@ -37,8 +37,32 @@ export const SITE = {
   // Leave empty to fall back to the no-backend mailto: flow.
   formEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/enquiry',
 
-  // Public booking page (Cal.com EU region) — secondary CTA to the enquiry form.
-  bookingUrl: 'https://cal.eu/settlepay/30min',
+  // "See your payment page" preview — the Supabase `brand-preview` Edge Function
+  // (same project as the enquiry endpoint). Reads a visitor's public brand via
+  // Brandfetch and drafts microcopy via Claude. Requires the function to be
+  // deployed and BRANDFETCH_API_KEY / ANTHROPIC_API_KEY set as function secrets;
+  // until then the /preview/ tool degrades to manual entry. Leave empty to force
+  // manual-only mode.
+  previewEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/brand-preview',
+
+  // Bespoke booking API (our own Supabase functions — Google Calendar + Meet).
+  availabilityEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/availability',
+  bookEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/book',
+  manageEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/booking-manage',
+
+  // First-party, cookieless analytics beacon — aggregate funnel events only.
+  // No cookies, no IP/UA stored (see /privacy/ and the events function).
+  eventsEndpoint: 'https://xqpbcoldcqfxfwhcqlcy.supabase.co/functions/v1/events',
+
+  // In-house booking page (was the Cal.com link; now our own /book/ slot picker).
+  bookingUrl: '/book/',
+
+  // Site-wide CTA funnel — ONE primary ask, ONE secondary path (user decision 2026-07-14).
+  // The primary always opens the enquiry modal (data-enquire); the secondary links to /book/.
+  cta: {
+    primary: { label: 'Send an Enquiry' },
+    secondary: { label: 'Book a Free Call', href: '/book/' },
+  },
 
   // Default SEO
   defaultTitle: 'SettlePay — Bespoke Payment Pages for UK Businesses',
@@ -56,6 +80,7 @@ export const SITE = {
   nav: [
     { label: 'How It Works', href: '/#integration' },
     { label: 'Our Work', href: '/work/' },
+    { label: 'See Your Page', href: '/preview/' },
     { label: 'About', href: '/about/' },
     { label: 'Time Saved', href: '/#savings' },
     { label: 'FAQ', href: '/faq/' },
@@ -65,6 +90,7 @@ export const SITE = {
   footerLinks: [
     { label: 'About', href: '/about/' },
     { label: 'Our Work', href: '/work/' },
+    { label: 'See Your Page', href: '/preview/' },
     { label: 'How It Works', href: '/#integration' },
     { label: 'Time Saved', href: '/#savings' },
     { label: 'FAQ', href: '/faq/' },

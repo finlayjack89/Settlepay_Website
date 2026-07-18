@@ -1,6 +1,7 @@
 ---
 import SectionHeader from '../SectionHeader.astro';
 import Dashboard from '../previews/Dashboard.astro';
+import FlowScene from '../FlowScene.astro';
 
 const steps = [
   [
@@ -17,9 +18,10 @@ const steps = [
   ],
 ];
 ---
-<section class="integration section-pad" data-screen-label="How it works">
+<section class="integration section-pad section--dark" data-screen-label="How it works">
   <div class="container" id="integration">
     <SectionHeader
+      align="left"
       eyebrow="How It Works"
       title="The Plumbing, "
       blue="Explained"
@@ -38,35 +40,36 @@ const steps = [
         ))}
       </div>
       <div class="integration__visual">
-        <div class="bezel-wrap"><Dashboard /></div>
+        <div class="integration__stage" data-live><Dashboard /></div>
       </div>
     </div>
 
+    {/* WebGL island: money-flow diagram — page -> processor -> bank/Xero. */}
+    <FlowScene />
+
     <div class="integration__flex">
       <div class="integration__flex-head">
-        <h3 class="integration__flex-title">As Hands-On as You Want It to Be</h3>
+        <h3 class="integration__flex-title">Two Ways to Take a Payment</h3>
         <p class="integration__flex-text">
-          We can overhaul the entire way invoices go out — custom invoice designs and email templates
-          included — so everything feels like one cohesive system. You decide how integrated it gets;
-          we handle every step of the process.
+          You decide how integrated it gets — we handle every step, custom invoice designs and email
+          templates included.
         </p>
       </div>
       <div class="integration__modes">
-        <div class="integration__mode">
+        <div class="integration__mode" data-reveal>
           <span class="integration__mode-tag">Manual</span>
           <h4 class="integration__mode-title">Enter the Amount, Then Pay</h4>
           <p class="integration__mode-text">
-            The customer opens the payment page, types in the amount they owe, and pays. Flexible and
-            quick to stand up — ideal when totals vary or are agreed case by case.
+            The customer opens the payment page, types in the amount they owe, and pays — ideal when
+            totals vary or are agreed case by case.
           </p>
         </div>
-        <div class="integration__mode">
+        <div class="integration__mode" data-reveal>
           <span class="integration__mode-tag integration__mode-tag--auto">Automated</span>
           <h4 class="integration__mode-title">Pre-Filled Pay-by-Link</h4>
           <p class="integration__mode-text">
-            Each invoice goes out with its own link to a pre-configured payment page. The customer just
-            enters their card details and pays — no amount or invoice number to type in. It's all
-            auto-populated from their account.
+            Each invoice goes out with its own link to a pre-filled payment page — the customer just
+            enters their card details and pays.
           </p>
         </div>
       </div>

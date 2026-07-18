@@ -47,31 +47,34 @@
 /* ---- Inner-page header (About / FAQ / legal) ---- */
 .page-header {
   position: relative;
-  padding-block: 7.5rem 3.5rem;
+  padding-block: 4.5rem 2.5rem;
   background: linear-gradient(165deg, var(--color-pure-white) 0%, var(--color-secondary-bg) 100%);
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 .page-header__inner {
   max-width: 760px;
 }
+.page-header .breadcrumbs {
+  margin-bottom: 1.25rem;
+}
 .page-header__title {
-  font-size: clamp(2rem, 3vw + 1rem, 3rem);
+  font-size: var(--text-page-title);
   font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.03em;
   color: var(--color-primary-brand);
-  margin: 0.75rem 0 0;
+  margin: 0;
   text-wrap: balance;
 }
 .page-header__title span {
   color: var(--color-primary-action);
 }
 .page-header__lead {
-  font-size: 1.1rem;
+  font-size: var(--text-lead);
   line-height: 1.7;
   color: var(--color-primary-brand);
   opacity: 0.6;
-  margin-top: 1rem;
+  margin-top: 0.85rem;
   max-width: 60ch;
 }
 
@@ -224,7 +227,7 @@
 
 /* Section wrapper for legal/long-form pages */
 .content-section {
-  padding-block: 4rem 6rem;
+  padding-block: 3rem var(--space-section);
 }
 .legal-meta {
   display: inline-flex;
@@ -279,7 +282,93 @@
   color: var(--color-primary-action);
 }
 
+/* Wayfinding for 10k-px legal documents: on wide screens the TOC becomes a
+   sticky left rail with an IO scrollspy (.is-current); below 1200px it stays
+   the stacked box. No-JS keeps a persistent clickable TOC either way. */
+.legal-top {
+  display: inline-flex;
+  margin-top: 2.5rem;
+}
+@media (min-width: 1200px) {
+  .legal-grid {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+  .legal-toc {
+    position: sticky;
+    top: calc(var(--nav-offset) + 1rem);
+    max-height: calc(100vh - var(--nav-offset) - 2rem);
+    overflow-y: auto;
+    margin-bottom: 0;
+  }
+  .legal-toc ol {
+    grid-template-columns: 1fr;
+  }
+  .legal-toc a.is-current {
+    color: var(--color-primary-brand);
+    font-weight: 700;
+  }
+}
+/* Deep-link target: the linked section identifies itself. */
+.prose h2:target {
+  scroll-margin-top: var(--nav-offset);
+  border-left: 3px solid var(--color-primary-action);
+  padding-left: 0.6rem;
+  margin-left: -0.75rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .prose h2:target { animation: legalTargetWash 1.6s ease-out; }
+  @keyframes legalTargetWash {
+    0% { background: rgba(59, 130, 246, 0.1); }
+    100% { background: transparent; }
+  }
+}
+
 /* ---- About page extras ---- */
+/* Three-step flow strip — echoes the landing page's flow-diagram language. */
+.about-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin: 2rem 0 2.25rem;
+}
+.about-flow__step {
+  background: var(--color-secondary-bg);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: var(--radius-soft);
+  padding: 1.4rem 1.5rem;
+}
+.about-flow__num {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary-brand);
+  color: var(--color-pure-white);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.about-flow__step h3 {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+  margin: 0 0 0.45rem;
+}
+.about-flow__step p {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: rgba(15, 23, 42, 0.62);
+  margin: 0;
+}
+@media (max-width: 880px) {
+  .about-flow { grid-template-columns: 1fr; }
+  .about-grid { grid-template-columns: 1fr; }
+}
 .about-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -329,7 +418,7 @@
 
 /* ---- FAQ ---- */
 .faq-section {
-  padding-block: 3.5rem 6rem;
+  padding-block: 2.5rem var(--space-section);
 }
 .faq-cat {
   margin-top: 3rem;
@@ -353,7 +442,7 @@
 }
 .faq-item {
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   background: var(--color-pure-white);
   overflow: hidden;
   transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy);
@@ -403,6 +492,119 @@
   text-underline-offset: 2px;
 }
 
+/* Deep-link target: a one-shot wash so the linked answer identifies itself. */
+.faq-item:target {
+  border-color: rgba(59, 130, 246, 0.55);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .faq-item:target { animation: faqTargetWash 1.6s ease-out; }
+  @keyframes faqTargetWash {
+    0% { background: rgba(59, 130, 246, 0.1); }
+    100% { background: var(--color-pure-white); }
+  }
+}
+
+/* CSS-only open/close animation where the platform supports it; everyone
+   else keeps today's instant toggle. */
+@supports (interpolate-size: allow-keywords) {
+  @media (prefers-reduced-motion: no-preference) {
+    .faq-item::details-content {
+      block-size: 0;
+      overflow-y: clip;
+      transition: block-size var(--ease-cinematic), content-visibility var(--ease-cinematic);
+      transition-behavior: allow-discrete;
+    }
+    .faq-item[open]::details-content {
+      block-size: auto;
+      interpolate-size: allow-keywords;
+    }
+  }
+}
+
+/* Copy-link affordance at the foot of every answer. */
+.faq-item__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted) !important;
+  text-decoration: none !important;
+}
+.faq-item__link svg { width: 13px; height: 13px; }
+.faq-item__link:hover { color: var(--color-primary-action) !important; }
+
+/* Inline enquiry link inside the cost answer — prose-styled button. */
+.faq-inline-enquire {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-primary-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+/* Top Objections strip — the make-or-break answers before the accordion. */
+.faq-objections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 820px;
+  margin-bottom: 2.5rem;
+}
+.faq-objection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-soft);
+  background: var(--color-pure-white);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--ease-snappy), box-shadow var(--ease-snappy), translate var(--ease-snappy);
+}
+.faq-objection:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: var(--shadow-md);
+  translate: 0 -2px;
+}
+.faq-objection__tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.faq-objection__q {
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+}
+.faq-objection__go {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary-action);
+}
+.faq-objection__go svg { width: 13px; height: 13px; }
+@media (max-width: 720px) {
+  .faq-objections { grid-template-columns: 1fr; }
+}
+
+/* One blue primary at a time: once a preview is generated, the studio's own
+   in-flow CTA takes over and the page-level mini-cta retires. */
+body:has(.ps.is-generated) .mini-cta { display: none; }
+
 /* ---- 404 ---- */
 .notfound {
   min-height: 60vh;
@@ -443,7 +645,7 @@
   text-align: center;
   max-width: 600px;
   margin-inline: auto;
-  padding-block: 4rem;
+  padding-block: var(--space-section-compact);
 }
 .mini-cta__title {
   font-size: clamp(1.4rem, 2vw + 0.5rem, 2rem);
@@ -468,12 +670,360 @@
 
 @media (max-width: 768px) {
   .page-header {
-    padding-block: 6rem 2.5rem;
+    padding-block: 3.5rem 2rem;
   }
   .legal-toc ol {
     grid-template-columns: 1fr;
   }
   .about-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Booking shell — states, spinner, headings, success. Shared by /book/ and
+   /manage/; global (not scoped) so both pages and JS-injected content get them.
+   --------------------------------------------------------------------------- */
+.sp-booking__state { text-align: center; padding: 4rem 1rem; color: var(--color-text-muted); font-size: 0.95rem; line-height: 1.6; }
+/* Recovery links in error/empty states get the standard blue link treatment —
+   they are the escape hatch and must never read as plain text. */
+.sp-booking__state a,
+.sp-cal__empty a {
+  color: var(--color-primary-action);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sp-booking__state a:hover,
+.sp-cal__empty a:hover { color: var(--color-primary-action-hover); }
+.sp-spinner {
+  display: inline-block; width: 26px; height: 26px; margin-bottom: 1rem;
+  border: 3px solid rgba(59, 130, 246, 0.25); border-top-color: var(--color-primary-action);
+  border-radius: 50%; animation: spSpin 0.7s linear infinite;
+}
+@keyframes spSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sp-spinner { animation: none; } }
+
+.sp-booking__head { margin-bottom: 1.5rem; }
+.sp-booking__title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.4rem; }
+.sp-booking__tz { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--color-primary-brand); opacity: 0.55; }
+.sp-booking__tz svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.sp-booking__back {
+  appearance: none; border: none; background: none; cursor: pointer; font: inherit;
+  display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.88rem; font-weight: 600;
+  color: var(--color-primary-action); padding: 0; margin: 0 0 1rem;
+}
+.sp-booking__back svg { width: 16px; height: 16px; flex-shrink: 0; transform: rotate(90deg); }
+.sp-booking__chosen { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+/* Commitment summary card — the chosen slot presented as a proper meeting. */
+.sp-booking__summary {
+  display: flex; align-items: flex-start; gap: 0.85rem;
+  background: var(--color-secondary-bg);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-soft);
+  padding: 1rem 1.15rem;
+  margin: 0 0 1.4rem;
+}
+.sp-booking__summary-icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--color-pure-white);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: var(--color-primary-action);
+}
+.sp-booking__summary-icon svg { width: 17px; height: 17px; }
+.sp-booking__summary-meta {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 0.84rem; line-height: 1.5;
+  color: var(--color-text-muted);
+}
+.sp-booking__summary-tag {
+  display: inline-block;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  color: #0B6B4D; background: rgba(16, 185, 129, 0.12);
+  padding: 3px 10px; border-radius: 100px;
+}
+
+.sp-booking__success { text-align: center; padding: 1.5rem 0.5rem; }
+.sp-booking__success-icon { width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10B981; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.1rem; }
+.sp-booking__success-icon svg { width: 28px; height: 28px; }
+.sp-booking__success h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+.sp-booking__success-when { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+.sp-booking__success-note { font-size: 0.9rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6; margin-bottom: 1.5rem; }
+.sp-booking__join { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* ---------------------------------------------------------------------------
+   Booking calendar — month grid + time column, shared by /book/ and /manage/.
+   Global (not scoped) because the day cells and time slots are built in JS and
+   would otherwise miss Astro's scoped-style attribute. buildCalendar() in
+   SiteScripts.astro populates the [data-*] hooks.
+   --------------------------------------------------------------------------- */
+.sp-cal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14rem;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+/* Month panel ------------------------------------------------------------- */
+.sp-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.sp-cal__month-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+}
+.sp-cal__navbtn {
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: var(--color-pure-white);
+  color: var(--color-primary-brand);
+  transition: background var(--ease-snappy), border-color var(--ease-snappy), opacity var(--ease-snappy);
+}
+.sp-cal__navbtn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+.sp-cal__navbtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.sp-cal__navbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+.sp-cal__navbtn svg {
+  width: 16px;
+  height: 16px;
+}
+.sp-cal__navbtn[data-cal-prev] svg {
+  transform: rotate(90deg);
+}
+.sp-cal__navbtn[data-cal-next] svg {
+  transform: rotate(-90deg);
+}
+
+.sp-cal__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.sp-cal__dow span {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(15, 23, 42, 0.4);
+}
+
+.sp-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+.sp-cal__cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  border-radius: 50%;
+  color: rgba(15, 23, 42, 0.28);
+}
+button.sp-cal__cell {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.09);
+  transition: background var(--ease-snappy), color var(--ease-snappy), transform var(--ease-snappy), box-shadow var(--ease-snappy);
+}
+button.sp-cal__cell:hover {
+  background: rgba(59, 130, 246, 0.18);
+}
+button.sp-cal__cell:active {
+  transform: scale(0.94);
+}
+button.sp-cal__cell:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+button.sp-cal__cell--selected,
+button.sp-cal__cell--selected:hover {
+  background: var(--color-primary-action);
+  color: var(--color-pure-white);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+/* Time column ------------------------------------------------------------- */
+.sp-cal__times {
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  padding-left: 1.75rem;
+}
+.sp-cal__times-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-primary-brand);
+  margin: 0 0 0.85rem;
+  min-height: 1.2em;
+}
+.sp-cal__times-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 20.5rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+.sp-cal__slot {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-input);
+  text-align: center;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: var(--color-pure-white);
+  color: var(--color-primary-brand);
+  transition: border-color var(--ease-snappy), background var(--ease-snappy), transform var(--ease-snappy);
+}
+.sp-cal__slot:hover {
+  border-color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.06);
+}
+.sp-cal__slot:active {
+  transform: scale(0.98);
+}
+.sp-cal__slot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+/* The settle moment: chip fills navy for ~190ms before the step advances. */
+.sp-cal__slot.is-picked {
+  background: var(--color-primary-brand);
+  border-color: var(--color-primary-brand);
+  color: var(--color-pure-white);
+  transform: scale(0.97);
+}
+/* One-tap soonest-slot pill above the calendar. */
+.sp-cal__quick {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.1rem;
+  border-radius: var(--radius-input);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.06);
+  color: var(--color-primary-brand);
+  transition: border-color var(--ease-snappy), background var(--ease-snappy);
+}
+.sp-cal__quick:hover {
+  border-color: var(--color-primary-action);
+  background: rgba(59, 130, 246, 0.1);
+}
+.sp-cal__quick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-action);
+}
+.sp-cal__quick-cta {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-primary-action);
+}
+/* Loading skeleton shaped like the incoming calendar. */
+.sp-skel {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 1.75rem;
+  padding: 0.5rem 0 1rem;
+}
+.sp-skel__bar,
+.sp-skel__grid,
+.sp-skel__times i {
+  display: block;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.07);
+}
+.sp-skel__bar { height: 20px; width: 55%; margin-bottom: 1rem; }
+.sp-skel__grid { height: 240px; }
+.sp-skel__times i { height: 42px; margin-bottom: 0.55rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .sp-skel__bar, .sp-skel__grid, .sp-skel__times i {
+    animation: spSkelPulse 1.4s ease-in-out infinite;
+  }
+}
+@keyframes spSkelPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (max-width: 620px) {
+  .sp-skel { grid-template-columns: 1fr; }
+}
+.sp-cal__times-empty {
+  font-size: 0.9rem;
+  color: rgba(15, 23, 42, 0.5);
+  line-height: 1.6;
+  padding-top: 0.5rem;
+}
+.sp-cal__empty {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-primary-brand);
+  opacity: 0.7;
+  padding: 2rem 0;
+}
+
+@media (max-width: 620px) {
+  .sp-cal {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .sp-cal__times {
+    border-left: none;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    padding-left: 0;
+    padding-top: 1.25rem;
+  }
+  .sp-cal__times-list {
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.sp-cal__cell,
+  .sp-cal__slot,
+  .sp-cal__navbtn {
+    transition: none;
+  }
+  button.sp-cal__cell:active,
+  .sp-cal__slot:active {
+    transform: none;
   }
 }

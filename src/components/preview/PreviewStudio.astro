@@ -1,0 +1,1102 @@
+---
+/* PreviewStudio — "See your payment page" URL-driven brand customiser.
+
+   Guided flow: (1) the visitor pastes their website address → the
+   `brand-preview` Edge Function reads their public brand (Brandfetch: colours,
+   themed logos, banner, font; Firecrawl: homepage screenshot, copy and a
+   stylesheet colour census) and has the production model draft a DESIGN BRIEF —
+   brand seeds, layout sections, typography feel and industry-authentic content —
+   materialised server-side into light+dark design-token sets and rendered as a
+   complete branded payment page (PaymentPagePreview + paymentPage.mjs painter).
+   (2) "Make it yours": name/colour/scenario tweaks plus device and appearance
+   toggles re-render instantly from the same brief. (3) An in-flow CTA to book a
+   consultation appears once the page exists. Entirely user-facing — no model
+   identifiers anywhere; per-leg telemetry stays server-side.
+
+   The markup keeps four SSR'd cards so a multi-variant response (if a split
+   test is ever re-enabled via DESIGN_PROVIDERS) still renders; production mode
+   uses card 0 only. Manual fallback: if extraction fails the controls still
+   drive a neutral default brief — never a dead end.
+
+   Mockup-world: the prospect's own colour drives the demo pages, so any colour —
+   including blue — is legitimate inside them. The SettlePay chrome around them
+   keeps the reserved-blue rules. Illustrative only; no real payments; not
+   affiliated with any brand whose URL is entered. */
+import Icon from '../Icon.astro';
+import Button from '../Button.astro';
+import PaymentPagePreview from './PaymentPagePreview.astro';
+import { SITE } from '../../data/site.mjs';
+
+const swatches = [
+  { id: 'teal', hex: '#0F766E' },
+  { id: 'indigo', hex: '#4F46E5' },
+  { id: 'plum', hex: '#9333EA' },
+  { id: 'rose', hex: '#E11D48' },
+  { id: 'amber', hex: '#B45309' },
+  { id: 'slate', hex: '#0F172A' },
+];
+const defaultHex = swatches[0].hex;
+const CARDS = [0, 1, 2, 3];
+---
+<div
+  class="ps"
+  data-ps
+  data-default-name="Your Business"
+  data-default-colour={defaultHex}
+  data-endpoint={SITE.previewEndpoint}
+>
+  <!-- Fast path: paste a URL -->
+  <form class="ps__urlbar" data-ps-form novalidate>
+    <label class="ps__url-label" for="ps-url"><span class="ps__step" aria-hidden="true">1</span> Your Website Address</label>
+    <div class="ps__url-row">
+      <span class="ps__url-globe" aria-hidden="true"><Icon name="globe" sw={1.8} /></span>
+      <input
+        class="ps__url-input"
+        id="ps-url"
+        type="url"
+        inputmode="url"
+        autocomplete="url"
+        spellcheck="false"
+        placeholder="yourbusiness.co.uk"
+        data-ps-url
+        aria-describedby="ps-status"
+      />
+      <Button variant="primary" type="submit" icon="arrow" data-ps-generate>Generate Preview</Button>
+    </div>
+    <p class="ps__status" id="ps-status" data-ps-status aria-live="polite">
+      Paste your site and we'll design a payment page in your brand — in seconds.
+    </p>
+    <button type="button" class="ps__fresh" data-ps-fresh hidden>
+      <Icon name="refresh" sw={2} /> Try a Fresh Take
+    </button>
+  </form>
+
+  <div class="ps__grid">
+    <!-- Controls (SettlePay UI) — also the manual fallback -->
+    <div class="ps__controls">
+      <h3 class="ps__zone-title"><span class="ps__step" aria-hidden="true">2</span> Make It Yours</h3>
+      <div class="ps__field">
+        <label class="ps__label" for="ps-name">Business name</label>
+        <input
+          class="ps__input"
+          id="ps-name"
+          type="text"
+          maxlength="32"
+          value="Your Business"
+          autocomplete="organization"
+          data-ps-name
+        />
+      </div>
+
+      <div class="ps__field">
+        <span class="ps__label" id="ps-colour-label">Brand colour</span>
+        <div class="ps__swatches" role="radiogroup" aria-labelledby="ps-colour-label">
+          {swatches.map((s, i) => (
+            <button
+              type="button"
+              class={'ps__swatch' + (i === 0 ? ' is-selected' : '')}
+              style={`--sw:${s.hex}`}
+              data-ps-swatch={s.hex}
+              role="radio"
+              aria-checked={i === 0 ? 'true' : 'false'}
+              aria-label={`Brand colour ${s.id}`}
+            ></button>
+          ))}
+          <label class="ps__custom" title="Pick a custom colour">
+            <input type="color" value={defaultHex} data-ps-custom aria-label="Custom brand colour" />
+            <Icon name="sparkles" sw={1.8} />
+          </label>
+        </div>
+      </div>
+
+      <div class="ps__field">
+        <span class="ps__label" id="ps-plan-label">What are you collecting?</span>
+        <div class="ps__seg" role="radiogroup" aria-labelledby="ps-plan-label">
+          <button type="button" class="ps__seg-btn" data-ps-plan="invoice" role="radio" aria-checked="false">An invoice</button>
+          <button type="button" class="ps__seg-btn" data-ps-plan="deposit" role="radio" aria-checked="false">A deposit</button>
+          <button type="button" class="ps__seg-btn" data-ps-plan="membership" role="radio" aria-checked="false">A membership</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live previews (mockup-world). Cards 2-4 revealed only in split-test mode. -->
+    <div class="ps__preview">
+      <!-- Device + appearance switches: every brief carries both renditions, so
+           toggling is instant and free (no re-generation). -->
+      <div class="ps__viewbar">
+        <div class="ps__seg ps__seg--mini" role="radiogroup" aria-label="Device">
+          <button type="button" class="ps__seg-btn" data-ps-device="mobile" role="radio" aria-checked="false">
+            <Icon name="mobile" sw={1.8} /> Mobile
+          </button>
+          <button type="button" class="ps__seg-btn" data-ps-device="desktop" role="radio" aria-checked="false">
+            <Icon name="desktop" sw={1.8} /> Desktop
+          </button>
+        </div>
+        <div class="ps__seg ps__seg--mini" role="radiogroup" aria-label="Appearance">
+          <button type="button" class="ps__seg-btn" data-ps-theme="light" role="radio" aria-checked="false">
+            <Icon name="sun" sw={1.8} /> Light
+          </button>
+          <button type="button" class="ps__seg-btn" data-ps-theme="dark" role="radio" aria-checked="false">
+            <Icon name="moon" sw={1.8} /> Dark
+          </button>
+        </div>
+      </div>
+      <!-- Honest progress checklist: the same staged messages, visible as work. -->
+      <ol class="ps__checklist" data-ps-checklist hidden aria-hidden="true">
+        <li>Reading your site</li>
+        <li>Capturing your homepage and brand</li>
+        <li>Designing your payment page</li>
+        <li>Applying your colours, logo and type</li>
+      </ol>
+
+      <div class="ps__cards" data-ps-cards>
+        {CARDS.map((i) => (
+          <div class="ps__card" data-ps-card hidden={i > 0}>
+            <div class="ps__card-frame">
+              <PaymentPagePreview />
+              <div class="ps__skeleton" data-ps-skeleton hidden aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- Evidence strip: what we actually read from their site — turns
+           "AI template" scepticism into "they read my actual brand". -->
+      <p class="ps__ingredients" data-ps-ingredients hidden></p>
+
+      <!-- In-flow CTA — revealed once a page has been generated -->
+      <div class="ps__cta" data-ps-cta hidden>
+        <p class="ps__cta-text">
+          <span class="ps__step" aria-hidden="true">2</span>
+          Like what you see? This is a sketch — we design and build the real thing around how
+          your business actually gets paid.
+        </p>
+        <div class="ps__cta-actions">
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
+          <button type="button" class="ps__share" data-ps-share hidden>
+            <Icon name="globe" sw={1.8} />
+            <span data-ps-share-label>Copy a Shareable Link</span>
+          </button>
+          <button type="button" class="ps__share" data-ps-download hidden>
+            <Icon name="download" sw={1.8} />
+            <span data-ps-download-label>Download as Image</span>
+          </button>
+        </div>
+        <p class="ps__disclaimer" data-ps-disclaimer hidden></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .ps {
+    max-width: 1080px;
+    margin-inline: auto;
+  }
+
+  /* ---- URL bar ---- */
+  .ps__urlbar {
+    margin-bottom: 2.5rem;
+  }
+  .ps__url-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-brand);
+    margin-bottom: 0.7rem;
+  }
+  .ps__url-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+    position: relative;
+    flex-wrap: wrap;
+  }
+  .ps__url-globe {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    color: rgba(15, 23, 42, 0.4);
+    pointer-events: none;
+  }
+  .ps__url-globe svg { width: 18px; height: 18px; }
+  .ps__url-input {
+    flex: 1 1 260px;
+    min-width: 0;
+    font: inherit;
+    font-size: 1.05rem;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-input);
+    padding: 0.9rem 1rem 0.9rem 2.6rem;
+  }
+  .ps__url-input:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 2px;
+    border-color: var(--color-primary-action);
+  }
+  .ps__url-row :global(.btn-primary) {
+    flex: 0 0 auto;
+  }
+  .ps__status {
+    margin: 0.7rem 0 0;
+    font-size: 0.85rem;
+    color: rgba(15, 23, 42, 0.55);
+  }
+  .ps__status.is-error { color: #b42318; }
+  .ps__status.is-working { color: var(--color-primary-action); }
+  .ps__fresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.8rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-button);
+    padding: 0.5rem 1.05rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy);
+  }
+  .ps__fresh[hidden] { display: none; }
+  .ps__fresh:hover { background: var(--color-secondary-bg); }
+  .ps__fresh svg { width: 15px; height: 15px; color: var(--color-primary-action); }
+
+  /* ---- grid ---- */
+  .ps__grid {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  /* Split-test mode: stack controls above the card grid */
+  .ps.is-multi .ps__grid {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 2rem;
+  }
+  /* Once a page exists the customisation controls retire — the generated brand
+     IS the pitch; the preview takes the full width. Controls return whenever
+     the visitor falls back to manual mode. */
+  .ps.is-generated .ps__grid { grid-template-columns: 1fr; }
+  .ps.is-generated .ps__controls { display: none; }
+
+  /* ---- controls ---- */
+  .ps__field { margin-bottom: 1.6rem; }
+  .ps__label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-brand);
+    margin-bottom: 0.7rem;
+  }
+  .ps__input {
+    width: 100%;
+    font: inherit;
+    font-size: 1.05rem;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-input);
+    padding: 0.8rem 1rem;
+  }
+  .ps__input:focus-visible {
+    outline: 2px solid var(--color-primary-action);
+    outline-offset: 2px;
+    border-color: var(--color-primary-action);
+  }
+  .ps__swatches { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .ps__swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sw);
+    border: 0;
+    cursor: pointer;
+    box-shadow: 0 0 0 2px var(--color-pure-white), 0 0 0 2px rgba(15, 23, 42, 0.12);
+    transition: transform var(--ease-snappy), box-shadow var(--ease-snappy);
+  }
+  .ps__swatch:hover { transform: scale(1.08); }
+  .ps__swatch.is-selected {
+    box-shadow: 0 0 0 3px var(--color-pure-white), 0 0 0 6px var(--sw);
+  }
+  .ps__swatch:focus-visible { outline: 2px solid var(--color-primary-action); outline-offset: 3px; }
+  .ps__custom {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    background: var(--color-secondary-bg);
+    box-shadow: 0 0 0 2px var(--color-pure-white), 0 0 0 2px rgba(15, 23, 42, 0.12);
+  }
+  .ps__custom svg { width: 18px; height: 18px; color: rgba(15, 23, 42, 0.55); pointer-events: none; }
+  .ps__custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .ps__seg {
+    display: inline-flex;
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: var(--radius-button);
+    padding: 4px;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+  .ps__seg-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.62);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-button);
+    padding: 0.5rem 0.95rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), color var(--ease-snappy);
+  }
+  .ps__seg-btn.is-selected {
+    background: var(--color-pure-white);
+    color: var(--color-primary-brand);
+    box-shadow: var(--shadow-sm);
+  }
+  .ps__seg-btn:focus-visible { outline: 2px solid var(--color-primary-action); outline-offset: 2px; }
+  .ps__share {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: var(--radius-button);
+    padding: 0.7rem 1.3rem;
+    cursor: pointer;
+    transition: background var(--ease-snappy), transform var(--ease-snappy);
+  }
+  .ps__share[hidden] { display: none; }
+  .ps__share:hover { background: var(--color-secondary-bg); }
+  .ps__share:active { transform: scale(0.98); }
+  .ps__share svg { width: 17px; height: 17px; color: var(--color-primary-action); }
+  .ps__disclaimer {
+    margin: 1.2rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: rgba(15, 23, 42, 0.5);
+  }
+  .ps__disclaimer[hidden] { display: none; }
+
+  /* ---- preview cards ---- */
+  .ps__preview { display: block; }
+  .ps__viewbar {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.4rem;
+  }
+  .ps__seg--mini .ps__seg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    padding: 0.42rem 0.85rem;
+  }
+  .ps__seg--mini .ps__seg-btn :global(svg) { width: 15px; height: 15px; }
+  .ps__cards {
+    display: grid;
+    grid-template-columns: minmax(0, 480px);
+    justify-content: center;
+    gap: 2rem 1.75rem;
+  }
+  .ps.is-multi .ps__cards {
+    grid-template-columns: repeat(2, minmax(0, 480px));
+    justify-content: center;
+    align-items: start;
+  }
+  /* Desktop rendition: wide pages stack in one column, single or split test. */
+  .ps.is-desktop .ps__cards,
+  .ps.is-multi.is-desktop .ps__cards {
+    grid-template-columns: minmax(0, 820px);
+  }
+  .ps__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+  .ps__card[hidden] { display: none; }
+  .ps__card-frame { position: relative; }
+
+  /* ---- loading skeleton ---- */
+  .ps__skeleton {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: 18px;
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    padding: 2.4rem 1.4rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    overflow: hidden;
+  }
+  .ps__skeleton[hidden] { display: none; }
+
+  /* ---- progress checklist ---- */
+  .ps__checklist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    margin: 0 0 1rem;
+    padding: 0.8rem 1.1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    background: var(--color-secondary-bg);
+    list-style: none;
+  }
+  .ps__checklist[hidden] { display: none; }
+  .ps__checklist li {
+    position: relative;
+    padding-left: 1.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    transition: color var(--ease-snappy);
+  }
+  .ps__checklist li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    translate: 0 -50%;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid rgba(15, 23, 42, 0.2);
+    box-sizing: border-box;
+  }
+  .ps__checklist li.is-active { color: var(--color-primary-brand); }
+  .ps__checklist li.is-active::before {
+    border-color: var(--color-primary-action);
+    border-top-color: transparent;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .ps__checklist li.is-active::before { animation: psSpin 0.9s linear infinite; }
+  }
+  @keyframes psSpin { to { transform: rotate(360deg); } }
+  .ps__checklist li.is-done { color: var(--color-primary-brand); }
+  .ps__checklist li.is-done::before {
+    border: none;
+    background: var(--color-success);
+    animation: none;
+    transform: none;
+  }
+
+  /* ---- unveil: one-shot clip-path wipe as the generated page arrives ---- */
+  @media (prefers-reduced-motion: no-preference) {
+    .ps__card.is-unveiling .ps__card-frame {
+      animation: psUnveil 0.65s var(--ease-cinematic);
+    }
+  }
+  @keyframes psUnveil {
+    0% { clip-path: inset(0 0 100% 0); opacity: 0.4; }
+    100% { clip-path: inset(0 0 0 0); opacity: 1; }
+  }
+
+  /* ---- ingredients evidence strip ---- */
+  .ps__ingredients {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.85rem 0 0;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+  }
+  .ps__ingredients[hidden] { display: none; }
+  .ps__ingredient-chips {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .ps__ingredient-chips i {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+  }
+  .ps__skeleton span {
+    display: block;
+    border-radius: 8px;
+    background: linear-gradient(100deg, rgba(15, 23, 42, 0.06) 40%, rgba(15, 23, 42, 0.12) 50%, rgba(15, 23, 42, 0.06) 60%);
+    background-size: 200% 100%;
+    animation: ps-shimmer 1.4s ease-in-out infinite;
+  }
+  .ps__skeleton span:nth-child(1) { height: 34px; width: 55%; }
+  .ps__skeleton span:nth-child(2) { height: 56px; }
+  .ps__skeleton span:nth-child(3) { height: 90px; }
+  .ps__skeleton span:nth-child(4) { height: 44px; width: 80%; }
+  .ps__skeleton span:nth-child(5) { height: 44px; }
+  @keyframes ps-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ---- guided-flow chrome ---- */
+  .ps__step {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--color-primary-brand);
+    color: var(--color-pure-white);
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-right: 0.45rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .ps__zone-title {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-brand);
+    margin: 0 0 1.4rem;
+  }
+  .ps__cta {
+    margin-top: 2rem;
+    padding: 1.4rem 1.6rem;
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+  }
+  .ps__cta[hidden] { display: none; }
+  .ps__cta-text {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--color-primary-brand);
+    flex: 1 1 320px;
+  }
+  .ps__cta-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .ps__cta .ps__disclaimer { flex-basis: 100%; margin-top: 0.4rem; }
+
+  @media (max-width: 980px) {
+    .ps.is-multi .ps__cards { grid-template-columns: minmax(0, 480px); }
+  }
+  @media (max-width: 860px) {
+    .ps__grid { grid-template-columns: 1fr; gap: 2rem; }
+    .ps__controls { order: 2; }
+    .ps__preview { order: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ps__swatch, .ps__share { transition: none; }
+    .ps__skeleton span { animation: none; }
+  }
+</style>
+
+<script>
+  import { slugify } from '../../scripts/brandReskin.mjs';
+  import { defaultVariant, resolveBrief, paintBrief } from '../../scripts/paymentPage.mjs';
+
+  const FONT_LINK_ID = 'ps-brand-font';
+  // Brandfetch occasionally returns scraping garbage as a font name — never let
+  // it near a Google Fonts URL or a CSS value (the server filters too).
+  const FONT_OK = (f) =>
+    typeof f === 'string' && /^[A-Za-z0-9][A-Za-z0-9 '\-]{1,39}$/.test(f.trim()) && !/var|--|[(),;]/.test(f);
+
+  function normaliseUrl(raw) {
+    let v = String(raw || '').trim();
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try {
+      const u = new URL(v);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      if (!u.hostname.includes('.')) return null;
+      return u;
+    } catch {
+      return null;
+    }
+  }
+
+  const registrableDomain = (hostname) => hostname.replace(/^www\./i, '');
+
+  // Best-effort web-font load. If the family isn't on Google Fonts the link
+  // simply 404s and the CSS fallback renders — never blocks the preview.
+  function loadBrandFont(family) {
+    const existing = document.getElementById(FONT_LINK_ID);
+    if (existing) existing.remove();
+    if (!family || !FONT_OK(family)) return;
+    const link = document.createElement('link');
+    link.id = FONT_LINK_ID;
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=' +
+      encodeURIComponent(family).replace(/%20/g, '+') +
+      ':wght@400;600;700&display=swap';
+    document.head.appendChild(link);
+  }
+
+  document.querySelectorAll('[data-ps]').forEach((root) => {
+    if (root.dataset.psBound) return;
+    root.dataset.psBound = '1';
+
+    const defName = root.dataset.defaultName;
+    const defColour = root.dataset.defaultColour;
+    const endpoint = root.dataset.endpoint || '';
+
+    const form = root.querySelector('[data-ps-form]');
+    const urlInput = root.querySelector('[data-ps-url]');
+    const generateBtn = root.querySelector('[data-ps-generate]');
+    const statusEl = root.querySelector('[data-ps-status]');
+    const nameInput = root.querySelector('[data-ps-name]');
+    const swatchEls = root.querySelectorAll('[data-ps-swatch]');
+    const customInput = root.querySelector('[data-ps-custom]');
+    const planBtns = root.querySelectorAll('[data-ps-plan]');
+    const shareBtn = root.querySelector('[data-ps-share]');
+    const shareLabel = root.querySelector('[data-ps-share-label]');
+    const disclaimerEl = root.querySelector('[data-ps-disclaimer]');
+    const ctaEl = root.querySelector('[data-ps-cta]');
+
+    const cardEls = Array.from(root.querySelectorAll('[data-ps-card]'));
+    const skeletons = cardEls.map((c) => c.querySelector('[data-ps-skeleton]'));
+
+    // Button renders "<text node>Generate Preview</text><svg icon/>" — toggle the
+    // text node so the trailing icon survives the loading state.
+    const btnTextNode = generateBtn ? generateBtn.childNodes[0] : null;
+    const genLabel = btnTextNode ? btnTextNode.textContent : 'Generate Preview';
+    const setBtnLabel = (t) => { if (btnTextNode) btnTextNode.textContent = t; };
+
+    const state = {
+      name: defName,
+      manualAccent: defColour,      // base accent for the neutral default brief
+      domain: '',
+      brand: {},                    // { logoUrl, logoDarkUrl, bannerUrl, font } from the response
+      variants: [],                 // [{ key, model, label, brief|null, ms, usage }]
+      overrides: {
+        accent: null,
+        scenario: null,
+        // Default to the visitor's own device; they can flip it any time.
+        device: window.matchMedia('(max-width: 860px)').matches ? 'mobile' : 'desktop',
+        theme: 'light',
+      },
+    };
+
+    const setStatus = (msg, kind) => {
+      if (!statusEl) return;
+      statusEl.textContent = msg;
+      statusEl.classList.toggle('is-error', kind === 'error');
+      statusEl.classList.toggle('is-working', kind === 'working');
+    };
+
+    function selectSwatch(hex) {
+      swatchEls.forEach((s) => {
+        const on = !!hex && s.dataset.psSwatch.toLowerCase() === hex.toLowerCase();
+        s.classList.toggle('is-selected', on);
+        s.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      if (customInput && hex && /^#[0-9a-fA-F]{6}$/.test(hex)) customInput.value = hex;
+    }
+
+    const deviceBtns = root.querySelectorAll('[data-ps-device]');
+    const themeBtns = root.querySelectorAll('[data-ps-theme]');
+
+    function syncToggles() {
+      deviceBtns.forEach((b) => {
+        const on = b.dataset.psDevice === state.overrides.device;
+        b.classList.toggle('is-selected', on);
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      themeBtns.forEach((b) => {
+        const on = b.dataset.psTheme === state.overrides.theme;
+        b.classList.toggle('is-selected', on);
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+    }
+    deviceBtns.forEach((b) =>
+      b.addEventListener('click', () => { state.overrides.device = b.dataset.psDevice; syncToggles(); render(); })
+    );
+    themeBtns.forEach((b) =>
+      b.addEventListener('click', () => { state.overrides.theme = b.dataset.psTheme; syncToggles(); render(); })
+    );
+
+    function visibleCount() {
+      return state.variants.length || 1;
+    }
+
+    function render() {
+      const name = state.name.trim() || defName;
+      const host = state.domain || slugify(name) + '.co.uk';
+      const shared = { name, host };
+      const count = visibleCount();
+      cardEls.forEach((card, i) => {
+        card.hidden = i >= count;
+        if (i >= count) return;
+        const variant = state.variants[i];
+        const v = variant && variant.brief && variant.tokens ? variant : defaultVariant(state.manualAccent);
+        paintBrief(card, resolveBrief(v, state.brand, state.overrides), shared);
+      });
+      root.classList.toggle('is-multi', count > 1);
+      root.classList.toggle('is-desktop', state.overrides.device === 'desktop');
+      root.classList.toggle('is-generated', state.variants.some((v) => v && v.brief));
+    }
+
+    function setSkeletons(on) {
+      cardEls.forEach((card, i) => {
+        // Loading shows a single working card — production is one designer.
+        if (on) card.hidden = i > 0;
+        if (skeletons[i]) skeletons[i].hidden = !on || i > 0;
+      });
+    }
+
+    // ---- manual controls (always live; the fallback if extraction fails) ----
+    nameInput.addEventListener('input', () => { state.name = nameInput.value; render(); });
+    const applyAccent = (hex) => {
+      state.manualAccent = hex;
+      state.overrides.accent = hex;
+      selectSwatch(hex);
+      render();
+    };
+    swatchEls.forEach((s) => s.addEventListener('click', () => applyAccent(s.dataset.psSwatch)));
+    if (customInput) customInput.addEventListener('input', () => applyAccent(customInput.value));
+    planBtns.forEach((b) =>
+      b.addEventListener('click', () => {
+        state.overrides.scenario = b.dataset.psPlan;
+        planBtns.forEach((x) => {
+          const on = x === b;
+          x.classList.toggle('is-selected', on);
+          x.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        render();
+      })
+    );
+
+    // Both share and download ride on a minted /p/<slug> snapshot; mint once
+    // per generation and reuse (applyProfile clears it).
+    async function mintShare() {
+      if (state.shareSlug) return state.shareSlug;
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ createShare: { domain: state.domain } }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data && data.slug) {
+          state.shareSlug = data.slug;
+          if (window.__previewContext) window.__previewContext.slug = data.slug;
+        }
+      } catch {
+        /* handled by callers */
+      }
+      return state.shareSlug;
+    }
+
+    if (shareBtn) {
+      // A share mints a view-only /p/<slug> page from a server-side snapshot of
+      // this generation — the recipient sees the page (plus a booking CTA),
+      // never the tool. Falls back to a plain ?url= deep link if minting fails.
+      shareBtn.addEventListener('click', async () => {
+        if (shareLabel) shareLabel.textContent = 'Creating Link…';
+        window.spTrack?.('preview_share_created');
+        const slug = await mintShare();
+        const link = slug
+          ? location.origin + '/p/' + slug
+          : location.origin + location.pathname + '?url=' + encodeURIComponent(state.domain);
+        try {
+          await navigator.clipboard.writeText(link);
+          if (shareLabel) shareLabel.textContent = 'Link Copied';
+        } catch {
+          if (shareLabel) shareLabel.textContent = 'Copy Failed';
+        }
+        setTimeout(() => { if (shareLabel) shareLabel.textContent = 'Copy a Shareable Link'; }, 2200);
+      });
+    }
+
+    const downloadBtn = root.querySelector('[data-ps-download]');
+    const downloadLabel = root.querySelector('[data-ps-download-label]');
+    if (downloadBtn) {
+      // Server-side screenshot of the /p/render/ page for this share, in the
+      // device + appearance currently on screen — takes a few seconds.
+      downloadBtn.addEventListener('click', async () => {
+        downloadBtn.disabled = true;
+        if (downloadLabel) downloadLabel.textContent = 'Preparing Image…';
+        window.spTrack?.('preview_download');
+        try {
+          const slug = await mintShare();
+          if (!slug) throw new Error('no-share');
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              renderShare: {
+                slug,
+                device: state.overrides.device,
+                theme: state.overrides.theme || '',
+              },
+            }),
+          });
+          if (!res.ok || !(res.headers.get('content-type') || '').startsWith('image/')) throw new Error('render-failed');
+          const blob = await res.blob();
+          const ext = blob.type.includes('jpeg') ? 'jpg' : 'png';
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = slugify(state.name) + '-payment-page.' + ext;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+          if (downloadLabel) downloadLabel.textContent = 'Downloaded';
+        } catch {
+          if (downloadLabel) downloadLabel.textContent = "Couldn't Prepare Image";
+        } finally {
+          downloadBtn.disabled = false;
+          setTimeout(() => { if (downloadLabel) downloadLabel.textContent = 'Download as Image'; }, 2600);
+        }
+      });
+    }
+
+    // ---- apply a fetched profile ----
+    function applyProfile(p) {
+      if (p.name) { state.name = p.name; nameInput.value = p.name.slice(0, 32); }
+      state.brand = p.brand || {};
+      loadBrandFont(state.brand.font || '');
+      // Keep the visitor's device; open in the rendition that matches the
+      // brand's real site.
+      const prefs = (p.variants || []).filter((v) => v.brief).map((v) => v.brief.design.preferred);
+      const darkWins = prefs.filter((x) => x === 'dark').length > prefs.length / 2;
+      state.overrides = {
+        accent: null,
+        scenario: null,
+        device: state.overrides.device,
+        theme: darkWins ? 'dark' : 'light',
+      };
+      syncToggles();
+      selectSwatch(null);
+      planBtns.forEach((x) => { x.classList.remove('is-selected'); x.setAttribute('aria-checked', 'false'); });
+
+      state.variants = Array.isArray(p.variants) ? p.variants.slice(0, cardEls.length) : [];
+
+      render();
+
+      if (disclaimerEl) {
+        const who = p.name || 'this business';
+        disclaimerEl.textContent =
+          'Illustrative preview — a sketch generated from your public branding, ' +
+          'not affiliated with or endorsed by ' + who + '. No real payments are taken.';
+        disclaimerEl.hidden = false;
+      }
+      state.shareSlug = null; // new generation → old snapshot is stale
+      const shareable = !!state.domain && state.variants.some((v) => v.brief);
+      if (shareBtn) shareBtn.hidden = !shareable;
+      if (downloadBtn) downloadBtn.hidden = !shareable;
+      if (ctaEl) ctaEl.hidden = !state.variants.some((v) => v.brief);
+    }
+
+    // ---- generate from a URL ----
+    const freshBtn = root.querySelector('[data-ps-fresh]');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // Honest-but-alive loading copy, staged to roughly match the real pipeline.
+    const STAGES = [
+      ['Reading your site…', 0],
+      ['Capturing your homepage and brand…', 3000],
+      ['Designing your payment page…', 7000],
+      ['Applying your colours, logo and type…', 12000],
+    ];
+    let inFlight = false;
+    let stageTimers = [];
+    const clearStages = () => { stageTimers.forEach(clearTimeout); stageTimers = []; };
+
+    // Visible progress checklist mirroring STAGES (status line stays the
+    // aria-live announcer; the list is aria-hidden decoration of the same facts).
+    const checklistEl = root.querySelector('[data-ps-checklist]');
+    const checklistRows = checklistEl ? Array.from(checklistEl.children) : [];
+    const checklistStep = (i) => {
+      checklistRows.forEach((row, j) => {
+        row.classList.toggle('is-done', j < i);
+        row.classList.toggle('is-active', j === i);
+      });
+    };
+    const checklistShow = (on) => {
+      if (!checklistEl) return;
+      checklistEl.hidden = !on;
+      if (on) checklistStep(0);
+    };
+
+    // Evidence strip: the brand ingredients we actually extracted.
+    const ingredientsEl = root.querySelector('[data-ps-ingredients]');
+    const showIngredients = () => {
+      if (!ingredientsEl) return;
+      ingredientsEl.textContent = '';
+      const bits = [];
+      const accents = [...new Set(
+        (state.variants || [])
+          .map((v) => v && v.brief && v.brief.design && (v.brief.design.accent || v.brief.design.primary))
+          .filter((c) => typeof c === 'string' && /^#?[0-9a-fA-F]{3,8}$/.test(c.replace('#', '')))
+      )].slice(0, 3);
+      const lead = document.createElement('span');
+      lead.textContent = `Designed from ${state.domain}'s public branding`;
+      ingredientsEl.appendChild(lead);
+      if (accents.length) {
+        const chips = document.createElement('span');
+        chips.className = 'ps__ingredient-chips';
+        accents.forEach((c) => {
+          const dot = document.createElement('i');
+          dot.style.background = c.startsWith('#') ? c : '#' + c;
+          chips.appendChild(dot);
+        });
+        ingredientsEl.appendChild(chips);
+        bits.push('colours');
+      }
+      if (state.brand && state.brand.font) {
+        const f = document.createElement('span');
+        f.textContent = `· type: ${String(state.brand.font).slice(0, 40)}`;
+        ingredientsEl.appendChild(f);
+        bits.push('font');
+      }
+      ingredientsEl.hidden = false;
+    };
+
+    function scrollToPreview() {
+      const target = cardEls[0];
+      if (!target) return;
+      target.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    }
+
+    async function generate(rawUrl, fresh) {
+      const u = normaliseUrl(rawUrl);
+      if (!u) {
+        setStatus('Enter a valid website address, e.g. yourbusiness.co.uk', 'error');
+        urlInput.focus();
+        return;
+      }
+      state.domain = registrableDomain(u.hostname);
+      window.spTrack?.('preview_generate');
+      // Hand the funnel context to the enquiry modal: a lead who generated a
+      // preview opens the conversation with exactly what they were looking at.
+      window.__previewContext = { domain: state.domain, slug: window.__previewContext?.slug };
+
+      if (!endpoint) {
+        setStatus("Live previews aren't switched on yet — adjust the controls below to sketch by hand.", 'error');
+        return;
+      }
+
+      inFlight = true;
+      if (generateBtn) generateBtn.disabled = true;
+      if (freshBtn) freshBtn.hidden = true;
+      if (ctaEl) ctaEl.hidden = true;
+      if (ingredientsEl) ingredientsEl.hidden = true;
+      setBtnLabel('Designing…');
+      setSkeletons(true);
+      checklistShow(true);
+      STAGES.forEach(([msg, delay], i) => {
+        stageTimers.push(setTimeout(() => { setStatus(msg, 'working'); checklistStep(i); }, delay));
+      });
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: u.href, ...(fresh ? { fresh: true } : {}) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data || data.error || data.v !== 4) {
+          throw new Error((data && data.error) || 'extract-failed');
+        }
+        clearStages();
+        checklistStep(checklistRows.length); // every row ticks done
+        setTimeout(() => checklistShow(false), 450);
+        setSkeletons(false);
+        applyProfile(data);
+        const good = (data.variants || []).filter((v) => v.brief).length;
+        if (good) {
+          showIngredients();
+          // The unveil: a one-shot clip-path wipe as the page arrives.
+          if (!reduceMotion.matches && cardEls[0]) {
+            cardEls[0].classList.add('is-unveiling');
+            setTimeout(() => cardEls[0].classList.remove('is-unveiling'), 900);
+          }
+        }
+        const who = data.name || state.domain;
+        if (freshBtn) freshBtn.hidden = !good;
+        setStatus(
+          good
+            ? "Here's " + who + "'s payment page — flip device or appearance, make it yours, then book a free consultation."
+            : "We couldn't design a page this time — set your name, colour and scenario by hand below.",
+          good ? null : 'error',
+        );
+        if (good) scrollToPreview();
+      } catch (err) {
+        // Graceful fallback to manual entry — no dead end.
+        state.domain = '';
+        state.variants = [];
+        clearStages();
+        checklistShow(false);
+        setSkeletons(false);
+        cardEls.forEach((c, i) => { c.hidden = i > 0; });
+        root.classList.remove('is-multi');
+        render();
+        setStatus("We couldn't read that site automatically. No problem — set your name, colour and scenario by hand below.", 'error');
+      } finally {
+        inFlight = false;
+        clearStages();
+        if (generateBtn) generateBtn.disabled = false;
+        setBtnLabel(genLabel);
+      }
+    }
+
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!inFlight) generate(urlInput.value, false);
+      });
+    }
+    if (freshBtn) {
+      freshBtn.addEventListener('click', () => {
+        if (!inFlight) generate(urlInput.value, true);
+      });
+    }
+
+    // ---- initial paint + hydrate from a shared ?url= link ----
+    syncToggles();
+    render();
+    const params = new URLSearchParams(location.search);
+    const sharedUrl = params.get('url');
+    if (sharedUrl) {
+      urlInput.value = sharedUrl;
+      generate(sharedUrl);
+    } else if (!window.matchMedia('(max-width: 860px)').matches) {
+      // Desktop lands ready to type; on phones autofocus would yank the viewport.
+      urlInput.focus();
+    }
+  });
+</script>

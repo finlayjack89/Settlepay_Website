@@ -1,0 +1,107 @@
+---
+/**
+ * /manage/?t=<token> — the attendee's self-service page (linked from the
+ * confirmation email). Shows the booking, and lets them reschedule (slot picker)
+ * or cancel. All behaviour is in SiteScripts.astro, guarded by #sp-manage; the
+ * token is a bearer capability so the page is noindex + robots-excluded.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import Icon from '../components/Icon.astro';
+import BookingCalendar from '../components/BookingCalendar.astro';
+import { SITE } from '../data/site.mjs';
+---
+<BaseLayout title="Manage Your Booking" description="Reschedule or cancel your SettlePay consultation." canonical="/manage/" noindex={true}>
+  <section class="manage-section">
+    <div class="container manage-wrap">
+      <div class="book-main">
+        <div id="sp-manage" data-manage={SITE.manageEndpoint} data-availability={SITE.availabilityEndpoint}>
+          <div data-mstep="loading" class="sp-booking__state" aria-live="polite">
+            <span class="sp-spinner" aria-hidden="true"></span><p>Loading your booking…</p>
+          </div>
+
+          <div data-mstep="notfound" class="sp-booking__state" hidden>
+            <p>We couldn't find that booking — the link may be out of date. Need help? Email
+              <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a>.</p>
+          </div>
+
+          <div data-mstep="summary" hidden>
+            <div class="section-badge">Your Consultation</div>
+            <h1 class="manage__title" data-msummary></h1>
+            <p class="manage__status" data-mstatus></p>
+            <div class="manage__actions">
+              <a data-mjoin class="btn-primary sp-booking__join" target="_blank" rel="noopener" hidden>Join Link<Icon name="arrow" sw={2.5} /></a>
+              <button type="button" data-mreschedule class="btn-secondary">Reschedule</button>
+              <button type="button" data-mcancel class="manage__cancel">Cancel booking</button>
+            </div>
+            <p class="sp-field__hint" data-merror hidden role="alert" style="color:var(--color-error)"></p>
+          </div>
+
+          <div data-mstep="reschedule" hidden>
+            <button type="button" data-mback class="sp-booking__back"><Icon name="chevron" sw={2.5} /> Back</button>
+            <h2 class="sp-booking__title">Pick a New Time</h2>
+            <p class="sp-booking__tz"><Icon name="clock" sw={2} /> All times shown in UK time (Europe/London).</p>
+            <div style="margin-top:1.25rem"><BookingCalendar /></div>
+          </div>
+
+          <!-- Inline confirm card + banner — branded replacements for the native
+               confirm()/alert() dialogs. JS moves them into the active step. -->
+          <div class="manage__confirm" data-mconfirm hidden role="alertdialog" aria-labelledby="mconfirm-text">
+            <p id="mconfirm-text" data-mconfirm-text></p>
+            <div class="manage__confirm-actions">
+              <button type="button" class="btn-primary" data-mconfirm-yes></button>
+              <button type="button" class="btn-secondary" data-mconfirm-no>Go back</button>
+            </div>
+          </div>
+          <p class="manage__banner" data-mbanner hidden role="alert"></p>
+
+          <div data-mstep="done" class="sp-booking__success" hidden>
+            <div class="sp-booking__success-icon"><Icon name="check" sw={2.5} /></div>
+            <h2 data-mdone-title>All Done</h2>
+            <p class="sp-booking__success-when" data-mdone-when></p>
+            <p class="sp-booking__success-note" data-mdone-note></p>
+            <a href="/" class="btn-secondary">Back to SettlePay</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .manage-section { padding: 3rem 0 5rem; }
+  .manage-wrap { max-width: 640px; }
+  .manage__title { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin: 0.5rem 0 0.4rem; }
+  .manage__status { font-size: 0.95rem; color: var(--color-primary-brand); opacity: 0.6; margin-bottom: 1.75rem; }
+  .manage__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .manage__cancel {
+    appearance: none; border: none; background: none; cursor: pointer; font: inherit;
+    font-size: 0.9rem; font-weight: 600; color: var(--color-error); text-decoration: underline; padding: 0.5rem;
+  }
+  .manage__confirm {
+    background: var(--color-secondary-bg);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 16px;
+    padding: 1.1rem 1.25rem;
+    margin-top: 1.25rem;
+  }
+  .manage__confirm[hidden] { display: none; }
+  .manage__confirm p { margin: 0 0 0.85rem; font-weight: 600; }
+  .manage__confirm-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .manage__banner {
+    margin-top: 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: var(--radius-input);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #7C4A03;
+  }
+  .manage__banner.is-error {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #B91C1C;
+  }
+  .manage__banner[hidden] { display: none; }
+</style>

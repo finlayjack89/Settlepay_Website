@@ -29,7 +29,15 @@
     "description": "Case studies in payment management: a live client and five modelled demo businesses showing deposits, invoices, instalments and Direct Debit — with the chasing, matching and reconciliation automated.",
     "keywords": "SettlePay portfolio, payment page examples, branded checkout examples, pay by link demo, invoice payment page, Direct Debit mandate page, payment page case study UK",
     "ogTitle": "Our Work | Branded Payment Pages by SettlePay",
-    "ogDescription": "One live client and five fictional, fully-modelled case studies — each replacing bank transfers and phone payments with a branded payment system that runs itself."
+    "ogDescription": "One live client and six fictional, fully-modelled case studies — each replacing bank transfers and phone payments with a branded payment system that runs itself."
+  },
+  {
+    "path": "/preview/",
+    "title": "See Your Payment Page | SettlePay Preview Tool",
+    "description": "Paste your website and see an illustrative SettlePay checkout in your own brand — your colours, logo and name. A quick sketch of what a bespoke payment page could look like for your business.",
+    "keywords": "payment page preview, branded checkout mockup, see your payment page, custom checkout demo, payment page in my brand, SettlePay preview tool, branded payment page generator UK",
+    "ogTitle": "See Your Payment Page in Your Own Brand | SettlePay",
+    "ogDescription": "Enter your website address and we'll sketch a branded SettlePay checkout in your colours, logo and name — an illustrative preview, no real payments taken."
   },
   {
     "path": "/work/lockdales-auctioneers/",

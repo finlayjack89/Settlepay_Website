@@ -15,6 +15,29 @@
   --color-primary-action-hover: #2563EB;
   --color-secondary-bg:        #F1F5F9;
   --color-pure-white:          #FFFFFF;
+  /* Muted-but-legible text — solid tokens, not opacity dimming, so attributions
+     and disclosures composite to >=4.5:1 on their real backgrounds (WCAG AA). */
+  --color-text-muted:          #55607A; /* on white/slate */
+  --color-text-on-dark-muted:  rgba(255, 255, 255, 0.72); /* on navy */
+
+  /* Ink-opacity ramp — the rgba(15,23,42, …) values used throughout the CSS
+     (borders, hairlines, supporting copy). Use these, not fresh rgba() literals. */
+  --color-ink-90: rgba(15, 23, 42, 0.90); /* near-black text on light */
+  --color-ink-65: rgba(15, 23, 42, 0.65); /* secondary body text */
+  --color-ink-55: rgba(15, 23, 42, 0.55); /* tertiary / supporting copy */
+  --color-ink-45: rgba(15, 23, 42, 0.45); /* muted labels, timestamps */
+  --color-ink-12: rgba(15, 23, 42, 0.12); /* default control borders */
+  --color-ink-06: rgba(15, 23, 42, 0.06); /* hairline dividers, subtle fills */
+
+  /* On-dark ramp (text/line over navy) */
+  --color-on-dark-60: rgba(255, 255, 255, 0.60);
+  --color-on-dark-40: rgba(255, 255, 255, 0.40);
+  --color-on-dark-20: rgba(255, 255, 255, 0.20);
+  --color-on-dark-08: rgba(255, 255, 255, 0.08);
+
+  /* Action-blue tints (FILL behind icons/badges — never decorative text) */
+  --color-action-tint-15: rgba(59, 130, 246, 0.15);
+  --color-action-tint-08: rgba(59, 130, 246, 0.08);
 
   /* Typography — Change 1 */
   --font-primary: 'Satoshi', system-ui, sans-serif;
@@ -22,9 +45,12 @@
 
   /* Geometry */
   --radius-button: 100px; /* pill — primary/secondary buttons (per design system) */
-  --radius-input:  8px;   /* inputs & small controls */
+  --radius-input:  8px;   /* inputs & small controls — never the pill */
   --radius-card:   24px;
   --radius-icon:   12px;  /* icon tiles */
+  --radius-soft:   16px;  /* "soft cards": ROI results, FAQ items, fact tiles */
+  /* Inset hairline used by the bezel wrapper and the floating nav */
+  --ring-inset: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
 
   /* Anchor-scroll offset — clears the shrunk floating nav. Keep in sync with the
      scrolled navbar height + a small gap (see .navbar.is-scrolled). */
@@ -35,6 +61,10 @@
   --color-warning: #F59E0B;
   --color-info:    #8B5CF6;
   --color-error:   #DC2626;
+  --color-success-tint: rgba(16, 185, 129, 0.10);
+  --color-warning-tint: rgba(245, 158, 11, 0.08);
+  --color-info-tint:    rgba(139, 92, 246, 0.08);
+  --color-error-tint:   rgba(220, 38, 38, 0.08);
 
   /* Fonts (secondary) */
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -46,10 +76,75 @@
   --shadow-cta: 0 2px 8px rgba(59, 130, 246, 0.25);
   --shadow-cta-hover: 0 4px 16px rgba(59, 130, 246, 0.30);
 
-  /* Animation */
-  --ease-snappy:    0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-cinematic: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring:    400ms cubic-bezier(0.34, 1.25, 0.64, 1); /* overshoots — nav collapse */
+  /* Frosted glass — a system, not a single moment (DESIGN-SYSTEM §8). Pair with a
+     translucent fill + hairline edge. -webkit- prefixed declaration FIRST, standard
+     LAST. On-dark stage internals (hero layers 6px, flow nodes 8px) stay local. */
+  --blur-glass-veil: 4px;   /* modal overlay — soften, don't frost */
+  --blur-glass-chip: 14px;  /* StatusChip pills over imagery/dark stages */
+  --blur-glass-bar:  16px;  /* StickyCta mobile action bar (saturate-soft) */
+  --blur-glass-nav:  18px;  /* the floating-island nav pill */
+  --glass-saturate:      1.8; /* default frost saturation (nav, chips) */
+  --glass-saturate-soft: 1.4; /* larger sheets (StickyCta) */
+
+  /* Animation — curve/duration split; the bundled --ease-* compositions are the
+     everyday shorthand. Curves alone for keyframes/bespoke durations. */
+  --curve-snappy:    cubic-bezier(0.4, 0, 0.2, 1);      /* micro feedback */
+  --curve-cinematic: cubic-bezier(0.22, 1, 0.36, 1);    /* reveals, card lift */
+  --curve-spring:    cubic-bezier(0.34, 1.25, 0.64, 1); /* overshoots — nav collapse */
+  --duration-snappy:    0.15s;
+  --duration-cinematic: 0.6s;
+  --duration-spring:    400ms;
+  --ease-snappy:    var(--duration-snappy) var(--curve-snappy);
+  --ease-cinematic: var(--duration-cinematic) var(--curve-cinematic);
+  --ease-spring:    var(--duration-spring) var(--curve-spring);
+
+  /* Vertical rhythm — clamps cover mobile, no per-breakpoint overrides needed */
+  --space-section:         clamp(3.5rem, 2.75rem + 2.5vw, 4.75rem);
+  --space-section-compact: clamp(2.25rem, 2rem + 1.25vw, 3rem); /* slim bands: trust strip, mini-cta */
+  --space-header-gap:      2.5rem; /* SectionHeader → section content */
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.5rem;
+  --space-8: 3rem;
+  --container: 1200px;
+
+  /* Type scale */
+  --text-display:    clamp(2.1rem, 3.2vw + 1rem, 3.6rem);   /* hero H1 */
+  --text-title:      clamp(1.65rem, 2vw + 0.75rem, 2.4rem); /* section H2 */
+  --text-page-title: clamp(1.9rem, 2.2vw + 1rem, 2.6rem);   /* interior page H1 */
+  --text-lead:       1.1rem;
+  --text-card:       1.35rem; /* card / feature title */
+  --text-step:       1.15rem; /* step / sub-title (H3) */
+  --text-body:       1rem;    /* default body */
+  --text-sm:         0.9rem;  /* dense UI text */
+  --text-label:      0.75rem; /* eyebrow / badge / category labels */
+  --text-micro:      0.7rem;  /* timestamps, fine print (never reading copy) */
+
+  /* Weights — avoid thin/light for body */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* Line heights */
+  --leading-tight:   1.05; /* display */
+  --leading-snug:    1.15; /* headings */
+  --leading-normal:  1.6;  /* UI */
+  --leading-relaxed: 1.75; /* long body — comfortable for older readers */
+
+  /* Letter spacing */
+  --tracking-display: -0.035em;
+  --tracking-heading: -0.02em;
+  --tracking-eyebrow:  0.05em; /* uppercase labels */
+
+  /* Constrained measure for readability (~50–75ch) */
+  --measure: 62ch;
 }
 
 /* ---------------------------------------------------------
@@ -67,6 +162,38 @@ html {
   font-size: var(--text-base);
   scroll-behavior: smooth;
   scroll-padding-top: var(--nav-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Cross-document view transitions (MPA) — a ~180ms fade between pages. CSS-only:
+   no ClientRouter, so the WebGL islands' lifecycle is untouched. Firefox degrades
+   to normal navigation; reduced motion gets none.
+
+   Deliberately NO `view-transition-name` on the nav. Naming an element lifts it
+   into its own transition snapshot, isolated from the page's root snapshot — which
+   starves the nav pill's `backdrop-filter` of a backdrop, so the frosted glass
+   silently stops rendering (reads as flat translucency). The nav is identical on
+   every page, so letting it fade with the root is visually indistinguishable from
+   persisting it — and keeps the frost. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.18s;
+  }
+}
+
+html {
+  /* Reserve the scrollbar gutter so locking body scroll (modal open) never
+     shifts the page or the fixed nav sideways. */
+  scrollbar-gutter: stable;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -76,10 +203,17 @@ body {
   color: var(--color-primary-brand);
   background-color: var(--color-pure-white);
   line-height: 1.6;
-  /* clip, NOT hidden: `overflow: hidden` makes <body> a scroll container, which
-     neutralises the sticky navbar's backdrop-filter (it can't sample the page
-     behind it). `clip` contains overflow without establishing a scrollport, so
-     the frosted-glass blur actually renders. */
+  /* No overflow clip here: ANY overflow clip/hidden in the sticky nav's ancestor
+     chain (html → body → nav) kills its backdrop-filter, so the frost never
+     paints. The horizontal-overflow guard lives on <main> instead (a sibling of
+     <nav>) — see below. */
+}
+
+/* Contain full-bleed section overflow WITHOUT clipping the nav's ancestor chain.
+   <main> is a sibling of the sticky <nav>, so clipping here leaves the nav's
+   backdrop-filter intact. `clip` (not hidden) keeps <main> a non-scroll container,
+   so vertical sticky/shadows are unaffected. */
+main {
   overflow-x: clip;
 }
 
@@ -117,13 +251,13 @@ body::after {
    --------------------------------------------------------- */
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--container);
   margin-inline: auto;
   padding-inline: 1.5rem;
 }
 
 .section-pad {
-  padding-block: 6rem; /* Change 4: increased breathing room */
+  padding-block: var(--space-section);
 }
 
 /* Shared section header styles */
@@ -149,7 +283,7 @@ body::after {
 }
 
 .section-title {
-  font-size: clamp(1.75rem, 2.5vw + 0.5rem, 2.75rem);
+  font-size: var(--text-title);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -173,7 +307,69 @@ body::after {
 
 .value-prop__header {
   text-align: center;
-  margin-bottom: 3.5rem;
+  margin-bottom: var(--space-header-gap);
+}
+
+.value-prop__header--left {
+  text-align: left;
+}
+
+.value-prop__header--left .section-subtitle {
+  margin-inline: 0;
+}
+
+/* Scroll reveal — subtle enter (opacity + 14px lift), staggered per group via
+   --reveal-delay set in SiteScripts. Hidden state only applies once JS has
+   added .reveal-ready to <html>, so no-JS visitors always see content. */
+/* Uses the standalone `translate` property (not `transform`) so it composes
+   with the pointer-tilt transform on elements carrying both attributes.
+   transform/box-shadow are ALSO listed (delay 0) because this rule replaces
+   the element's own transition — without them, card hover lifts snap. */
+html.reveal-ready [data-reveal] {
+  opacity: 0;
+  translate: 0 14px;
+  transition:
+    opacity var(--ease-cinematic),
+    translate var(--ease-cinematic),
+    transform var(--ease-cinematic),
+    box-shadow var(--ease-cinematic);
+  transition-delay: var(--reveal-delay, 0ms), var(--reveal-delay, 0ms), 0ms, 0ms;
+}
+
+html.reveal-ready [data-reveal].is-revealed {
+  opacity: 1;
+  translate: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.reveal-ready [data-reveal] {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+}
+
+/* Full-bleed dark section ("dark chapter"). Use at most once between the hero
+   and the CtaBand — dark stays special. Overrides keep WCAG AA contrast. */
+.section--dark {
+  background:
+    radial-gradient(120% 90% at 50% -20%, #1E2B45 0%, transparent 60%),
+    var(--color-primary-brand);
+  color: var(--color-pure-white);
+}
+
+.section--dark .section-title {
+  color: var(--color-pure-white);
+}
+
+.section--dark .section-subtitle {
+  color: rgba(255, 255, 255, 0.68);
+  opacity: 1;
+}
+
+.section--dark .section-badge {
+  color: #93C5FD;
+  background-color: rgba(59, 130, 246, 0.16);
 }
 
 /* ---------------------------------------------------------
@@ -252,11 +448,20 @@ body::after {
   margin: calc(12px * var(--nav-scroll-p, 0)) auto 0;
   border: 1px solid rgba(15, 23, 42, calc(0.07 * var(--nav-scroll-p, 0)));
   border-radius: calc(100px * var(--nav-scroll-p, 0));
-  background-color: rgba(255, 255, 255, calc(0.72 + 0.16 * var(--nav-scroll-p, 0)));
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  background-color: rgba(255, 255, 255, calc(0.62 + 0.16 * var(--nav-scroll-p, 0)));
+  /* Prefix FIRST, standard property LAST: the CSS minifier collapses this
+     pair and keeps only the final declaration — standard-first order ships
+     webkit-only CSS that modern Chromium ignores (frost silently dies in
+     production builds while the unminified dev server looks fine). */
+  -webkit-backdrop-filter: blur(var(--blur-glass-nav)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--blur-glass-nav)) saturate(var(--glass-saturate));
+  /* Definition so the bar reads as a frosted-glass surface even over the white
+     hero (where the blur alone has nothing behind it to soften):
+     1) a bottom hairline at the top state that fades as it collapses to a pill,
+     2) an always-on soft lift shadow, 3) the deep pill shadow when scrolled. */
   box-shadow:
-    0 2px 8px rgba(30, 58, 138, calc(0.06 * var(--nav-scroll-p, 0))),
+    0 1px 0 rgba(15, 23, 42, calc(0.07 * (1 - var(--nav-scroll-p, 0)))),
+    0 4px 20px rgba(15, 23, 42, calc(0.05 + 0.03 * var(--nav-scroll-p, 0))),
     0 8px 32px rgba(30, 58, 138, calc(0.08 * var(--nav-scroll-p, 0)));
   transition:
     max-width var(--ease-spring),
@@ -273,8 +478,29 @@ body::after {
   align-items: center;
   padding-block: 0.5rem;
   padding-inline: calc(1.5rem - 0.75rem * var(--nav-scroll-p, 0));
-  max-width: 1200px;
+  max-width: var(--container);
   transition: padding var(--ease-spring);
+}
+
+/* Dark variant: over navy sections the light frost reads as an opaque grey
+   slab — flip to a dark glass with light links (JS toggles the class from an
+   IO over the dark surfaces). */
+.navbar--over-dark .navbar__inner {
+  background-color: rgba(15, 23, 42, calc(0.5 + 0.22 * var(--nav-scroll-p, 0)));
+  border-color: rgba(255, 255, 255, calc(0.14 * var(--nav-scroll-p, 0)));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, calc(0.08 * (1 - var(--nav-scroll-p, 0)))),
+    0 4px 20px rgba(2, 6, 23, 0.35);
+}
+.navbar--over-dark .navbar__link {
+  color: rgba(255, 255, 255, 0.85);
+}
+.navbar--over-dark .navbar__link:hover {
+  color: var(--color-pure-white);
+}
+.navbar--over-dark .navbar__logo img,
+.navbar--over-dark [data-nav-toggle] {
+  filter: brightness(0) invert(1);
 }
 
 .navbar__logo {
@@ -449,13 +675,26 @@ body::after {
    --------------------------------------------------------- */
 .hero {
   position: relative;
-  padding-block: 6rem 5rem;
+  padding-block: 4.5rem 4rem;
   overflow: hidden;
   background: linear-gradient(
     165deg,
     var(--color-pure-white) 0%,
     var(--color-secondary-bg) 100%
   );
+}
+
+/* Quiet dot-grid texture concentrated behind the stage, fading out — ties the
+   hero to the mockups' dotted-grid motif without gradients or glow. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(80% 75% at 72% 40%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(80% 75% at 72% 40%, #000 0%, transparent 72%);
 }
 
 .hero .container {
@@ -492,7 +731,7 @@ body::after {
 
 /* Change 4: Tighter display headline */
 .hero__title {
-  font-size: clamp(2.25rem, 3.5vw + 1rem, 3.75rem);
+  font-size: var(--text-display);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.035em;
@@ -506,12 +745,12 @@ body::after {
 }
 
 .hero__subtitle {
-  font-size: 1.1rem;
+  font-size: var(--text-lead);
   line-height: 1.7;
   color: var(--color-primary-brand);
   opacity: 0.6;
   max-width: 520px;
-  margin-bottom: 2.25rem;
+  margin-bottom: 2rem;
 }
 
 .hero__actions {
@@ -549,12 +788,6 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.hero__visual-mockup {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
 }
 
 /* ---------------------------------------------------------
@@ -684,13 +917,28 @@ body::after {
 .checkout-v2__panel--active .checkout-v2__panel-header {
   background: #fdfdfd;
 }
+/* Accordion bodies animate open via the grid-rows 0fr -> 1fr trick (needs the
+   inner wrapper to allow min-height 0); reduced motion snaps as before. */
 .checkout-v2__panel-body {
-  display: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+}
+.checkout-v2__panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.checkout-v2__panel-pad {
+  padding: 1.25rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .checkout-v2__panel-body {
+    transition: grid-template-rows 0.35s var(--ease-cinematic);
+  }
 }
 .checkout-v2__panel--active .checkout-v2__panel-body {
-  display: block;
+  grid-template-rows: 1fr;
   background: #fafafa;
-  padding: 1.25rem;
   border-top: 1px solid #d9d9d9;
 }
 
@@ -853,120 +1101,62 @@ body::after {
 .checkout-v2__applepay-big:hover {
   opacity: 0.9;
 }
+/* Idle-demo states: press, process, land on green — driven by SiteScripts. */
+.checkout-v2__applepay-big {
+  transition: opacity 0.2s, transform var(--ease-snappy), background-color 0.25s ease;
+}
+.checkout-v2__applepay-big.is-pressed {
+  transform: scale(0.97);
+}
+.checkout-v2__applepay-big.is-busy {
+  opacity: 0.85;
+}
+.checkout-v2__applepay-big.is-success {
+  background: var(--color-success);
+}
 
 
 /* ---------------------------------------------------------
-   8. Value Proposition — Change 2: Zig-Zag Layout
+   8. Value Proposition — bento grid (cards in kit-extras.css .bento)
    --------------------------------------------------------- */
 .value-prop {
   background-color: var(--color-pure-white);
 }
 
-.value-prop__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
-}
-
-.zigzag-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: center;
-}
-
-.zigzag-row--reverse {
-  direction: rtl;
-}
-
-.zigzag-row--reverse > * {
-  direction: ltr;
-}
-
-.zigzag-row__content {
-  display: flex;
-  flex-direction: column;
-}
-
-.zigzag-row__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: rgba(59, 130, 246, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-}
-
-.zigzag-row__icon svg {
-  width: 28px;
-  height: 28px;
-  color: var(--color-primary-action);
-}
-
-.zigzag-row__icon--green { background: rgba(16, 185, 129, 0.08); }
-.zigzag-row__icon--green svg { color: #10B981; }
-
-.zigzag-row__icon--amber { background: rgba(245, 158, 11, 0.08); }
-.zigzag-row__icon--amber svg { color: #F59E0B; }
-
-.zigzag-row__icon--purple { background: rgba(139, 92, 246, 0.08); }
-.zigzag-row__icon--purple svg { color: #8B5CF6; }
-
-.zigzag-row__title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.015em;
-}
-
-.zigzag-row__text {
-  font-size: 0.95rem;
-  line-height: 1.75;
-  opacity: 0.7;
-  max-width: 440px;
-}
-
-/* Visual placeholder for zig-zag right-hand side */
-.zigzag-row__visual {
-  background: var(--color-secondary-bg);
-  border-radius: var(--radius-card);
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
-  padding: 1.5rem;
-}
-
-.zigzag-row__visual-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.25;
-}
-
 /* ---------------------------------------------------------
    9. How The Plumbing Works (Integration)
    --------------------------------------------------------- */
-.integration {
-  background-color: var(--color-pure-white);
-}
+/* .integration background comes from .section--dark (full-bleed dark chapter) */
 
+/* Adyen-style split-scroll: the dashboard pins while the steps walk past it;
+   the step nearest the viewport centre carries the light (.is-current). */
 .integration__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4rem;
-  align-items: center;
+  align-items: start;
+}
+
+.integration__visual {
+  position: sticky;
+  top: calc(var(--nav-offset) + 2rem);
 }
 
 .integration__steps {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 3.5rem;
+  padding-block: 1rem 3rem;
+}
+
+html.reveal-ready .section--dark .integration__step {
+  /* Dimmed but still readable (>=3:1) for anyone scrolling ahead of the spotlight. */
+  opacity: 0.55;
+  transition: opacity 0.35s ease;
+}
+
+html.reveal-ready .section--dark .integration__step.is-current {
+  opacity: 1;
 }
 
 .integration__step {
@@ -1007,16 +1197,46 @@ body::after {
   opacity: 0.65;
 }
 
+/* On-dark overrides — the section is a full-bleed dark chapter (.section--dark) */
+.section--dark .integration__step-title,
+.section--dark .integration__flex-title,
+.section--dark .integration__mode-title {
+  color: var(--color-pure-white);
+}
+
+.section--dark .integration__flex {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.section--dark .integration__mode {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.section--dark .integration__mode-tag {
+  color: #93C5FD;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.section--dark .integration__mode-tag--auto {
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.section--dark .dashboard-mockup {
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.5);
+}
+
 /* Invoicing flexibility band */
 .integration__flex {
-  margin-top: 4.5rem;
-  padding-top: 3.5rem;
+  margin-top: 3rem;
+  padding-top: 2.5rem;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .integration__flex-head {
   max-width: 720px;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .integration__flex-title {
@@ -1043,7 +1263,7 @@ body::after {
   background: var(--color-secondary-bg);
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: var(--radius-card);
-  padding: 1.75rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .integration__mode-tag {
@@ -1078,10 +1298,7 @@ body::after {
   opacity: 0.68;
 }
 
-/* Asset 2: Dashboard Mockup */
-.integration__visual {
-  position: relative;
-}
+/* Asset 2: Dashboard Mockup (position comes from the sticky split above) */
 
 .dashboard-mockup {
   background: var(--color-pure-white);
@@ -1308,79 +1525,8 @@ body::after {
   margin-top: 0.1rem;
 }
 
-/* ---------------------------------------------------------
-   10. Trust Signals
-   --------------------------------------------------------- */
-.trust {
-  background-color: var(--color-secondary-bg);
-  padding-block: 0 5rem;
-}
-
-.trust__inner {
-  background: var(--color-pure-white);
-  border-radius: var(--radius-card);
-  padding: 2.5rem 3rem;
-  box-shadow:
-    0 1px 3px rgba(30, 58, 138, 0.03),
-    0 4px 20px rgba(30, 58, 138, 0.05);
-}
-
-.trust__badge-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2.5rem;
-  flex-wrap: wrap;
-}
-
-.trust__badge {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.trust__badge-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(59, 130, 246, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.trust__badge-icon svg {
-  width: 22px;
-  height: 22px;
-  color: var(--color-primary-action);
-}
-
-.trust__badge-icon--green { background: rgba(16, 185, 129, 0.08); }
-.trust__badge-icon--green svg { color: #10B981; }
-
-.trust__badge-icon--amber { background: rgba(245, 158, 11, 0.08); }
-.trust__badge-icon--amber svg { color: #F59E0B; }
-
-.trust__badge-icon--purple { background: rgba(139, 92, 246, 0.08); }
-.trust__badge-icon--purple svg { color: #8B5CF6; }
-
-.trust__badge-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.trust__badge-text {
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-top: 0.1rem;
-}
-
-.trust__divider {
-  width: 1px;
-  height: 36px;
-  background: rgba(15, 23, 42, 0.08);
-}
+/* Section 10 (Trust Signals) now lives in kit-extras.css as the slim
+   .trust-strip band under the hero. */
 
 /* ---------------------------------------------------------
    11. ROI Calculator
@@ -1469,7 +1615,7 @@ body::after {
 
 .calculator__result-card {
   background: var(--color-secondary-bg);
-  border-radius: 16px;
+  border-radius: var(--radius-soft);
   padding: 1.5rem 1.75rem;
   display: flex;
   align-items: center;
@@ -1553,17 +1699,41 @@ body::after {
    and, crucially, sits apart from the equally-dark footer below it. */
 .cta-section {
   background: var(--color-secondary-bg);
-  padding-block: 5rem;
+  padding-block: var(--space-section);
 }
 
 .cta-section__inner {
-  text-align: center;
-  max-width: 780px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  text-align: left;
+  max-width: 1060px;
   margin-inline: auto;
-  background: var(--color-primary-brand);
+  background:
+    radial-gradient(120% 90% at 85% 20%, #1E2B45 0%, transparent 60%),
+    var(--color-primary-brand);
   border-radius: var(--radius-card);
   padding: 3.5rem clamp(1.5rem, 5vw, 4rem);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.20);
+}
+
+/* Solo close (the PayCard now leads the page in CardMoment): one centred
+   column, narrower measure, actions centred under the ask. */
+.cta-section__inner--solo {
+  grid-template-columns: 1fr;
+  text-align: center;
+  max-width: 760px;
+}
+.cta-section__inner--solo .cta-section__actions {
+  justify-content: center;
+}
+
+@media (max-width: 880px) {
+  .cta-section__inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
 }
 
 .cta-section__title {
@@ -1587,9 +1757,15 @@ body::after {
 .cta-section__actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+@media (max-width: 880px) {
+  .cta-section__actions {
+    justify-content: center;
+  }
 }
 
 /* ---------------------------------------------------------
@@ -1604,8 +1780,8 @@ body::after {
 
 .footer__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 2.5rem;
   padding-bottom: 2.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   align-items: start;
@@ -1620,42 +1796,92 @@ body::after {
 .footer__tagline {
   font-size: 0.85rem;
   line-height: 1.7;
-  opacity: 0.4;
+  color: var(--color-text-on-dark-muted);
   max-width: 340px;
-  margin-bottom: 1.25rem;
 }
 
-.footer__inline-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-.footer__inline-links a {
-  font-size: 0.82rem;
-  opacity: 0.5;
-  transition: opacity var(--ease-snappy);
-}
-
-.footer__inline-links a:hover {
-  opacity: 1;
-}
-
-.footer__contact {
+.footer__col {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
-.footer__contact-item {
-  font-size: 0.88rem;
-  opacity: 0.55;
-  transition: opacity var(--ease-snappy);
+.footer__col-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 0.35rem;
 }
 
-.footer__contact-item:hover {
-  opacity: 1;
+.footer__col a,
+.footer__col span {
+  font-size: 0.86rem;
+  color: var(--color-text-on-dark-muted);
+  transition: color var(--ease-snappy);
+  /* 24px minimum touch target without changing the visual rhythm */
+  display: inline-block;
+  padding-block: 4px;
+  margin-block: -4px;
+}
+
+.footer__col a:hover {
+  color: var(--color-pure-white);
+}
+
+/* The page's narrative full stop: a line draws across the footer's top edge
+   and settles into a green "Invoice settled" tick. One-shot via [data-live];
+   fully drawn for no-JS and reduced motion. */
+.footer__settle {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+}
+.footer__settle-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+}
+.footer__settle-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #6EE7B7;
+  background: var(--color-primary-brand);
+  border: 1px solid rgba(110, 231, 183, 0.35);
+  border-radius: 100px;
+  padding: 5px 14px;
+}
+.footer__settle-chip svg {
+  width: 12px;
+  height: 12px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.reveal-ready .footer .footer__settle-line {
+    transform: scaleX(0);
+    transition: transform 1.1s var(--ease-cinematic);
+  }
+  html.reveal-ready .footer.is-live .footer__settle-line {
+    transform: scaleX(1);
+  }
+  html.reveal-ready .footer .footer__settle-chip {
+    opacity: 0;
+    scale: 0.9;
+    transition: opacity 0.45s var(--ease-cinematic) 0.75s, scale 0.45s var(--ease-cinematic) 0.75s;
+  }
+  html.reveal-ready .footer.is-live .footer__settle-chip {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 .footer__bottom {
@@ -1664,8 +1890,9 @@ body::after {
 }
 
 .footer__bottom p {
+  /* The sole-trader disclosure — must stay comfortably legible (was opacity 0.3). */
   font-size: 0.78rem;
-  opacity: 0.3;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 /* ---------------------------------------------------------
@@ -1692,29 +1919,14 @@ body::after {
     justify-content: center;
   }
 
-  .hero__visual-mockup {
+  .hero-stage__mockup {
     max-width: 400px;
-    margin-inline: auto;
   }
 
   .ambient-flair__grid {
     grid-template-columns: 1fr;
     max-width: 380px;
     margin-inline: auto;
-  }
-
-  /* Change 2: zig-zag collapses */
-  .zigzag-row {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .zigzag-row--reverse {
-    direction: ltr;
-  }
-
-  .zigzag-row__visual {
-    min-height: 160px;
   }
 
   .testimonials__grid {
@@ -1738,24 +1950,30 @@ body::after {
 
   .integration__visual {
     min-width: 0;
+    position: static; /* no pinning once the grid stacks */
   }
 
-  .integration__modes {
-    grid-template-columns: 1fr;
+  .integration__steps {
+    gap: 2.5rem;
+    padding-block: 0;
   }
 
   .footer__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 2rem;
   }
 
-  .footer__contact {
-    align-items: flex-start;
+  .footer__brand {
+    grid-column: 1 / -1;
   }
 }
 
 /* Mobile */
 @media (max-width: 768px) {
+  .integration__modes {
+    grid-template-columns: 1fr;
+  }
+
   /* Stay a compact rounded bar on mobile — ignore the scroll-progress collapse
      (only the subtle border/background lift from --nav-scroll-p carries over). */
   .navbar__inner {
@@ -1795,34 +2013,6 @@ body::after {
 
   .hero__title {
     font-size: clamp(1.75rem, 5vw + 0.5rem, 2.5rem);
-  }
-
-  .hero__floating-card {
-    left: -10px;
-    bottom: -15px;
-  }
-
-  .hero__floating-stat {
-    right: -10px;
-    top: -10px;
-  }
-
-  .trust__inner {
-    padding: 2rem 1.5rem;
-  }
-
-  .trust__badge-group {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .trust__divider {
-    width: 40px;
-    height: 1px;
-  }
-
-  .section-pad {
-    padding-block: 4rem;
   }
 }
 

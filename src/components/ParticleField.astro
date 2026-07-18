@@ -1,0 +1,138 @@
+---
+/**
+ * ParticleField — WebGL island: a sparse, slow-drifting particle field that
+ * sits behind the hero checkout on the navy stage. Deliberately quiet (tiny
+ * dots, no glow): suggests payments moving without demanding attention.
+ *
+ * Behaviour contract (verified in tests via data-gl-state):
+ *   "live"        — WebGL running, RAF gated by IntersectionObserver
+ *   "static"      — prefers-reduced-motion: one still frame, no RAF
+ *   "unsupported" — no WebGL: canvas stays blank (stage looks as before)
+ */
+---
+<canvas class="particle-field" data-particle-field aria-hidden="true"></canvas>
+
+<script>
+  const VERT = `
+attribute vec2 aBase;
+attribute vec2 aVel;
+attribute float aSize;
+attribute float aAlpha;
+uniform float uTime;
+uniform float uDpr;
+varying float vAlpha;
+void main() {
+  vec2 pos = fract(aBase + aVel * uTime);
+  gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
+  gl_PointSize = aSize * uDpr;
+  vAlpha = aAlpha;
+}`;
+
+  const FRAG = `
+precision mediump float;
+uniform vec3 uColor;
+varying float vAlpha;
+void main() {
+  float d = length(gl_PointCoord - vec2(0.5));
+  float edge = smoothstep(0.5, 0.28, d);
+  gl_FragColor = vec4(uColor, vAlpha * edge);
+}`;
+
+  const COUNT = 70;
+
+  document.querySelectorAll<HTMLCanvasElement>('[data-particle-field]').forEach((canvas) => {
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
+    if (!gl) {
+      canvas.dataset.glState = 'unsupported';
+      return;
+    }
+
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      canvas.dataset.glState = 'unsupported';
+      return;
+    }
+    gl.useProgram(prog);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    // Deterministic-ish scatter; drift is slow and mostly upward.
+    const data = new Float32Array(COUNT * 6);
+    for (let i = 0; i < COUNT; i++) {
+      const o = i * 6;
+      data[o] = Math.random();
+      data[o + 1] = Math.random();
+      data[o + 2] = (Math.random() - 0.5) * 0.004;   // vx per second
+      data[o + 3] = 0.004 + Math.random() * 0.008;    // vy per second (upward)
+      data[o + 4] = 1.4 + Math.random() * 1.6;        // px size
+      data[o + 5] = 0.08 + Math.random() * 0.16;      // alpha
+    }
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const stride = 24;
+    const attr = (name: string, size: number, offset: number) => {
+      const loc = gl.getAttribLocation(prog, name);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride, offset);
+    };
+    attr('aBase', 2, 0);
+    attr('aVel', 2, 8);
+    attr('aSize', 1, 16);
+    attr('aAlpha', 1, 20);
+
+    const uTime = gl.getUniformLocation(prog, 'uTime');
+    const uDpr = gl.getUniformLocation(prog, 'uDpr');
+    const uColor = gl.getUniformLocation(prog, 'uColor');
+    gl.uniform3f(uColor, 0.78, 0.86, 1.0); // cool white-blue
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uDpr, dpr);
+    };
+    resize();
+    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
+
+    const draw = (t: number) => {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(uTime, t);
+      gl.drawArrays(gl.POINTS, 0, COUNT);
+    };
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      draw(120); // one settled still frame
+      canvas.dataset.glState = 'static';
+      return;
+    }
+
+    let raf = 0;
+    let visible = false;
+    const start = performance.now();
+    const loop = () => {
+      draw((performance.now() - start) / 1000);
+      raf = visible ? requestAnimationFrame(loop) : 0;
+    };
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !raf) raf = requestAnimationFrame(loop);
+    });
+    io.observe(canvas);
+    canvas.dataset.glState = 'live';
+  });
+</script>

@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import Button from '../components/Button.astro';
 import Icon from '../components/Icon.astro';
+import { SITE } from '../data/site.mjs';
 import faq from '../data/content/faq.json';
 import seoData from '../data/content/seo.json';
 import { webPage, breadcrumbs, faqPage } from '../data/structuredData.mjs';
@@ -18,6 +19,22 @@ for (const item of faq) {
   if (!g) { g = { name: item.category, items: [] }; cats.push(g); }
   g.items.push(item);
 }
+
+// Stable per-question ids so objection answers are deep-linkable from
+// outreach emails ("Are you FCA regulated?" gets a URL of its own).
+const slug = (q) => q.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// The three make-or-break answers, surfaced before the accordion.
+const OBJECTIONS = [
+  { q: 'Do you hold or touch my money?', tag: 'Your money' },
+  { q: 'Are you FCA regulated?', tag: 'Regulation' },
+  { q: 'How much does SettlePay cost?', tag: 'Cost' },
+].map((o) => {
+  const item = faq.find((i) => i.question === o.q);
+  return item ? { ...o, id: slug(item.question), teaser: item.answer.split(/\n{2,}/)[0].slice(0, 150) } : null;
+}).filter(Boolean);
+
+const COST_ID = slug('How much does SettlePay cost?');
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 function linkify(s) {
@@ -45,14 +62,14 @@ const jsonLd = [
   ogTitle={seo.ogTitle}
   ogDescription={seo.ogDescription}
   canonical={path}
+  image="/og/faq.png"
   jsonLd={jsonLd}
 >
   <header class="page-header">
     <div class="container">
       <Breadcrumbs items={crumbs} />
-      <div class="section-badge">FAQ</div>
-      <h1 class="page-header__title">Frequently Asked <span>Questions</span></h1>
-      <p class="page-header__lead">
+      <h1 class="page-header__title" data-reveal>Frequently Asked <span>Questions</span></h1>
+      <p class="page-header__lead" data-reveal>
         Straight answers about how SettlePay works, who holds your money, security and compliance, and
         what it costs. Can't find what you need? <a href={`mailto:hello@settlepay.uk`}>Email us</a>.
       </p>
@@ -61,18 +78,38 @@ const jsonLd = [
 
   <section class="faq-section">
     <div class="container">
+      <!-- The make-or-break answers, before anything else. -->
+      <div class="faq-objections" data-reveal>
+        {OBJECTIONS.map((o) => (
+          <a class="faq-objection" href={`#${o.id}`}>
+            <span class="faq-objection__tag">{o.tag}</span>
+            <span class="faq-objection__q">{o.q}</span>
+            <span class="faq-objection__go">Read the full answer <Icon name="arrow" sw={2.5} /></span>
+          </a>
+        ))}
+      </div>
+
       {cats.map((cat) => (
-        <div class="faq-cat">
+        <div class="faq-cat" data-reveal>
           <h2 class="faq-cat__title">{cat.name}</h2>
           <div class="faq-list">
             {cat.items.map((item) => (
-              <details class="faq-item">
+              <details class="faq-item" id={slug(item.question)}>
                 <summary class="faq-item__q">
                   <span>{item.question}</span>
                   <Icon name="chevron" sw={2.5} class="faq-chevron" />
                 </summary>
                 <div class="faq-item__a">
                   {toParas(item.answer).map((html) => <p set:html={html} />)}
+                  {slug(item.question) === COST_ID && (
+                    <p>
+                      <button type="button" class="faq-inline-enquire" data-enquire>Send a short enquiry</button>
+                      {' '}and we'll come back with a fixed written quote for your setup.
+                    </p>
+                  )}
+                  <a class="faq-item__link" href={`#${slug(item.question)}`} data-faq-copy>
+                    <Icon name="link" sw={2} /> Copy link to this answer
+                  </a>
                 </div>
               </details>
             ))}
@@ -84,14 +121,14 @@ const jsonLd = [
 
   <section class="mini-cta">
     <div class="container">
-      <div class="mini-cta__inner">
+      <div class="mini-cta__inner" data-reveal>
         <h2 class="mini-cta__title">Still Have a Question?</h2>
         <p class="mini-cta__text">
-          Book a free, no-obligation consultation and we'll talk it through — no jargon, no pressure.
+          Send us a short enquiry and we'll talk it through — no jargon, no pressure.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-          <Button variant="secondary" href="/about/">About SettlePay</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>

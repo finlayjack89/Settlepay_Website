@@ -1,39 +1,52 @@
 ---
 import Icon from '../Icon.astro';
 import Button from '../Button.astro';
+import StatusChip from '../StatusChip.astro';
+import ParticleField from '../ParticleField.astro';
+import { SITE } from '../../data/site.mjs';
 
 const cardMarks = ['Visa', 'Mastercard', 'Amex'];
 ---
 <section class="hero" id="hero" data-screen-label="Hero">
   <div class="container">
     <div class="hero__content">
-      <div class="hero__badge">
-        <Icon name="sparkles" sw={2.5} /> For UK Small Businesses
-      </div>
+      {/* Revolut hero grammar (adoption #7): grey eyebrow carries the offer,
+          the headline gets the scale, ONE sentence under it, then the ask.
+          The dot-separated line under the actions states real facts only. */}
+      <p class="hero__eyebrow">Bespoke payment pages, built for your business</p>
       <h1 class="hero__title">
-        Bespoke <span>Payment Pages</span> for UK Businesses
+        Get Paid Faster, <span>Chase Less</span>
       </h1>
       <p class="hero__subtitle">
-        Still chasing bank transfers, cheques or card payments taken over the phone? We design and
-        build a branded checkout page for your business and connect it to a trusted payment processor
-        — so you get paid faster, look professional, and stop reconciling payments by hand.
+        We design and build your branded checkout page and connect it to a trusted payment
+        processor — you get paid faster, and the admin does itself.
       </p>
       <div class="hero__actions">
-        <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
+        <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
         <Button variant="secondary" href="#integration">See How It Works</Button>
       </div>
-      <div class="hero__trust-note">
-        <p class="hero__trust-text">
-          Your checkout runs on FCA-regulated processors like <strong>Stripe</strong>,
-          <strong>Adyen</strong> and <strong>Checkout.com</strong> — trusted by millions of
-          businesses globally
-        </p>
-      </div>
+      <p class="hero__preview-link">
+        Or <a href="/preview/">paste your website address and see your own page first</a> →
+      </p>
+      <p class="hero__facts">
+        Bespoke build · Your own merchant account · Fixed written quote · Payments processed by
+        FCA-regulated partners
+      </p>
     </div>
 
     <div class="hero__visual">
-      <div class="hero__visual-mockup">
-        <div class="bezel-wrap">
+      {/* tilt-scroll 0.55: the hero breathes with scroll momentum, quieter
+          than the pay-card — it is a stage, not the hero object itself. */}
+      <div class="stage-dark hero-stage" data-tilt data-tilt-max="2.5" data-tilt-scroll="0.55">
+        {/* WebGL island: quiet drifting particles behind the mockup. */}
+        <ParticleField />
+        {/* Stacked translucent layers behind the checkout — dimensional depth,
+            not glow (see .claude/skills/ui-ux-pro-max: Dimensional Layering). */}
+        <div class="hero-stage__layers" aria-hidden="true">
+          <i class="hero-stage__layer hero-stage__layer--1"></i>
+          <i class="hero-stage__layer hero-stage__layer--2"></i>
+        </div>
+        <div class="hero-stage__mockup">
           <!-- Illustrative branded-checkout mockup (interactive method switcher) -->
           <div class="checkout-v2" data-checkout>
             <div class="checkout-v2__inner">
@@ -47,7 +60,7 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
               </div>
               <div class="checkout-v2__divider"><span>OR</span></div>
               <div class="checkout-v2__header">
-                <h3 class="checkout-v2__title">Payment</h3>
+                <p class="checkout-v2__title">Payment</p>
                 <p class="checkout-v2__subtitle">All transactions are secure and encrypted.</p>
               </div>
 
@@ -65,37 +78,24 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
                     </div>
                   </div>
                   <div class="checkout-v2__panel-body">
-                    <div class="checkout-v2__input-wrap">
-                      <input type="text" placeholder=" " class="checkout-v2__input" value="4242 4242 4242 4242" readonly tabindex="-1" />
-                      <label class="checkout-v2__floating-label">Card number</label>
-                    </div>
-                    <div class="checkout-v2__input-row">
-                      <div class="checkout-v2__input-wrap" style="flex:1">
-                        <input type="text" placeholder=" " class="checkout-v2__input" value="04 / 28" readonly tabindex="-1" />
-                        <label class="checkout-v2__floating-label">Expiry (MM / YY)</label>
+                    <div class="checkout-v2__panel-inner">
+                      <div class="checkout-v2__panel-pad">
+                        <div class="checkout-v2__input-wrap">
+                          <input type="text" placeholder=" " class="checkout-v2__input" value="4242 4242 4242 4242" readonly tabindex="-1" />
+                          <label class="checkout-v2__floating-label">Card number</label>
+                        </div>
+                        <div class="checkout-v2__input-row">
+                          <div class="checkout-v2__input-wrap" style="flex:1">
+                            <input type="text" placeholder=" " class="checkout-v2__input" value="04 / 28" readonly tabindex="-1" />
+                            <label class="checkout-v2__floating-label">Expiry (MM / YY)</label>
+                          </div>
+                          <div class="checkout-v2__input-wrap" style="flex:1">
+                            <input type="text" placeholder=" " class="checkout-v2__input" value="" readonly tabindex="-1" data-demo-cvc />
+                            <label class="checkout-v2__floating-label">Security code</label>
+                          </div>
+                        </div>
                       </div>
-                      <div class="checkout-v2__input-wrap" style="flex:1">
-                        <input type="text" placeholder=" " class="checkout-v2__input" value="" readonly tabindex="-1" />
-                        <label class="checkout-v2__floating-label">Security code</label>
-                      </div>
                     </div>
-                    <div class="checkout-v2__input-wrap">
-                      <input type="text" placeholder=" " class="checkout-v2__input" value="" readonly tabindex="-1" />
-                      <label class="checkout-v2__floating-label">Name on card</label>
-                    </div>
-                    <label class="checkout-v2__checkbox-wrap">
-                      <input type="checkbox" checked class="checkout-v2__checkbox" tabindex="-1" />
-                      <span class="checkout-v2__checkbox-label">Use shipping address as billing address</span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Klarna -->
-                <div class="checkout-v2__panel">
-                  <div class="checkout-v2__panel-header" role="button" tabindex="0" aria-expanded="false">
-                    <div class="checkout-v2__radio"></div>
-                    <span class="checkout-v2__method-name">Klarna</span>
-                    <div class="checkout-v2__icons"></div>
                   </div>
                 </div>
 
@@ -104,14 +104,77 @@ const cardMarks = ['Visa', 'Mastercard', 'Amex'];
                   <div class="checkout-v2__panel-header" role="button" tabindex="0" aria-expanded="false">
                     <div class="checkout-v2__radio"></div>
                     <span class="checkout-v2__method-name">PayPal</span>
-                    <div class="checkout-v2__icons"></div>
+                    <div class="checkout-v2__icons">
+                      <img src="/assets/payment/PayPal.svg" alt="" class="checkout-v2__card-icon" />
+                    </div>
                   </div>
                 </div>
               </div>
 
               <button class="checkout-v2__applepay-big" type="button" tabindex="-1">Check Out Now</button>
+              {/* Adoption #1: trust evidence where a paying customer meets it —
+                  inside the product, not in a separate badge section. */}
+              <div class="checkout-v2__trust">
+                <span class="checkout-v2__trust-marks">
+                  {cardMarks.map((k) => (
+                    <img src={`/assets/payment/${k}.svg`} alt="" class="checkout-v2__trust-mark" />
+                  ))}
+                </span>
+                <span>Processed by FCA-regulated partners</span>
+              </div>
+            </div>
+            {/* Wallet vignettes — pressing Apple Pay / Google Pay plays a
+                miniature of the real sheet flow inside the mockup frame
+                (storyboard: inspiration/fintech-2026-07/ADOPTION-PLAN.md §1).
+                Provider marks render as-is; the sheets animate AROUND them.
+                The Face ID-style glyph is our own drawing, not an Apple mark. */}
+            <div class="wallet-vignette" aria-hidden="true">
+              <div class="wallet-vignette__scrim"></div>
+              <div class="paysheet">
+                <div class="paysheet__row">
+                  <img src="/assets/payment/Visa.svg" alt="" class="paysheet__cardart" />
+                  <div class="paysheet__lines">
+                    <strong>Visa •••• 4242</strong>
+                    <span>Invoice INV-2041</span>
+                  </div>
+                  <span class="paysheet__amount">£850.00</span>
+                </div>
+                <div class="paysheet__auth">
+                  <svg class="paysheet__faceid" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 13 V10 a4 4 0 0 1 4-4 h3 M27 6 h3 a4 4 0 0 1 4 4 v3 M34 27 v3 a4 4 0 0 1 -4 4 h-3 M13 34 h-3 a4 4 0 0 1 -4 -4 v-3" />
+                    <path d="M14 16.5 v3.5 M26 16.5 v3.5 M20.5 16.5 v6.5 h-2 M14.5 27 a8 8 0 0 0 11 0" />
+                  </svg>
+                  <svg class="paysheet__tick" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="20" cy="20" r="16.5" pathLength="1" class="paysheet__tick-ring" />
+                    <path d="M13 20.5 18 25.5 27.5 15.5" pathLength="1" class="paysheet__tick-check" />
+                  </svg>
+                  <span class="paysheet__status">Confirm with Face ID</span>
+                </div>
+              </div>
+              <div class="gpaypop">
+                <div class="gpaypop__head">
+                  <img src="/assets/payment/google-g.svg" alt="" /><span>Pay</span>
+                </div>
+                <div class="gpaypop__spin"></div>
+                <div class="gpaypop__body">
+                  <div class="gpaypop__row">
+                    <strong>Visa •••• 4242</strong>
+                    <span>Invoice INV-2041</span>
+                  </div>
+                  <div class="gpaypop__total"><span>Total</span><strong>£850.00</strong></div>
+                  <span class="gpaypop__continue">Continue</span>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Floating outcome chips — decorative narration of the product story:
+            customer pays, books reconcile, money lands. Generic amounts only. */}
+        <div class="hero-stage__chips" aria-hidden="true">
+          <StatusChip class="hero-chip hero-chip--1" tone="success" icon="check" label="Payment received" value="£850.00" />
+          <StatusChip class="hero-chip hero-chip--2" tone="neutral" icon="refresh" label="Matched to invoice INV-2041" />
+          <StatusChip class="hero-chip hero-chip--3" tone="neutral" icon="banknotes" label="Paid out to your bank" />
         </div>
       </div>
     </div>

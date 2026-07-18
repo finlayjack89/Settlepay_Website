@@ -30,17 +30,22 @@ const jsonLd = [webPage({ path, title, description }), breadcrumbs(crumbs)];
   <section class="content-section">
     <div class="container">
       <div class="legal-meta"><Icon name="clock" sw={2} style="width:14px;height:14px" />Last updated: {lastUpdated}</div>
-      {toc.length > 0 && (
-        <nav class="legal-toc" aria-label="On this page">
-          <div class="legal-toc__title">On this page</div>
-          <ol>
-            {toc.map((h) => (
-              <li><a href={`#${h.slug}`}>{h.text}</a></li>
-            ))}
-          </ol>
-        </nav>
-      )}
-      <article class="prose"><slot /></article>
+      <div class="legal-grid">
+        {toc.length > 0 && (
+          <nav class="legal-toc" aria-label="On this page" data-legal-toc>
+            <div class="legal-toc__title">On this page</div>
+            <ol>
+              {toc.map((h) => (
+                <li><a href={`#${h.slug}`}>{h.text}</a></li>
+              ))}
+            </ol>
+          </nav>
+        )}
+        <div class="legal-main">
+          <article class="prose"><slot /></article>
+          <a class="legal-top btn-secondary" href="#main">Back to Top</a>
+        </div>
+      </div>
     </div>
   </section>
 </BaseLayout>

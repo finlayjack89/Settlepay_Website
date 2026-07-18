@@ -1,0 +1,202 @@
+---
+/**
+ * /book/ — pick a time directly. A bespoke slot picker fetches live availability
+ * from our own Supabase functions (host working hours minus Google Calendar busy),
+ * then books the slot: creates a Google Calendar event with a Meet link and sends
+ * one SettlePay-branded confirmation. No third party, no Cal.com.
+ *
+ * Behaviour lives in SiteScripts.astro (bundled), guarded by #sp-booking.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Button from '../components/Button.astro';
+import Icon from '../components/Icon.astro';
+import BookingCalendar from '../components/BookingCalendar.astro';
+import { SITE } from '../data/site.mjs';
+import { webPage, breadcrumbs } from '../data/structuredData.mjs';
+
+const path = '/book/';
+const crumbs = [{ name: 'Home', path: '/' }, { name: 'Book a Consultation', path }];
+const jsonLd = [
+  webPage({ path, title: 'Book a Free Consultation', description: 'Pick a time for your free, no-obligation SettlePay consultation.' }),
+  breadcrumbs(crumbs),
+];
+
+const checklist = [
+  'How you take payments today — and where the admin piles up',
+  'How your bookings, bookkeeping and invoicing fit together',
+  'What a bespoke checkout would look like for your business',
+];
+---
+<BaseLayout
+  title="Book a Free Consultation"
+  description="Pick a time for your free, no-obligation SettlePay consultation. 30 minutes, online, no pressure."
+  canonical={path}
+  image="/og/book.png"
+  noindex={true}
+  jsonLd={jsonLd}
+>
+  <header class="page-header">
+    <div class="container">
+      <Breadcrumbs items={crumbs} />
+      <h1 class="page-header__title">Book Your <span>Free Consultation</span></h1>
+      <p class="page-header__lead">
+        Thirty minutes, online, no obligation. Pick a time that suits you below and you'll get a
+        calendar invite with a video link straight away. Prefer to send a message first?{' '}
+        <a href="#book-message">Enquire instead</a>.
+      </p>
+    </div>
+  </header>
+
+  <section class="book-section">
+    <div class="container book-grid">
+      <aside class="book-aside">
+        <h2 class="book-aside__title">What We'll Cover</h2>
+        <ul class="book-aside__list">
+          {checklist.map((item) => (
+            <li><Icon name="check" sw={2.5} /><span>{item}</span></li>
+          ))}
+        </ul>
+        <p class="book-aside__note">
+          It helps to have a rough idea of how your systems hang together — your booking or database
+          setup, and how you currently handle bookkeeping and invoicing. No prep required, though.
+        </p>
+      </aside>
+
+      <div class="book-main">
+        <div
+          id="sp-booking"
+          class="sp-booking"
+          data-availability={SITE.availabilityEndpoint}
+          data-book={SITE.bookEndpoint}
+        >
+          <div data-step="loading" aria-live="polite">
+            <p class="sr-only">Loading available times…</p>
+            <!-- Skeleton of the incoming calendar, not an anonymous spinner. -->
+            <div class="sp-skel" aria-hidden="true">
+              <div class="sp-skel__cal">
+                <span class="sp-skel__bar"></span>
+                <span class="sp-skel__grid"></span>
+              </div>
+              <div class="sp-skel__times">
+                <span class="sp-skel__bar"></span>
+                <i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+          </div>
+
+          <div data-step="error" class="sp-booking__state" hidden>
+            <p>
+              We couldn't load available times just now. Please{' '}
+              <a href="#book-message">send a message</a> or email{' '}
+              <a href="mailto:hello@settlepay.uk">hello@settlepay.uk</a> and we'll sort a time.
+            </p>
+          </div>
+
+          <div data-step="slots" hidden>
+            <div class="sp-booking__head">
+              <h2 class="sp-booking__title">Pick a Time</h2>
+              <p class="sp-booking__tz"><Icon name="clock" sw={2} /> All times shown in UK time (Europe/London).</p>
+            </div>
+            <BookingCalendar />
+          </div>
+
+          <div data-step="details" hidden>
+            <button type="button" data-back class="sp-booking__back"><Icon name="chevron" sw={2.5} /> Change time</button>
+            <!-- The moment of commitment: a proper meeting card, not a plain sentence. -->
+            <div class="sp-booking__summary">
+              <div class="sp-booking__summary-icon"><Icon name="clock" sw={2} /></div>
+              <div class="sp-booking__summary-body">
+                <p class="sp-booking__chosen" data-chosen></p>
+                <p class="sp-booking__summary-meta">30 minutes · Google Meet video call · with Finlay, SettlePay's founder</p>
+                <span class="sp-booking__summary-tag">Free — no obligation</span>
+              </div>
+            </div>
+            <form data-book-form class="sp-modal__form" novalidate>
+              <div class="sp-field">
+                <input required name="name" id="b-name" placeholder=" " autocomplete="name" />
+                <label for="b-name">Your name</label>
+              </div>
+              <div class="sp-field">
+                <input required type="email" name="email" id="b-email" placeholder=" " autocomplete="email" />
+                <label for="b-email">Email address</label>
+              </div>
+              <div class="sp-field">
+                <input name="business" id="b-business" placeholder=" " autocomplete="organization" />
+                <label for="b-business">Business name (optional)</label>
+              </div>
+              <div class="sp-field sp-field--area">
+                <textarea name="notes" id="b-notes" rows="3" placeholder=" "></textarea>
+                <label for="b-notes">Anything you'd like to cover? (optional)</label>
+              </div>
+              <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0" />
+              <Button type="submit" icon="arrow" data-book-submit>Confirm Booking</Button>
+              <p class="sp-field__hint">
+                No payment details needed. You can reschedule or cancel any time from your
+                confirmation email.
+              </p>
+              <p class="sp-field__hint">
+                By booking, you agree to our <a href="/privacy/">Privacy Policy</a>.
+              </p>
+              <p class="sp-field__hint" data-book-error hidden role="alert" aria-live="assertive" style="color:var(--color-error)"></p>
+            </form>
+          </div>
+
+          <div data-step="success" class="sp-booking__success" hidden tabindex="-1" role="status">
+            <div class="sp-booking__success-icon"><Icon name="check" sw={2.5} /></div>
+            <h2>You're Booked In</h2>
+            <p class="sp-booking__success-when" data-success-when></p>
+            <p class="sp-booking__success-note">
+              A confirmation with a calendar invite and your video link is on its way to your inbox.
+            </p>
+            <a data-join-link class="btn-primary sp-booking__join" target="_blank" rel="noopener" hidden>
+              Join Link<Icon name="arrow" sw={2.5} />
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mini-cta" id="book-message">
+    <div class="container">
+      <div class="mini-cta__inner">
+        <h2 class="mini-cta__title">Rather Not Pick a Time Yet?</h2>
+        <p class="mini-cta__text">
+          Send a few details and Finlay will reply within one working day — no jargon, no pressure.
+        </p>
+        <div class="mini-cta__actions">
+          {/* This page IS the booking funnel, so the enquiry ask stands alone here. */}
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href="/work/">See Our Work</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .book-section { padding: 0 0 var(--space-section); }
+  .book-grid { display: grid; grid-template-columns: 300px 1fr; gap: 2.5rem; align-items: start; }
+  .book-aside { position: sticky; top: calc(var(--nav-offset) + 1rem); }
+  .book-aside__title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 1rem; }
+  .book-aside__list { list-style: none; margin: 0 0 1.25rem; padding: 0; display: grid; gap: 0.85rem; }
+  .book-aside__list li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.92rem; line-height: 1.5; }
+  .book-aside__list svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.15rem; color: var(--color-primary-action); }
+  .book-aside__note { font-size: 0.82rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.6; padding-top: 1rem; border-top: 1px solid rgba(15, 23, 42, 0.08); }
+
+  .book-main {
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-md);
+    padding: 1.75rem;
+    min-height: 420px;
+  }
+
+  @media (max-width: 860px) {
+    .book-grid { grid-template-columns: 1fr; gap: 1.75rem; }
+    .book-aside { position: static; }
+    .book-main { padding: 1.25rem; }
+  }
+</style>

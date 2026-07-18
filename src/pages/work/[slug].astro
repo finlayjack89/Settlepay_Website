@@ -17,6 +17,7 @@ import RowanCheckout from '../../components/portfolio/demos/RowanCheckout.astro'
 import StillwaterCheckout from '../../components/portfolio/demos/StillwaterCheckout.astro';
 import WhitmoreCheckout from '../../components/portfolio/demos/WhitmoreCheckout.astro';
 import CamberFinchCheckout from '../../components/portfolio/demos/CamberFinchCheckout.astro';
+import { SITE } from '../../data/site.mjs';
 import { PORTFOLIO } from '../../data/portfolio.mjs';
 import seoData from '../../data/content/seo.json';
 import { webPage, breadcrumbs } from '../../data/structuredData.mjs';
@@ -66,6 +67,7 @@ const jsonLd = [
   ogTitle={seo.ogTitle}
   ogDescription={seo.ogDescription}
   canonical={path}
+  image={entry.live ? '/og/lockdales.png' : '/og/work.png'}
   jsonLd={jsonLd}
 >
   <header class="page-header">
@@ -77,8 +79,16 @@ const jsonLd = [
           {entry.live ? 'Live client' : 'Illustrative demo'}
         </span>
       </div>
-      <h1 class="page-header__title">{entry.name}</h1>
+      <h1 class="page-header__title" data-reveal>{entry.name}</h1>
       <p class="page-header__lead">{entry.tagline}</p>
+      {entry.liveUrl && (
+        <p class="case-live-link">
+          <a href={entry.liveUrl} target="_blank" rel="noopener">
+            View the live page<Icon name="arrow" sw={2.5} />
+          </a>
+          <span>— the real production page, taking real payments today.</span>
+        </p>
+      )}
     </div>
   </header>
 
@@ -175,18 +185,70 @@ const jsonLd = [
     <>
       <CaseDemo entry={entry} Demo={Demo} />
 
+      {entry.live && (
+        <section class="case-annot">
+          <div class="container">
+            <p class="case-annot__strip" data-reveal>
+              <span class="case-annot__item">Lockdales' own brand bar and colours</span>
+              <span class="case-annot__item">BACS details shown alongside the card option</span>
+              <span class="case-annot__item">Name and bidder number as the payment reference</span>
+            </p>
+          </div>
+        </section>
+      )}
+
+      {entry.live && (
+        <section class="case-mechanics section-pad">
+          <div class="container">
+            <SectionHeader
+              eyebrow="The Real Mechanics"
+              title="How the Page "
+              blue="Actually Works"
+              subtitle="No modelled numbers here — this is the actual flow a Lockdales buyer goes through today."
+            />
+            <CaseFlow
+              steps={[
+                { title: 'Invoice Arrives', detail: 'After the sale, the buyer receives their invoice with a link to the payment page.' },
+                { title: 'Buyer Opens the Page', detail: 'A Lockdales-branded page — their colours, their name — not a generic processor screen.' },
+                { title: 'BACS or Card', detail: 'Bank transfer details are shown alongside a secure card option; the buyer picks what suits them.' },
+                { title: 'Reference Attached', detail: 'The buyer enters their name and bidder number, so the payment arrives ready to match to the invoice.' },
+                { title: 'Funds Settle Direct', detail: 'Stripe processes the card payment on the Lockdales account; money settles straight to the Lockdales bank. SettlePay never touches it.' },
+              ]}
+            />
+            <div class="case-beforeafter" data-reveal>
+              <div class="case-beforeafter__col case-beforeafter__col--before">
+                <h3>Before</h3>
+                <ul>
+                  <li>Buyers paid by bank transfer, or read card numbers to staff over the phone</li>
+                  <li>Every payment keyed and matched to its invoice by hand</li>
+                  <li>No branded, secure way to simply pay an invoice online</li>
+                </ul>
+              </div>
+              <div class="case-beforeafter__col case-beforeafter__col--after">
+                <h3>After</h3>
+                <ul>
+                  <li>One secure page, in Lockdales' name, for every invoice</li>
+                  <li>Buyers self-serve — card or BACS — with the reference attached</li>
+                  <li>Funds settle directly to the Lockdales account, as before</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section class="case-story section-pad">
         <div class="container">
           <div class="case-story__grid">
-            <div class="case-story__block">
+            <div class="case-story__block" data-reveal>
               <h2 class="case-story__label">The Challenge</h2>
               <p>{entry.story.challenge}</p>
             </div>
-            <div class="case-story__block">
+            <div class="case-story__block" data-reveal>
               <h2 class="case-story__label">The Solution</h2>
               <p>{entry.story.solution}</p>
             </div>
-            <div class="case-story__block">
+            <div class="case-story__block" data-reveal>
               <h2 class="case-story__label">The Impact</h2>
               <ul class="use-case__impact">
                 {entry.story.impact.map((x) => (
@@ -250,7 +312,7 @@ const jsonLd = [
       <div class="case-inline-cta__inner">
         <p class="case-inline-cta__text">{cs ? 'Curious what this would recover in your own business?' : 'Want a branded payment page like this one?'}</p>
         <button type="button" class="case-inline-cta__link" data-enquire>
-          Tell us how you get paid today
+          {SITE.cta.primary.label}
           <Icon name="arrow" sw={2.5} />
         </button>
       </div>
@@ -294,8 +356,8 @@ const jsonLd = [
           you, and what it would save.
         </p>
         <div class="mini-cta__actions">
-          <Button variant="primary" icon="arrow" enquire>Enquire Now</Button>
-          <Button variant="secondary" href="/work/">Back to Our Work</Button>
+          <Button variant="primary" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+          <Button variant="secondary" href={SITE.cta.secondary.href}>{SITE.cta.secondary.label}</Button>
         </div>
       </div>
     </div>

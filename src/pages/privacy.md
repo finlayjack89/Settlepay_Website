@@ -51,7 +51,11 @@ Like most websites, our hosting and content delivery infrastructure automaticall
 
 ### Cookies and Similar Technologies
 
-Our website may use cookies and similar technologies for essential functions and, where relevant, to understand how the site is used. For full details of the cookies we use and how you can control them, please see our Cookie Policy. Where the law requires it, we will ask for your consent before setting non-essential cookies.
+Our website may use cookies and similar technologies for essential functions. For full details of the cookies we use and how you can control them, please see our Cookie Policy. Where the law requires it, we will ask for your consent before setting non-essential cookies.
+
+### Cookieless Site Measurement
+
+We measure how the website is used with our own first-party system that does **not** use cookies and stores nothing on your device. When a page is viewed or a key action happens (such as opening the enquiry form or completing a booking step), the site sends an event to our server. We do not store your IP address or browser details; the server keeps only a one-way, scrambled code derived from connection details plus a secret that rotates daily, so the code cannot identify you and cannot link your visits across days. The result is aggregate counts (visits, pages, actions) used solely to improve the website.
 
 We do **not** collect or store cardholder data through this website. Where a payment is taken during a client engagement, it is handled by the client's chosen payment service provider (see "Who We Share Your Data With" and "What We Do" below).
 
@@ -66,7 +70,8 @@ Under UK GDPR Article 6, we must have a lawful basis for each way we use your pe
 | To send you service-related communications about a project we are working on together (for example, updates, questions and deliverables) | Name, email address, project details | **Performance of a contract** and, where applicable, **legitimate interests** in managing the project effectively. |
 | To keep the website secure, available and functioning correctly, and to prevent fraud and abuse | Server and log data, IP address, technical information | **Legitimate interests** — it is in our legitimate interest to protect and maintain our website and systems. |
 | To use essential cookies needed for the website to work | Cookie and device data | **Legitimate interests** — necessary to deliver the website you have requested. |
-| To use non-essential cookies or analytics, where applicable | Cookie and usage data | **Consent** — we will only do this where you have given your consent, which you can withdraw at any time. |
+| To understand how the website is used, through cookieless, aggregate first-party measurement (no cookies or device storage; no IP address stored; daily-rotating anonymous code) | Page and event counts; transient connection details used only to derive the anonymous code | **Legitimate interests** — it is in our legitimate interest to understand whether the website works well, in a way designed so that no one can be identified. You can object (see "Your Rights"). |
+| To use non-essential cookies, where applicable | Cookie and usage data | **Consent** — we will only do this where you have given your consent, which you can withdraw at any time. |
 | To keep business, accounting and tax records, and to comply with our legal obligations | Name, business name, contact details, transaction and engagement records | **Legal obligation** (for example, tax and accounting law) and **legitimate interests** in keeping proper records. |
 | To establish, exercise or defend legal claims if needed | Relevant records and correspondence | **Legitimate interests** — it is in our legitimate interest to protect our legal position. |
 
@@ -82,6 +87,7 @@ The categories of processors and recipients we use include:
 
 - **Website hosting and content delivery (CDN) provider** — to host the website, serve its content, and keep it fast and secure.
 - **Form and email delivery provider** — to receive enquiry-form submissions and to send and receive email correspondence.
+- **Brand-lookup, page-capture and text-generation providers (the "See Your Page" preview tool)** — if you choose to use the optional preview tool, the website address you enter is sent to a brand-lookup provider to read that site's publicly available branding (such as its logo, colours and name) and to a page-capture provider to take a screenshot of the site's public homepage, and that public information may be passed to AI providers to draft the illustrative mock-up's design and sample wording. The address you enter is processed to generate your preview and may be briefly cached to speed up repeat lookups; we do not use it for marketing.
 - **Accounting, productivity and communication tools** — to manage projects, keep proper financial records, and communicate with you (for example, accounting software, email and document tools).
 - **Professional advisers** — such as an accountant, where reasonably necessary, who are themselves bound by confidentiality.
 - **Authorities or third parties where required by law** — for example, if we are legally obliged to disclose information, or to establish, exercise or defend legal claims.

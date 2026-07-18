@@ -1,0 +1,829 @@
+---
+/**
+ * PayCard — the customer's payment card as a hero object (the Stripe-video
+ * card moment, in SettlePay colours), rendered two ways:
+ *
+ * 1. The DOM card below: layered CSS/SVG driven by the [data-tilt] vars
+ *    (--px/--py/--pfc). This is the fallback face — no WebGL, bake failure,
+ *    or context loss — and it must always look finished on its own.
+ * 2. The PBR face: the fourth hand-rolled WebGL island. One quad renders the
+ *    whole card from runtime-baked textures (albedo, height→normal map,
+ *    roughness/metal zones, AO, env strip) under a single world-fixed area
+ *    key light with a real GGX BRDF — matte metal lit physically, embossed
+ *    glyphs with true bevels, not gradient streaks. The CSS tilt still
+ *    rotates the element; the shader counter-rotates light and camera so
+ *    highlights slide ACROSS the tilting surface exactly as on a real card.
+ *    Design + numbers: inspiration/card-lighting-v2/BLUEPRINT.md.
+ *
+ * The card reads as the CUSTOMER's card (we build payment pages, we do not
+ * issue cards) — the monogram is a hologram patch, not an issuer mark, and
+ * the Visa wordmark is monochrome silver as on a physical card face (the
+ * scoped exception in DESIGN-SYSTEM §12).
+ */
+---
+<div class="pay-card" data-tilt data-tilt-max="7" data-tilt-scroll="1" aria-hidden="true">
+  <svg class="pay-card__art" viewBox="0 0 380 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <pattern id="pc-dots" width="12" height="12" patternUnits="userSpaceOnUse">
+        <circle cx="2" cy="2" r="1.5" fill="#93C5FD" />
+      </pattern>
+      <linearGradient id="pc-dot-fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0.9" />
+        <stop offset="1" stop-color="#fff" stop-opacity="0" />
+      </linearGradient>
+      <mask id="pc-dot-mask">
+        <rect x="220" y="14" width="150" height="96" fill="url(#pc-dot-fade)" />
+      </mask>
+    </defs>
+    <g transform="translate(190 108) rotate(16)">
+      <rect x="-330" y="-54" width="660" height="26" fill="#0B1220" opacity="0.92" />
+      <rect x="-330" y="-28" width="660" height="30" fill="#3B82F6" opacity="0.95" />
+      <rect x="-330" y="2" width="660" height="16" fill="#60A5FA" opacity="0.9" />
+      <rect x="-330" y="18" width="660" height="5" fill="#FFFFFF" opacity="0.85" />
+      <rect x="-330" y="23" width="660" height="12" fill="#1D4ED8" opacity="0.85" />
+    </g>
+    <rect x="220" y="14" width="150" height="96" fill="url(#pc-dots)" mask="url(#pc-dot-mask)" opacity="0.4" />
+  </svg>
+  <div class="pay-card__foil"></div>
+  <div class="pay-card__chip">
+    <svg viewBox="0 0 46 34" aria-hidden="true">
+      <defs>
+        <linearGradient id="pc-chip" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#F3DFAE" />
+          <stop offset="0.45" stop-color="#D9B96E" />
+          <stop offset="0.7" stop-color="#C29B4E" />
+          <stop offset="1" stop-color="#E8CE92" />
+        </linearGradient>
+      </defs>
+      <rect width="46" height="34" rx="6" fill="url(#pc-chip)" />
+      <g stroke="#8A6D33" stroke-width="1.1" fill="none">
+        <path d="M0 12 H15 M0 22 H15 M31 12 H46 M31 22 H46" />
+        <rect x="15" y="8.5" width="16" height="17" rx="3" />
+        <path d="M23 0 V8.5 M23 25.5 V34" />
+      </g>
+      <rect x="0.5" y="0.5" width="45" height="33" rx="5.5" fill="none" stroke="rgba(15,23,42,0.35)" />
+    </svg>
+    <div class="pay-card__chip-glint"></div>
+  </div>
+  <svg class="pay-card__wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+    <path d="M8.5 9.5a5.5 5.5 0 0 1 0 5" />
+    <path d="M11.5 7.5a9 9 0 0 1 0 9" />
+    <path d="M14.5 5.5a12.5 12.5 0 0 1 0 13" />
+  </svg>
+  <div class="pay-card__holo"></div>
+  <div class="pay-card__number">•••• &nbsp;•••• &nbsp;•••• &nbsp;4242</div>
+  <div class="pay-card__row">
+    <span class="pay-card__holder">Your Customer</span>
+    {/* Visa wordmark paths from /assets/payment/Visa.svg, minus the white
+        plate, filled silver — the monochrome treatment real card faces use. */}
+    <svg class="pay-card__mark" viewBox="45 134 662 201" aria-hidden="true">
+      <defs>
+        <linearGradient id="pc-visa" x1="0" y1="0" x2="0.85" y2="1">
+          <stop offset="0" stop-color="#EDF1F7" />
+          <stop offset="0.45" stop-color="#C7CFDC" />
+          <stop offset="0.7" stop-color="#A8B2C4" />
+          <stop offset="1" stop-color="#E2E8F1" />
+        </linearGradient>
+      </defs>
+      <g fill="url(#pc-visa)">
+        <path d="M278.198 334.228l33.36-195.763h53.358L331.566 334.228h-53.368zM524.307 142.687c-10.57-3.966-27.135-8.222-47.822-8.222-52.726 0-89.863 26.551-90.181 64.604-.318 28.129 26.514 43.822 46.754 53.185 20.771 9.598 27.752 15.716 27.652 24.283-.133 13.123-16.586 19.115-31.924 19.115-21.355 0-32.701-2.967-50.225-10.274l-6.878-3.112-7.487 43.822c12.463 5.467 35.508 10.199 59.438 10.445 56.09 0 92.502-26.248 92.916-66.885.199-22.27-14.016-39.215-44.801-53.188-18.65-9.056-30.072-15.099-29.951-24.269 0-8.137 9.668-16.838 30.56-16.838 17.286-.271 29.585 3.474 39.476 7.431l4.746 2.248 7.196-42.689l.531 2.344zM661.615 138.464h-41.23c-12.773 0-22.332 3.486-27.941 16.234l-79.245 179.402h56.031s9.159-24.121 11.231-29.418c6.123 0 60.555.084 68.336.084 1.596 6.854 6.492 29.334 6.492 29.334h49.512l-43.186-195.636zm-65.417 126.408c4.414-11.279 21.26-54.724 21.26-54.724-.316.521 4.381-11.334 7.074-18.684l3.606 16.878s10.217 46.729 12.353 56.527h-44.293v.003zM232.903 138.464L180.664 271.96l-5.565-27.129c-9.726-31.274-40.025-65.157-73.898-82.12l47.767 171.204 56.455-.066 84.004-195.386h-56.524" />
+        <path d="M131.92 138.464H45.879l-.682 4.073C112.58 157.177 166.061 199.979 186.759 244.83L165.634 155.015c-3.64-13.854-14.182-16.215-27.452-16.551h-6.262" />
+      </g>
+    </svg>
+  </div>
+  {/* Specular band sits ABOVE the content: a real reflection crosses the
+      number, chip and marks, not just the paintwork underneath them. */}
+  <div class="pay-card__gloss"></div>
+  {/* The PBR face. Fully replaces the DOM children once its first frame has
+      drawn (pay-card--gl); until then — and forever without WebGL — the DOM
+      card above IS the card. */}
+  <canvas class="pay-card__gl" data-pay-card-gl aria-hidden="true"></canvas>
+</div>
+
+<script>
+  // PayCard PBR island. Numbers and rationale: inspiration/card-lighting-v2/
+  // BLUEPRINT.md (+ webgl-pbr.md for derivations). Sign conventions are the
+  // #1 bug source: canvases are y-down, GL world is y-up — Sobel gy stays in
+  // canvas space and the SHADER flips n.y. Get it wrong once and every glyph
+  // reads debossed.
+  const CARD_W = 380;
+  const CARD_H = 240;
+
+  const VERT = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main() {
+  vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5); /* v=0 at TOP: canvas rows, no upload flip */
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+  const FRAG = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform sampler2D uAlbedo;   /* rgb sRGB card art */
+uniform sampler2D uMaterial; /* r,g normal.xy (canvas space), b roughness, a metal */
+uniform sampler2D uMasks;    /* r holo monogram, g AO, b height */
+uniform sampler2D uEnv;      /* 256x64 mipped window strip */
+uniform mat3  uRot;          /* card -> world, matches the CSS tilt this frame */
+uniform vec3  uCamW;         /* (0,0,900) = CSS perspective(900px) */
+uniform vec3  uLightPos;     /* finite area key, fixed in world */
+uniform vec3  uLightCol;
+uniform vec2  uHalf;         /* (190,120) card half-size, CSS px */
+uniform float uHoloPhase;
+varying vec2 vUv;
+const float PI = 3.14159265;
+
+vec3 srgb2lin(vec3 c) { return pow(c, vec3(2.2)); }
+vec3 lin2srgb(vec3 c) { return pow(c, vec3(1.0 / 2.2)); }
+float hash12(vec2 p)  { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float D_GGX(float NdH, float a) {
+  float a2 = a * a;
+  float d = NdH * NdH * (a2 - 1.0) + 1.0;
+  return a2 / (PI * d * d);
+}
+float V_Smith(float NdV, float NdL, float a) {
+  float a2 = a * a;
+  float gv = NdL * sqrt(NdV * NdV * (1.0 - a2) + a2);
+  float gvl = NdV * sqrt(NdL * NdL * (1.0 - a2) + a2);
+  return 0.5 / max(gv + gvl, 1e-4);
+}
+vec3 F_Schlick(vec3 f0, float u) { return f0 + (vec3(1.0) - f0) * pow(1.0 - u, 5.0); }
+
+void main() {
+  vec4 m    = texture2D(uMaterial, vUv);
+  vec3 alb  = srgb2lin(texture2D(uAlbedo, vUv).rgb);
+  vec3 msk  = texture2D(uMasks, vUv).rgb;
+  float ao  = msk.g;
+
+  /* normal: canvas y-down -> card y-up (THE sign flip) -> world */
+  vec2 nxy = m.rg * 2.0 - 1.0;
+  nxy.y = -nxy.y;
+  vec3 N = normalize(uRot * vec3(nxy, sqrt(max(1.0 - dot(nxy, nxy), 0.0))));
+
+  /* per-pixel world position + view from the finite camera */
+  vec2 pC = (vUv - 0.5) * vec2(2.0 * uHalf.x, -2.0 * uHalf.y);
+  vec3 P  = uRot * vec3(pC, 0.0);
+  vec3 V  = normalize(uCamW - P);
+
+  /* finite-distance area key (Karis representative point): the source size
+     widens the lobe, the finite distance is what makes the sheen TRAVEL */
+  vec3 Ld = uLightPos - P;
+  float lDist = length(Ld);
+  vec3 L  = Ld / lDist;
+  vec3 Hv = normalize(V + L);
+
+  float rough = clamp(m.b, 0.045, 1.0);
+  float a     = rough * rough;
+  float aSrc  = 230.0 / (2.0 * lDist);
+  float a1    = min(1.0, a + aSrc * aSrc);
+  float renorm = (a / a1) * (a / a1);
+  float metal = m.a;
+  vec3  f0    = mix(vec3(0.04), alb, metal);
+  vec3  diff  = alb * (1.0 - metal);
+
+  float NdL = clamp(dot(N, L), 0.0, 1.0);
+  float NdV = clamp(dot(N, V), 1e-3, 1.0);
+  float NdH = clamp(dot(N, Hv), 0.0, 1.0);
+  float LdH = clamp(dot(L, Hv), 0.0, 1.0);
+
+  vec3 spec = D_GGX(NdH, a1) * renorm * V_Smith(NdV, NdL, a1) * F_Schlick(f0, LdH);
+  vec3 col  = (diff / PI + spec) * NdL * uLightCol;
+
+  /* clearcoat on the painted face only — glossier lacquer over the navy,
+     while the metal zones keep their own finish */
+  float cc = D_GGX(NdH, 0.16) * V_Smith(NdV, NdL, 0.16) * 0.04;
+  col += cc * 0.25 * (1.0 - metal) * NdL * uLightCol;
+
+  /* hemisphere ambient + window-strip reflection, both AO-attenuated */
+  vec3 amb = mix(vec3(0.045, 0.050, 0.065), vec3(0.21, 0.25, 0.33), N.y * 0.5 + 0.5);
+  col += amb * diff * ao;
+
+  vec3 R = reflect(-V, N);
+  vec2 euv = vec2(0.5 + R.x * 0.55, 0.5 - R.y * 0.55);
+  vec3 env = srgb2lin(texture2D(uEnv, euv, rough * 5.0).rgb);
+  vec3 Fenv = f0 + (max(vec3(1.0 - rough), f0) - f0) * pow(1.0 - NdV, 5.0);
+  col += env * Fenv * ao;
+
+  /* holographic monogram: diffraction-grating fringe, gated by the env luma
+     so it flares only when the window streak crosses it (hologram, not
+     rainbow decal); grooves at 15 deg echo the 16 deg ribbon */
+  float holo = msk.r;
+  if (holo > 0.004) {
+    vec3 T = normalize(uRot * vec3(0.966, 0.259, 0.0));
+    float phase = 26.0 * dot(V - L, T) + uHoloPhase;
+    vec3 fringe = 0.5 + 0.5 * cos(phase + vec3(0.0, 2.094, 4.188));
+    fringe *= fringe;
+    float gaze = 0.25 + 0.75 * pow(1.0 - NdV, 1.5);
+    col += 0.8 * holo * fringe * gaze * (0.35 + 3.0 * dot(env, vec3(0.333)));
+  }
+
+  /* Reinhard + 1/128 dither — both load-bearing (filmic shoulder on the
+     highlight; the dither kills hemisphere banding on the navy face) */
+  col = col / (1.0 + col);
+  vec3 outc = lin2srgb(col);
+  outc += (hash12(gl_FragCoord.xy) - 0.5) / 128.0;
+  gl_FragColor = vec4(outc, 1.0);
+}`;
+
+  const clampi = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
+
+  function boxH(src: Float32Array, dst: Float32Array, w: number, h: number, r: number) {
+    const norm = 1 / (2 * r + 1);
+    for (let y = 0; y < h; y++) {
+      const o = y * w;
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += src[o + clampi(x, 0, w - 1)];
+      for (let x = 0; x < w; x++) {
+        dst[o + x] = sum * norm;
+        sum += src[o + clampi(x + r + 1, 0, w - 1)] - src[o + clampi(x - r, 0, w - 1)];
+      }
+    }
+  }
+  function boxV(src: Float32Array, dst: Float32Array, w: number, h: number, r: number) {
+    const norm = 1 / (2 * r + 1);
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += src[clampi(y, 0, h - 1) * w + x];
+      for (let y = 0; y < h; y++) {
+        dst[y * w + x] = sum * norm;
+        sum += src[clampi(y + r + 1, 0, h - 1) * w + x] - src[clampi(y - r, 0, h - 1) * w + x];
+      }
+    }
+  }
+  // three H+V box passes of radius r ≈ Gaussian with σ = sqrt(r(r+1))
+  function gaussBlur(a: Float32Array, scratch: Float32Array, w: number, h: number, sigma: number) {
+    const r = Math.max(1, Math.round((Math.sqrt(1 + 4 * sigma * sigma) - 1) / 2));
+    for (let i = 0; i < 3; i++) {
+      boxH(a, scratch, w, h, r);
+      boxV(scratch, a, w, h, r);
+    }
+    return a;
+  }
+
+  const idle = () =>
+    new Promise((res) =>
+      'requestIdleCallback' in window
+        ? (window as any).requestIdleCallback(res, { timeout: 2000 })
+        : setTimeout(res, 0)
+    );
+  const loadImage = (src: string) =>
+    new Promise<HTMLImageElement>((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+
+  function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  document.querySelectorAll<HTMLElement>('.pay-card').forEach((card) => {
+    const canvas = card.querySelector<HTMLCanvasElement>('[data-pay-card-gl]');
+    if (!canvas) return;
+    const gl = canvas.getContext('webgl', { alpha: false, antialias: false });
+    if (!gl) {
+      canvas.dataset.glState = 'unsupported';
+      return;
+    }
+
+    const compile = (t: number, s: string) => {
+      const sh = gl.createShader(t)!;
+      gl.shaderSource(sh, s);
+      gl.compileShader(sh);
+      return sh;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      canvas.dataset.glState = 'unsupported';
+      return;
+    }
+    gl.useProgram(prog);
+
+    const quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(prog, 'aPos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+    const U = (n: string) => gl.getUniformLocation(prog, n);
+    const uRot = U('uRot');
+    const uHoloPhase = U('uHoloPhase');
+    gl.uniform3f(U('uCamW'), 0, 0, 900);
+    gl.uniform3f(U('uLightPos'), -300, 320, 850);
+    gl.uniform3f(U('uLightCol'), 2.55, 2.48, 2.3);
+    gl.uniform2f(U('uHalf'), CARD_W / 2, CARD_H / 2);
+    ['uAlbedo', 'uMaterial', 'uMasks', 'uEnv'].forEach((n, i) => gl.uniform1i(U(n), i));
+
+    const tex: WebGLTexture[] = [0, 1, 2, 3].map(() => gl.createTexture()!);
+    const bindTex = (i: number, mips: boolean) => {
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, tex[i]);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mips ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+    };
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+
+    // ---- texture bake --------------------------------------------------------
+    // Everything drawn in 380x240 card units under setTransform(s,0,0,s,0,0).
+    // Heights stay Float32 until after differentiation (8-bit = terraced
+    // bevels); material + masks are assembled in Uint8Arrays, never via a
+    // canvas alpha channel (premultiply would destroy the data).
+    const ctx2d = (w: number, h: number) => {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      return c.getContext('2d', { willReadFrequently: true })!;
+    };
+
+    // zone encodes material as fill colour: R = roughness*255, G = metal*255.
+    // GLOSS pass (user call): face glossier satin; the brand ribbon is now
+    // METALLIC (blue albedo as F0 = pearlescent stripes, a visibly different
+    // finish from the coated face); details are ETCHED bare metal, not
+    // embossed — engraved into the face with alu showing underneath.
+    const zone = (rough: number, metal: number) => `rgb(${Math.round(rough * 255)}, ${metal ? 255 : 0}, 0)`;
+    const Zface = zone(0.28, 0);
+    const Zribbon = zone(0.22, 1);
+    const Zstripe = zone(0.18, 1);
+    const Zchip = zone(0.22, 1);
+    const Zglyph = zone(0.24, 1);
+    const Zvisa = zone(0.26, 1);
+    const Zholo = zone(0.18, 1);
+    const Zetch = zone(0.24, 1);
+
+    const drawTracked = (
+      ctx: CanvasRenderingContext2D,
+      text: string,
+      x: number,
+      y: number,
+      ls: number
+    ) => {
+      if ('letterSpacing' in ctx) {
+        (ctx as any).letterSpacing = `${ls}px`;
+        ctx.fillText(text, x, y);
+        (ctx as any).letterSpacing = '0px';
+      } else {
+        let cx = x;
+        for (const ch of text) {
+          ctx.fillText(ch, cx, y);
+          cx += ctx.measureText(ch).width + ls;
+        }
+      }
+    };
+
+    let holoImg: HTMLImageElement | null = null;
+    let monoFont = 'ui-monospace, monospace';
+    let sansFont = 'sans-serif';
+
+    // layer: 'albedo' | 'height' | 'zone' | 'etch' — same geometry, four
+    // paints. 'etch' is white-on-black engraving depth, SUBTRACTED from the
+    // blurred height field in JS (the bake) — the details are cut INTO the
+    // face with bare metal underneath, not raised out of it.
+    function paintCard(ctx: CanvasRenderingContext2D, layer: string) {
+      const A = layer === 'albedo';
+      const Hh = layer === 'height';
+      const E = layer === 'etch';
+
+      // face
+      if (E) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, CARD_W, CARD_H);
+      } else if (A) {
+        const lin = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
+        lin.addColorStop(0, '#1E2B45');
+        lin.addColorStop(0.55, '#131C30');
+        lin.addColorStop(1, '#0F172A');
+        ctx.fillStyle = lin;
+        ctx.fillRect(0, 0, CARD_W, CARD_H);
+        ctx.save();
+        ctx.translate(0.72 * CARD_W, -0.1 * CARD_H);
+        ctx.scale((1.2 * CARD_W) / 2, (1.6 * CARD_H) / 2);
+        const rad = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        rad.addColorStop(0, 'rgba(59,130,246,0.30)');
+        rad.addColorStop(0.46, 'rgba(139,92,246,0.14)');
+        rad.addColorStop(0.74, 'rgba(139,92,246,0)');
+        ctx.fillStyle = rad;
+        ctx.fillRect(-1, -1, 2, 2);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = Hh ? '#595959' : Zface; // height base plate 0.35
+        ctx.fillRect(0, 0, CARD_W, CARD_H);
+      }
+
+      // brand ribbon: flat in height, METALLIC in zones (pearlescent finish)
+      if (!Hh && !E) {
+        ctx.save();
+        ctx.translate(190, 108);
+        ctx.rotate((16 * Math.PI) / 180);
+        const bands: [number, number, string, number][] = [
+          [-54, 26, '#0B1220', 0.92],
+          [-28, 30, '#3B82F6', 0.95],
+          [2, 16, '#60A5FA', 0.9],
+          [18, 5, '#FFFFFF', 0.85],
+          [23, 12, '#1D4ED8', 0.85],
+        ];
+        for (const [y, h, c, al] of bands) {
+          ctx.globalAlpha = A ? al : 1;
+          ctx.fillStyle = A ? c : c === '#FFFFFF' ? Zstripe : Zribbon;
+          ctx.fillRect(-330, y, 660, h);
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+
+      // dot field — ETCHED dimples, bare alu underneath, depth fading down
+      // the field (the alpha fade becomes an etch-depth fade)
+      if (!Hh) {
+        ctx.fillStyle = A ? '#D9E1EC' : E ? '#FFFFFF' : Zetch;
+        for (let y = 16; y < 110; y += 12) {
+          ctx.globalAlpha = (A ? 0.5 : 1) * 0.9 * Math.max(0, 1 - (y - 14) / 96);
+          for (let x = 222; x < 370; x += 12) {
+            ctx.beginPath();
+            ctx.arc(x, y, 1.5, 0, 7);
+            ctx.fill();
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // No edge band: every version of it (3px, 1.6px, rim rolloff) read as
+      // a border around the card. The face now runs clean to the CSS
+      // border-radius clip — a regular free edge (user call).
+
+      // chip: raised gold plateau with engraved grooves (a real chip IS a
+      // raised part — it stays embossed while the print details etch)
+      if (E) {
+        // glyph/mark engraving only below; chip untouched in the etch pass
+      } else {
+      ctx.save();
+      ctx.translate(24, 22.4);
+      if (A) {
+        const g = ctx.createLinearGradient(0, 0, 46, 34);
+        g.addColorStop(0, '#F3DFAE');
+        g.addColorStop(0.45, '#D9B96E');
+        g.addColorStop(0.7, '#C29B4E');
+        g.addColorStop(1, '#E8CE92');
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = Hh ? '#CCCCCC' : Zchip;
+      }
+      rr(ctx, 0, 0, 46, 34, 6);
+      ctx.fill();
+      ctx.strokeStyle = A ? '#8A6D33' : Hh ? '#8C8C8C' : Zchip;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(0, 12); ctx.lineTo(15, 12);
+      ctx.moveTo(0, 22); ctx.lineTo(15, 22);
+      ctx.moveTo(31, 12); ctx.lineTo(46, 12);
+      ctx.moveTo(31, 22); ctx.lineTo(46, 22);
+      ctx.moveTo(23, 0); ctx.lineTo(23, 8.5);
+      ctx.moveTo(23, 25.5); ctx.lineTo(23, 34);
+      ctx.stroke();
+      rr(ctx, 15, 8.5, 16, 17, 3);
+      ctx.stroke();
+      ctx.restore();
+      }
+
+      // contactless wave: etched into the face, bare alu in the grooves
+      if (!Hh) {
+        ctx.save();
+        ctx.translate(331.6, 21.6);
+        ctx.scale(26 / 24, 26 / 24);
+        ctx.strokeStyle = A ? '#B7C2D4' : E ? '#FFFFFF' : Zglyph;
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
+        const spans: [number, number][] = [
+          [5.5, Math.asin(2.5 / 5.5)],
+          [9, Math.asin(4.5 / 9)],
+          [12.5, Math.asin(6.5 / 12.5)],
+        ];
+        for (const [r, half] of spans) {
+          ctx.beginPath();
+          ctx.arc(3.7, 12, r, -half, half);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // holo monogram: ETCHED into the face too — the diffraction fringe
+      // (shader, masked by uMasks.r) now plays inside engraved bare metal
+      if (holoImg && !Hh) {
+        const t = ctx2d(64, 64);
+        t.drawImage(holoImg, 0, 0, 64, 64);
+        t.globalCompositeOperation = 'source-in';
+        t.fillStyle = A ? '#9AA6B8' : E ? '#FFFFFF' : Zholo;
+        t.fillRect(0, 0, 64, 64);
+        ctx.drawImage(t.canvas, 302, 100.8, 54, 54);
+      }
+
+      // number + holder: etched engraving, bare metal underneath
+      if (!Hh) {
+        ctx.fillStyle = A ? '#E8EBEB' : E ? '#FFFFFF' : Zglyph;
+        ctx.font = `600 16.8px ${monoFont}`;
+        drawTracked(ctx, '••••  ••••  ••••  4242', 24, 183, 1.34);
+        ctx.font = `600 11.2px ${sansFont}`;
+        drawTracked(ctx, 'YOUR CUSTOMER', 24, 210, 1.34);
+      }
+
+      // Visa wordmark: silver print — flat (no height), metal in zones
+      if (!Hh) {
+        const k = 19 / 201;
+        ctx.save();
+        ctx.translate(293.4 - 45 * k, 197 - 134 * k);
+        ctx.scale(k, k);
+        ctx.fillStyle = A ? '#C7CFDC' : E ? '#FFFFFF' : Zvisa;
+        const p1 = new Path2D(
+          'M278.198 334.228l33.36-195.763h53.358L331.566 334.228h-53.368zM524.307 142.687c-10.57-3.966-27.135-8.222-47.822-8.222-52.726 0-89.863 26.551-90.181 64.604-.318 28.129 26.514 43.822 46.754 53.185 20.771 9.598 27.752 15.716 27.652 24.283-.133 13.123-16.586 19.115-31.924 19.115-21.355 0-32.701-2.967-50.225-10.274l-6.878-3.112-7.487 43.822c12.463 5.467 35.508 10.199 59.438 10.445 56.09 0 92.502-26.248 92.916-66.885.199-22.27-14.016-39.215-44.801-53.188-18.65-9.056-30.072-15.099-29.951-24.269 0-8.137 9.668-16.838 30.56-16.838 17.286-.271 29.585 3.474 39.476 7.431l4.746 2.248 7.196-42.689l.531 2.344zM661.615 138.464h-41.23c-12.773 0-22.332 3.486-27.941 16.234l-79.245 179.402h56.031s9.159-24.121 11.231-29.418c6.123 0 60.555.084 68.336.084 1.596 6.854 6.492 29.334 6.492 29.334h49.512l-43.186-195.636zm-65.417 126.408c4.414-11.279 21.26-54.724 21.26-54.724-.316.521 4.381-11.334 7.074-18.684l3.606 16.878s10.217 46.729 12.353 56.527h-44.293v.003zM232.903 138.464L180.664 271.96l-5.565-27.129c-9.726-31.274-40.025-65.157-73.898-82.12l47.767 171.204 56.455-.066 84.004-195.386h-56.524'
+        );
+        const p2 = new Path2D(
+          'M131.92 138.464H45.879l-.682 4.073C112.58 157.177 166.061 199.979 186.759 244.83L165.634 155.015c-3.64-13.854-14.182-16.215-27.452-16.551h-6.262'
+        );
+        ctx.fill(p1);
+        ctx.fill(p2);
+        ctx.restore();
+      }
+    }
+
+    let baked = false;
+    async function bake() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // 2x SUPERSAMPLE: bake and render at twice the display density, then
+      // let the compositor downscale the canvas. This is the fidelity lever:
+      // true SSAA for the near-binary etch edges, and glyphs rasterised at
+      // double size. The shader is cheap enough that 4x the fragments is
+      // still trivial; the bake runs once, idle-chunked, off critical path.
+      const s = (Math.min(card.clientWidth || CARD_W, CARD_W) / CARD_W) * dpr * 2;
+      const W = Math.round(CARD_W * s);
+      const H = Math.round(CARD_H * s);
+
+      if (!holoImg) holoImg = await loadImage('/assets/logos/monogram-mark.svg');
+      await (document as any).fonts?.ready;
+      monoFont =
+        getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() ||
+        'ui-monospace, monospace';
+      sansFont = getComputedStyle(document.body).fontFamily || 'sans-serif';
+      await idle();
+
+      const mk = (layer: string) => {
+        const c = ctx2d(W, H);
+        c.setTransform(s, 0, 0, s, 0, 0);
+        paintCard(c, layer);
+        return c;
+      };
+      const albCtx = mk('albedo');
+      const hgtCtx = mk('height');
+      const zonCtx = mk('zone');
+      const etchCtx = mk('etch');
+      await idle();
+
+      // height: Float32 until after differentiation
+      const n = W * H;
+      const hgtData = hgtCtx.getImageData(0, 0, W, H).data;
+      const h = new Float32Array(n);
+      for (let i = 0; i < n; i++) h[i] = hgtData[i * 4] / 255;
+      const scratch = new Float32Array(n);
+
+      // bevel blur: sigma = 1.2 px @dpr2 (0.18-0.25 x thinnest stroke), and
+      // normal strength scales WITH sigma to hold the ~32 deg bevel angle
+      const sigma = Math.max(1, 1.3 * (s / 2));
+      const S = 3.5 * sigma; // = 4.2 at sigma 1.2 (S = tan32 * sigma / (0.4 * dh))
+      gaussBlur(h, scratch, W, H, sigma);
+
+      // plateau remap on the raised range: flat metal tops, steeper shoulders
+      for (let i = 0; i < n; i++) {
+        if (h[i] > 0.35) {
+          const t = (h[i] - 0.35) / 0.5;
+          h[i] = 0.35 + Math.pow(Math.min(1, t * 1.35), 0.8) * 0.5;
+        }
+      }
+
+      // AO from the RAISED relief only (chip, rim). Computing it after the
+      // etch subtraction put a wide dark halo around every engraved glyph —
+      // which read as a thick coating with soft holes, not clean cuts.
+      const hWide = new Float32Array(h);
+      gaussBlur(hWide, scratch, W, H, 4 * sigma);
+      const ao = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        ao[i] = Math.min(1, Math.max(0.55, 1 - 1.8 * Math.max(0, hWide[i] - h[i])));
+      }
+
+      // etch: engraving cut straight into the height field with NO blur.
+      // The canvas anti-aliased edge is steepened to a near-vertical wall so
+      // the Sobel produces a crisp laser-etch edge (Revolut-style) — any
+      // blur here reads as a soft depression under a thick coat, not a cut.
+      // The 2:1 supersample on display anti-aliases the near-binary edge.
+      const etchData = etchCtx.getImageData(0, 0, W, H).data;
+      const et = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const e = etchData[i * 4] / 255;
+        et[i] = Math.min(1, Math.max(0, (e - 0.5) * 8 + 0.5)); // AA ramp -> wall
+      }
+      for (let i = 0; i < n; i++) {
+        h[i] -= et[i] * 0.24;
+        ao[i] = Math.max(0.5, Math.min(ao[i], 1 - 0.5 * et[i]));
+      }
+
+      // fine isotropic grain — satin: felt more than seen, and quiet enough
+      // that the glyph bevels stay clean (grain feeds straight into normals)
+      for (let i = 0; i < n; i++) {
+        h[i] += (Math.random() - 0.5) * 0.006;
+      }
+      await idle();
+
+      // Sobel -> normals + material assembly (typed array, never canvas alpha)
+      const zonData = zonCtx.getImageData(0, 0, W, H).data;
+      const matArr = new Uint8Array(n * 4);
+      const at = (x: number, y: number) => h[clampi(y, 0, H - 1) * W + clampi(x, 0, W - 1)];
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = y * W + x;
+          const tl = at(x - 1, y - 1), tc = at(x, y - 1), tr = at(x + 1, y - 1);
+          const ml = at(x - 1, y), mr = at(x + 1, y);
+          const bl = at(x - 1, y + 1), bc = at(x, y + 1), br = at(x + 1, y + 1);
+          const gx = (tr + 2 * mr + br - tl - 2 * ml - bl) / 8;
+          const gy = (bl + 2 * bc + br - tl - 2 * tc - tr) / 8; // +y = DOWN (canvas)
+          let nx = -gx * S, ny = -gy * S;
+          const inv = 1 / Math.hypot(nx, ny, 1);
+          const o = i * 4;
+          matArr[o] = Math.round((nx * inv * 0.5 + 0.5) * 255);
+          matArr[o + 1] = Math.round((ny * inv * 0.5 + 0.5) * 255);
+          let rough = zonData[o] / 255;
+          const metal = zonData[o + 1] / 255;
+          const grad = Math.hypot(gx, gy);
+          // fillets: much smoother than tops -> the sharp mirror glint that
+          // reads as a crisp cut edge on the near-vertical etch walls.
+          // Threshold is resolution-relative: per-texel gradients shrink as
+          // the bake res rises, so a fixed cutoff would miss the walls.
+          if (metal > 0.5 && grad > 0.072 / sigma) rough = 0.12;
+          // baked Toksvig, LOW coeff: too much anti-crawl re-softens exactly
+          // the walls we just sharpened (it widens roughness where normals
+          // vary fastest — i.e. on the cut edges). Keep it minimal.
+          rough = Math.min(1, Math.sqrt(rough * rough + 0.04 * (gx * gx + gy * gy) * S * S));
+          // sparse sparkle: ~0.5% of texels scintillate as the card moves
+          if (Math.random() < 0.005) rough = 0.12;
+          matArr[o + 2] = Math.round(rough * 255);
+          matArr[o + 3] = Math.round(metal * 255);
+        }
+      }
+
+      // masks: R holo silhouette, G AO, B height (future contact shadow)
+      const mskArr = new Uint8Array(n * 4);
+      const holoCtx = ctx2d(W, H);
+      if (holoImg) holoCtx.drawImage(holoImg, 302 * s, 100.8 * s, 54 * s, 54 * s);
+      const holoData = holoCtx.getImageData(0, 0, W, H).data;
+      for (let i = 0; i < n; i++) {
+        const o = i * 4;
+        mskArr[o] = holoData[o + 3];
+        mskArr[o + 1] = Math.round(ao[i] * 255);
+        mskArr[o + 2] = Math.round(Math.min(1, Math.max(0, h[i])) * 255);
+        mskArr[o + 3] = 255;
+      }
+
+      // env strip: near-black studio + one warm soft window + cool fill card
+      // studio base bright enough that unlit metal still reads as metal —
+      // a pitch-black room leaves the glyphs dead wherever the window isn't
+      const env = ctx2d(256, 64);
+      const eg = env.createLinearGradient(0, 0, 0, 64);
+      eg.addColorStop(0, '#2A3040');
+      eg.addColorStop(1, '#141822');
+      env.fillStyle = eg;
+      env.fillRect(0, 0, 256, 64);
+      env.fillStyle = '#FFF7EA';
+      rr(env, 96, 10, 46, 34, 6);
+      env.fill();
+      env.fillStyle = '#2A3040';
+      env.fillRect(117, 10, 4, 34); // mullion: two panes read as "window"
+      env.fillStyle = 'rgba(160,180,215,0.5)';
+      rr(env, 176, 30, 60, 22, 8);
+      env.fill();
+      // soften level 0 in JS (ctx.filter is unreliable in Safari)
+      const eData = env.getImageData(0, 0, 256, 64);
+      const eScratch = new Float32Array(256 * 64);
+      for (let ch = 0; ch < 3; ch++) {
+        const arr = new Float32Array(256 * 64);
+        for (let i = 0; i < 256 * 64; i++) arr[i] = eData.data[i * 4 + ch];
+        gaussBlur(arr, eScratch, 256, 64, 3);
+        for (let i = 0; i < 256 * 64; i++) eData.data[i * 4 + ch] = arr[i];
+      }
+      env.putImageData(eData, 0, 0);
+
+      // upload
+      canvas.width = W;
+      canvas.height = H;
+      gl.viewport(0, 0, W, H);
+      bindTex(0, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, albCtx.canvas);
+      bindTex(1, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, matArr);
+      bindTex(2, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, mskArr);
+      bindTex(3, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, env.canvas);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      baked = true;
+    }
+
+    // ---- tilt -> world rotation (uRot = Rx(gx)·Ry(gy), column-major) --------
+    const DEG = Math.PI / 180;
+    const maxDeg = 2 * parseFloat(card.dataset.tiltMax || '7');
+    const rot = new Float32Array(9);
+    const setUniformsFor = (px: number, py: number) => {
+      const gx = (py - 0.5) * maxDeg * DEG;
+      const gy = (px - 0.5) * maxDeg * DEG;
+      const cx = Math.cos(gx), sx = Math.sin(gx);
+      const cy = Math.cos(gy), sy = Math.sin(gy);
+      rot[0] = cy; rot[1] = sx * sy; rot[2] = -cx * sy;
+      rot[3] = 0; rot[4] = cx; rot[5] = sx;
+      rot[6] = sy; rot[7] = -sx * cy; rot[8] = cx * cy;
+      gl.uniformMatrix3fv(uRot, false, rot);
+      // PHASE0 calibrated by eye so the REST pose reads brand blue (warm
+      // hues only at the tilt extremes): 4.4 → green, 2.3 → pink, 3.3 → blue
+      // (re-tuned after the etch pass shifted the normals under the patch)
+      gl.uniform1f(uHoloPhase, 2.6 * (px - 0.5) + 1.3 * (py - 0.35) + 3.95);
+    };
+    const draw = () => gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      card.classList.remove('pay-card--gl');
+      canvas.dataset.glState = 'unsupported'; // DOM card is back; no restore
+    });
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    bake()
+      .then(() => {
+        if (!baked) throw new Error('bake failed');
+        if (reduced) {
+          setUniformsFor(0.5, 0.35); // rest pose: sheen high, glints off
+          draw();
+          card.classList.add('pay-card--gl');
+          canvas.dataset.glState = 'static';
+          return;
+        }
+        let visible = false;
+        let raf = 0;
+        let lastPx = NaN;
+        let lastPy = NaN;
+        let first = true;
+        const loop = () => {
+          const pxRaw = parseFloat(card.style.getPropertyValue('--px'));
+          const pyRaw = parseFloat(card.style.getPropertyValue('--py'));
+          const px = Number.isFinite(pxRaw) ? pxRaw : 0.5;
+          const py = Number.isFinite(pyRaw) ? pyRaw : 0.35;
+          if (first || Math.abs(px - lastPx) > 1e-4 || Math.abs(py - lastPy) > 1e-4) {
+            lastPx = px;
+            lastPy = py;
+            setUniformsFor(px, py);
+            draw();
+            if (first) {
+              first = false;
+              card.classList.add('pay-card--gl'); // only after a real frame
+            }
+          }
+          raf = visible ? requestAnimationFrame(loop) : 0;
+        };
+        const io = new IntersectionObserver(([e]) => {
+          visible = e.isIntersecting;
+          if (visible && !raf) raf = requestAnimationFrame(loop);
+        });
+        io.observe(canvas);
+        canvas.dataset.glState = 'live';
+
+        // re-bake if the card's rendered width changes materially (mobile
+        // breakpoints); uniform-only changes need nothing
+        let bakeW = card.clientWidth;
+        let deb = 0;
+        new ResizeObserver(() => {
+          const w = card.clientWidth;
+          if (!w || Math.abs(w - bakeW) / bakeW < 0.15) return;
+          clearTimeout(deb);
+          deb = window.setTimeout(() => {
+            bakeW = w;
+            bake().then(() => {
+              first = true;
+              if (!raf && visible) raf = requestAnimationFrame(loop);
+            });
+          }, 300);
+        }).observe(card);
+      })
+      .catch(() => {
+        canvas.dataset.glState = 'unsupported'; // DOM card stays — by design
+      });
+  });
+</script>

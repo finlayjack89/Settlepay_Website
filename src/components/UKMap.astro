@@ -1,0 +1,420 @@
+---
+/**
+ * UKMap — WebGL island: a dot-matrix silhouette of the UK with payment arcs
+ * drawn between cities (the Stripe globe idea, scaled to our actual market:
+ * small UK businesses). The main animation: an origin dot turns blue, an
+ * arching line draws itself to the destination, holds, then erases along the
+ * same origin-to-destination direction. Other dots blink blue occasionally —
+ * local payments. Pointer proximity lifts and warms nearby dots.
+ *
+ * The silhouette is rasterised from Natural Earth 50m UK boundary data
+ * (Orkney/Shetland clipped for composition); the mask stays a hand-editable
+ * string array. Cities are placed by real lat/lon, snapped to land dots.
+ * data-gl-state: "live" | "static" | "unsupported".
+ */
+---
+<div class="uk-map" data-uk-map>
+  <canvas class="uk-map__canvas" data-uk-canvas aria-hidden="true"></canvas>
+  <p class="uk-map__caption">
+    Auction houses, tradespeople, clinics, accountants — built for small businesses across the UK.
+  </p>
+</div>
+
+<script>
+  const VERT = `
+attribute vec2 aPos;
+attribute float aSize;
+attribute float aAlpha;
+attribute float aBlend;
+uniform float uDpr;
+varying float vAlpha;
+varying float vBlend;
+void main() {
+  /* Hover lives on the CPU now (per-dot eased energy, see draw) — a shader
+     ripple was instant and could only be a pure function of distance. */
+  gl_Position = vec4(aPos.x * 2.0 - 1.0, 1.0 - aPos.y * 2.0, 0.0, 1.0);
+  gl_PointSize = aSize * uDpr;
+  vAlpha = aAlpha;
+  vBlend = aBlend;
+}`;
+
+  const FRAG = `
+precision mediump float;
+varying float vAlpha;
+varying float vBlend;
+void main() {
+  float d = length(gl_PointCoord - vec2(0.5));
+  float edge = smoothstep(0.5, 0.26, d);
+  /* Navy land dots blending to brand blue when a payment touches them. */
+  vec3 ink = mix(vec3(0.16, 0.22, 0.35), vec3(0.23, 0.51, 0.96), vBlend);
+  gl_FragColor = vec4(ink, vAlpha * edge);
+}`;
+
+  // UK silhouette, 44 x 66 — rasterised from Natural Earth 50m boundaries
+  // ('#' = land dot). Hand-editable: tweak cells freely, the grid is the map.
+  const MASK = [
+    '............................................',
+    '..............#.#.####......................',
+    '........#.....########......................',
+    '.......##.....########......................',
+    '.....###.....#######........................',
+    '.....###.....######.........................',
+    '......#......#####..........................',
+    '...........########.........................',
+    '...##...#..#######.#########................',
+    '.......##..#################................',
+    '.......##..################.................',
+    '....#...###.###############.................',
+    '............###############.................',
+    '...#....#..###############..................',
+    '...........###############..................',
+    '.......#..###############...................',
+    '.........#.#.###########....................',
+    '.........##.##########......................',
+    '............############....................',
+    '............#.#########.....................',
+    '..........#.##.######..##...................',
+    '............#..############.................',
+    '.........#..#..#############................',
+    '...........#.#.#############................',
+    '...........#.#..#############...............',
+    '...........#...##############...............',
+    '.......##......##############...............',
+    '....######....################..............',
+    '....######...#######..########..............',
+    '...########...#.#.#..#########..............',
+    '..########...........##########.............',
+    '..#########.........#############...........',
+    '.####.#####..........#############..........',
+    '..###.######.........#############..........',
+    '.......###..............###########.........',
+    '.......................############.........',
+    '.......................############.........',
+    '.......................#############........',
+    '.......................############.........',
+    '.......................#############........',
+    '................##...##.#############.......',
+    '................#####################.......',
+    '.................####################.......',
+    '................####################..###...',
+    '..................#########################.',
+    '..................#########################.',
+    '...................########################.',
+    '..................#########################.',
+    '.................##########################.',
+    '................###########################.',
+    '..............############################..',
+    '.............############################...',
+    '..............##.######################.....',
+    '..................######.###############....',
+    '....................##..##############......',
+    '.......................###################..',
+    '..................########################..',
+    '.................#######################....',
+    '................#######################.....',
+    '................##############..#...#.......',
+    '...............#######..###..##.............',
+    '..............#######.......................',
+    '..............######........................',
+    '.............##....#........................',
+    '...........###..............................',
+    '............................................',
+  ];
+  // City cells (col,row) — real lat/lon projected and snapped to land dots.
+  const CITIES: Record<string, [number, number]> = {
+    Glasgow: [17, 21], Edinburgh: [22, 21], Belfast: [10, 31],
+    Newcastle: [28, 28], Leeds: [29, 37], Manchester: [26, 39],
+    Birmingham: [27, 46], Cardiff: [21, 54], Bristol: [24, 54], London: [35, 54],
+  };
+  // Payment arcs, origin -> destination (the London->Birmingham story).
+  // Ordered so the staggered lanes (route index mod LANES) mix directions
+  // well — each lane cycles its own residue class, so lanes never collide.
+  const ROUTES: [string, string][] = [
+    ['London', 'Birmingham'],
+    ['Glasgow', 'London'],
+    ['London', 'Belfast'],
+    ['Manchester', 'London'],
+    ['Edinburgh', 'Bristol'],
+    ['Leeds', 'Cardiff'],
+    ['Bristol', 'Newcastle'],
+    ['Birmingham', 'Edinburgh'],
+    ['Cardiff', 'London'],
+    ['Belfast', 'Manchester'],
+    ['Newcastle', 'London'],
+    ['Glasgow', 'Edinburgh'],
+  ];
+
+  const COLS = MASK[0].length;
+  const ROWS = MASK.length;
+  const ASPECT = COLS / ROWS; // physical x/y ratio of the canvas
+  const ARC_N = 56;           // points per arc
+  const BASE_SIZE = 2.35;
+  const BASE_ALPHA = 0.78;
+  const cell = (c: number, r: number): [number, number] => [(c + 0.5) / COLS, (r + 0.5) / ROWS];
+
+  const easeInOut = (t: number) => t * t * (3 - 2 * t);
+  const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+
+  document.querySelectorAll<HTMLElement>('[data-uk-map]').forEach((root) => {
+    const canvas = root.querySelector<HTMLCanvasElement>('[data-uk-canvas]');
+    if (!canvas) return;
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
+    if (!gl) { root.dataset.glState = 'unsupported'; return; }
+
+    const compile = (t: number, s: string) => {
+      const sh = gl.createShader(t)!;
+      gl.shaderSource(sh, s);
+      gl.compileShader(sh);
+      return sh;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { root.dataset.glState = 'unsupported'; return; }
+    gl.useProgram(prog);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    // Land dots first, one entry per '#': [x, y, size, alpha, blend].
+    const verts: number[] = [];
+    const cellIndex = new Map<string, number>();
+    MASK.forEach((row, r) => {
+      for (let c = 0; c < COLS; c++) {
+        if (row[c] !== '#') continue;
+        const [x, y] = cell(c, r);
+        cellIndex.set(`${c},${r}`, verts.length / 5);
+        verts.push(x, y, BASE_SIZE, BASE_ALPHA, 0);
+      }
+    });
+    const nLand = verts.length / 5;
+    const cityIdx: Record<string, number> = {};
+    for (const [name, [c, r]] of Object.entries(CITIES)) {
+      cityIdx[name] = cellIndex.get(`${c},${r}`) ?? 0;
+    }
+
+    // Land-dot BASE state: twinkles/arc endpoints write here, and the hover
+    // pass composes base + hover energy into the vertex data each frame —
+    // hover can never accumulate into or stomp the other animations.
+    const bSize = new Float32Array(nLand).fill(BASE_SIZE);
+    const bAlpha = new Float32Array(nLand).fill(BASE_ALPHA);
+    const bBlend = new Float32Array(nLand);
+
+    // Arc points: quadratic bezier per route, arched perpendicular to the
+    // chord in physical (aspect-corrected) space so the curve isn't skewed.
+    const arcBase = nLand;
+    ROUTES.forEach(([from, to]) => {
+      const [ax, ay] = cell(...CITIES[from]);
+      const [bx, by] = cell(...CITIES[to]);
+      const axp = ax * ASPECT, bxp = bx * ASPECT;
+      const dxp = bxp - axp, dyp = by - ay;
+      const len = Math.hypot(dxp, dyp);
+      let px = -dyp / len, py = dxp / len;
+      if (py > 0 || (py === 0 && px > 0)) { px = -px; py = -py; } // arch upward/left
+      const arch = len * 0.22;
+      const cxp = (axp + bxp) / 2 + px * arch;
+      const cyp = (ay + by) / 2 + py * arch;
+      for (let j = 0; j < ARC_N; j++) {
+        const t = j / (ARC_N - 1);
+        const xp = (1 - t) * (1 - t) * axp + 2 * (1 - t) * t * cxp + t * t * bxp;
+        const yp = (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * cyp + t * t * by;
+        verts.push(xp / ASPECT, yp, 3.15, 0, 1);
+      }
+    });
+    const data = new Float32Array(verts);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    const stride = 20;
+    const attr = (n: string, size: number, off: number) => {
+      const loc = gl.getAttribLocation(prog, n);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride, off);
+    };
+    attr('aPos', 2, 0);
+    attr('aSize', 1, 8);
+    attr('aAlpha', 1, 12);
+    attr('aBlend', 1, 16);
+
+    const uDpr = gl.getUniformLocation(prog, 'uDpr');
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uDpr, dpr);
+    };
+    resize();
+    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
+
+    let hoverX = -9;
+    let hoverY = -9;
+    canvas.style.pointerEvents = 'auto';
+    canvas.addEventListener('pointermove', (ev) => {
+      const r = canvas.getBoundingClientRect();
+      hoverX = (ev.clientX - r.left) / r.width;
+      hoverY = (ev.clientY - r.top) / r.height;
+    });
+    canvas.addEventListener('pointerleave', () => {
+      hoverX = -9;
+      hoverY = -9;
+    });
+
+    const setDot = (i: number, size: number, alpha: number, blend: number) => {
+      bSize[i] = size;
+      bAlpha[i] = alpha;
+      bBlend[i] = blend;
+    };
+    const liftDot = (i: number, e: number, sizeBoost: number) => {
+      setDot(i, BASE_SIZE + e * sizeBoost, BASE_ALPHA + e * 0.4, e);
+    };
+    // Cities reset each frame, then every lane bids for its endpoints — max
+    // wins, so two arcs sharing a city never dim each other.
+    const liftCity = (i: number, e: number, sizeBoost: number) => {
+      if (BASE_SIZE + e * sizeBoost <= bSize[i]) return;
+      liftDot(i, e, sizeBoost);
+    };
+
+    // Hover physics: each dot's energy CHASES its spatial target through an
+    // attack/decay lerp, so dots swell in sequence as the cursor approaches
+    // and relax in its wake rather than snapping with the pointer. Per-dot
+    // rate jitter keeps the rise organic instead of concentric.
+    const hoverE = new Float32Array(nLand);
+    const hoverJit = new Float32Array(nLand);
+    for (let i = 0; i < nLand; i++) hoverJit[i] = 0.7 + (((i * 2654435761) >>> 0) % 1000) * 0.0006;
+    let lastT = 0;
+
+    // Arc timeline: origin turns blue -> line draws origin->destination ->
+    // hold with the destination lit -> line erases in the SAME direction ->
+    // endpoints return to ink. Three staggered lanes launch a new arc every
+    // CYCLE/3 seconds, so 2-3 are usually in flight — one at a time read
+    // too quiet.
+    const PH = { grow: 0.35, draw: 1.0, hold: 0.55, erase: 1.0, fade: 0.4, gap: 0.3 };
+    const CYCLE = PH.grow + PH.draw + PH.hold + PH.erase + PH.fade + PH.gap;
+    const LANES = 3;
+
+    const applyRoute = (route: number, lt: number) => {
+      let head = 0, erase = 0, fromE = 0, toE = 0;
+      const tDraw = lt - PH.grow;
+      const tHold = tDraw - PH.draw;
+      const tErase = tHold - PH.hold;
+      const tFade = tErase - PH.erase;
+      if (lt < PH.grow) {
+        fromE = easeInOut(clamp01(lt / PH.grow));
+      } else if (tDraw < PH.draw) {
+        fromE = 1;
+        head = easeInOut(clamp01(tDraw / PH.draw));
+        toE = clamp01((head - 0.9) / 0.1); // destination lights as the line lands
+      } else if (tHold < PH.hold) {
+        fromE = 1; toE = 1; head = 1;
+      } else if (tErase < PH.erase) {
+        fromE = 1; toE = 1; head = 1;
+        erase = easeInOut(clamp01(tErase / PH.erase));
+      } else if (tFade < PH.fade) {
+        head = 1; erase = 1;
+        const e = 1 - easeInOut(clamp01(tFade / PH.fade));
+        fromE = e; toE = e;
+      }
+      const [from, to] = ROUTES[route];
+      liftCity(cityIdx[from], fromE, 1.9);
+      liftCity(cityIdx[to], toE, 1.9);
+      for (let j = 0; j < ARC_N; j++) {
+        const o = (arcBase + route * ARC_N + j) * 5;
+        const tj = j / (ARC_N - 1);
+        const vis = clamp01((head - tj) / 0.05) * clamp01((tj - erase) / 0.05);
+        data[o + 3] = vis * 0.95;
+        // The drawing tip runs slightly hotter and larger.
+        const tip = clamp01(1 - Math.abs(head - tj) / 0.06) * (head < 1 ? 1 : 0);
+        data[o + 2] = 3.15 + tip * 1.3;
+      }
+    };
+
+    // Local payments: a few land dots ease to blue and back, smaller than the
+    // arc endpoints, on a rolling random schedule.
+    type Twinkle = { idx: number; start: number; dur: number };
+    const pickDot = () => Math.floor(Math.random() * nLand);
+    const twinkles: Twinkle[] = Array.from({ length: 12 }, (_, i) => ({
+      idx: pickDot(), start: 0.3 + i * 0.4, dur: 2.0,
+    }));
+    const applyTwinkles = (t: number) => {
+      twinkles.forEach((tw) => {
+        const ph = (t - tw.start) / tw.dur;
+        if (ph >= 1) {
+          setDot(tw.idx, BASE_SIZE, BASE_ALPHA, 0);
+          tw.idx = pickDot();
+          tw.start = t + 0.15 + Math.random() * 1.0;
+          return;
+        }
+        if (ph <= 0) return;
+        liftDot(tw.idx, Math.sin(Math.PI * ph), 0.9);
+      });
+    };
+
+    const draw = (t: number) => {
+      Object.values(cityIdx).forEach((i) => setDot(i, BASE_SIZE, BASE_ALPHA, 0));
+      for (let ri = 0; ri < ROUTES.length; ri++) {
+        for (let j = 0; j < ARC_N; j++) data[(arcBase + ri * ARC_N + j) * 5 + 3] = 0;
+      }
+      for (let lane = 0; lane < LANES; lane++) {
+        const tl = t + lane * (CYCLE / LANES);
+        const cycles = Math.floor(tl / CYCLE);
+        applyRoute((cycles * LANES + lane) % ROUTES.length, tl % CYCLE);
+      }
+      applyTwinkles(t);
+      const dt = Math.min(Math.max(t - lastT, 0.001), 0.05);
+      lastT = t;
+      const attack = 1 - Math.exp(-dt / 0.11);
+      const decay = 1 - Math.exp(-dt / 0.32);
+      for (let i = 0; i < nLand; i++) {
+        let target = 0;
+        if (hoverX > -5) {
+          const dx = data[i * 5] - hoverX;
+          const dy = data[i * 5 + 1] - hoverY;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 0.22) {
+            const f = 1 - d / 0.22;
+            target = f * f * (3 - 2 * f);
+          }
+        }
+        const e = hoverE[i];
+        const he = e + (target - e) * Math.min(1, (target > e ? attack : decay) * hoverJit[i]);
+        hoverE[i] = he;
+        const o = i * 5;
+        data[o + 2] = bSize[i] + he * 2.4;
+        data[o + 3] = Math.min(bAlpha[i] * (1 + he * 0.7), 1);
+        data[o + 4] = Math.min(bBlend[i] + he * 0.4, 1);
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.POINTS, 0, data.length / 5);
+    };
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // Static frame: first arc fully drawn, endpoints lit, mid-hold.
+      draw(PH.grow + PH.draw + PH.hold / 2);
+      root.dataset.glState = 'static';
+      return;
+    }
+
+    let raf = 0;
+    let visible = false;
+    const start = performance.now();
+    const loop = () => {
+      draw((performance.now() - start) / 1000);
+      raf = visible ? requestAnimationFrame(loop) : 0;
+    };
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !raf) raf = requestAnimationFrame(loop);
+    });
+    io.observe(canvas);
+    root.dataset.glState = 'live';
+  });
+</script>
