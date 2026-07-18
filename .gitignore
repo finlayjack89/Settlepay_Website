@@ -31,3 +31,4 @@ video/*/.hyperframes/
 # email template preview canvas (large generated artifact) + raw export bundle
 Docs/email-previews.html
 Docs/SettlePay Email Templates.zip
+.vercel
