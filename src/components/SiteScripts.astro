@@ -902,7 +902,10 @@
       lastFocused = document.activeElement as HTMLElement;
       (modal as HTMLElement).hidden = false;
       lockBody();
-      if (themeMeta) themeMeta.content = '#7B7F8A'; // the veil composited over a light page
+      // Veil tone for the zones the page can't paint: Safari's chrome via
+      // theme-color, the canvas strips via the html class (kit-extras.css).
+      if (themeMeta) themeMeta.content = '#7B7F8A';
+      document.documentElement.classList.add('sp-modal-open');
       formView.hidden = false;
       successView.hidden = true;
       const first = form?.querySelector('input, textarea') as HTMLElement | null;
@@ -912,6 +915,7 @@
       (modal as HTMLElement).hidden = true;
       unlockBody();
       if (themeMeta) themeMeta.content = themeDefault;
+      document.documentElement.classList.remove('sp-modal-open');
       lastFocused?.focus();
     };
     const modalFooter = modal.querySelector('[data-modal-footer]') as HTMLElement | null;

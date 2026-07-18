@@ -187,6 +187,13 @@
 .calculator__range:focus-visible::-moz-range-track { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
 
 /* ---- Enquire modal ---- */
+/* While the modal is open, the ROOT CANVAS is the only layer iOS paints in
+   the strips behind the status bar and toolbar — every fixed layer (the
+   scrim included) is clipped to the layout viewport, and the body scroll
+   lock blanks the document layer out there. Recolour the canvas to the veil
+   tone so those strips join the veil instead of flashing the page's white.
+   Matches the JS theme-color swap in SiteScripts. */
+html.sp-modal-open { background: #7B7F8A; }
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
   display: flex; align-items: center; justify-content: center;
