@@ -29,48 +29,34 @@ class SendRefused(Exception):
     pass
 
 
-def _kill_switch_on() -> bool:
-    return str(config.KILL_SWITCH).strip().lower() in {"1", "true", "yes", "on"}
+def _kill_switch_on(cur=None) -> bool:
+    """Env KILL_SWITCH (the hard override) OR the DB-backed ops_flags switch the
+    bounce monitor can trip. DB read failure falls open to env — an outage must
+    never mask the operator's env switch."""
+    if str(config.KILL_SWITCH).strip().lower() in {"1", "true", "yes", "on"}:
+        return True
+    try:
+        from . import monitor
+        return monitor.db_kill_switch(cur=cur)
+    except Exception:
+        return False
 
 
 def _gmail_send(sender: str, to_email: str, subject: str, body: str) -> str:
-    """Real Gmail API users.messages.send (per-user OAuth + refresh token). Only ever
-    reached on a LIVE send, which itself requires G-SEND cleared — so it never runs
-    during the build. WHY no service account / domain-wide delegation: the refresh
-    token is inherently mailbox-scoped — it only works for the single mailbox that
-    consented, so cross-mailbox sending is impossible by construction. Returns the
-    Gmail message id."""
-    import base64
-    from email.message import EmailMessage
+    """Real Gmail API users.messages.send (per-user OAuth + refresh token), via the
+    shared gmail/google_oauth layer (also used by operator alerts + digests). Only
+    ever reached on a LIVE send, which itself requires G-SEND cleared. WHY no
+    service account / domain-wide delegation: the refresh token is inherently
+    mailbox-scoped — it only works for the single mailbox that consented, so
+    cross-mailbox sending is impossible by construction. Returns the Gmail
+    message id."""
+    from . import gmail
+    from .google_oauth import OAuthNotConfigured
 
-    import httpx
-
-    cid, secret, refresh = config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET, config.GOOGLE_REFRESH_TOKEN
-    sender = sender or config.GMAIL_SENDER
-    if not all([cid, secret, refresh, sender]):
-        raise SendRefused("Gmail API credentials not configured")
-    # refresh token -> short-lived access token, fresh each run
-    tok = httpx.post(
-        "https://oauth2.googleapis.com/token",
-        data={"client_id": cid, "client_secret": secret,
-              "refresh_token": refresh, "grant_type": "refresh_token"},
-        timeout=30,
-    )
-    tok.raise_for_status()
-    access = tok.json()["access_token"]
-    # build an RFC 822 (MIME) message and base64url-encode it
-    msg = EmailMessage()
-    msg["To"], msg["From"], msg["Subject"] = to_email, sender, (subject or "")
-    msg.set_content(body)
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    r = httpx.post(
-        f"https://gmail.googleapis.com/gmail/v1/users/{sender}/messages/send",
-        headers={"Authorization": f"Bearer {access}"},
-        json={"raw": raw},
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json().get("id", "gmail-accepted")
+    try:
+        return gmail.send_message(sender, to_email, subject or "", body)
+    except OAuthNotConfigured as e:
+        raise SendRefused(f"Gmail API credentials not configured ({e})") from e
 
 
 def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cur) -> dict:
@@ -95,7 +81,7 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
         raise SendRefused("no body_final to send")
 
     # ---- GUARDRAILS (enforced for dry-run AND live) ----
-    if _kill_switch_on():
+    if _kill_switch_on(cur):
         raise SendRefused("global kill switch is ON")
     if sub != SubscriberClass.CORPORATE.value:
         raise SendRefused(f"individual/unknown subscriber blocked ({sub})")

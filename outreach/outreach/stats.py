@@ -130,3 +130,26 @@ def recent_activity(cur, limit: int = 18) -> list[tuple]:
         "left join outreach.leads l on l.company_number = a.company_number "
         "order by a.created_at desc limit %s", (limit,))
     return cur.fetchall()
+
+
+def ops_overview(cur) -> dict:
+    """The transparency numbers the operator asked the dashboard for: emails sent,
+    replies, spend vs cap, and whether the platform's own jobs are healthy."""
+    cur.execute(
+        "select count(*) filter (where mode='live' and created_at > now() - interval '7 days'), "
+        "count(*) filter (where mode='dry_run' and created_at > now() - interval '7 days'), "
+        "count(*) filter (where mode='live') from outreach.sends")
+    live_7d, dry_7d, live_total = cur.fetchone()
+    cur.execute(
+        "select count(*) filter (where kind='reply'), count(*) filter (where kind='bounce') "
+        "from outreach.replies where created_at > now() - interval '7 days'")
+    replies_7d, bounces_7d = cur.fetchone()
+    cur.execute("select count(*) filter (where status in ('queued','running')), "
+                "count(*) filter (where status='failed' and created_at > now() - interval '24 hours') "
+                "from outreach.jobs")
+    jobs_active, jobs_failed_24h = cur.fetchone()
+    from . import spend as spend_mod
+    return {"live_7d": live_7d, "dry_7d": dry_7d, "live_total": live_total,
+            "replies_7d": replies_7d, "bounces_7d": bounces_7d,
+            "jobs_active": jobs_active, "jobs_failed_24h": jobs_failed_24h,
+            "spend_mtd": spend_mod.month_total_gbp(cur=cur)}

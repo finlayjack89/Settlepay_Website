@@ -8,10 +8,10 @@ from outreach import sequence
 
 pytestmark = pytest.mark.floor_h
 
-# a Monday inside / outside the placeholder send window (09-17, Mon-Thu)
-IN_WINDOW = datetime.datetime(2026, 6, 29, 10, 0)   # Mon 10:00
-OUT_WINDOW = datetime.datetime(2026, 6, 29, 22, 0)  # Mon 22:00
-WEEKEND = datetime.datetime(2026, 7, 4, 10, 0)      # Sat 10:00
+# a weekday inside / outside the v1 send window (Tue–Thu, 09–16)
+IN_WINDOW = datetime.datetime(2026, 6, 30, 10, 0)   # Tue 10:00 (in window)
+OUT_WINDOW = datetime.datetime(2026, 6, 30, 22, 0)  # Tue 22:00 (out — hour)
+WEEKEND = datetime.datetime(2026, 7, 4, 10, 0)      # Sat 10:00 (out — day)
 
 
 # ---- config-driven timing (no hardcoded delays) ----

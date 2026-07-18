@@ -1,14 +1,15 @@
-"""Phase E — draft_email (MECHANISM ONLY).
+"""Phase E — draft_email.
 
-Loads the editable prompts/draft_email.md PLACEHOLDER, asks the inline provider to
-produce a draft into body_original, and enforces the structural/compliance
-envelope. It does NOT author conversion copy — the researched playbook supplies
-that later (see CONTEXT.md, "DEFERRED — out of remit").
+Loads the editable prompts/draft_email.md playbook (now v1 — real conversion copy),
+asks the drafting provider to produce a draft into body_original, and enforces the
+structural/compliance envelope before storing it.
 
-For the build, the inline provider's responder is `provisional_responder`, which
-emits a clearly-marked PROVISIONAL placeholder draft (company + signal only, no
-pitch). When the real playbook arrives, swap in the api provider or an inline
-responder backed by the loop agent — the mechanism is unchanged.
+Drafting provider:
+- api (unattended): set LLM_PROVIDER=api (+ key) — the Anthropic API writes the draft.
+- inline (attended): under /loop on Claude Max, the loop agent supplies the draft.
+- provisional (safe default): with neither of the above, `provisional_responder`
+  emits a clearly-marked, non-sending PROVISIONAL draft, so a bare run never
+  fabricates a real-looking email without a real model behind it.
 """
 from __future__ import annotations
 import re
@@ -18,9 +19,23 @@ from . import audit, config, db
 from .llm import get_provider
 
 PLAYBOOK_PATH = config.PROJECT_ROOT / "prompts" / "draft_email.md"
-PROMPT_VERSION = "placeholder-v0"
 MAX_WORDS = 125
 LINK_RE = re.compile(r"(https?://|www\.|!\[|\]\(|<img|<a\s|mailto:)", re.I)
+# the playbook must declare a version so the mechanism refuses an unmarked/garbage file
+VERSION_RE = re.compile(r"PLAYBOOK VERSION:\s*(\S+)", re.I)
+
+
+def _prompt_version() -> str:
+    """Derived from the playbook's own version marker so bumping the file
+    auto-stamps drafts (graduation metrics are windowed per prompt_version)."""
+    try:
+        m = VERSION_RE.search(PLAYBOOK_PATH.read_text())
+        return f"playbook-{m.group(1)}" if m else "playbook-unversioned"
+    except OSError:
+        return "playbook-unversioned"
+
+
+PROMPT_VERSION = _prompt_version()
 # SettlePay must never claim its OWN authorisation (recipient names may contain
 # "Ltd"/"Limited", so we do NOT guard on those — only on self-authorisation claims).
 FORBIDDEN = ("fca authorised", "fca-authorised", "fca authorized",
@@ -36,8 +51,8 @@ class EnvelopeViolation(Exception):
 def load_playbook(path=None) -> str:
     p = Path(path) if path else PLAYBOOK_PATH
     text = p.read_text()
-    if "PLACEHOLDER" not in text:
-        raise RuntimeError(f"{p} is not the marked PLACEHOLDER playbook")
+    if not VERSION_RE.search(text):
+        raise RuntimeError(f"{p} has no 'PLAYBOOK VERSION:' marker — refusing an unversioned playbook")
     return text
 
 
@@ -117,8 +132,12 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     return {"company_number": company_number, "draft_id": str(draft_id), "words": len(body.split())}
 
 
-def run(*, provider=None, cur=None) -> list[dict]:
-    provider = provider or get_provider("inline", responder=provisional_responder)
+def run(*, provider=None, cur=None, limit=None) -> list[dict]:
+    if provider is None:
+        # api when configured (real unattended drafts); otherwise the safe
+        # provisional fallback so a bare run never fabricates a real-looking email.
+        provider = (get_provider("api") if config.LLM_PROVIDER == "api"
+                    else get_provider("inline", responder=provisional_responder))
     own = cur is None
     conn = None
     if own:
@@ -130,7 +149,8 @@ def run(*, provider=None, cur=None) -> list[dict]:
         cur.execute(
             "select l.company_number, l.company_name, e.signal from outreach.leads l "
             "join outreach.enrichment e on e.company_number=l.company_number "
-            "where l.state='enriched'"
+            "where l.state='enriched' order by l.updated_at "
+            + ("limit %s" if limit else ""), ((limit,) if limit else ())
         )
         for cn, name, sig in cur.fetchall():
             results.append(draft_one(cn, name, sig, provider=provider, cur=cur, playbook=playbook))

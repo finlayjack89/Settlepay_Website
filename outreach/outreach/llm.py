@@ -51,29 +51,57 @@ class InlineProvider(LLMProvider):
         return LLMResult(self._responder(prompt), self.name, {"purpose": purpose})
 
 
+class LLMUnavailable(Exception):
+    """The api provider cannot serve this call (no key, spend cap hit, or the
+    provider errored after retries). Callers degrade gracefully — the pipeline
+    must never hard-block on the LLM."""
+
+
 class ApiProvider(LLMProvider):
     name = "api"
 
     def __init__(self, model: Optional[str] = None, client=None):
-        # NOTE: confirm the model id against ~/.claude/LLM_MODELS.md before going live.
-        self.model = model or "claude-sonnet-4-6"
+        # model id verified against ~/.claude/LLM_MODELS.md — override via ANTHROPIC_MODEL.
+        self.model = model or config.ANTHROPIC_MODEL
         self._client = client
 
     def complete(self, prompt, *, purpose, max_words=None) -> LLMResult:
+        from . import spend  # local import: spend is DB-touching, llm stays importable without it
+
+        if self._client is None and not config.ANTHROPIC_API_KEY:
+            raise LLMUnavailable("ANTHROPIC_API_KEY not configured")
+        try:
+            spend.ensure_under_cap()
+        except spend.SpendCapExceeded as e:
+            raise LLMUnavailable(str(e)) from e
         client = self._client or self._default_client()
-        msg = client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        try:
+            msg = client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as e:  # SDK retries (max_retries=3) already exhausted here
+            raise LLMUnavailable(f"anthropic call failed: {e}") from e
         text = "".join(b.text for b in msg.content if getattr(b, "type", None) == "text")
-        return LLMResult(text, self.name, {"purpose": purpose, "model": self.model})
+        usage = getattr(msg, "usage", None)
+        units_in = getattr(usage, "input_tokens", 0) or 0
+        units_out = getattr(usage, "output_tokens", 0) or 0
+        try:
+            spend.record("anthropic", purpose=purpose, model=self.model,
+                         units_in=units_in, units_out=units_out,
+                         cost_gbp=spend.anthropic_cost_gbp(units_in, units_out))
+        except Exception:
+            pass  # metering must never fail the call that already succeeded
+        return LLMResult(text, self.name,
+                         {"purpose": purpose, "model": self.model,
+                          "units_in": units_in, "units_out": units_out})
 
-    @staticmethod
-    def _default_client():
-        import anthropic  # lazy; not a build dependency
+    def _default_client(self):
+        import anthropic  # lazy; not needed for inline-only runs
 
-        return anthropic.Anthropic()
+        return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY,
+                                   timeout=60, max_retries=3)
 
 
 def get_provider(name: Optional[str] = None, **kwargs) -> LLMProvider:

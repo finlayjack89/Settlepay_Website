@@ -80,3 +80,92 @@ def test_missing_draft_404s():
 def test_missing_enquiry_404s():
     r = client.get("/enquiry/00000000-0000-0000-0000-000000000000")
     assert r.status_code == 404
+
+
+# ---- ops canvas (tasks / jobs / health / tick) ----
+def test_healthz():
+    assert client.get("/healthz").json() == {"ok": True}
+
+
+def test_home_shows_operations_panel():
+    r = client.get("/")
+    assert "Operations" in r.text and "Spend MTD" in r.text
+
+
+def test_tasks_page_lists_registry():
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    assert "Pipeline tick" in r.text and "Discover leads" in r.text
+
+
+def test_jobs_page_renders():
+    assert client.get("/jobs").status_code == 200
+
+
+def test_tick_enqueues_and_dedupes():
+    from outreach import db
+    a = client.post("/tick").json()["job_id"]
+    b = client.post("/tick").json()["job_id"]
+    assert a == b  # second call deduped onto the queued job
+    with db.cursor() as cur:  # tidy the queued row
+        cur.execute("delete from outreach.jobs where id=%s and status='queued'", (a,))
+
+
+def test_vertical_drilldown_renders():
+    r = client.get("/outreach/vertical/96020")
+    assert r.status_code == 200
+    assert "Graduation to auto-send" in r.text
+
+
+def test_settings_shows_operational_controls():
+    r = client.get("/settings")
+    assert "Operational controls" in r.text and "Kill switch" in r.text
+
+
+# ---- auth (open locally; enforced once configured) ----
+def test_login_redirects_home_in_open_mode():
+    r = client.get("/login", follow_redirects=False)
+    assert r.status_code == 303
+
+
+def _configure_auth(monkeypatch, password="pw"):
+    from outreach import config, webauth
+    monkeypatch.setattr(config, "SESSION_SECRET", "test-secret")
+    monkeypatch.setattr(config, "CONSOLE_PASSWORD_HASH", webauth.hash_password(password))
+
+
+def test_auth_enforced_when_configured(monkeypatch):
+    _configure_auth(monkeypatch)
+    from outreach import web
+    web._login_limiter.reset("testclient")
+    c = TestClient(app)
+    r = c.get("/", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].endswith("/login")
+    assert c.get("/login").status_code == 200          # login page reachable
+    assert c.post("/login", data={"password": "nope"}).status_code == 401
+    ok = c.post("/login", data={"password": "pw"}, follow_redirects=False)
+    assert ok.status_code == 303 and "ops_session" in ok.headers.get("set-cookie", "")
+    assert c.get("/", follow_redirects=False).status_code == 200  # session accepted
+    # authed POST without a CSRF token is refused before any work happens
+    bad = c.post("/outreach/approve/00000000-0000-0000-0000-000000000000",
+                 data={"reviewer": "x"})
+    assert bad.status_code == 403
+
+
+def test_healthz_and_tick_bypass_session_auth(monkeypatch):
+    _configure_auth(monkeypatch)
+    c = TestClient(app)
+    assert c.get("/healthz").status_code == 200          # exempt from session gate
+    assert c.post("/tick").status_code == 401            # but tick needs OIDC now
+
+
+def test_prefix_links_rewrites_under_base_path(monkeypatch):
+    from outreach import config, web
+    monkeypatch.setattr(config, "BASE_PATH", "/dashboard")
+    out = web._prefix_links('<a href="/enquiries">x</a><form action="/login">'
+                            "<tr onclick=\"location.href='/jobs/1'\">"
+                            '<a href="https://x.co/">ext</a>')
+    assert 'href="/dashboard/enquiries"' in out
+    assert 'action="/dashboard/login"' in out
+    assert "location.href='/dashboard/jobs/1'" in out
+    assert 'href="https://x.co/"' in out  # absolute externals untouched

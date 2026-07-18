@@ -8,14 +8,15 @@ from outreach.llm import InlineProvider
 pytestmark = pytest.mark.floor_e
 
 
-# ---- playbook is the marked placeholder ----
-def test_playbook_loads_and_is_marked_placeholder():
+# ---- playbook is a versioned, real v1 ----
+def test_playbook_loads_and_is_versioned():
     text = draft.load_playbook()
-    assert "PLACEHOLDER" in text
-    # the mechanism must refuse anything that isn't the marked placeholder
+    m = draft.VERSION_RE.search(text)
+    assert m and m.group(1).lower() == "v1"     # declares PLAYBOOK VERSION: v1
+    # the mechanism must refuse an unversioned / garbage file
     import tempfile, pathlib
     p = pathlib.Path(tempfile.mkdtemp()) / "x.md"
-    p.write_text("real copy, no marker")
+    p.write_text("real copy, no version marker")
     with pytest.raises(RuntimeError):
         draft.load_playbook(p)
 
@@ -64,6 +65,6 @@ def test_draft_one_writes_body_original_and_advances(db_rollback):
     assert body_original and draft.check_envelope(body_original) == []  # compliant
     assert body_final is None            # human edit comes later (phase F)
     assert status == "awaiting_approval"
-    assert pv == "placeholder-v0"
+    assert pv == "playbook-v1"
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "drafted"

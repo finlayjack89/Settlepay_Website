@@ -257,6 +257,12 @@ def verify_email(email: str, *, api_key: Optional[str] = None,
                                params={"api": api_key, "email": email})
                 data = r.json()
                 result = str(data.get("result", "error"))
+                try:  # meter the paid call; metering must never fail the verify
+                    from . import spend
+                    spend.record("millionverifier", purpose="verify", units_in=1,
+                                 cost_gbp=config.MV_COST_GBP_PER_VERIFY)
+                except Exception:
+                    pass
                 return (result == "ok", result)
             except (httpx.HTTPError, ValueError):
                 if attempt >= retries:
@@ -288,6 +294,65 @@ def _domain_of(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
     return re.sub(r"^https?://(www\.)?", "", url).split("/")[0].lower() or None
+
+
+_TAG_RE = re.compile(r"<(script|style)\b.*?</\1>|<[^>]+>", re.S | re.I)
+
+
+def page_text(url: str, *, client: Optional[httpx.Client] = None) -> str:
+    """Homepage text (tags stripped, whitespace collapsed), bounded for the LLM
+    signal prompt. Best-effort: any failure returns ''."""
+    if not url:
+        return ""
+    owns = client is None
+    client = client or httpx.Client(timeout=15, follow_redirects=True,
+                                    headers={"User-Agent": USER_AGENT})
+    try:
+        r = client.get(url.rstrip("/"))
+        if r.status_code != 200:
+            return ""
+        text = " ".join(_TAG_RE.sub(" ", r.text).split())
+        return text[:config.ENRICH_PAGE_TEXT_MAX_CHARS]
+    except httpx.HTTPError:
+        return ""
+    finally:
+        if owns:
+            client.close()
+
+
+def llm_signal(company_name: str, vertical: Optional[str], town: Optional[str],
+               text: str, *, provider=None) -> Optional[str]:
+    """LLM-written payment-behaviour signal from scraped page text — the
+    personalisation fuel for playbook v1. Returns None on ANY failure (no key,
+    spend cap, provider error, empty text): the caller falls back to the factual
+    signal, so the pipeline never blocks on the LLM."""
+    if not text:
+        return None
+    if provider is None:
+        if not config.ANTHROPIC_API_KEY:
+            return None
+        from .llm import ApiProvider
+        provider = ApiProvider()
+    prompt = (
+        "You are researching a small UK business for a personalised B2B note.\n"
+        f"BUSINESS: {company_name}" + (f" — {vertical}" if vertical else "")
+        + (f", {town}" if town else "") + "\n"
+        f"WEBSITE TEXT (may be partial):\n{text}\n\n"
+        "From the text ONLY, write 2-3 factual sentences in UK English covering: "
+        "what the business does; how customers appear to pay or book (card online, "
+        "phone, cash, bank transfer, third-party booking site) — say 'not stated' "
+        "rather than guessing; and ONE specific hook a rep could open with about "
+        "taking card payments through a branded payment page. Plain text, no "
+        "markdown, no URLs, under 80 words."
+    )
+    from .llm import LLMUnavailable
+    try:
+        out = provider.complete(prompt, purpose="signal", max_words=80).text.strip()
+        return " ".join(out.split())[:500] or None
+    except LLMUnavailable:
+        return None
+    except Exception:
+        return None
 
 
 def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
@@ -343,6 +408,7 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
     scraped = json.dumps({  # provenance for the dashboard
         "source": g["scrape_source"], "emails_found": len(g["candidates"]),
         "candidates": g["candidates"][:8], "verify_result": result, "tier": tier,
+        "signal_source": g.get("signal_source", "factual"),
     })
     cur.execute(
         "insert into outreach.enrichment "
@@ -442,7 +508,13 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
             except Exception:
                 website = None
             signal = name + (f" — {vertical}" if hint else "") + (f" in {town}" if town else "")
-            gathered.append((cn, website, signal, _gather(website, http_client=http)))
+            g = _gather(website, http_client=http)
+            g["signal_source"] = "factual"
+            if website:  # richer LLM signal when the api brain is available
+                s = llm_signal(name, hint, town, page_text(website, client=http))
+                if s:
+                    signal, g["signal_source"] = s, "llm"
+            gathered.append((cn, website, signal, g))
     finally:
         http.close()
 

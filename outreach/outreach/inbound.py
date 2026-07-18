@@ -6,10 +6,10 @@ domain reputation), and be unable to compute the bounce rate the graduation poli
 requires.
 
 Mirrors the project's provider pattern (LLMProvider / WebsiteResolver): a swappable
-`MailboxSource` (an inline source for tests/dry-run; the live Gmail read is a tracked
-follow-up — the mailboxes moved to Google Workspace, retiring the old Graph reader)
-feeds deterministic, fully-testable classification + suppression logic. Ingestion is
-idempotent on the provider message id, so re-reading the mailbox is safe.
+`MailboxSource` (inline for tests/dry-run; Gmail for live via gmail.readonly — the
+same refresh token as sending once re-minted with both scopes) feeds deterministic,
+fully-testable classification + suppression logic. Ingestion is idempotent on the
+provider message id, so re-reading the mailbox is safe.
 
 Effect of each inbound message:
   bounce      -> suppress (email) + lead 'bounced'
@@ -22,6 +22,7 @@ CLI:  python -m outreach.inbound            # read the configured mailbox + inge
 from __future__ import annotations
 import abc
 import json
+import re
 from typing import Optional
 
 from . import audit, config, db
@@ -77,18 +78,111 @@ class InlineMailboxSource(MailboxSource):
         return list(self._messages)
 
 
+def _b64url(data: str) -> str:
+    import base64
+    try:
+        return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", "replace")
+    except Exception:
+        return ""
+
+
+def _walk_parts(payload: dict):
+    yield payload
+    for p in payload.get("parts") or []:
+        yield from _walk_parts(p)
+
+
+_DSN_RECIPIENT_RE = re.compile(r"(?:Final|Original)-Recipient:.*?;\s*<?([^\s<>]+@[^\s<>]+)", re.I)
+
+
+def _parse_gmail_message(m: dict) -> dict:
+    """Gmail full-format message -> the neutral message dict classify()/ingest()
+    consume. DSN (bounce) detection: multipart/report payloads or an embedded
+    message/delivery-status part, whose Final-/Original-Recipient names the address
+    that actually bounced (the daemon's From never does)."""
+    from email.utils import parseaddr
+
+    payload = m.get("payload") or {}
+    headers = {h.get("name", "").lower(): h.get("value", "")
+               for h in payload.get("headers") or []}
+    body, html, original = "", "", None
+    is_ndr = "report" in (payload.get("mimeType") or "").lower()
+    for part in _walk_parts(payload):
+        mt = (part.get("mimeType") or "").lower()
+        data = (part.get("body") or {}).get("data")
+        if mt == "message/delivery-status":
+            is_ndr = True
+            if data:
+                dm = _DSN_RECIPIENT_RE.search(_b64url(data))
+                if dm:
+                    original = dm.group(1).strip()
+        elif mt == "text/plain" and data and not body:
+            body = _b64url(data)
+        elif mt == "text/html" and data and not html:
+            html = _b64url(data)
+    if not body and html:
+        body = re.sub(r"<[^>]+>", " ", html)
+    return {
+        "id": m.get("id"),
+        "from_email": parseaddr(headers.get("from", ""))[1],
+        "subject": headers.get("subject", ""),
+        "body": body[:5000],
+        "is_ndr": is_ndr,
+        "original_recipient": original or headers.get("x-failed-recipients") or None,
+        "received_at": headers.get("date"),
+        "raw": {"gmail_id": m.get("id"), "thread_id": m.get("threadId")},
+    }
+
+
 class GmailMailboxSource(MailboxSource):
-    """Live read via the Gmail API — NOT YET MIGRATED. The mailboxes moved to Google
-    Workspace, retiring the old Microsoft Graph reader; reading replies/bounces over
-    Gmail needs a broader scope (gmail.readonly/modify) and its own consent than the
-    send-only token, so it's a tracked follow-up. Classification + ingestion below are
-    backend-agnostic and unchanged — only the source needs wiring. Until then, feed
-    messages via InlineMailboxSource (INBOUND_SOURCE=inline)."""
+    """Live read via the Gmail API (gmail.readonly — the send refresh token re-minted
+    with both scopes covers it). Read-only and bounded (`newer_than` window + per-run
+    cap); ingestion's message-id idempotency makes re-polling the same window safe."""
+
+    QUERY = "in:inbox newer_than:7d"
+
+    def __init__(self, client=None, sender: Optional[str] = None,
+                 max_messages: Optional[int] = None):
+        self._client = client
+        self._sender = sender or config.GMAIL_SENDER
+        self._max = max_messages or config.INBOUND_MAX_PER_RUN
 
     def fetch(self) -> list[dict]:
-        raise RuntimeError(
-            "Gmail inbound reader not implemented yet — set INBOUND_SOURCE=inline and "
-            "supply messages, or implement the gmail.readonly fetch (follow-up).")
+        import httpx
+
+        from .google_oauth import access_token
+
+        if not self._sender:
+            raise RuntimeError("GMAIL_SENDER not configured for the inbound reader")
+        owns = self._client is None
+        client = self._client or httpx.Client(timeout=30)
+        try:
+            headers = {"Authorization": f"Bearer {access_token(client=client)}"}
+            base = f"https://gmail.googleapis.com/gmail/v1/users/{self._sender}"
+            ids: list[str] = []
+            page = None
+            while len(ids) < self._max:
+                params = {"q": self.QUERY, "maxResults": min(100, self._max - len(ids))}
+                if page:
+                    params["pageToken"] = page
+                r = client.get(f"{base}/messages", headers=headers, params=params)
+                r.raise_for_status()
+                data = r.json() or {}
+                ids += [msg["id"] for msg in data.get("messages", []) if msg.get("id")]
+                page = data.get("nextPageToken")
+                if not page:
+                    break
+            out: list[dict] = []
+            for mid in ids[:self._max]:
+                r = client.get(f"{base}/messages/{mid}", headers=headers,
+                               params={"format": "full"})
+                if r.status_code != 200:
+                    continue
+                out.append(_parse_gmail_message(r.json()))
+            return out
+        finally:
+            if owns:
+                client.close()
 
 
 def get_source(name: Optional[str] = None, **kwargs) -> MailboxSource:

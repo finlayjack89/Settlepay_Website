@@ -18,16 +18,99 @@ behind G-SEND. Run:
 """
 from __future__ import annotations
 import html
+import json
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from . import config, db, enquiries, review, stats
+from . import config, db, enquiries, graduation, jobs, monitor, review, stats, webauth
+from . import tasks as _tasks  # noqa: F401 — importing populates jobs.REGISTRY
 from .sequence import graduation_thresholds, load_sequence_config
 
 app = FastAPI(title="SettlePay — operations console")
+# All console routes live on this router, mounted under BASE_PATH ("" locally,
+# "/dashboard" when proxied at settlepay.uk/dashboard via the Vercel rewrite).
+router = APIRouter()
+
+
+def u(path: str) -> str:
+    """Prefix an absolute console path with BASE_PATH (redirects/links)."""
+    return f"{config.BASE_PATH}{path}"
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    return (fwd.split(",")[0].strip() if fwd else None) or \
+        (request.client.host if request.client else "unknown")
+
+
+_login_limiter = webauth.LoginRateLimiter()
+
+
+def _session_token(request: Request):
+    return request.cookies.get(webauth.COOKIE_NAME)
+
+
+def _csrf_field(request: Request) -> str:
+    """Hidden CSRF input for authed POST forms ('' in open/local mode)."""
+    tok = _session_token(request)
+    if not (webauth.auth_configured() and tok):
+        return ""
+    return f'<input type="hidden" name="csrf" value="{webauth.csrf_token(tok)}">'
+
+
+def _csrf_ok(request: Request, provided: str) -> bool:
+    if not webauth.auth_configured():
+        return True
+    return webauth.verify_csrf(_session_token(request), provided)
+
+
+_CSRF_DENIED = HTMLResponse("<h3>Forbidden: bad or missing CSRF token.</h3>", status_code=403)
+
+
+@app.middleware("http")
+async def _auth_gate(request: Request, call_next):
+    """Session gate for every console route. OPEN when auth is not configured
+    (local dev — see webauth docstring); /healthz and /tick verify themselves."""
+    path = request.url.path
+    exempt = (path in ("/healthz", "/tick")
+              or path == u("/login")
+              or path.startswith(u("/integrations/")))
+    if not webauth.auth_configured() or exempt \
+            or webauth.verify_session(_session_token(request)):
+        return await call_next(request)
+    return RedirectResponse(u("/login"), status_code=303)
+
+
+@app.on_event("startup")
+def _start_jobs_runner():
+    """Recover jobs orphaned by a restart and start the single worker. Skipped
+    cleanly when the DB is unreachable so the app can still boot and show that."""
+    try:
+        jobs.recover_stale()
+        app.state.job_runner = jobs.JobRunner()
+        app.state.job_runner.start()
+    except Exception:
+        app.state.job_runner = None
+
+
+@app.get("/healthz")
+def healthz():
+    return JSONResponse({"ok": True})
+
+
+@app.post("/tick")
+def tick_endpoint(request: Request):
+    """Cloud Scheduler entrypoint: enqueue ONE tick job (deduped) and return.
+    OIDC-verified in production; open only in unconfigured local dev."""
+    if webauth.auth_configured() and not webauth.verify_tick_request(
+            request.headers.get("authorization")):
+        return JSONResponse({"error": "unauthorised"}, status_code=401)
+    job_id = jobs.enqueue("tick", {"dry_run": not config.send_enabled()},
+                          requested_by="scheduler", dedupe=True)
+    return JSONResponse({"job_id": job_id})
 
 # Grouped sidebar: one unified surface over inbound (enquiries) + outbound (outreach).
 NAV_GROUPS = [
@@ -41,6 +124,10 @@ NAV_GROUPS = [
         ("/outreach/queue", "Approval queue", "clipboard"),
         ("/outreach/leads", "Leads", "users"),
     ]),
+    ("Operate", [
+        ("/tasks", "Launch", "play"),
+        ("/jobs", "Jobs", "list"),
+    ]),
     ("System", [("/settings", "Settings", "cog")]),
 ]
 
@@ -51,6 +138,8 @@ ICONS = {
     "megaphone": "M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535",
     "clipboard": "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z",
     "users": "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
+    "play": "M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z",
+    "list": "M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zM3.75 12h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z",
     "cog": "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
 }
 
@@ -290,6 +379,18 @@ def _safety() -> dict:
     }
 
 
+def _prefix_links(page: str) -> str:
+    """Rewrite root-absolute links/forms/redirect-JS for BASE_PATH. Done once on
+    the rendered page so every panel (present and future) can keep writing plain
+    '/path' hrefs; a no-op in local dev where BASE_PATH is ''."""
+    bp = config.BASE_PATH
+    if not bp:
+        return page
+    return (page.replace('href="/', f'href="{bp}/')
+                .replace('action="/', f'action="{bp}/')
+                .replace("location.href='/", f"location.href='{bp}/"))
+
+
 def _shell(active: str, title: str, sub: str, body: str) -> str:
     s = _safety()
     nav = ""
@@ -308,7 +409,7 @@ def _shell(active: str, title: str, sub: str, body: str) -> str:
     pill = ('<span class="statpill" style="background:rgba(220,38,38,.1);color:#dc2626">'
             '<span class="dot" style="background:#dc2626"></span>LIVE SEND</span>') if s["live"] else (
             '<span class="statpill"><span class="dot"></span>Dry-run mode · G-SEND off</span>')
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+    return _prefix_links(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)} · SettlePay Console</title>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
@@ -324,7 +425,7 @@ def _shell(active: str, title: str, sub: str, body: str) -> str:
 <main class="main">
   <div class="topbar"><div><h1>{html.escape(title)}</h1><div class="sub">{sub}</div></div>{pill}</div>
   <div class="content">{body}</div>
-</main></div></body></html>"""
+</main></div></body></html>""")
 
 
 # --------------------------------------------------------------------------- #
@@ -342,12 +443,13 @@ def _tiles(ts) -> str:
         for c, n, l, s in ts)
 
 
-@app.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 def root():
-    out, enq = dict(_OUT_EMPTY), dict(_ENQ_EMPTY)
+    out, enq, ops = dict(_OUT_EMPTY), dict(_ENQ_EMPTY), {}
     try:
         with db.cursor(commit=False) as cur:
             out = stats.overview(cur)
+            ops = stats.ops_overview(cur)
     except Exception:
         pass
     try:
@@ -357,6 +459,14 @@ def root():
         pass
     et = enq.get("total", 0) or 0
     conv = (100.0 * ((enq.get("won", 0) or 0) + (enq.get("client", 0) or 0)) / et) if et else 0.0
+    sent7 = (ops.get("live_7d", 0) or 0)
+    reply_rate = (100.0 * ops.get("replies_7d", 0) / sent7) if sent7 else 0.0
+    ops_tiles = [
+        ("accent", sent7, "Emails sent (7d)", f"{ops.get('dry_7d', 0)} dry-run · {ops.get('live_total', 0)} live all-time"),
+        ("", ops.get("replies_7d", 0), "Replies (7d)", f"{reply_rate:.0f}% of live sends"),
+        ("", f"£{ops.get('spend_mtd', 0.0):.2f}", "Spend MTD", f"cap £{config.MONTHLY_SPEND_CAP_GBP:.0f}"),
+        ("", ops.get("jobs_active", 0), "Jobs running", f"{ops.get('jobs_failed_24h', 0)} failed (24h)"),
+    ]
     in_tiles = [
         ("accent", enq.get("total", 0), "Enquiries", "inbound, all time"),
         ("", enq.get("new", 0), "New", "awaiting first contact"),
@@ -370,6 +480,9 @@ def root():
         ("", out.get("sends_dry", 0), "Dry-run sends", f"{out.get('sends_live', 0)} live"),
     ]
     body = f"""
+<div class="panel"><h2>Operations</h2>
+  <div class="hint">Sent · replies · spend · platform health. <a href="/tasks">Launch a task &rarr;</a></div>
+  <div class="kpis">{_tiles(ops_tiles)}</div></div>
 <div class="panel"><h2>Inbound — Enquiries</h2>
   <div class="hint">Website enquiries pipeline. <a href="/enquiries">Open enquiries &rarr;</a></div>
   <div class="kpis">{_tiles(in_tiles)}</div></div>
@@ -382,7 +495,7 @@ def root():
 # --------------------------------------------------------------------------- #
 #  Outreach (outbound) dashboard
 # --------------------------------------------------------------------------- #
-@app.get("/outreach", response_class=HTMLResponse)
+@router.get("/outreach", response_class=HTMLResponse)
 def dashboard():
     with db.cursor(commit=False) as cur:
         o = stats.overview(cur)
@@ -425,7 +538,7 @@ def dashboard():
                    f'<div class="fn">{n}<small>{w:.0f}% of disc.</small></div></div>')
 
     vrows = "".join(
-        f'<tr class="clk" onclick="location.href=\'/outreach/leads?vertical={html.escape(v["sic"])}\'">'
+        f'<tr class="clk" onclick="location.href=\'/outreach/vertical/{html.escape(v["sic"])}\'">'
         f'<td><b>{html.escape(v["label"])}</b><br><span class="muted" style="font-size:.74rem">SIC {html.escape(v["sic"])}</span></td>'
         f'<td class="num">{v["total"]}</td><td class="num">{v["corporate"]}</td>'
         f'<td class="num">{v["websites"]}</td><td class="num">{v["emails"]}</td>'
@@ -508,7 +621,7 @@ def _badge_event(ev: str) -> str:
 # --------------------------------------------------------------------------- #
 #  Approval queue
 # --------------------------------------------------------------------------- #
-@app.get("/outreach/queue", response_class=HTMLResponse)
+@router.get("/outreach/queue", response_class=HTMLResponse)
 def queue():
     with db.cursor(commit=False) as cur:
         rows = review.list_pending(cur)
@@ -530,8 +643,8 @@ def queue():
     return _shell("/outreach/queue", "Approval queue", "The human gate before any send", head + cards)
 
 
-@app.get("/outreach/draft/{draft_id}", response_class=HTMLResponse)
-def draft_view(draft_id: str, err: str = ""):
+@router.get("/outreach/draft/{draft_id}", response_class=HTMLResponse)
+def draft_view(request: Request, draft_id: str, err: str = ""):
     with db.cursor(commit=False) as cur:
         cur.execute(
             "select d.company_number, l.company_name, d.body_original, d.status, "
@@ -551,6 +664,7 @@ def draft_view(draft_id: str, err: str = ""):
   <div class="panel"><h2>Draft message</h2>
     <div class="hint">body_original is immutable. Edit below to approve a revised version (compliance is re-checked on save).</div>
     <form method="post" action="/outreach/approve/{draft_id}">
+      {_csrf_field(request)}
       <textarea name="edited">{html.escape(body)}</textarea>
       <div class="row">
         <div><label class="fld">Reviewer</label><input name="reviewer" required placeholder="Your name"></div>
@@ -559,6 +673,7 @@ def draft_view(draft_id: str, err: str = ""):
       <div class="row" style="margin-top:1rem"><button class="btn btn-primary" type="submit">Approve</button></div>
     </form>
     <form method="post" action="/outreach/reject/{draft_id}" style="margin-top:1.25rem;border-top:1px solid var(--line);padding-top:1.1rem">
+      {_csrf_field(request)}
       <div class="row"><div><label class="fld">Reviewer</label><input name="reviewer" required placeholder="Your name"></div>
       <div style="flex:1"><label class="fld">Reason (optional)</label><input name="note" style="width:100%"></div>
       <button class="btn btn-ghost" type="submit">Reject</button></div>
@@ -580,8 +695,11 @@ def draft_view(draft_id: str, err: str = ""):
     return _shell("/outreach/queue", f"Review · {name}", "Approve, edit, or reject this draft", body_html)
 
 
-@app.post("/outreach/approve/{draft_id}")
-def approve(draft_id: str, reviewer: str = Form(...), edited: str = Form(""), note: str = Form("")):
+@router.post("/outreach/approve/{draft_id}")
+def approve(request: Request, draft_id: str, reviewer: str = Form(...),
+            edited: str = Form(""), note: str = Form(""), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
     try:
         with db.cursor(commit=False) as cur:
             cur.execute("select body_original from outreach.drafts where id=%s", (draft_id,))
@@ -590,23 +708,26 @@ def approve(draft_id: str, reviewer: str = Form(...), edited: str = Form(""), no
         edit_arg = None if edited.strip() == original.strip() else edited
         review.approve(draft_id, reviewer, edited=edit_arg, note=note or None)
     except Exception as e:
-        return RedirectResponse(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}", status_code=303)
-    return RedirectResponse("/outreach/queue", status_code=303)
+        return RedirectResponse(u(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}"), status_code=303)
+    return RedirectResponse(u("/outreach/queue"), status_code=303)
 
 
-@app.post("/outreach/reject/{draft_id}")
-def reject(draft_id: str, reviewer: str = Form(...), note: str = Form("")):
+@router.post("/outreach/reject/{draft_id}")
+def reject(request: Request, draft_id: str, reviewer: str = Form(...),
+           note: str = Form(""), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
     try:
         review.reject(draft_id, reviewer, note=note or None)
     except Exception as e:
-        return RedirectResponse(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}", status_code=303)
-    return RedirectResponse("/outreach/queue", status_code=303)
+        return RedirectResponse(u(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}"), status_code=303)
+    return RedirectResponse(u("/outreach/queue"), status_code=303)
 
 
 # --------------------------------------------------------------------------- #
 #  Leads (CRM)
 # --------------------------------------------------------------------------- #
-@app.get("/outreach/leads", response_class=HTMLResponse)
+@router.get("/outreach/leads", response_class=HTMLResponse)
 def leads(state: str = "", vertical: str = ""):
     where, params = [], []
     if state:
@@ -656,7 +777,7 @@ def _short(url: str) -> str:
     return _re.sub(r"^https?://(www\.)?", "", url or "").rstrip("/")[:38]
 
 
-@app.get("/outreach/lead/{company_number}", response_class=HTMLResponse)
+@router.get("/outreach/lead/{company_number}", response_class=HTMLResponse)
 def lead_detail(company_number: str):
     with db.cursor(commit=False) as cur:
         cur.execute(
@@ -735,8 +856,8 @@ def lead_detail(company_number: str):
 # --------------------------------------------------------------------------- #
 #  Settings (read-only runtime posture)
 # --------------------------------------------------------------------------- #
-@app.get("/settings", response_class=HTMLResponse)
-def settings():
+@router.get("/settings", response_class=HTMLResponse)
+def settings(request: Request):
     s = _safety()
     try:
         db_ok = db.ping()
@@ -746,9 +867,30 @@ def settings():
         seq = load_sequence_config()
     except Exception:
         seq = {}
+    try:
+        db_kill = monitor.db_kill_switch()
+    except Exception:
+        db_kill = False
+    env_kill = bool(s["kill"])
     win = seq.get("send_window", {})
     warm = seq.get("warmup", {})
-    cfg = f"""<div class="two">
+    kill_state = ('<span class="badge b-error">ON</span>' if (env_kill or db_kill)
+                  else '<span class="badge b-success">off</span>')
+    kill_form = f"""<form method="post" action="/settings/kill-switch" class="row" style="margin-top:.8rem">
+      {_csrf_field(request)}
+      <input type="hidden" name="action" value="{'off' if db_kill else 'on'}">
+      <div style="flex:1"><label class="fld">Reason</label><input name="reason" style="width:100%" placeholder="why"></div>
+      <button class="btn btn-ghost" type="submit">{'Clear DB kill switch' if db_kill else 'Trip kill switch'}</button>
+    </form>""" + ('<div class="hint" style="margin-top:.5rem">Env KILL_SWITCH is set — clearing the DB flag will NOT resume sending.</div>' if env_kill else "")
+    ops_panel = f"""<div class="panel"><h2>Operational controls</h2>
+    <div class="hint">The kill switch blocks every outreach send (dry-run included); operator alerts and digests still deliver.</div>
+    <dl class="kv">
+      <dt>Kill switch</dt><dd>{kill_state} <span class="muted">env: {'set' if env_kill else 'unset'} · db flag: {'set' if db_kill else 'unset'}</span></dd>
+      <dt>Console auth</dt><dd>{'<span class="badge b-success">enforced</span>' if webauth.auth_configured() else '<span class="badge b-warning">OPEN — local dev (set CONSOLE_PASSWORD_HASH + SESSION_SECRET)</span>'}</dd>
+      <dt>Autonomy</dt><dd>{'<span class="badge b-info">full chain</span>' if config.PIPELINE_AUTONOMOUS else '<span class="badge b-muted">classify+send only (PIPELINE_AUTONOMOUS unset)</span>'}</dd>
+      <dt>Auto-approve</dt><dd>{'<span class="badge b-error">ENABLED</span>' if config.AUTO_APPROVE_ENABLED else '<span class="badge b-success">off — human approval required</span>'}</dd>
+    </dl>{kill_form}</div>"""
+    cfg = ops_panel + f"""<div class="two">
   <div class="panel"><h2>Send safety</h2>
     <div class="hint">The gates that keep this from emailing anyone before you're ready.</div>
     <dl class="kv">
@@ -757,7 +899,7 @@ def settings():
       <dt>Per-inbox cap</dt><dd>{s['cap']} / day</dd>
       <dt>Risky (catch-all) send</dt><dd>{'<span class="badge b-error">ENABLED</span>' if s['risky_send'] else '<span class="badge b-success">off — needs RISKY_SEND_ENABLED</span>'}</dd>
       <dt>Sending domain</dt><dd>{html.escape(s['sender'])}</dd>
-      <dt>Send window</dt><dd>{win.get('start_hour','?')}:00–{win.get('end_hour','?')}:00 <span class="muted">(placeholder)</span></dd>
+      <dt>Send window</dt><dd>{win.get('start_hour','?')}:00–{win.get('end_hour','?')}:00 UK <span class="muted">(Tue–Thu)</span></dd>
     </dl></div>
   <div class="panel"><h2>Pipeline config</h2>
     <div class="hint">From outreach/.env — secrets never shown.</div>
@@ -813,7 +955,7 @@ this console has no authentication.</div>"""
 # --------------------------------------------------------------------------- #
 #  Enquiries (inbound) — website form CRM
 # --------------------------------------------------------------------------- #
-@app.get("/enquiries", response_class=HTMLResponse)
+@router.get("/enquiries", response_class=HTMLResponse)
 def enquiries_list(status: str = ""):
     try:
         with db.dict_cursor() as cur:
@@ -845,8 +987,8 @@ def enquiries_list(status: str = ""):
     return _shell("/enquiries", "Enquiries", "Every inbound enquiry — your CRM", body)
 
 
-@app.get("/enquiry/{lead_id}", response_class=HTMLResponse)
-def enquiry_detail(lead_id: str, saved: int = 0):
+@router.get("/enquiry/{lead_id}", response_class=HTMLResponse)
+def enquiry_detail(request: Request, lead_id: str, saved: int = 0):
     try:
         with db.dict_cursor() as cur:
             lead = enquiries.get(cur, lead_id)
@@ -878,6 +1020,7 @@ def enquiry_detail(lead_id: str, saved: int = 0):
   <div class="panel"><h2>Manage</h2>
     <div class="hint">Move the enquiry through your pipeline and keep private notes.</div>
     <form method="post" action="/enquiry/{html.escape(str(lead["id"]))}">
+      {_csrf_field(request)}
       <label class="fld">Status</label>
       <select name="status">{options}</select>
       <label class="fld">Notes (private — not shown to the enquirer)</label>
@@ -893,20 +1036,23 @@ def enquiry_detail(lead_id: str, saved: int = 0):
     return _shell("/enquiries", lead["business"], "Enquiry record", body)
 
 
-@app.post("/enquiry/{lead_id}")
-def enquiry_update(lead_id: str, status: str = Form(...), notes: str = Form("")):
+@router.post("/enquiry/{lead_id}")
+def enquiry_update(request: Request, lead_id: str, status: str = Form(...),
+                   notes: str = Form(""), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
     try:
         with db.dict_cursor(commit=True) as cur:
             enquiries.update(cur, lead_id, status, notes)
     except Exception:
-        return RedirectResponse(f"/enquiry/{lead_id}", status_code=303)
-    return RedirectResponse(f"/enquiry/{lead_id}?saved=1", status_code=303)
+        return RedirectResponse(u(f"/enquiry/{lead_id}"), status_code=303)
+    return RedirectResponse(u(f"/enquiry/{lead_id}?saved=1"), status_code=303)
 
 
 # --------------------------------------------------------------------------- #
 #  Schedule (inbound) — consultations booked via Cal.com
 # --------------------------------------------------------------------------- #
-@app.get("/schedule", response_class=HTMLResponse)
+@router.get("/schedule", response_class=HTMLResponse)
 def schedule():
     connected, upcoming, recent = False, [], []
     try:
@@ -975,3 +1121,249 @@ def schedule():
   <table><tr><th>When (UK)</th><th>Who</th><th>Status</th></tr>{rec}</table></div>"""
 
     return _shell("/schedule", "Schedule", "Consultations booked via Cal.com", body)
+
+
+# --------------------------------------------------------------------------- #
+#  Login (bespoke session auth; OPEN in local dev when auth is unconfigured)
+# --------------------------------------------------------------------------- #
+def _login_page(err: str = "") -> str:
+    alert = f'<div class="alert">{html.escape(err)}</div>' if err else ""
+    return _prefix_links(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in · SettlePay Console</title>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap">
+<style>{_STYLE}</style></head><body>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+  <div class="panel" style="width:340px">
+    <h2>SettlePay Operations</h2>
+    <div class="hint">Sign in to the console.</div>
+    {alert}
+    <form method="post" action="/login">
+      <label class="fld">Password</label>
+      <input type="password" name="password" required autofocus style="width:100%">
+      <div class="row" style="margin-top:1.1rem">
+        <button class="btn btn-primary" type="submit">Sign in</button>
+      </div>
+    </form>
+  </div>
+</div></body></html>""")
+
+
+@router.get("/login", response_class=HTMLResponse)
+def login_page():
+    if not webauth.auth_configured():
+        return RedirectResponse(u("/"), status_code=303)
+    return HTMLResponse(_login_page())
+
+
+@router.post("/login")
+def login_submit(request: Request, password: str = Form(...)):
+    if not webauth.auth_configured():
+        return RedirectResponse(u("/"), status_code=303)
+    ip = _client_ip(request)
+    if not _login_limiter.allow(ip):
+        return HTMLResponse(_login_page("Too many attempts — try again in a few minutes."),
+                            status_code=429)
+    if not webauth.verify_password(password):
+        _login_limiter.record_failure(ip)
+        return HTMLResponse(_login_page("Wrong password."), status_code=401)
+    _login_limiter.reset(ip)
+    resp = RedirectResponse(u("/"), status_code=303)
+    resp.set_cookie(webauth.COOKIE_NAME, webauth.create_session(),
+                    max_age=config.SESSION_TTL_HOURS * 3600, httponly=True,
+                    samesite="lax", secure=(request.url.scheme == "https"),
+                    path=config.BASE_PATH or "/")
+    return resp
+
+
+@router.post("/logout")
+def logout(request: Request, csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    resp = RedirectResponse(u("/login"), status_code=303)
+    resp.delete_cookie(webauth.COOKIE_NAME, path=config.BASE_PATH or "/")
+    return resp
+
+
+# --------------------------------------------------------------------------- #
+#  Operate — task launcher + jobs (the canvas)
+# --------------------------------------------------------------------------- #
+JOB_STYLE = {"queued": "neutral", "running": "info", "succeeded": "success",
+             "failed": "error", "cancelled": "muted"}
+
+
+def _job_badge(status: str) -> str:
+    return f'<span class="badge b-{JOB_STYLE.get(status, "neutral")}">{html.escape(status)}</span>'
+
+
+def _param_input(p) -> str:
+    if p.kind == "bool":
+        checked = " checked" if p.default else ""
+        return (f'<label class="fld" style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0">'
+                f'<input type="checkbox" name="{p.name}" value="1"{checked} style="min-width:0"> {html.escape(p.label)}</label>')
+    itype = "number" if p.kind == "int" else "text"
+    dflt = "" if p.default is None else html.escape(str(p.default))
+    req = " required" if p.required else ""
+    return (f'<label class="fld">{html.escape(p.label)}</label>'
+            f'<input type="{itype}" name="{p.name}" value="{dflt}"{req} style="min-width:140px;width:100%">')
+
+
+@router.get("/tasks", response_class=HTMLResponse)
+def tasks_page(request: Request):
+    groups: dict[str, list] = {}
+    for spec in jobs.REGISTRY.values():
+        groups.setdefault(spec.group, []).append(spec)
+    body = ""
+    for group in sorted(groups):
+        cards = ""
+        for spec in sorted(groups[group], key=lambda s: s.title):
+            fields = "".join(_param_input(p) for p in spec.params)
+            confirm = ('<label class="fld" style="display:flex;align-items:center;gap:.5rem">'
+                       '<input type="checkbox" required style="min-width:0"> I understand this acts on real data</label>'
+                       if spec.destructive else "")
+            cards += f"""<div class="panel" style="margin-bottom:1rem">
+  <h2>{html.escape(spec.title)}</h2><div class="hint">{html.escape(spec.description)}</div>
+  <form method="post" action="/tasks/launch">
+    {_csrf_field(request)}<input type="hidden" name="kind" value="{spec.kind}">
+    {fields}{confirm}
+    <div class="row" style="margin-top:.9rem"><button class="btn btn-ghost" type="submit">Launch</button></div>
+  </form></div>"""
+        body += (f'<div class="hint" style="margin:.4rem 0 .8rem;text-transform:uppercase;'
+                 f'letter-spacing:.08em;font-weight:700">{html.escape(group)}</div>'
+                 f'<div class="two">{cards}</div>')
+    return _shell("/tasks", "Launch", "Run any pipeline task on demand — it queues as a job", body)
+
+
+@router.post("/tasks/launch")
+async def tasks_launch(request: Request):
+    form = await request.form()
+    if not _csrf_ok(request, str(form.get("csrf", ""))):
+        return _CSRF_DENIED
+    kind = str(form.get("kind", ""))
+    if kind not in jobs.REGISTRY:
+        return HTMLResponse("<h3>Unknown task.</h3>", status_code=404)
+    params = {k: str(v) for k, v in form.items() if k not in ("kind", "csrf")}
+    job_id = jobs.enqueue(kind, params, requested_by="operator")
+    return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
+
+
+@router.get("/jobs", response_class=HTMLResponse)
+def jobs_page():
+    with db.dict_cursor(commit=False) as cur:
+        cur.execute("select id, kind, status, requested_by, created_at, started_at, finished_at "
+                    "from outreach.jobs order by id desc limit 100")
+        rows = cur.fetchall()
+    trs = ""
+    for r in rows:
+        dur = ""
+        if r["started_at"] and r["finished_at"]:
+            dur = f'{(r["finished_at"] - r["started_at"]).total_seconds():.1f}s'
+        trs += (f'<tr class="clk" onclick="location.href=\'/jobs/{r["id"]}\'">'
+                f'<td class="num">{r["id"]}</td><td><b>{html.escape(r["kind"])}</b></td>'
+                f'<td>{_job_badge(r["status"])}</td><td>{html.escape(r["requested_by"])}</td>'
+                f'<td class="num muted">{_ago(r["created_at"])}</td><td class="num muted">{dur}</td></tr>')
+    trs = trs or '<tr><td colspan=6 class="empty">No jobs yet — launch one from the Launch page.</td></tr>'
+    body = f"""<div class="panel"><table>
+<tr><th class="num">#</th><th>Task</th><th>Status</th><th>By</th><th class="num">Created</th><th class="num">Took</th></tr>
+{trs}</table></div>"""
+    return _shell("/jobs", "Jobs", "Everything the platform has run or is running", body)
+
+
+@router.get("/jobs/{job_id}", response_class=HTMLResponse)
+def job_detail(request: Request, job_id: int):
+    with db.dict_cursor(commit=False) as cur:
+        cur.execute("select * from outreach.jobs where id=%s", (job_id,))
+        j = cur.fetchone()
+    if not j:
+        return HTMLResponse(_shell("/jobs", "Not found", "", '<div class="panel"><div class="empty">Job not found.</div></div>'), status_code=404)
+    active = j["status"] in ("queued", "running")
+    prog = j.get("progress") or {}
+    done, total = prog.get("done"), prog.get("total")
+    bar = ""
+    if done is not None and total:
+        pct = 100.0 * done / max(total, 1)
+        bar = (f'<div class="ftrack" style="margin:.6rem 0"><div class="ffill" style="width:{pct:.0f}%"></div></div>'
+               f'<div class="muted" style="font-size:.8rem">{done} / {total}</div>')
+    log_html = "".join(
+        f'<div class="ev"><span class="t">{html.escape(str(e.get("t",""))[11:19])}</span>'
+        f'<span>{html.escape(str(e.get("msg","")))}</span></div>'
+        for e in (prog.get("log") or [])[-60:]) or '<div class="empty">No log lines.</div>'
+    result_html = (f'<div class="body-box">{html.escape(json.dumps(j["result"], indent=2, default=str)[:6000])}</div>'
+                   if j.get("result") is not None else '<div class="empty">No result yet.</div>')
+    err_html = (f'<div class="alert" style="white-space:pre-wrap;font-family:var(--mono);font-size:.78rem">'
+                f'{html.escape((j.get("error") or "")[-1500:])}</div>' if j.get("error") else "")
+    cancel = (f'<form method="post" action="/jobs/{job_id}/cancel" style="display:inline">'
+              f'{_csrf_field(request)}<button class="btn btn-ghost" type="submit">Cancel</button></form>'
+              if active else "")
+    refresh = '<meta http-equiv="refresh" content="3">' if active else ""
+    body = f"""{refresh}
+<div class="two">
+  <div class="panel"><h2>Job #{j["id"]} — {html.escape(j["kind"])}</h2>
+    <dl class="kv">
+      <dt>Status</dt><dd>{_job_badge(j["status"])} {cancel}</dd>
+      <dt>Requested by</dt><dd>{html.escape(j["requested_by"])}</dd>
+      <dt>Created</dt><dd>{_ago(j["created_at"])}</dd>
+      <dt>Params</dt><dd class="muted" style="font-family:var(--mono);font-size:.78rem">{html.escape(json.dumps(j.get("params") or {}))}</dd>
+    </dl>{bar}{err_html}</div>
+  <div class="panel"><h2>Result</h2>{result_html}</div>
+</div>
+<div class="panel"><h2>Log</h2><div class="feed">{log_html}</div></div>
+<p class="muted" style="font-size:.8rem"><a href="/jobs">&larr; All jobs</a></p>"""
+    return _shell("/jobs", f"Job #{j['id']}", j["kind"], body)
+
+
+@router.post("/jobs/{job_id}/cancel")
+def job_cancel(request: Request, job_id: int, csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    jobs.cancel(job_id)
+    return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Vertical drilldown — per-SIC funnel + graduation progress
+# --------------------------------------------------------------------------- #
+@router.get("/outreach/vertical/{sic}", response_class=HTMLResponse)
+def vertical_detail(sic: str):
+    with db.cursor(commit=False) as cur:
+        cur.execute("select state::text, count(*) from outreach.leads "
+                    "where sic_codes[1]=%s group by 1 order by 2 desc", (sic,))
+        states = cur.fetchall()
+        metrics = next((m for m in graduation.vertical_metrics(cur) if m.get("vertical") == sic), None)
+    label = stats.sic_label(sic)
+    chips = "".join(
+        f'<a class="chip" href="/outreach/leads?vertical={html.escape(sic)}&state={st}">'
+        f'{STATE_STYLE.get(st, (st,))[0]} <b>{n}</b></a>' for st, n in states) or \
+        '<div class="empty">No leads in this vertical yet.</div>'
+    g = graduation_thresholds()
+    if metrics:
+        grad = f"""<table><tr><th>Metric</th><th class="num">Now</th><th class="num">Needed</th></tr>
+<tr><td>Reviewed drafts</td><td class="num">{metrics.get('reviewed', 0)}</td><td class="num muted">&ge; {g.get('min_reviewed_drafts_per_vertical')}</td></tr>
+<tr><td>Approved unedited</td><td class="num">{(metrics.get('approved_unedited_rate') or 0):.0%}</td><td class="num muted">&ge; {g.get('min_approved_unedited_rate', 0):.0%}</td></tr>
+<tr><td>Bounce rate</td><td class="num">{(metrics.get('bounce_rate') or 0):.1%}</td><td class="num muted">&lt; {g.get('max_bounce_rate', 0):.0%}</td></tr>
+<tr><td>Complaint rate</td><td class="num">{(metrics.get('complaint_rate') or 0):.2%}</td><td class="num muted">&lt; {g.get('max_complaint_rate', 0):.1%}</td></tr></table>"""
+    else:
+        grad = '<div class="empty">No reviewed drafts for the current playbook version yet.</div>'
+    body = f"""<div class="panel"><h2>Leads by state</h2>
+  <div class="hint">Click a state to open the filtered CRM view.</div>
+  <div class="chips">{chips}</div></div>
+<div class="panel"><h2>Graduation to auto-send</h2>
+  <div class="hint">Progress for the CURRENT playbook version — a new version resets the window by design.</div>
+  {grad}</div>
+<p class="muted" style="font-size:.8rem"><a href="/outreach">&larr; Outreach overview</a></p>"""
+    return _shell("/outreach", f"{label}", f"Vertical drilldown · SIC {sic}", body)
+
+
+# --------------------------------------------------------------------------- #
+#  Kill switch (operational control on Settings)
+# --------------------------------------------------------------------------- #
+@router.post("/settings/kill-switch")
+def kill_switch_update(request: Request, action: str = Form(...),
+                       reason: str = Form(""), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    monitor.set_kill_switch(action == "on", reason=reason or "set from console",
+                            updated_by="operator")
+    return RedirectResponse(u("/settings"), status_code=303)
+
+
+app.include_router(router, prefix=config.BASE_PATH)

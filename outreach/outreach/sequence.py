@@ -1,9 +1,8 @@
 """sequence_config loader + timing helpers (phase H).
 
 ALL cadence / follow-up / send-window timing is read from sequence_config.json —
-the pipeline never hardcodes delays. The values there are PLACEHOLDERS pending the
-researched drafting playbook; the `graduation` thresholds are real operational
-policy.
+the pipeline never hardcodes delays. Those values are the real v1 timing (from
+drafting playbook v1); the `graduation` thresholds are real operational policy.
 """
 from __future__ import annotations
 import datetime
