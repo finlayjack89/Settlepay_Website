@@ -189,6 +189,11 @@
 /* ---- Enquire modal ---- */
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
+  /* iOS Safari's layout viewport can stop short of the physical bottom while
+     its toolbar collapses — extend the veil to the dynamic viewport height so
+     no unveiled strip of page shows beneath the modal. */
+  min-height: 100vh;
+  min-height: 100dvh;
   background: rgba(15, 23, 42, 0.55);
   -webkit-backdrop-filter: blur(var(--blur-glass-veil));
   backdrop-filter: blur(var(--blur-glass-veil));
@@ -225,8 +230,24 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-modal { animation: spFade 0.25s ease; } /* keep the fade, drop the rise */
 }
+/* Content scrolling inside the view must fade out under the card's top edge
+   instead of colliding with the close button. White over white when unscrolled
+   — invisible. */
+.sp-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3rem;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: linear-gradient(to bottom, var(--color-pure-white) 35%, rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 2;
+}
 .sp-modal__close {
   position: absolute; top: 1.1rem; right: 1.1rem;
+  z-index: 3; /* above the top fade and the sticky submit */
   background: var(--color-secondary-bg); border: none; cursor: pointer;
   width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -244,6 +265,9 @@
 .sp-field { position: relative; }
 .sp-field input {
   width: 100%; box-sizing: border-box;
+  /* Kill the native iOS input chrome (inner shadow / square overlay). */
+  appearance: none;
+  -webkit-appearance: none;
   padding: 1.3rem 0.9rem 0.5rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-input);
@@ -264,6 +288,8 @@
 .sp-field--area { display: block; }
 .sp-field--area textarea {
   width: 100%; box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
   padding: 1.5rem 0.9rem 0.6rem;
   border: 1px solid rgba(15, 23, 42, 0.14); border-radius: var(--radius-input);
   font: inherit; font-size: 1rem; line-height: 1.5; color: var(--color-primary-brand);
@@ -293,6 +319,21 @@
 .sp-modal__success h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 0.6rem; }
 .sp-modal__success p { font-size: 0.92rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.55; margin-bottom: 1.5rem; }
 .sp-modal__success .btn-secondary { width: 100%; }
+
+/* Phone-height budget: compact chrome so the head, all four fields and the
+   submit fit the capped modal without internal scrolling. The reassurance
+   list and privacy note move below the submit (visual order only — DOM,
+   focus and submission order are unchanged); nothing is removed. */
+@media (max-width: 768px) {
+  .sp-modal { padding: 1.5rem 1.25rem 1.25rem; }
+  .sp-modal__head { margin-bottom: 1rem; }
+  .sp-modal__title { font-size: 1.25rem; margin: 0.6rem 0 0.35rem; }
+  .sp-modal__sub { font-size: 0.875rem; }
+  .sp-modal__form { gap: 0.7rem; }
+  .sp-field--area textarea { height: 5.6rem; min-height: 5.6rem; }
+  .sp-modal__assure { order: 1; }
+  .sp-modal__submit + .sp-field__hint { order: 2; }
+}
 
 /* =========================================================================
    Value-prop reconstructions — drop-in app mockups for the zig-zag visuals.
@@ -1698,6 +1739,10 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  /* The shader paints the face to the canvas edge ("true free edge") and
+     relies on THIS clip for the corners — without it the opaque canvas
+     renders as a square over the rounded card (visible on iOS). */
+  border-radius: inherit;
   opacity: 0;
   pointer-events: none;
 }
