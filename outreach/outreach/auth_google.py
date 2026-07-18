@@ -1,13 +1,17 @@
-"""One-off Google OAuth bootstrap for the Gmail send mailbox.
+"""One-off Google OAuth bootstrap for the Gmail send + inbound mailbox.
 
-Runs the interactive consent flow ONCE (loopback redirect) with the gmail.send scope
-and prints the refresh token, so GOOGLE_REFRESH_TOKEN can be set in .env without
-wiring OAuth by hand. The OAuth app is "Internal" in our own Workspace, so no Google
-verification is needed.
+Runs the interactive consent flow ONCE (loopback redirect) with the gmail.send AND
+gmail.readonly scopes and prints the refresh token, so GOOGLE_REFRESH_TOKEN can be
+set in .env without wiring OAuth by hand. One consent covers both outbound sending
+and the inbound reply/bounce reader. The OAuth app is "Internal" in our own
+Workspace, so no Google verification is needed.
 
 The refresh token is durable and mailbox-scoped: it only works for the single mailbox
 that consents — cross-mailbox sending is impossible by construction (no service account
 / domain-wide delegation).
+
+NOTE: a token minted before the readonly scope was added is send-only — re-run this
+bootstrap once to mint a token carrying both scopes.
 
   python -m outreach auth-google        # sign in AS the sending mailbox when prompted
 """
@@ -20,7 +24,7 @@ import httpx
 
 from . import config
 
-SCOPE = "https://www.googleapis.com/auth/gmail.send"
+SCOPE = "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly"
 AUTH_URI = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 

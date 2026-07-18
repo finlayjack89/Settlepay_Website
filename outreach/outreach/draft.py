@@ -19,11 +19,23 @@ from . import audit, config, db
 from .llm import get_provider
 
 PLAYBOOK_PATH = config.PROJECT_ROOT / "prompts" / "draft_email.md"
-PROMPT_VERSION = "playbook-v1"
 MAX_WORDS = 125
 LINK_RE = re.compile(r"(https?://|www\.|!\[|\]\(|<img|<a\s|mailto:)", re.I)
 # the playbook must declare a version so the mechanism refuses an unmarked/garbage file
 VERSION_RE = re.compile(r"PLAYBOOK VERSION:\s*(\S+)", re.I)
+
+
+def _prompt_version() -> str:
+    """Derived from the playbook's own version marker so bumping the file
+    auto-stamps drafts (graduation metrics are windowed per prompt_version)."""
+    try:
+        m = VERSION_RE.search(PLAYBOOK_PATH.read_text())
+        return f"playbook-{m.group(1)}" if m else "playbook-unversioned"
+    except OSError:
+        return "playbook-unversioned"
+
+
+PROMPT_VERSION = _prompt_version()
 # SettlePay must never claim its OWN authorisation (recipient names may contain
 # "Ltd"/"Limited", so we do NOT guard on those — only on self-authorisation claims).
 FORBIDDEN = ("fca authorised", "fca-authorised", "fca authorized",
@@ -120,7 +132,7 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     return {"company_number": company_number, "draft_id": str(draft_id), "words": len(body.split())}
 
 
-def run(*, provider=None, cur=None) -> list[dict]:
+def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     if provider is None:
         # api when configured (real unattended drafts); otherwise the safe
         # provisional fallback so a bare run never fabricates a real-looking email.
@@ -137,7 +149,8 @@ def run(*, provider=None, cur=None) -> list[dict]:
         cur.execute(
             "select l.company_number, l.company_name, e.signal from outreach.leads l "
             "join outreach.enrichment e on e.company_number=l.company_number "
-            "where l.state='enriched'"
+            "where l.state='enriched' order by l.updated_at "
+            + ("limit %s" if limit else ""), ((limit,) if limit else ())
         )
         for cn, name, sig in cur.fetchall():
             results.append(draft_one(cn, name, sig, provider=provider, cur=cur, playbook=playbook))
