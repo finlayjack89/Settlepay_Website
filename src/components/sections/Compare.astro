@@ -42,7 +42,7 @@ const cols = ['Bank transfer & chasing', 'Generic payment link', 'Your branded p
             <tr>
               <th scope="row">{r.label}</th>
               {r.cells.map((on, i) => (
-                <td class={i === 2 ? 'compare__col--win' : ''}>
+                <td class={i === 2 ? 'compare__col--win' : ''} data-col={cols[i]}>
                   {on ? (
                     <span class="compare__tick"><Icon name="check" sw={2.5} /><span class="visually-hidden">Yes</span></span>
                   ) : (

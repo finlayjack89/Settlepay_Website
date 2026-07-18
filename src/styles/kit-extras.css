@@ -2489,6 +2489,71 @@ body { counter-reset: srcnote; }
 }
 .compare__tick svg { color: #0f8a63; }
 .compare__cross svg { color: #b6bdcc; }
+/* Phone re-template: each row becomes a card — row label, then three
+   labelled verdict lines (td::before reads data-col from the markup).
+   This also removes the 640px min-width, which — painted inside the
+   scrollport — latched Chrome's mobile layout viewport to 592px and
+   zoomed the whole page out. 721px+ renders exactly as above. */
+@media (max-width: 720px) {
+  .compare__scroll { overflow-x: visible; }
+  .compare__table {
+    display: block;
+    min-width: 0;
+  }
+  .compare__table thead { display: none; }
+  .compare__table tbody { display: block; }
+  .compare__table tbody tr {
+    display: block;
+    background: var(--color-pure-white);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: var(--radius-soft);
+    padding: 0.9rem 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .compare__table tbody tr + tr { margin-top: 0.75rem; }
+  .compare__table tbody th {
+    display: block;
+    max-width: none;
+    padding: 0 0 0.45rem;
+    border-top: 0;
+    font-weight: 600;
+    color: var(--color-primary-brand);
+  }
+  .compare__table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    text-align: left;
+    padding: 0.3rem 0;
+    border-top: 0;
+  }
+  .compare__table tbody td::before {
+    content: attr(data-col);
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+  /* Neutralise the raised-column chrome; the win cell becomes an
+     emphasised verdict chip on its own row. */
+  .compare__table .compare__col--win {
+    background: #f2f7ff;
+    border: 1px solid rgba(59, 130, 246, 0.22);
+    border-radius: 10px;
+    box-shadow: none;
+    padding: 0.45rem 0.6rem;
+    margin-top: 0.35rem;
+  }
+  /* Same selector as the desktop last-row rule — later in the file wins,
+     so the 0/0/12px/12px corner radii can't leak into the chip. */
+  .compare__table tbody tr:last-child .compare__col--win {
+    border-bottom: 1px solid rgba(59, 130, 246, 0.22);
+    border-radius: 10px;
+  }
+  .compare__table tbody td.compare__col--win::before {
+    color: var(--color-primary-brand);
+    font-weight: 600;
+  }
+}
 .visually-hidden {
   position: absolute;
   width: 1px;
