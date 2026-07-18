@@ -1,0 +1,148 @@
+{
+  "loop": "outreach-build",
+  "kind": "self-paced session loop",
+  "pattern": "evaluator-optimizer + deterministic floor",
+  "target": "outreach/ (top-level folder in this repo; Python 3.12; fully separate codebase from the Astro site)",
+  "supabase_project_ref": "xqpbcoldcqfxfwhcqlcy",
+  "enquiries_table": "EXTERNAL / READ-ONLY — created and written by the website's enquiry Edge Function. This loop NEVER creates, alters, or writes it; phase A migrates everything EXCEPT enquiries; check_suppression() reads it.",
+  "green_rule": "A phase is GREEN only when verify.sh (floor) exits 0 AND the separate judge agent returns PASS.",
+  "phases": [
+    {
+      "id": "A",
+      "name": "Foundations",
+      "summary": "Scaffold outreach/; service-role Supabase connection; schema migration; per-lead state machine + audit_log writer; LLMProvider interface.",
+      "builds": [
+        "outreach/ Python package + pyproject/requirements; outreach/.env (gitignored); add outreach/.env, .venv, __pycache__ to root .gitignore; add outreach/ to .vercelignore",
+        "migration creating: leads, enrichment, drafts, sends, replies, suppressions, audit_log (NOT enquiries) + enums lead_state, subscriber_class",
+        "drafts MUST have BOTH body_original (immutable AI draft) AND body_final (after human edit)",
+        "lead state machine + audit_log writer",
+        "LLMProvider interface with inline (default) + api implementations, both callable"
+      ],
+      "green": [
+        "outreach package imports; migration file present & applied",
+        "service-role DB connection ok",
+        "enums lead_state + subscriber_class present",
+        "drafts table has both body_original and body_final columns",
+        "state-transition + audit_log unit tests pass (pytest -m floor_a)"
+      ]
+    },
+    {
+      "id": "B",
+      "name": "find_leads",
+      "summary": "Companies House Advanced Search → estate agents (SIC 68310), active only; page via start_index; dedupe on company_number; write state=discovered.",
+      "builds": [
+        "CH Advanced Search client (env COMPANIES_HOUSE_API_KEY): company_status=active, sic_codes=68310",
+        "pagination via start_index; dedupe on company_number; rate-limit guard (<600 req / 5 min; build cap <=50 req/run)",
+        "write discovered leads with valid fields"
+      ],
+      "green": [
+        ">=30 real leads in Supabase with valid company_number + company_name, state=discovered",
+        "dedupe proven (count = count(distinct company_number))",
+        "rate-limit respected (throttle guard test passes, pytest -m floor_b)"
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Compliance firewall (PECR)",
+      "summary": "Legal-structure classifier corporate/individual/unknown; individual OR unknown -> HARD suppressed; check_suppression consults suppressions UNION enquiries; audit_log row per lead.",
+      "builds": [
+        "classifier from company_type -> subscriber_class (corporate | individual | unknown)",
+        "individual|unknown -> hard-move state=suppressed, reason 'PECR individual subscriber', never contactable",
+        "check_suppression(email, domain, company_number) over suppressions AND enquiries (never cold-contact an existing enquirer)",
+        "audit_log row per lead: source + lawful_basis='legitimate interests' + classification reason"
+      ],
+      "green": [
+        "classifier fixtures classify correctly (pytest -m floor_c)",
+        "0 individual|unknown leads in any contactable state",
+        "a seeded enquirer email is correctly suppressed",
+        "every lead has an audit_log row with lawful_basis='legitimate interests'"
+      ]
+    },
+    {
+      "id": "D",
+      "name": "enrich_company",
+      "summary": "Discover website; scrape homepage + about/contact; find contact email (prefer generic); verify via MillionVerifier (tiny sample); LLM 'signal' via inline provider; discard unverifiable.",
+      "builds": [
+        "website discovery + homepage/about/contact scrape (httpx)",
+        "contact-email finder (prefer info@/contact@)",
+        "MillionVerifier verification (env; tiny sample only, <=20/run)",
+        "LLM 'signal' summary via inline LLMProvider",
+        "discard unverifiable (no contactable lead with an unverifiable email)"
+      ],
+      "green": [
+        "sample leads enriched (website + signal present)",
+        ">=1 contact email verified",
+        "no contactable lead retains an unverifiable email (pytest -m floor_d)"
+      ]
+    },
+    {
+      "id": "E",
+      "name": "draft_email (MECHANISM ONLY)",
+      "summary": "Build the drafting stage + reviewer + loader for editable prompts/draft_email.md, which is an EXPLICITLY-MARKED PLACEHOLDER pending the deferred drafting playbook. Enforce the structural/compliance envelope. Do NOT author conversion copy.",
+      "builds": [
+        "load outreach/prompts/draft_email.md (verbatim placeholder from CONTEXT.md — the loop must NOT invent copy)",
+        "produce a draft into body_original via the inline provider",
+        "structural/compliance reviewer enforcing the envelope below"
+      ],
+      "green": [
+        "prompts/draft_email.md exists and is clearly marked PLACEHOLDER",
+        "draft loads from the playbook file; written to body_original",
+        "plain UK English under 125 words",
+        "contains a plain-text unsubscribe line + clear SettlePay sender ID",
+        "references 'FCA-regulated partners' (never SettlePay's own authorisation)",
+        "ZERO links and ZERO images",
+        "judge confirms placeholder clearly marked and NO conversion strategy invented by the loop"
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Approval queue",
+      "summary": "Drafts land in awaiting_approval; minimal review surface to approve/edit/reject. Edit -> body_final + reviewer_note (body_original intact); approve-without-edit copies body_original -> body_final. ONLY approved drafts advance.",
+      "builds": [
+        "awaiting_approval state + minimal review surface (CLI list / approve / edit / reject)",
+        "edit writes revised text to body_final + reviewer_note, leaving body_original intact",
+        "approve-without-edit copies body_original -> body_final",
+        "recorded human decision required before advancing"
+      ],
+      "green": [
+        "end-to-end on samples (pytest -m floor_f)",
+        "edits captured as body_original + body_final + reviewer_note",
+        "nothing advances past approval without a recorded human decision",
+        "no approved/sent draft has an empty body_final"
+      ]
+    },
+    {
+      "id": "G",
+      "name": "send (Gmail API) — HARD-GATED, OFF by default",
+      "summary": "send_email (sends body_final) wrapped in check_suppression + per-inbox daily cap + individual-subscriber block + global kill switch. Live sending DISABLED behind gate G-SEND; dry-run / test mailbox only until cleared.",
+      "builds": [
+        "send_email via Gmail API (per-user OAuth + refresh token) from a SEPARATE Google Workspace secondary domain (e.g. getsettlepay.uk), never @settlepay.uk",
+        "guards: check_suppression before send, per-inbox daily cap (3-5), individual-subscriber block, global kill switch",
+        "live send REFUSES while G_SEND env unset; dry-run / test mailbox only"
+      ],
+      "green": [
+        "send path works against a TEST mailbox in dry-run (pytest -m floor_g)",
+        "live send refuses while G_SEND unset; G_SEND is NOT set by the loop",
+        "0 live sends recorded during build (sends.mode = dry_run only)",
+        "all guardrails enforced in dry-run (suppression, cap, individual block, kill switch)"
+      ]
+    },
+    {
+      "id": "H",
+      "name": "Operational wiring",
+      "summary": "Single `python -m outreach run --stage all` advancing every lead one step per tick (cron- and /loop-friendly). Cadence/follow-up/send-windows CONFIG-DRIVEN via sequence_config (TBD from playbook — do NOT hardcode). Graduation thresholds encoded; kill switch wired.",
+      "builds": [
+        "python -m outreach run --stage all entrypoint (advances each lead one step per tick; --dry-run)",
+        "sequence_config drives ALL timing (cadence, follow-up delays, send windows) — values TBD from the deferred playbook; NO hardcoded delays",
+        "graduation thresholds encoded (>=50 reviewed drafts/vertical, >=90-95% approved unedited, <2% bounce, zero complaint spike -> per-vertical auto-send, guardrails permanently on, 1-in-20 spot check)",
+        "kill switch wired"
+      ],
+      "green": [
+        "pipeline advances leads one step per tick in dry-run (pytest -m floor_h; `python -m outreach run --stage all --dry-run` exits 0)",
+        "sequence_config drives timing — no hardcoded delay literals in the codebase",
+        "graduation thresholds present in config",
+        "kill switch present"
+      ]
+    }
+  ]
+}
