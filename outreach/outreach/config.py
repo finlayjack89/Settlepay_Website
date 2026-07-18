@@ -52,6 +52,56 @@ RISKY_SEND_ENABLED = _bool("RISKY_SEND_ENABLED", False)
 
 # --- LLM provider ---
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")
+# api provider (the unattended "brain" — lets enrich/draft run with no human loop
+# session, which is what makes headless/cloud operation possible).
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+# verified against ~/.claude/LLM_MODELS.md — do not "correct" from memory. Override via env.
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+
+# --- autonomy (unattended, scheduled operation) ---
+# Master gate for the FULL-CHAIN tick (discover -> enrich -> draft). Off by default:
+# a bare tick stays the safe classify+send only. Turn on for headless operation.
+PIPELINE_AUTONOMOUS = _bool("PIPELINE_AUTONOMOUS", False)
+DISCOVER_PER_TICK = _int("DISCOVER_PER_TICK", 10)
+ENRICH_PER_TICK = _int("ENRICH_PER_TICK", 10)
+DRAFT_PER_TICK = _int("DRAFT_PER_TICK", 10)
+FOLLOWUP_PER_TICK = _int("FOLLOWUP_PER_TICK", 10)
+INBOUND_MAX_PER_RUN = _int("INBOUND_MAX_PER_RUN", 50)
+# CSV of SIC codes to discover; empty => targeting.TARGET_SICS (the ICP default set).
+TARGET_SIC_CODES = os.environ.get("TARGET_SIC_CODES", "")
+# per-vertical graduation auto-approve (lights-out). Off until a vertical proves out.
+AUTO_APPROVE_ENABLED = _bool("AUTO_APPROVE_ENABLED", False)
+
+# --- spend ceiling (hard stop across paid providers: MillionVerifier + Anthropic) ---
+def _float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+MONTHLY_SPEND_CAP_GBP = _float("MONTHLY_SPEND_CAP_GBP", 50.0)
+# token -> GBP conversion for the spend ledger (claude-sonnet-4-6 list prices; override on model change)
+ANTHROPIC_INPUT_USD_PER_MTOK = _float("ANTHROPIC_INPUT_USD_PER_MTOK", 3.0)
+ANTHROPIC_OUTPUT_USD_PER_MTOK = _float("ANTHROPIC_OUTPUT_USD_PER_MTOK", 15.0)
+USD_TO_GBP = _float("USD_TO_GBP", 0.79)
+MV_COST_GBP_PER_VERIFY = _float("MV_COST_GBP_PER_VERIFY", 0.003)
+# max chars of scraped page text fed to the LLM signal prompt
+ENRICH_PAGE_TEXT_MAX_CHARS = _int("ENRICH_PAGE_TEXT_MAX_CHARS", 6000)
+
+# --- operator alerting / digests (transactional mail to the operator, not outreach) ---
+OPERATOR_EMAIL = os.environ.get("OPERATOR_EMAIL")
+
+# --- console (web) ---
+# Path prefix when proxied at settlepay.uk/dashboard via a Vercel rewrite ("" locally).
+BASE_PATH = os.environ.get("BASE_PATH", "").rstrip("/")
+# argon2id hash minted by `python -m outreach hash-password`; unset => console refuses login.
+CONSOLE_PASSWORD_HASH = os.environ.get("CONSOLE_PASSWORD_HASH")
+SESSION_SECRET = os.environ.get("SESSION_SECRET")  # signs session cookies; never commit/log
+SESSION_TTL_HOURS = _int("SESSION_TTL_HOURS", 12)
+# Cloud Scheduler OIDC: the service-account email allowed to invoke POST /tick.
+TICK_INVOKER_SA = os.environ.get("TICK_INVOKER_SA")
+TICK_AUDIENCE = os.environ.get("TICK_AUDIENCE")  # the Cloud Run service URL
 
 # --- inbound ingestion (reply/bounce/unsubscribe): inline (default) | gmail (TODO) ---
 # Mailboxes moved to Google Workspace; the Graph reader is retired. Reading replies via
