@@ -11,6 +11,7 @@ import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
   <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+  <div class="sticky-cta__bleed" aria-hidden="true"></div>
 </div>
 
 <style>
@@ -42,20 +43,21 @@ import Button from './Button.astro';
     .sticky-cta { display: flex; }
   }
 
-  /* iOS Safari can leave a strip of page between bottom:0 (the layout
-     viewport) and the physical screen edge while its toolbar collapses —
-     bleed the bar's backdrop downward so the bottom is always filled.
-     Off-screen and invisible when the bar sits flush. */
-  .sticky-cta::after {
-    content: '';
+  /* iOS positions fixed elements against the SMALL viewport, so when
+     Safari's toolbar collapses a strip of page shows between bottom:0 and
+     the physical screen edge. A real element (an iOS quirk can render a
+     backdrop-filtered pseudo fully invisible — no filter here) bleeds the
+     bar's background down a full viewport so the bottom is always filled,
+     on every device size. Off-screen when the bar sits flush; slides away
+     with the bar. */
+  .sticky-cta__bleed {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
-    height: 120px;
-    background: rgba(255, 255, 255, 0.85);
-    -webkit-backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
-    backdrop-filter: blur(var(--blur-glass-bar)) saturate(var(--glass-saturate-soft));
+    height: 100vh;
+    height: 100lvh;
+    background: rgba(255, 255, 255, 0.94);
   }
 
   .sticky-cta.is-visible {

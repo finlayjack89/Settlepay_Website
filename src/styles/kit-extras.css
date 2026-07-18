@@ -189,11 +189,12 @@
 /* ---- Enquire modal ---- */
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  /* iOS Safari's layout viewport can stop short of the physical bottom while
-     its toolbar collapses — extend the veil to the dynamic viewport height so
-     no unveiled strip of page shows beneath the modal. */
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* iOS sizes fixed inset:0 boxes to the SMALL viewport, exposing unveiled
+     strips when Safari's toolbar collapses. Cover the LARGE viewport so the
+     veil always reaches the physical screen edges, on every device size.
+     (100vh is the fallback — iOS historically maps it to the large viewport.) */
+  height: 100vh;
+  height: 100lvh;
   background: rgba(15, 23, 42, 0.55);
   -webkit-backdrop-filter: blur(var(--blur-glass-veil));
   backdrop-filter: blur(var(--blur-glass-veil));
@@ -202,6 +203,9 @@
      can't fit. Modal centring is preserved by align-items/justify-content above. */
   overflow-y: auto;
   padding: 1.5rem;
+  /* The veil is 100lvh tall; keep the modal centred within the SMALL
+     viewport (always visible) by absorbing the toolbar zone as padding. */
+  padding-bottom: calc(1.5rem + (100lvh - 100svh));
   animation: spFade 0.2s var(--ease-snappy);
 }
 @keyframes spFade { from { opacity: 0; } to { opacity: 1; } }
@@ -2562,70 +2566,31 @@ body { counter-reset: srcnote; }
 }
 .compare__tick svg { color: #0f8a63; }
 .compare__cross svg { color: #b6bdcc; }
-/* Phone re-template: each row becomes a card — row label, then three
-   labelled verdict lines (td::before reads data-col from the markup).
-   This also removes the 640px min-width, which — painted inside the
-   scrollport — latched Chrome's mobile layout viewport to 592px and
-   zoomed the whole page out. 721px+ renders exactly as above. */
+/* Phone fit: the SAME matrix as desktop — raised win column and all —
+   compacted to fit without a scrollport. Dropping the 640px min-width is
+   what kills the Chrome mobile viewport latch (painted inside the
+   scrollport it re-laid the whole page out at 592px). 721px+ unchanged. */
 @media (max-width: 720px) {
   .compare__scroll { overflow-x: visible; }
   .compare__table {
-    display: block;
     min-width: 0;
-  }
-  .compare__table thead { display: none; }
-  .compare__table tbody { display: block; }
-  .compare__table tbody tr {
-    display: block;
-    background: var(--color-pure-white);
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: var(--radius-soft);
-    padding: 0.9rem 1rem;
-    box-shadow: var(--shadow-sm);
-  }
-  .compare__table tbody tr + tr { margin-top: 0.75rem; }
-  .compare__table tbody th {
-    display: block;
-    max-width: none;
-    padding: 0 0 0.45rem;
-    border-top: 0;
-    font-weight: 600;
-    color: var(--color-primary-brand);
-  }
-  .compare__table tbody td {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    text-align: left;
-    padding: 0.3rem 0;
-    border-top: 0;
-  }
-  .compare__table tbody td::before {
-    content: attr(data-col);
     font-size: 0.8125rem;
-    color: var(--color-text-muted);
   }
-  /* Neutralise the raised-column chrome; the win cell becomes an
-     emphasised verdict chip on its own row. */
-  .compare__table .compare__col--win {
-    background: #f2f7ff;
-    border: 1px solid rgba(59, 130, 246, 0.22);
-    border-radius: 10px;
-    box-shadow: none;
-    padding: 0.45rem 0.6rem;
-    margin-top: 0.35rem;
+  .compare__table thead th {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    padding: 0.5rem 0.3rem;
   }
-  /* Same selector as the desktop last-row rule — later in the file wins,
-     so the 0/0/12px/12px corner radii can't leak into the chip. */
-  .compare__table tbody tr:last-child .compare__col--win {
-    border-bottom: 1px solid rgba(59, 130, 246, 0.22);
-    border-radius: 10px;
+  .compare__table thead th:first-child { width: 38%; }
+  .compare__table tbody th {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    padding: 0.55rem 0.5rem 0.55rem 0;
+    max-width: none;
   }
-  .compare__table tbody td.compare__col--win::before {
-    color: var(--color-primary-brand);
-    font-weight: 600;
-  }
+  .compare__table tbody td { padding: 0.55rem 0.2rem; }
+  .compare__tick svg,
+  .compare__cross svg { width: 15px; height: 15px; }
 }
 .visually-hidden {
   position: absolute;
