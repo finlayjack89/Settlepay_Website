@@ -248,6 +248,14 @@ const CARDS = [0, 1, 2, 3];
   .ps__url-row :global(.btn-primary) {
     flex: 0 0 auto;
   }
+  /* At phone widths the row wraps (input min 260px + button don't fit), so
+     top:50% of the two-row-tall .ps__url-row put the globe at the input's
+     bottom edge. Force a deterministic wrap and pin the globe to the
+     input's own centre (2×0.9rem padding + ~1.7lh + 2px border ≈ 58px). */
+  @media (max-width: 640px) {
+    .ps__url-row :global(.btn-primary) { flex: 1 1 100%; }
+    .ps__url-globe { top: 29px; }
+  }
   .ps__status {
     margin: 0.7rem 0 0;
     font-size: 0.85rem;

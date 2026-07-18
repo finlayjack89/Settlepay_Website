@@ -20,7 +20,14 @@
 }
 .navbar__mobile .navbar__link { opacity: 0.8; font-size: 1rem; }
 @media (max-width: 768px) {
-  .navbar__toggle-btn { display: inline-flex; }
+  .navbar__toggle-btn { display: inline-flex; position: relative; }
+  /* 24px icon + 8px padding = 40px box; invisible extension to 48px.
+     Padding must not grow — it would change the frosted bar's height. */
+  .navbar__toggle-btn::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
 }
 
 /* ---- Checkout mockup: let it size naturally (no cramped scroll box) ---- */
@@ -1115,6 +1122,17 @@
   background: var(--color-success);
 }
 .trust-strip__live:hover { background: rgba(16, 185, 129, 0.16); }
+/* Touch: the ~28px pill link → 44px vertical hit area, invisibly.
+   ::before is the live dot, so the extension uses ::after. It is the
+   strip's only interactive element — nothing adjacent to overlap. */
+@media (max-width: 768px) {
+  .trust-strip__live { position: relative; }
+  .trust-strip__live::after {
+    content: '';
+    position: absolute;
+    inset: -8px 0;
+  }
+}
 @media (max-width: 640px) {
   .trust-strip__row { column-gap: 1.25rem; }
   .trust-strip__item { font-size: 0.78rem; }
@@ -1859,6 +1877,16 @@ body { counter-reset: srcnote; }
   color: var(--color-primary-action);
 }
 .src-note:hover::after { text-decoration: underline; }
+/* Touch: the ~9px superscript is untappable — grow the hit area without
+   any visual change. ::after is the counter, so ::before is free. */
+@media (max-width: 768px) {
+  .src-note { position: relative; }
+  .src-note::before {
+    content: '';
+    position: absolute;
+    inset: -14px -10px;
+  }
+}
 
 .sources {
   background-color: var(--color-primary-brand);
@@ -2772,4 +2800,16 @@ body { counter-reset: srcnote; }
 .pay-card.pay-card--gl {
   border-color: transparent;
   box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
+}
+
+/* =========================================================================
+   Mobile type floor — nothing under 13px (0.8125rem) renders on phones.
+   Desktop sizes untouched. Written exemptions (deliberately NOT raised):
+   .section-badge / .status-chip uppercase chips and mockup-internal text —
+   see Docs/DESIGN-SYSTEM.md.
+   ========================================================================= */
+@media (max-width: 768px) {
+  .trust-strip__caption { font-size: 0.8125rem; }
+  .hero__eyebrow { font-size: 0.8125rem; }
+  .sources__list li { font-size: 0.8125rem; }
 }

@@ -4,7 +4,7 @@ Operating guide for any agent working in this repo. Read this, then the design d
 
 ## What this is
 The marketing website for **SettlePay** — bespoke, branded payment-page development & integration for
-small UK businesses. Built with **Astro 5** as a fully static, SEO-first site (zero JS by default).
+small UK businesses. Built with **Astro 7** as a fully static, SEO-first site (zero JS by default).
 
 ## 🌳 Branch & worktree discipline (read before your first edit/commit)
 This repo uses git worktrees for parallel work. The full doctrine is in the account-level

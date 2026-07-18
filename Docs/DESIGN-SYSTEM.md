@@ -122,6 +122,17 @@ Weights (`--weight-regular/medium/semibold/bold`), line heights (`--leading-tigh
 tracking (`--tracking-display/heading/eyebrow`) and the reading measure (`--measure` = 62ch) are all
 tokens — use them, not fresh literals.
 
+**Mobile type floor.** At ≤768px nothing that is *read* renders below **13px** (`0.8125rem`) —
+captions, eyebrows, list items and footer copy carry explicit `@media (max-width: 768px)` raises
+where their desktop size sits under it. Written exemptions, deliberately NOT raised (platform-chip
+convention or illustrative-mockup internals, never reading copy):
+
+- `.section-badge` — 12px uppercase chip.
+- `.status-chip` — 11.5px at mobile widths (hero-stage evidence chips).
+- `.footer__col-title` — 11.5px uppercase column label.
+- Mockup-internal text (checkout floating labels, paysheet lines, trust-strip payment marks) —
+  part of an illustrative graphic, not content.
+
 ---
 
 ## 6. Spacing & layout
