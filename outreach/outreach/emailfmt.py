@@ -65,7 +65,11 @@ def render_html(text: str) -> str:
         rendered.append(f"<p {style}>{body}</p>")
     return (
         "<!doctype html><html><body style=\"margin:0;padding:0;\">"
-        f'<div style="max-width:560px;font-family:{FONT};color:{BODY};">'
+        # outer pad gives breathing room on every client (mobile was flush-left);
+        # inner max-width centres the column on wide screens.
+        f'<div style="padding:28px 24px;font-family:{FONT};color:{BODY};'
+        'font-size:16px;line-height:1.7;">'
+        '<div style="max-width:560px;margin:0 auto;">'
         + "".join(rendered)
-        + "</div></body></html>"
+        + "</div></div></body></html>"
     )
