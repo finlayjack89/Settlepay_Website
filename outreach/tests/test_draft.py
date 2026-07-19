@@ -68,3 +68,50 @@ def test_draft_one_writes_body_original_and_advances(db_rollback):
     assert pv == draft.PROMPT_VERSION and pv.startswith("playbook-v")
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "drafted"
+
+
+# ---- one bad lead must not abort the batch (per-lead savepoint isolation) ----
+class _ScriptedProvider:
+    """Returns a fixed body per COMPANY name; used to force one bad draft."""
+    name = "scripted"
+
+    def __init__(self, by_company):
+        self.by_company = by_company
+
+    def complete(self, prompt, *, purpose, max_words=None):
+        from outreach.llm import LLMResult
+        for name, body in self.by_company.items():
+            if f"COMPANY: {name}" in prompt:
+                return LLMResult(body, self.name, {"purpose": purpose})
+        return LLMResult("(none)", self.name, {"purpose": purpose})
+
+
+def test_run_isolates_a_bad_draft_and_keeps_the_good_ones(db_rollback):
+    cur = db_rollback.cursor()
+    good = f"GOOD_{uuid.uuid4().hex[:8]}"
+    bad = f"BAD_{uuid.uuid4().hex[:8]}"
+    for cn, nm in ((good, "Good Co Ltd"), (bad, "Bad Co Ltd")):
+        cur.execute(
+            "insert into outreach.leads (company_number, company_name, company_type, "
+            "subscriber_class, state) values (%s,%s,'ltd','corporate','enriched')", (cn, nm))
+        cur.execute(
+            "insert into outreach.enrichment (company_number, website, contact_email, "
+            "email_verified, signal) values (%s,'https://x.co','info@x.co',true,'sig')", (cn,))
+
+    compliant = ("Hi Good Co, a note from SettlePay. Payments are handled by "
+                 "FCA-regulated partners. Reply unsubscribe to opt out. "
+                 "Kind regards, Finlay Salisbury SettlePay")
+    overlong = ("SettlePay FCA-regulated partners unsubscribe " + "word " * 130)
+    provider = _ScriptedProvider({"Good Co Ltd": compliant, "Bad Co Ltd": overlong})
+
+    res = draft.run(provider=provider, cur=cur)
+
+    # good lead drafted; bad lead discarded — batch not aborted
+    cur.execute("select state::text from outreach.leads where company_number=%s", (good,))
+    assert cur.fetchone()[0] == "drafted"
+    cur.execute("select state::text from outreach.leads where company_number=%s", (bad,))
+    assert cur.fetchone()[0] == "discarded"
+    cur.execute("select count(*) from outreach.drafts where company_number=%s", (good,))
+    assert cur.fetchone()[0] == 1
+    cur.execute("select count(*) from outreach.drafts where company_number=%s", (bad,))
+    assert cur.fetchone()[0] == 0

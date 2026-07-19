@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 from . import audit, config, db
-from .llm import get_provider
+from .llm import LLMUnavailable, get_provider
 
 PLAYBOOK_PATH = config.PROJECT_ROOT / "prompts" / "draft_email.md"
 MAX_WORDS = 125
@@ -115,7 +115,19 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
 
     violations = check_envelope(body)
     if violations:
-        raise EnvelopeViolation(company_number, violations)
+        # One corrective retry. The model occasionally overshoots the word cap or
+        # drops a required element; a targeted rewrite recovers most of these
+        # without a human. A second failure raises (the caller isolates the lead).
+        retry = provider.complete(
+            prompt + f"\n\n---\nYour previous draft was rejected: {violations}. "
+            "Rewrite it in UNDER 110 words, keeping every required element: the "
+            "'FCA-regulated partners' line, the reply-'unsubscribe' line, and the "
+            "'Kind regards, / Finlay Salisbury / SettlePay' sign-off. No links.",
+            purpose="draft", max_words=MAX_WORDS).text.strip()
+        rv = check_envelope(retry)
+        if rv:
+            raise EnvelopeViolation(company_number, rv)
+        body = retry
 
     cur.execute(
         "insert into outreach.drafts (company_number, body_original, prompt_version, status) "
@@ -153,7 +165,29 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
             + ("limit %s" if limit else ""), ((limit,) if limit else ())
         )
         for cn, name, sig in cur.fetchall():
-            results.append(draft_one(cn, name, sig, provider=provider, cur=cur, playbook=playbook))
+            # Per-lead savepoint: one lead's failure must never discard the whole
+            # batch (a single overlong draft used to roll back every good one).
+            cur.execute("savepoint draft_lead")
+            try:
+                results.append(draft_one(cn, name, sig, provider=provider,
+                                         cur=cur, playbook=playbook))
+                cur.execute("release savepoint draft_lead")
+            except EnvelopeViolation as e:
+                # Unfixable after one retry — discard this lead (bounded: it will
+                # not be re-drafted every tick) and keep going.
+                cur.execute("rollback to savepoint draft_lead")
+                cur.execute("update outreach.leads set state='discarded', "
+                            "updated_at=now() where company_number=%s "
+                            "and state='enriched'", (cn,))
+                audit.record(cn, "draft_discarded", source="draft",
+                             lawful_basis=audit.LEGITIMATE_INTERESTS,
+                             reason=f"envelope unfixable after retry: {e.violations}",
+                             cur=cur)
+            except LLMUnavailable as e:
+                # Brain down or spend cap hit — stop, but keep the good drafts.
+                cur.execute("rollback to savepoint draft_lead")
+                results.append({"halted": str(e)})
+                break
         if own:
             conn.commit()
         return results
