@@ -102,6 +102,11 @@ MONTHLY_SPEND_CAP_GBP = _float("MONTHLY_SPEND_CAP_GBP", 50.0)
 # (spend is recorded in GBP). CREDIT_START_DATE (YYYY-MM-DD) drives the 90-day burn-down.
 CREDIT_BUDGET_GBP = _float("CREDIT_BUDGET_GBP", 237.0)   # ≈ $300 at USD_TO_GBP
 CREDIT_START_DATE = os.environ.get("CREDIT_START_DATE", "")   # e.g. 2026-07-19
+# Stop credit-billed discovery when this little credit remains (hard ceiling, doctrine 9).
+CREDIT_FLOOR_GBP = _float("CREDIT_FLOOR_GBP", 10.0)
+# Cap the classified-corporate backlog so discovery builds a big-but-bounded reservoir
+# (Places is cheap on credit; enrich stays gated by READY_POOL_TARGET to control cash).
+CLASSIFIED_BACKLOG_MAX = _int("CLASSIFIED_BACKLOG_MAX", 2000)
 # token -> GBP conversion for the spend ledger (claude-sonnet-4-6 list prices; override on model change)
 ANTHROPIC_INPUT_USD_PER_MTOK = _float("ANTHROPIC_INPUT_USD_PER_MTOK", 3.0)
 ANTHROPIC_OUTPUT_USD_PER_MTOK = _float("ANTHROPIC_OUTPUT_USD_PER_MTOK", 15.0)

@@ -122,12 +122,17 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
     # amortises the expensive stages. Deficit is computed once per tick.
     pool = stats.reservoir_status(cur, config.READY_POOL_TARGET) if cur is not None else None
 
-    if want("discover_places"):  # Google Places (GCP credit) — reservoir-gated
-        if pool and pool["deficit"] <= 0:
-            summary["steps"]["discover_places"] = {"skipped": "reservoir full", **pool}
-        else:
+    if want("discover_places"):  # Google Places (GCP credit) — credit-gated, NOT enriched-pool-gated
+        # Discovery is cheap on credit and should build a big classified reservoir, so it
+        # is gated by the CREDIT budget + a backlog cap, not the (cash-bound) enriched pool.
+        credit = stats.credit_status(cur) if cur is not None else None
+        if credit and credit["remaining"] <= config.CREDIT_FLOOR_GBP:
+            summary["steps"]["discover_places"] = {"skipped": "credit budget floor reached", **credit}
+        elif pool and pool["backlog"] >= config.CLASSIFIED_BACKLOG_MAX:
+            summary["steps"]["discover_places"] = {"skipped": "classified backlog full", **pool}
+        else:  # credit-billed, not cash — the credit gate above is the control
             do("discover_places",
-               lambda: places.discover_grid(count=config.PLACES_PER_TICK, cur=cur), paid=True)
+               lambda: places.discover_grid(count=config.PLACES_PER_TICK, cur=cur))
 
     if want("crossref"):  # PECR gate for Places leads — classify corporate vs research-only
         do("crossref", lambda: crossref.run(limit=config.CROSSREF_PER_TICK, cur=cur))

@@ -82,8 +82,16 @@ retrieved web text is treated as data, never instructions (doctrine 3.7).
    once. No raw Places calls anywhere else (lint convention).
 4. **Places API key** — per-workload, human-provisioned, API-restricted to Places+Geocoding,
    in Secret Manager. (I never invent keys.)
-5. **Cloud Run Job + Scheduler** — the batch sweep as a run-to-completion Job, paced daily
-   by Scheduler within the credit budget; checkpoint/resume per lead; per-item ledger.
+5. **Pacing + hard credit ceiling (IMPLEMENTED via the tick, not a separate Job).**
+   discovery is a full-chain tick stage, but gated by the CREDIT budget, not the
+   (cash-bound) enriched pool: discover_places runs while credit_remaining > CREDIT_FLOOR_GBP
+   AND classified backlog < CLASSIFIED_BACKLOG_MAX, at PLACES_PER_TICK queries/tick. enrich
+   stays gated by READY_POOL_TARGET (controls MillionVerifier cash). So Places builds a big,
+   bounded classified reservoir on credit while cash stays capped. Pacing = Cloud Scheduler
+   (`ops/deploy-cloudrun.sh schedule` → /tick) × PLACES_PER_TICK × grid size; widen
+   PLACES_TOWNS or raise PLACES_PER_TICK to spend faster. A dedicated daily Cloud Run **Job**
+   would give cleaner once-a-day batching + per-item checkpointing — an optional refinement,
+   not required (the scheduled tick + credit ceiling already paces safely).
 
 ## Compliance invariants (unchanged, load-bearing)
 Corporate-only send; individual/unknown = research-only, NEVER emailed (stage 2 fail-closed).
