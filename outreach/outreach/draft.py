@@ -98,7 +98,7 @@ def provisional_draft(company_name: str, signal: str) -> str:
         "Any payment processing would be handled by FCA-regulated partners, not by "
         "SettlePay directly.\n\n"
         "To opt out of future messages, reply with the word unsubscribe.\n\n"
-        "Finlay Salisbury, trading as SettlePay"
+        "Kind regards,\nFinlay Salisbury\nSettlePay"
     )
 
 

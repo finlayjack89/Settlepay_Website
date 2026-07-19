@@ -1,11 +1,12 @@
-<!-- PLAYBOOK VERSION: v1 -->
+<!-- PLAYBOOK VERSION: v1.1 -->
+<!-- v1.1: branded name casing (never Companies House caps) + natural sign-off. -->
 <!-- Researched drafting playbook v1 — replaces placeholder v0. This is real -->
 <!-- conversion copy. The drafting agent (inline loop agent, or the api provider) -->
 <!-- reads everything below plus the appended COMPANY + SIGNAL and returns ONLY -->
 <!-- the initial email body. The structural/compliance envelope is enforced by -->
 <!-- draft.check_envelope(); a violation is rejected before the draft is stored. -->
 
-# SettlePay cold-email drafting playbook — v1
+# SettlePay cold-email drafting playbook — v1.1
 
 You are writing a short, plain-text cold outreach email from **SettlePay** — the
 trading name of **Finlay Salisbury, a sole trader** — to a small UK business.
@@ -35,6 +36,14 @@ trade, their area, what they offer). Then bridge to the payment-infrastructure
 point. If the signal is thin or says "no public website found", keep the opening
 specific to their **trade and locality** — never fake a detail you don't have.
 
+## Naming the business (and people)
+Write the company's name the way **the business itself** writes it — the casing
+from its own website/branding (in `SIGNAL`), **never** the Companies House
+register style. `GREENWAY PLUMBING LTD` → `Greenway Plumbing`. Always drop legal
+suffixes (LTD, LIMITED, PLC) in prose. If the branded casing isn't known, use
+natural Title Case. The same applies to people's names: `JOHN SMITH` → `John
+Smith`. Register-style ALL CAPS anywhere in the email is a rejection-worthy tell.
+
 ## OUTPUT CONTRACT (return exactly this, nothing else)
 Return **only the initial email body** as plain text. No subject line, no
 markdown, no preamble, no sign-off notes — just the email a person would read.
@@ -52,7 +61,13 @@ markdown, no preamble, no sign-off notes — just the email a person would read.
    would look like for [business]"). **No links, no booking URL, no attachments.**
 6. **Opt-out line** — one plain sentence telling them to reply with the word
    **unsubscribe** to be removed.
-7. **Sign-off** — `Finlay Salisbury — SettlePay`.
+7. **Sign-off** — exactly this, on its own lines, nothing more:
+   ```
+   Kind regards,
+   Finlay Salisbury
+   SettlePay
+   ```
+   Never "trading as", never a job title — just a person signing a note.
 
 ## HARD ENVELOPE (enforced — a violation is auto-rejected)
 - Plain UK English. **Under 110 words** (hard limit is 125; stay under 110).
@@ -72,11 +87,12 @@ Same envelope, shorter (~60–80 words). Do **not** repeat the whole pitch — a
 new, concrete angle: the **admin saved** (branded invoices out, every payment
 reconciled automatically, no manual bookkeeping). Reaffirm they keep their bank
 and that FCA-regulated partners handle the money. One reply-based CTA, the
-unsubscribe line, and the `Finlay Salisbury — SettlePay` sign-off.
+unsubscribe line, and the same `Kind regards, / Finlay Salisbury / SettlePay`
+sign-off.
 
 <!-- Example shapes (illustrative — the agent personalises per SIGNAL): -->
 <!-- Touch 1: open on their trade/area → cash/bank-transfer gap → branded card
      page + invoicing + auto-reconciliation, set up for them, keep their bank →
      FCA-regulated partners handle the money, SettlePay never holds funds →
      "reply and I'll show you what it'd look like for [business]" → unsubscribe →
-     Finlay Salisbury — SettlePay. -->
+     Kind regards, / Finlay Salisbury / SettlePay. -->

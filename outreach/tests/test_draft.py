@@ -8,11 +8,11 @@ from outreach.llm import InlineProvider
 pytestmark = pytest.mark.floor_e
 
 
-# ---- playbook is a versioned, real v1 ----
+# ---- playbook is versioned (the value itself changes with copy revisions) ----
 def test_playbook_loads_and_is_versioned():
     text = draft.load_playbook()
     m = draft.VERSION_RE.search(text)
-    assert m and m.group(1).lower() == "v1"     # declares PLAYBOOK VERSION: v1
+    assert m and m.group(1).lower().startswith("v")
     # the mechanism must refuse an unversioned / garbage file
     import tempfile, pathlib
     p = pathlib.Path(tempfile.mkdtemp()) / "x.md"
@@ -65,6 +65,6 @@ def test_draft_one_writes_body_original_and_advances(db_rollback):
     assert body_original and draft.check_envelope(body_original) == []  # compliant
     assert body_final is None            # human edit comes later (phase F)
     assert status == "awaiting_approval"
-    assert pv == "playbook-v1"
+    assert pv == draft.PROMPT_VERSION and pv.startswith("playbook-v")
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "drafted"
