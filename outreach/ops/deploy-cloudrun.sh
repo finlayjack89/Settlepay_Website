@@ -34,7 +34,8 @@ SRC_DIR="$(cd "$OPS_DIR/.." && pwd)"   # the outreach/ project dir (build contex
 
 # Secret Manager names consumed by the service (values are set via `secret`).
 SECRETS=(DATABASE_URL COMPANIES_HOUSE_API_KEY MILLIONVERIFIER_API_KEY
-         FIRECRAWL_API_KEY ANTHROPIC_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
+         FIRECRAWL_API_KEY ANTHROPIC_API_KEY GOOGLE_MAPS_API_KEY
+         GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
          GOOGLE_REFRESH_TOKEN CONSOLE_PASSWORD_HASH SESSION_SECRET)
 
 # Non-secret runtime config. Deliberately conservative: autonomy off, inbound

@@ -31,6 +31,8 @@ ENQUIRY_SOURCE_TABLE = os.environ.get("ENQUIRY_SOURCE_TABLE", "leads")
 
 # --- external APIs ---
 COMPANIES_HOUSE_API_KEY = os.environ.get("COMPANIES_HOUSE_API_KEY")
+# Google Maps Platform (Places API New + Geocoding) — local ICP discovery; GCP credit.
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
 MILLIONVERIFIER_API_KEY = os.environ.get("MILLIONVERIFIER_API_KEY")
 
 # --- website discovery (phase D): inline (loop agent) | firecrawl | brave ---
