@@ -50,11 +50,15 @@ def _gmail_send(sender: str, to_email: str, subject: str, body: str) -> str:
     mailbox-scoped — it only works for the single mailbox that consented, so
     cross-mailbox sending is impossible by construction. Returns the Gmail
     message id."""
-    from . import gmail
+    from . import emailfmt, gmail
     from .google_oauth import OAuthNotConfigured
 
     try:
-        return gmail.send_message(sender, to_email, subject or "", body)
+        html = emailfmt.render_html(body)
+    except Exception:
+        html = None   # formatting must never block a send — plain text suffices
+    try:
+        return gmail.send_message(sender, to_email, subject or "", body, html=html)
     except OAuthNotConfigured as e:
         raise SendRefused(f"Gmail API credentials not configured ({e})") from e
 

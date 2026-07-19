@@ -16,9 +16,11 @@ from .google_oauth import OAuthNotConfigured
 SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/{sender}/messages/send"
 
 
-def send_message(sender: str, to_email: str, subject: str, body: str, *, client=None) -> str:
-    """Send one plain-text email as `sender` (falls back to config.GMAIL_SENDER).
-    Returns the Gmail message id."""
+def send_message(sender: str, to_email: str, subject: str, body: str, *,
+                 html: str | None = None, client=None) -> str:
+    """Send one email as `sender` (falls back to config.GMAIL_SENDER). Plain text
+    always; `html` adds a multipart/alternative part (clients prefer it, and the
+    text part remains the audited source). Returns the Gmail message id."""
     sender = sender or config.GMAIL_SENDER
     if not sender:
         raise OAuthNotConfigured("no Gmail sender configured")
@@ -26,6 +28,8 @@ def send_message(sender: str, to_email: str, subject: str, body: str, *, client=
     msg = EmailMessage()
     msg["To"], msg["From"], msg["Subject"] = to_email, sender, (subject or "")
     msg.set_content(body)
+    if html:
+        msg.add_alternative(html, subtype="html")
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     if client is None:
         import httpx
