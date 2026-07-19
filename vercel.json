@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/dashboard/:path*", "destination": "https://settlepay-ops-qe22mj5i4q-nw.a.run.app/dashboard/:path*" },
+    { "source": "/dashboard", "destination": "https://settlepay-ops-qe22mj5i4q-nw.a.run.app/dashboard/" },
     { "source": "/p/:slug", "destination": "/p/" }
   ]
 }
