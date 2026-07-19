@@ -63,11 +63,15 @@ def test_ch_search_error_fails_closed():
 def test_run_updates_places_leads(db_rollback):
     cur = db_rollback.cursor()
     pid = uuid.uuid4().hex[:10]
+    # run() takes the oldest `limit` pending Places leads; the live DB holds real ones,
+    # so pin this lead as unambiguously oldest and take exactly it — otherwise the batch
+    # fills with production rows and this test's assertions describe someone else's data.
     cur.execute("insert into outreach.leads (company_number, company_name, registered_address, "
-                "state, source, place_id) values (%s,%s,%s::jsonb,'discovered','places',%s)",
+                "state, source, place_id, created_at) values "
+                "(%s,%s,%s::jsonb,'discovered','places',%s,'1990-01-01')",
                 (f"PLACE:{pid}", "Norton Plumbing", '{"postcode":"LS21 1AA"}', pid))
     ch = _FakeCH([_item("Norton Plumbing", "09055451")])
-    counts = crossref.run(limit=5, cur=cur, ch=ch)
+    counts = crossref.run(limit=1, cur=cur, ch=ch)
     assert counts["corporate"] == 1
     cur.execute("select subscriber_class::text, matched_company_number from outreach.leads "
                 "where place_id=%s", (pid,))
