@@ -111,5 +111,15 @@ class CompaniesHouseClient:
         r.raise_for_status()
         return r.json()
 
+    def search_companies(self, q: str, *, items: int = 5) -> list[dict]:
+        """Search the register by name (used by the Places corporate cross-reference).
+        Returns up to `items` matches, each with title, company_number, company_type,
+        company_status, and an address dict. Counts against the per-run cap."""
+        self.limiter.acquire()
+        r = self._client.get("/search/companies",
+                             params={"q": q, "items_per_page": items})
+        r.raise_for_status()
+        return r.json().get("items", [])
+
     def close(self) -> None:
         self._client.close()

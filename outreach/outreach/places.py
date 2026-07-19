@@ -11,11 +11,12 @@ Search SKU unit — so discovery is cheap per lead. Cost is driven by call COUNT
 by the credit budget.
 """
 from __future__ import annotations
+import json
 from typing import Optional
 
 import httpx
 
-from . import config, spend
+from . import audit, config, db, spend
 
 SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 
@@ -81,3 +82,55 @@ def text_search(query: str, *, max_results: int = 20, cur=None, client=None) -> 
     except Exception:
         pass  # metering never fails the call that already succeeded
     return [_normalise(p) for p in r.json().get("places", [])]
+
+
+def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) -> dict:
+    """Run each Text Search query and insert new businesses into outreach.leads as
+    Places-sourced, UNCLASSIFIED leads (subscriber_class stays null → the corporate
+    cross-reference sets it before any of them can be sent). Dedup by place_id.
+    company_number is the stable synthetic id 'PLACE:<place_id>'; the Places website,
+    postcode and types are kept in registered_address for downstream enrichment +
+    market intelligence. Phones are never stored (the wrapper drops them)."""
+    own = cur is None
+    conn = None
+    if own:
+        conn = db.connect(); cur = conn.cursor()
+    inserted = duplicates = skipped = 0
+    try:
+        for q in queries:
+            for b in text_search(q, max_results=max_results, cur=cur):
+                pid, name = b.get("place_id"), b.get("name")
+                if not pid or not name:
+                    skipped += 1
+                    continue
+                cur.execute("select 1 from outreach.leads where place_id=%s", (pid,))
+                if cur.fetchone():
+                    duplicates += 1
+                    continue
+                addr = {"postcode": b.get("postcode"), "formatted": b.get("address"),
+                        "website": b.get("website"), "primary_type": b.get("primary_type"),
+                        "types": b.get("types"), "business_status": b.get("business_status"),
+                        "query": q}
+                cur.execute(
+                    "insert into outreach.leads (company_number, company_name, "
+                    "registered_address, state, source, place_id) "
+                    "values (%s,%s,%s::jsonb,'discovered','places',%s) "
+                    "on conflict (company_number) do nothing returning company_number",
+                    (f"PLACE:{pid}", name, json.dumps(addr), pid))
+                if cur.fetchone():
+                    inserted += 1
+                    audit.record(f"PLACE:{pid}", "discovered", source="places",
+                                 lawful_basis=audit.LEGITIMATE_INTERESTS,
+                                 reason=f"places: {q}", cur=cur)
+                else:
+                    duplicates += 1
+        if own:
+            conn.commit()
+        return {"inserted": inserted, "duplicates": duplicates, "skipped": skipped}
+    except Exception:
+        if own and conn is not None:
+            conn.rollback()
+        raise
+    finally:
+        if own and conn is not None:
+            conn.close()
