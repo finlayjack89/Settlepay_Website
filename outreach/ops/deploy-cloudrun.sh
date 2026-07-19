@@ -26,6 +26,8 @@ SERVICE="${OPS_SERVICE:-settlepay-ops}"
 REPO="${OPS_REPO:-settlepay-ops}"
 IMAGE="$REGION-docker.pkg.dev/$PROJECT/$REPO/console:latest"
 BASE_PATH="${OPS_BASE_PATH:-/dashboard}"
+# Dedicated least-privilege runtime identity: may read exactly the SECRETS below, nothing else.
+RUN_SA="settlepay-ops-run@$PROJECT.iam.gserviceaccount.com"
 
 OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(cd "$OPS_DIR/.." && pwd)"   # the outreach/ project dir (build context)
@@ -57,6 +59,13 @@ case "$cmd" in
         printf 'CHANGE-ME' | gcloud secrets create "$s" --data-file=- --project "$PROJECT"
       }
     done
+    gcloud iam service-accounts describe "$RUN_SA" --project "$PROJECT" >/dev/null 2>&1 || \
+      gcloud iam service-accounts create settlepay-ops-run \
+        --display-name "settlepay-ops Cloud Run runtime" --project "$PROJECT"
+    for s in "${SECRETS[@]}"; do
+      gcloud secrets add-iam-policy-binding "$s" --member "serviceAccount:$RUN_SA" \
+        --role roles/secretmanager.secretAccessor --project "$PROJECT" --quiet >/dev/null
+    done
     echo "bootstrap done. Set each secret, then: build && deploy"
     ;;
 
@@ -72,6 +81,7 @@ case "$cmd" in
 
   deploy)
     args=(--image "$IMAGE" --region "$REGION" --project "$PROJECT"
+          --service-account "$RUN_SA"
           --allow-unauthenticated       # app-level login guards the console
           --min-instances 0 --max-instances 1
           --no-cpu-throttling           # JobRunner keeps CPU while warm

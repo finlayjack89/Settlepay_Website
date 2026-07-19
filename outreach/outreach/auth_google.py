@@ -55,9 +55,12 @@ def run(port: int = 8765) -> str:
     if not cid or not secret:
         raise SystemExit("Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in outreach/.env first.")
     redirect = f"http://localhost:{port}/"
-    url = f"{AUTH_URI}?" + urllib.parse.urlencode({
+    params = {
         "client_id": cid, "redirect_uri": redirect, "response_type": "code",
-        "scope": SCOPE, "access_type": "offline", "prompt": "consent"})
+        "scope": SCOPE, "access_type": "offline", "prompt": "consent"}
+    if config.GMAIL_SENDER:
+        params["login_hint"] = config.GMAIL_SENDER
+    url = f"{AUTH_URI}?" + urllib.parse.urlencode(params)
     print(f"Opening the Google consent screen — sign in AS the sending mailbox.\n{url}\n")
     webbrowser.open(url)
     code = _catch_code(port)

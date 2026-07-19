@@ -76,6 +76,7 @@ async def _auth_gate(request: Request, call_next):
     (local dev — see webauth docstring); /healthz and /tick verify themselves."""
     path = request.url.path
     exempt = (path in ("/healthz", "/tick")
+              or path == u("/healthz")
               or path == u("/login")
               or path.startswith(u("/integrations/")))
     if not webauth.auth_configured() or exempt \
@@ -99,6 +100,13 @@ def _start_jobs_runner():
 @app.get("/healthz")
 def healthz():
     return JSONResponse({"ok": True})
+
+
+# run.app's Google frontend intercepts root /healthz before it reaches the
+# container, so health must also be reachable under BASE_PATH (which is all the
+# settlepay.uk proxy forwards anyway).
+if config.BASE_PATH:
+    app.add_api_route(u("/healthz"), healthz, methods=["GET"])
 
 
 @app.post("/tick")
