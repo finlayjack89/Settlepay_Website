@@ -110,8 +110,21 @@ the difference between legal and not.
 5. Wire into the reservoir + rank; Cloud Run Job + Scheduler pacing.
 6. Bench/pilot end-to-end on ~50 leads; measure cost/lead vs the envelope; then scale.
 
+## ICP reframe (2026-07-19, operator steer) — LOAD-BEARING
+The ICP is **businesses that bill AWAY from a fixed till** — mobile, remote,
+appointment/job- or invoice-based — for whom an online branded card page + invoicing
+is NEW infrastructure. **NOT** fixed-till retail (shops, salons, barbers, cafes): they
+already take card in person at a counter, so an online page is redundant. Encoded in:
+- the ICP-fit gate (`payment_context`: invoice_remote=fit / fixed_till_retail +
+  online_ecommerce = disqualified) — live-verified: mobile plumber & auctioneer
+  qualify, barber & cafe rejected;
+- discovery targeting (dropped hair&beauty/personal-services SICs; kept trades,
+  clinics, professional/advisory; auctioneers by name).
+So the Places grid targets **invoice/mobile verticals × towns**, and the field-mask
+(business types) skews toward trades/clinics/advisory, not retail.
+
 ## Open decisions / what I need from you
-- **Places API key** (human-provisioned, Places+Geocoding restricted) → Secret Manager.
+- **Places API key** (you're creating it) — Places+Geocoding restricted → Secret Manager.
 - Confirm **grounding price on Vertex** vs AI Studio at bind time (docs show $14/1k Gemini-3
   AI-Studio; one Vertex source said $35 — I'll verify live before enabling).
 - **Town×vertical grid**: which UK towns + which ICP verticals, and the discovery volume

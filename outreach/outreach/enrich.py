@@ -356,31 +356,37 @@ def llm_signal(company_name: str, vertical: Optional[str], town: Optional[str],
 
 
 # The ICP-fit gate schema: one structured call does BOTH the personalisation signal
-# AND the qualify/disqualify decision, from the page text we already scraped.
+# AND the qualify/disqualify decision. payment_context is the load-bearing field —
+# the ICP is businesses that bill AWAY from a fixed till (mobile/remote/invoice), for
+# whom an online branded card page is NEW infra, not a fixed-till shop that already
+# takes card in person.
+_PAYMENT_CONTEXTS = ["invoice_remote", "fixed_till_retail", "online_ecommerce", "mixed", "unclear"]
+# contexts that DISQUALIFY: a shop taking card at a till, or an existing online checkout.
+_DISQUALIFYING_CONTEXTS = {"fixed_till_retail", "online_ecommerce"}
 _FIT_SCHEMA = {
     "type": "object",
     "properties": {
         "icp_fit": {"type": "boolean"},
-        "already_takes_card": {"type": "boolean"},
+        "payment_context": {"type": "string", "enum": _PAYMENT_CONTEXTS},
         "size_band": {"type": "string", "enum": ["micro", "small", "medium", "large"]},
         "signal": {"type": "string"},
         "confidence": {"type": "number"},
     },
-    "required": ["icp_fit", "already_takes_card", "size_band", "signal", "confidence"],
+    "required": ["icp_fit", "payment_context", "size_band", "signal", "confidence"],
 }
 
 
 def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[str],
                    text: str, *, provider=None) -> dict:
     """ICP-fit gate + personalisation signal in ONE structured Gemini call, from
-    scraped page text. Returns {available, icp_fit, already_takes_card, size_band,
+    scraped page text. Returns {available, icp_fit, payment_context, size_band,
     signal, confidence}. `available` is False on no text / no Gemini / any error —
     the caller then falls back to the factual signal and admits the lead flagged
     for human review (fail-open, but the downstream review→approve gate catches it;
     the compliance gates that must fail CLOSED are check_envelope + the firewall).
-    A definite not-fit / already-takes-card verdict discards the lead cheaply,
-    before any drafting spend."""
-    unavailable = {"available": False, "icp_fit": None, "already_takes_card": None,
+    A definite not-fit / fixed-till / already-online verdict discards the lead
+    cheaply, before any drafting spend."""
+    unavailable = {"available": False, "icp_fit": None, "payment_context": None,
                    "size_band": None, "signal": None, "confidence": None}
     if not text:
         return unavailable
@@ -390,26 +396,37 @@ def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[st
         from .llm import get_provider
         provider = get_provider("gemini", model=config.GEMINI_FAST_MODEL)
     prompt = (
-        "You qualify small UK businesses for SettlePay, which builds a branded "
-        "card-payment page on a business's own domain. The IDEAL customer is a "
-        "SMALL business that currently takes CASH, BANK TRANSFER or manual invoices "
-        "and does NOT already have online card checkout — a branded payment page is "
-        "NEW infrastructure for them (barbers, salons, mobile trades, small clinics, "
-        "independent practices, small auctioneers). NOT a fit: firms that already "
-        "take card online, e-commerce sites, and medium/large or enterprise-serving "
-        "firms (investment banks, big consultancies, anything ~50+ staff).\n\n"
+        "You qualify UK businesses for SettlePay, which builds a branded card-payment "
+        "page + invoicing on a business's own domain, with automatic reconciliation. "
+        "The KEY question is WHERE money changes hands.\n"
+        "IDEAL FIT: small businesses that bill AWAY from a fixed counter — mobile, "
+        "remote, appointment- or job-based, or invoice-based — so they take cash, "
+        "bank transfer or manual invoices and an online branded card page is NEW, "
+        "useful infrastructure. Examples: tradespeople (plumbers, electricians, "
+        "builders), auctioneers, clinics and private practices, consultants and "
+        "advisers, mobile services (mobile mechanics, mobile physio, mobile grooming), "
+        "installers, surveyors.\n"
+        "NOT A FIT (disqualify):\n"
+        "- fixed_till_retail: a shop/salon/cafe/barber with a physical premises and a "
+        "till/card machine — they ALREADY take card in person at the counter, so an "
+        "online page is redundant.\n"
+        "- online_ecommerce: already sells/takes card online (checkout, basket, "
+        "Stripe/PayPal/Shopify/WooCommerce).\n"
+        "- medium/large or enterprise-serving firms (banks, big consultancies, ~50+ staff).\n\n"
         f"BUSINESS: {company_name}" + (f" — {vertical}" if vertical else "")
         + (f", {town}" if town else "") + "\n"
         f"WEBSITE TEXT (may be partial):\n{text}\n\n"
         "From the text ONLY decide:\n"
-        "- icp_fit: is this a small business for whom a branded card-payment page is "
-        "plausibly NEW, useful infrastructure?\n"
-        "- already_takes_card: does the site show they ALREADY take card payments "
-        "online (checkout/basket, 'pay by card', Stripe/PayPal/Shopify/WooCommerce)?\n"
-        "- size_band: best estimate (micro/small/medium/large).\n"
+        "- payment_context: invoice_remote (bills away from a till — the ideal) | "
+        "fixed_till_retail (counter shop taking card in person) | online_ecommerce "
+        "(already online) | mixed | unclear.\n"
+        "- icp_fit: true ONLY if this is a small business that bills remotely/by "
+        "invoice, for whom an online branded card page is NEW infrastructure.\n"
+        "- size_band: micro/small/medium/large.\n"
         "- signal: 2-3 factual UK-English sentences — what they do, how customers "
-        "appear to pay/book, and ONE specific hook about taking card via a branded "
-        "page. Say 'not stated' rather than guessing. Under 80 words, no URLs.\n"
+        "appear to pay (invoice, bank transfer, cash, card in person), and ONE hook "
+        "about taking card online via a branded page. Say 'not stated' rather than "
+        "guessing. Under 80 words, no URLs.\n"
         "- confidence: 0-1 in your icp_fit call."
     )
     from .llm import LLMUnavailable
@@ -417,9 +434,10 @@ def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[st
         raw = provider.complete(prompt, purpose="icp_fit", schema=_FIT_SCHEMA).text.strip()
         data = json.loads(raw)
         sig = " ".join(str(data.get("signal") or "").split())[:500] or None
+        ctx = data.get("payment_context")
         return {"available": True,
                 "icp_fit": bool(data.get("icp_fit")),
-                "already_takes_card": bool(data.get("already_takes_card")),
+                "payment_context": ctx if ctx in _PAYMENT_CONTEXTS else "unclear",
                 "size_band": data.get("size_band"),
                 "signal": sig,
                 "confidence": float(data.get("confidence") or 0.0)}
@@ -484,13 +502,14 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
     # (LLM unavailable) admits-if-contactable but flags for human review.
     fit = g.get("fit") or {}
     fit_available = bool(fit.get("available"))
-    disqualified = fit_available and (not fit.get("icp_fit") or fit.get("already_takes_card"))
+    disqualified = fit_available and (
+        not fit.get("icp_fit") or fit.get("payment_context") in _DISQUALIFYING_CONTEXTS)
     acceptable = contactable and not disqualified
     scraped = json.dumps({  # provenance for the dashboard + CSV export
         "source": g["scrape_source"], "emails_found": len(g["candidates"]),
         "candidates": g["candidates"][:8], "verify_result": result, "tier": tier,
         "signal_source": g.get("signal_source", "factual"),
-        "icp_fit": fit.get("icp_fit"), "already_takes_card": fit.get("already_takes_card"),
+        "icp_fit": fit.get("icp_fit"), "payment_context": fit.get("payment_context"),
         "size_band": fit.get("size_band"), "fit_confidence": fit.get("confidence"),
         "fit_source": "llm" if fit_available else "unknown",
     })
@@ -519,7 +538,9 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
             "update outreach.leads set state='discarded', updated_at=now() "
             "where company_number=%s and state in ('discovered','enriched')", (company_number,))
         if disqualified:
-            why = "already takes card online" if fit.get("already_takes_card") else "not ICP fit"
+            ctx = fit.get("payment_context")
+            why = {"fixed_till_retail": "fixed-till retail (takes card in person)",
+                   "online_ecommerce": "already takes card online"}.get(ctx, "not ICP fit")
             reason = f"{why} ({fit.get('size_band')}, conf {fit.get('confidence')})"
         else:
             reason = f"unverifiable contact ({result})"

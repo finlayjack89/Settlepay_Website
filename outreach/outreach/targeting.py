@@ -13,23 +13,25 @@ Auctioneers have no clean dedicated SIC, so they're discovered by company-name m
 from __future__ import annotations
 import re
 
-# vertical -> {sic: label}. Curated ICP: small UK businesses that take card/invoice
-# payments and tend to run their own website.
+# vertical -> {sic: label}. Curated ICP: small UK businesses that bill AWAY from a
+# fixed till — mobile, remote, appointment- or invoice-based — for whom an online
+# branded card page + invoicing is NEW infrastructure. Deliberately EXCLUDES
+# fixed-till retail (shops, salons, barbers, cafes): they already take card in person
+# at a counter, so an online page is redundant (the ICP-fit gate disqualifies them,
+# but we also don't waste discovery/enrich spend finding them).
 ICP: dict[str, dict[str, str]] = {
-    "Professional services": {
-        "69201": "Accountants", "69202": "Bookkeepers", "69109": "Solicitors",
-        "70229": "Consultants", "73110": "Advertising agencies", "71111": "Architects",
-    },
-    "Clinics & health": {
-        "86230": "Dental practices", "75000": "Veterinary",
-        "86900": "Health practitioners", "96040": "Physical well-being",
-    },
-    "Trades & home services": {
+    "Trades & home services": {   # mobile, job-then-invoice — the core ICP
         "43210": "Electricians", "43220": "Plumbing & heating",
         "43390": "Building finishing", "41202": "Domestic builders",
+        "43999": "Specialised construction", "81210": "Cleaning services",
     },
-    "In-person services": {  # salons, barbers, mobile hairdressers
-        "96020": "Hair & beauty", "96090": "Personal services",
+    "Clinics & health": {         # appointment/invoice-based private practices
+        "86230": "Dental practices", "75000": "Veterinary",
+        "86900": "Health practitioners",
+    },
+    "Professional & advisory": {  # invoice-based services
+        "69201": "Accountants", "69202": "Bookkeepers", "69109": "Solicitors",
+        "70229": "Consultants", "71111": "Architects", "71129": "Surveyors / engineering",
     },
 }
 
