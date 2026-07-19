@@ -21,14 +21,11 @@ LOGO_URL = "https://settlepay.uk/email/logo.png"
 
 # Appended to the PLAIN-TEXT part at the send boundary (post-review, so the
 # bare domain here never meets the LLM-copy LINK_RE audit). Mirrors the html.
-TEXT_FOOTER = (
-    "\n\n—\n"
-    "SettlePay is a trading name of Finlay Salisbury.\n"
-    "2b Rodney Street, London N1 9FS\n"
-    "hello@settlepay.uk · settlepay.uk"
-)
+# Contact line only (operator decision): the trading-name/address disclosure
+# lives on the website; the sender's name is already in the sign-off.
+TEXT_FOOTER = "\n\n—\nhello@settlepay.uk · settlepay.uk"
 
-_P = f'style="margin:0 0 16px;font-size:16px;line-height:1.7;color:{BODY};"'
+_P = f'style="margin:0 0 16px;font-size:16px;line-height:1.7;color:{INK};"'
 _P_UNSUB = f'style="margin:0 0 16px;font-size:14px;line-height:1.6;color:{MUTED};"'
 
 
@@ -39,15 +36,13 @@ def _signature_block(lines: list[str]) -> str:
         if line.strip().lower() == "settlepay":
             out.append(f'<p style="margin:0 0 14px;font-size:14px;color:{MUTED};">{esc}</p>')
         elif line.strip().lower().startswith("kind regards"):
-            out.append(f'<p style="margin:0 0 2px;font-size:16px;line-height:1.6;color:{BODY};">{esc}</p>')
+            out.append(f'<p style="margin:0 0 2px;font-size:16px;line-height:1.6;color:{INK};">{esc}</p>')
         else:
             out.append(f'<p style="margin:0;font-size:16px;line-height:1.5;font-weight:600;color:{INK};">{esc}</p>')
     out.append(
         f'<img src="{LOGO_URL}" width="48" height="48" alt="SettlePay" '
         'style="display:block;border:0;width:48px;height:48px;margin:0 0 14px;">'
         f'<p style="margin:0;font-size:13px;line-height:1.6;color:{MUTED};">'
-        "SettlePay is a trading name of Finlay Salisbury.<br>"
-        "2b Rodney Street, London N1 9FS<br>"
         "hello@settlepay.uk &middot; settlepay.uk</p>"
     )
     out.append("</div>")

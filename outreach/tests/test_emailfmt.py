@@ -39,13 +39,13 @@ def test_house_signature_and_footer():
     out = emailfmt.render_html(BODY)
     assert "border-top" in out                       # signature divider
     assert "font-weight:600" in out                  # name in ink
-    assert "trading name of Finlay Salisbury" in out
-    assert "2b Rodney Street" in out
     assert "hello@settlepay.uk" in out
     assert "unsubscribe" in out                      # opt-out stays present
-    # text footer mirrors the html one
-    for line in ("trading name", "2b Rodney Street", "hello@settlepay.uk"):
-        assert line in emailfmt.TEXT_FOOTER
+    # operator decision: no trading-name/address block in the email
+    assert "trading name" not in out and "Rodney Street" not in out
+    # text footer mirrors the html contact line
+    assert "hello@settlepay.uk" in emailfmt.TEXT_FOOTER
+    assert "Rodney Street" not in emailfmt.TEXT_FOOTER
 
 
 def test_send_message_builds_multipart_alternative(monkeypatch):
@@ -74,4 +74,4 @@ def test_send_message_builds_multipart_alternative(monkeypatch):
     # plain text part is intact and carries the mirrored footer
     plain = next(p for p in msg.walk() if p.get_content_type() == "text/plain")
     text = plain.get_payload(decode=True).decode()
-    assert "Kind regards" in text and "2b Rodney Street" in text
+    assert "Kind regards" in text and "hello@settlepay.uk" in text
