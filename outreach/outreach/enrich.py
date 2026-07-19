@@ -355,6 +355,80 @@ def llm_signal(company_name: str, vertical: Optional[str], town: Optional[str],
         return None
 
 
+# The ICP-fit gate schema: one structured call does BOTH the personalisation signal
+# AND the qualify/disqualify decision, from the page text we already scraped.
+_FIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "icp_fit": {"type": "boolean"},
+        "already_takes_card": {"type": "boolean"},
+        "size_band": {"type": "string", "enum": ["micro", "small", "medium", "large"]},
+        "signal": {"type": "string"},
+        "confidence": {"type": "number"},
+    },
+    "required": ["icp_fit", "already_takes_card", "size_band", "signal", "confidence"],
+}
+
+
+def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[str],
+                   text: str, *, provider=None) -> dict:
+    """ICP-fit gate + personalisation signal in ONE structured Gemini call, from
+    scraped page text. Returns {available, icp_fit, already_takes_card, size_band,
+    signal, confidence}. `available` is False on no text / no Gemini / any error —
+    the caller then falls back to the factual signal and admits the lead flagged
+    for human review (fail-open, but the downstream review→approve gate catches it;
+    the compliance gates that must fail CLOSED are check_envelope + the firewall).
+    A definite not-fit / already-takes-card verdict discards the lead cheaply,
+    before any drafting spend."""
+    unavailable = {"available": False, "icp_fit": None, "already_takes_card": None,
+                   "size_band": None, "signal": None, "confidence": None}
+    if not text:
+        return unavailable
+    if provider is None:
+        if not config.GEMINI_PROJECT:
+            return unavailable   # structured fit needs the Gemini/Vertex provider
+        from .llm import get_provider
+        provider = get_provider("gemini", model=config.GEMINI_FAST_MODEL)
+    prompt = (
+        "You qualify small UK businesses for SettlePay, which builds a branded "
+        "card-payment page on a business's own domain. The IDEAL customer is a "
+        "SMALL business that currently takes CASH, BANK TRANSFER or manual invoices "
+        "and does NOT already have online card checkout — a branded payment page is "
+        "NEW infrastructure for them (barbers, salons, mobile trades, small clinics, "
+        "independent practices, small auctioneers). NOT a fit: firms that already "
+        "take card online, e-commerce sites, and medium/large or enterprise-serving "
+        "firms (investment banks, big consultancies, anything ~50+ staff).\n\n"
+        f"BUSINESS: {company_name}" + (f" — {vertical}" if vertical else "")
+        + (f", {town}" if town else "") + "\n"
+        f"WEBSITE TEXT (may be partial):\n{text}\n\n"
+        "From the text ONLY decide:\n"
+        "- icp_fit: is this a small business for whom a branded card-payment page is "
+        "plausibly NEW, useful infrastructure?\n"
+        "- already_takes_card: does the site show they ALREADY take card payments "
+        "online (checkout/basket, 'pay by card', Stripe/PayPal/Shopify/WooCommerce)?\n"
+        "- size_band: best estimate (micro/small/medium/large).\n"
+        "- signal: 2-3 factual UK-English sentences — what they do, how customers "
+        "appear to pay/book, and ONE specific hook about taking card via a branded "
+        "page. Say 'not stated' rather than guessing. Under 80 words, no URLs.\n"
+        "- confidence: 0-1 in your icp_fit call."
+    )
+    from .llm import LLMUnavailable
+    try:
+        raw = provider.complete(prompt, purpose="icp_fit", schema=_FIT_SCHEMA).text.strip()
+        data = json.loads(raw)
+        sig = " ".join(str(data.get("signal") or "").split())[:500] or None
+        return {"available": True,
+                "icp_fit": bool(data.get("icp_fit")),
+                "already_takes_card": bool(data.get("already_takes_card")),
+                "size_band": data.get("size_band"),
+                "signal": sig,
+                "confidence": float(data.get("confidence") or 0.0)}
+    except (LLMUnavailable, ValueError, KeyError, TypeError):
+        return unavailable
+    except Exception:
+        return unavailable
+
+
 def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
             verifier=None, guess_generics: bool = True) -> dict:
     """The SLOW, networked half of enrichment (guess/scrape + verify), with NO
@@ -404,11 +478,21 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
     the connection for milliseconds, never across network I/O."""
     email, verified, result = g["email"], g["verified"], g["result"]
     tier = contact_tier(result) if email else None   # 'verified' | 'risky' | None
-    acceptable = tier is not None
-    scraped = json.dumps({  # provenance for the dashboard
+    contactable = tier is not None
+    # ICP-fit gate: a DEFINITE negative verdict (not fit, or already takes card
+    # online) disqualifies the lead here — before any drafting spend. Fit unknown
+    # (LLM unavailable) admits-if-contactable but flags for human review.
+    fit = g.get("fit") or {}
+    fit_available = bool(fit.get("available"))
+    disqualified = fit_available and (not fit.get("icp_fit") or fit.get("already_takes_card"))
+    acceptable = contactable and not disqualified
+    scraped = json.dumps({  # provenance for the dashboard + CSV export
         "source": g["scrape_source"], "emails_found": len(g["candidates"]),
         "candidates": g["candidates"][:8], "verify_result": result, "tier": tier,
         "signal_source": g.get("signal_source", "factual"),
+        "icp_fit": fit.get("icp_fit"), "already_takes_card": fit.get("already_takes_card"),
+        "size_band": fit.get("size_band"), "fit_confidence": fit.get("confidence"),
+        "fit_source": "llm" if fit_available else "unknown",
     })
     cur.execute(
         "insert into outreach.enrichment "
@@ -434,11 +518,16 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
         cur.execute(
             "update outreach.leads set state='discarded', updated_at=now() "
             "where company_number=%s and state in ('discovered','enriched')", (company_number,))
+        if disqualified:
+            why = "already takes card online" if fit.get("already_takes_card") else "not ICP fit"
+            reason = f"{why} ({fit.get('size_band')}, conf {fit.get('confidence')})"
+        else:
+            reason = f"unverifiable contact ({result})"
         audit.record(company_number, "discarded", source="enrich",
-                     lawful_basis=audit.LEGITIMATE_INTERESTS,
-                     reason=f"unverifiable contact ({result})", cur=cur)
+                     lawful_basis=audit.LEGITIMATE_INTERESTS, reason=reason, cur=cur)
     return {"company_number": company_number, "email": email, "verified": verified,
-            "result": result, "tier": tier}
+            "result": result, "tier": tier, "icp_fit": fit.get("icp_fit"),
+            "disqualified": disqualified}
 
 
 def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
@@ -510,10 +599,14 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
             signal = name + (f" — {vertical}" if hint else "") + (f" in {town}" if town else "")
             g = _gather(website, http_client=http)
             g["signal_source"] = "factual"
-            if website:  # richer LLM signal when the api brain is available
-                s = llm_signal(name, hint, town, page_text(website, client=http))
-                if s:
-                    signal, g["signal_source"] = s, "llm"
+            g["fit"] = None   # unknown → admitted flagged for review (fail-open)
+            if website:  # structured ICP-fit gate + signal in one Gemini call
+                fit = signal_and_fit(name, hint, town, page_text(website, client=http))
+                g["fit"] = fit
+                if fit["available"]:
+                    g["signal_source"] = "llm"
+                    if fit["signal"]:
+                        signal = fit["signal"]
             gathered.append((cn, website, signal, g))
     finally:
         http.close()
