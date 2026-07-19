@@ -24,7 +24,7 @@ from __future__ import annotations
 from . import config, db, firewall
 from . import draft as draft_mod
 from . import enrich as enrich_mod
-from . import find_leads, followup, graduation, inbound, monitor, report, spend
+from . import find_leads, followup, graduation, inbound, monitor, report, spend, stats
 from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
 
@@ -115,14 +115,30 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
             summary["halted"] = "kill switch tripped by monitor"
             return summary
 
+    # Demand-pull reservoir: discover/enrich run only to refill the ready pool
+    # toward READY_POOL_TARGET, then idle (£0) when it's full — this is what
+    # amortises the expensive stages. Deficit is computed once per tick.
+    pool = stats.reservoir_status(cur, config.READY_POOL_TARGET) if cur is not None else None
+
     if want("discover"):
-        do("discover", lambda: find_leads.run(
-            target=config.DISCOVER_PER_TICK,
-            sic_codes=config.TARGET_SIC_CODES or None))
+        if pool and pool["deficit"] <= 0:
+            summary["steps"]["discover"] = {"skipped": "reservoir full", **pool}
+        else:
+            # only fetch raw leads if the discovered backlog can't cover the deficit
+            need = min(config.DISCOVER_PER_TICK,
+                       max(0, pool["deficit"] - pool["backlog"])) if pool else config.DISCOVER_PER_TICK
+            if need <= 0:
+                summary["steps"]["discover"] = {"skipped": "backlog covers deficit", **(pool or {})}
+            else:
+                do("discover", lambda: find_leads.run(
+                    target=need, sic_codes=config.TARGET_SIC_CODES or None))
 
     if want("enrich"):  # MillionVerifier + Firecrawl are paid
-        do("enrich", lambda: enrich_mod.discover_and_run(
-            limit=config.ENRICH_PER_TICK, cur=cur), paid=True)
+        if pool and pool["deficit"] <= 0:
+            summary["steps"]["enrich"] = {"skipped": "reservoir full", **pool}
+        else:
+            limit = min(config.ENRICH_PER_TICK, pool["deficit"]) if pool else config.ENRICH_PER_TICK
+            do("enrich", lambda: enrich_mod.discover_and_run(limit=limit, cur=cur), paid=True)
 
     if want("draft"):
         do("draft", lambda: draft_mod.run(cur=cur, limit=config.DRAFT_PER_TICK),

@@ -70,6 +70,11 @@ GEMINI_FAST_MODEL = os.environ.get("GEMINI_FAST_MODEL", "gemini-3.1-flash-lite")
 # Master gate for the FULL-CHAIN tick (discover -> enrich -> draft). Off by default:
 # a bare tick stays the safe classify+send only. Turn on for headless operation.
 PIPELINE_AUTONOMOUS = _bool("PIPELINE_AUTONOMOUS", False)
+# Reservoir / amortisation: keep this many enriched-and-fit leads ready to draft.
+# discover/enrich are demand-pulled — they run ONLY to refill toward this target,
+# then idle (£0) when the pool is full, so the expensive stages amortise. The
+# PER_TICK values are the per-tick rate caps applied on top of the deficit.
+READY_POOL_TARGET = _int("READY_POOL_TARGET", 150)
 DISCOVER_PER_TICK = _int("DISCOVER_PER_TICK", 10)
 ENRICH_PER_TICK = _int("ENRICH_PER_TICK", 10)
 DRAFT_PER_TICK = _int("DRAFT_PER_TICK", 10)

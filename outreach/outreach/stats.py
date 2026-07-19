@@ -23,6 +23,17 @@ def _scalar(cur, q, params=()):
     return (row[0] if row and row[0] is not None else 0)
 
 
+def reservoir_status(cur, target: int) -> dict:
+    """The demand-pull reservoir: `ready` = enriched-and-fit leads awaiting a draft;
+    `backlog` = corporate leads discovered but not yet enriched. `deficit` drives how
+    much discover/enrich run this tick (0 => pool full => the expensive stages idle)."""
+    ready = _scalar(cur, "select count(*) from outreach.leads where state='enriched'")
+    backlog = _scalar(
+        cur, "select count(*) from outreach.leads where subscriber_class='corporate' and state='discovered'")
+    deficit = max(0, target - ready)
+    return {"ready": ready, "backlog": backlog, "target": target, "deficit": deficit}
+
+
 def overview(cur) -> dict:
     """The headline funnel: discovery -> compliance -> enrichment -> drafting -> send."""
     d: dict = {}
