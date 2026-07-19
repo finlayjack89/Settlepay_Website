@@ -101,9 +101,11 @@ case "$cmd" in
     url="$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" --format 'value(status.url)')"
     cat <<JSON
 
-Add this to the "rewrites" array in the repo-root vercel.json (order before /p/:slug):
+Add this to the "rewrites" array in the repo-root vercel.json (order before /p/:slug).
+All three rules are needed: :path* does NOT match the bare trailing-slash form.
 
     { "source": "$BASE_PATH/:path*", "destination": "$url$BASE_PATH/:path*" },
+    { "source": "$BASE_PATH/", "destination": "$url$BASE_PATH/" },
     { "source": "$BASE_PATH", "destination": "$url$BASE_PATH/" }
 
 Then commit + let Vercel deploy: the console appears at https://settlepay.uk$BASE_PATH/
