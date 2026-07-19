@@ -13,8 +13,8 @@ import sys
 
 from . import run as run_mod
 
-STAGES = ["all", "inbound", "classify", "monitor", "discover", "enrich", "draft",
-          "followup", "auto_approve", "send", "digest"]
+STAGES = ["all", "inbound", "classify", "monitor", "discover_places", "crossref",
+          "discover", "enrich", "draft", "followup", "auto_approve", "send", "digest"]
 
 
 def main(argv=None):

@@ -11,9 +11,9 @@ mode='live' but nothing leaves an inbox unless a human has set G_SEND.
 """
 from __future__ import annotations
 
-from . import config, dns_auth, draft, firewall, followup, graduation, inbound
+from . import config, crossref, dns_auth, draft, firewall, followup, graduation, inbound
 from . import enrich as enrich_mod
-from . import find_leads, report
+from . import find_leads, places, report
 from . import run as run_mod
 from . import send as send_mod
 from .jobs import Param, task
@@ -34,6 +34,22 @@ def tick(ctx, dry_run=True):
       params=(Param("target", "How many", kind="int", default=10),))
 def discover(ctx, target=10):
     return find_leads.run(target=target, sic_codes=config.TARGET_SIC_CODES or None)
+
+
+@task("discover_places", "Discover (Places, local)",
+      "Google Places sweep of the town×vertical grid into leads (paid: GCP credit). "
+      "Paged by a cursor so each run advances the grid.",
+      params=(Param("count", "How many queries", kind="int", default=16),))
+def discover_places(ctx, count=16):
+    return places.discover_grid(count=count)
+
+
+@task("crossref", "Cross-reference (PECR gate)",
+      "Match Places leads to Companies House; only confident active-corporate matches "
+      "become sendable, the rest are kept research-only.",
+      params=(Param("limit", "How many", kind="int", default=50),))
+def crossref_task(ctx, limit=50):
+    return crossref.run(limit=limit)
 
 
 @task("classify", "Classify (PECR firewall)",

@@ -134,3 +134,36 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
     finally:
         if own and conn is not None:
             conn.close()
+
+
+def discover_grid(*, count: int = 10, cur=None) -> dict:
+    """Run the next `count` queries from the town×vertical grid, paged by a cursor in
+    ops_flags — so successive runs sweep the grid rather than re-hitting the same
+    queries. The pacing lever for the Places credit spend."""
+    from . import monitor, targeting
+    grid = targeting.places_queries()
+    if not grid:
+        return {"inserted": 0, "note": "empty grid"}
+    own = cur is None
+    conn = None
+    if own:
+        conn = db.connect(); cur = conn.cursor()
+    try:
+        start = int(monitor.get_flag("places_grid_cursor", cur=cur) or 0) % len(grid)
+        n = min(count, len(grid))
+        batch = [grid[(start + i) % len(grid)] for i in range(n)]
+        res = discover_to_leads(batch, cur=cur)
+        new_cursor = (start + n) % len(grid)
+        monitor.set_flag("places_grid_cursor", str(new_cursor),
+                         reason="places discovery paging", cur=cur)
+        res.update({"queries_run": n, "grid_cursor": new_cursor, "grid_size": len(grid)})
+        if own:
+            conn.commit()
+        return res
+    except Exception:
+        if own and conn is not None:
+            conn.rollback()
+        raise
+    finally:
+        if own and conn is not None:
+            conn.close()

@@ -46,6 +46,29 @@ SIC_LABELS.setdefault("68310", "Estate agents")
 # the default SIC sweep for discovery (the ICP verticals)
 TARGET_SICS: list[str] = list({sic for v in ICP.values() for sic in v})
 
+# --- Google Places local discovery grid (town × invoice/mobile vertical) ---
+# Deliberately invoice/mobile ICP verticals (no fixed-till retail). Each query is one
+# Places call (≤20 businesses). Expand PLACES_TOWNS to widen coverage / spend more credit.
+PLACES_VERTICAL_QUERIES: list[str] = [
+    "emergency electrician in {town}", "plumber and heating engineer in {town}",
+    "builder in {town}", "roofer in {town}", "joiner or carpenter in {town}",
+    "private physiotherapy clinic in {town}", "private dental practice in {town}",
+    "veterinary practice in {town}", "chiropractor or osteopath in {town}",
+    "chartered surveyor in {town}", "accountant in {town}", "bookkeeper in {town}",
+    "architect in {town}", "auctioneer near {town}", "mobile mechanic in {town}",
+    "commercial cleaning company in {town}",
+]
+PLACES_TOWNS: list[str] = [
+    "Harrogate", "York", "Leeds", "Otley", "Ilkley", "Skipton", "Wetherby", "Ripon",
+    "Wakefield", "Bradford", "Halifax", "Huddersfield", "Selby", "Knaresborough",
+    "Pontefract", "Castleford", "Keighley", "Northallerton", "Thirsk", "Boroughbridge",
+]
+
+
+def places_queries() -> list[str]:
+    """The full town × vertical discovery grid (stable order → a cursor can page it)."""
+    return [tpl.format(town=t) for t in PLACES_TOWNS for tpl in PLACES_VERTICAL_QUERIES]
+
 # names that signal a non-trading shell / SPV / holding entity — skip pre-spend
 EXCLUDE_NAME_RE = re.compile(
     r"\b(PROPERT(Y|IES)|HOLDING(S)?|INVESTMENT(S)?|SPV|NOMINEE(S)?|VENTURES?|"

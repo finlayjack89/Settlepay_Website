@@ -24,13 +24,15 @@ from __future__ import annotations
 from . import config, db, firewall
 from . import draft as draft_mod
 from . import enrich as enrich_mod
-from . import find_leads, followup, graduation, inbound, monitor, report, spend, stats
+from . import crossref, find_leads, followup, graduation, inbound, monitor, places
+from . import report, spend, stats
 from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
 
-FULL_CHAIN = ("inbound", "classify", "monitor", "discover", "enrich", "draft",
-              "followup", "auto_approve", "send", "digest")
-AUTONOMOUS_STAGES = ("discover", "enrich", "draft", "followup", "auto_approve")
+FULL_CHAIN = ("inbound", "classify", "monitor", "discover_places", "crossref",
+              "discover", "enrich", "draft", "followup", "auto_approve", "send", "digest")
+AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich", "draft",
+                     "followup", "auto_approve")
 
 
 def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
@@ -119,6 +121,16 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
     # toward READY_POOL_TARGET, then idle (£0) when it's full — this is what
     # amortises the expensive stages. Deficit is computed once per tick.
     pool = stats.reservoir_status(cur, config.READY_POOL_TARGET) if cur is not None else None
+
+    if want("discover_places"):  # Google Places (GCP credit) — reservoir-gated
+        if pool and pool["deficit"] <= 0:
+            summary["steps"]["discover_places"] = {"skipped": "reservoir full", **pool}
+        else:
+            do("discover_places",
+               lambda: places.discover_grid(count=config.PLACES_PER_TICK, cur=cur), paid=True)
+
+    if want("crossref"):  # PECR gate for Places leads — classify corporate vs research-only
+        do("crossref", lambda: crossref.run(limit=config.CROSSREF_PER_TICK, cur=cur))
 
     if want("discover"):
         if pool and pool["deficit"] <= 0:

@@ -78,6 +78,8 @@ PIPELINE_AUTONOMOUS = _bool("PIPELINE_AUTONOMOUS", False)
 # PER_TICK values are the per-tick rate caps applied on top of the deficit.
 READY_POOL_TARGET = _int("READY_POOL_TARGET", 150)
 DISCOVER_PER_TICK = _int("DISCOVER_PER_TICK", 10)
+PLACES_PER_TICK = _int("PLACES_PER_TICK", 16)      # Places grid queries per tick (credit)
+CROSSREF_PER_TICK = _int("CROSSREF_PER_TICK", 50)  # Places leads classified per tick
 ENRICH_PER_TICK = _int("ENRICH_PER_TICK", 10)
 DRAFT_PER_TICK = _int("DRAFT_PER_TICK", 10)
 FOLLOWUP_PER_TICK = _int("FOLLOWUP_PER_TICK", 10)

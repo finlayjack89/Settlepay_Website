@@ -610,13 +610,16 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
     gathered: list[tuple] = []
     try:
-        for cn, name, town, sic in leads:
+        for cn, name, town, sic, known_website in leads:
             vertical = stats.sic_label(sic)  # e.g. "Accountants", "Estate agents"
             hint = vertical if vertical and vertical != "Unknown" else None
-            try:
-                website = resolver.resolve(company_name=name, address=town or "", hint=hint)
-            except Exception:
-                website = None
+            if known_website:   # Places already gave us the site — don't pay to re-resolve
+                website = known_website
+            else:
+                try:
+                    website = resolver.resolve(company_name=name, address=town or "", hint=hint)
+                except Exception:
+                    website = None
             signal = name + (f" — {vertical}" if hint else "") + (f" in {town}" if town else "")
             g = _gather(website, http_client=http)
             g["signal_source"] = "factual"
@@ -647,7 +650,8 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
 
 
 _BACKLOG_SQL = (
-    "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1] "
+    "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1], "
+    "       l.registered_address->>'website' "
     "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
     "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
     "order by l.company_name limit %s")
