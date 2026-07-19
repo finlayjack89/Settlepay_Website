@@ -55,6 +55,7 @@ def _gmail_send(sender: str, to_email: str, subject: str, body: str) -> str:
 
     try:
         html = emailfmt.render_html(body)
+        body = body + emailfmt.TEXT_FOOTER   # text part mirrors the html footer
     except Exception:
         html = None   # formatting must never block a send — plain text suffices
     try:
