@@ -40,9 +40,9 @@ SECRETS=(DATABASE_URL COMPANIES_HOUSE_API_KEY MILLIONVERIFIER_API_KEY
 # Non-secret runtime config. Deliberately conservative: autonomy off, inbound
 # inline, dry-run posture. Flip via `gcloud run services update --update-env-vars`.
 ENV_VARS="BASE_PATH=$BASE_PATH,DB_SCHEMA=outreach,ENQUIRY_SOURCE_TABLE=leads"
-# LLM_PROVIDER stays 'api' (Anthropic) until the drafting bench promotes Gemini;
-# GEMINI_PROJECT is wired now so the Vertex provider is available for signal/ICP.
-ENV_VARS+=",LLM_PROVIDER=api,WEBSITE_RESOLVER=firecrawl,INBOUND_SOURCE=inline"
+# Gemini promoted after the drafting bench (gemini-3-flash-preview won 4-2 + 3x cheaper).
+# Draws the GCP credit; signal/ICP use gemini-3.1-flash-lite, drafting gemini-3-flash-preview.
+ENV_VARS+=",LLM_PROVIDER=gemini,WEBSITE_RESOLVER=firecrawl,INBOUND_SOURCE=inline"
 ENV_VARS+=",GEMINI_PROJECT=$PROJECT,PIPELINE_AUTONOMOUS=0"
 ENV_VARS+=",GMAIL_SENDER=${GMAIL_SENDER:-finlay@settlepaygroup.uk}"
 

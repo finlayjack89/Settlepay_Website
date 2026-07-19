@@ -24,11 +24,11 @@ from outreach.llm import get_provider
 HERE = Path(__file__).resolve().parent
 FIXTURE = HERE / "fixtures" / "draft_leads.json"
 
-# (label, provider-name, model) — the incumbent first.
+# (label, provider-name, model) — baseline first; the pairwise is baseline vs each.
+# Both generators are Gemini so the Claude judge is fully decorrelated (no same-family bias).
 CANDIDATES = [
-    ("sonnet-4-6", "api", "claude-sonnet-4-6"),
-    ("gemini-flash", "gemini", "gemini-3-flash-preview"),
-    ("gemini-flash-lite", "gemini", "gemini-3.1-flash-lite"),
+    ("gemini-3-flash", "gemini", "gemini-3-flash-preview"),
+    ("gemini-3.5-flash", "gemini", "gemini-3.5-flash"),
 ]
 JUDGE_MODEL = "claude-haiku-4-5"
 
@@ -46,7 +46,8 @@ def _judge(judge, brief, a, b) -> str:
         "accurate (never claims they take cash if unknown); states payments are handled "
         "by FCA-regulated partners; has a single reply-based call to action, an "
         "unsubscribe line, and a clean sign-off; and reads as calm and credible, not "
-        "salesy.\n\n"
+        "salesy; and is SHORT and to the point — a busy owner reads it in seconds "
+        "(well under 110 words). Do NOT reward extra length or detail; brevity is better.\n\n"
         f"BUSINESS BRIEF:\n{brief}\n\n=== EMAIL A ===\n{a}\n\n=== EMAIL B ===\n{b}\n\n"
         "Reply with exactly one character: A or B.")
     out = judge.complete(prompt, purpose="bench_judge").text.strip().upper()

@@ -11,21 +11,23 @@
 | Pipeline role | Class | Bound model | Config | Why |
 |---|---|---|---|---|
 | Enrichment signal + ICP-fit gate | fast extraction | `gemini-3.1-flash-lite` | thinking_budget=0, JSON schema | highest volume, mechanical, cheapest; billed to GCP credit |
-| Draft / follow-up | workhorse generation | selectable via LLM_PROVIDER (`gemini`→`gemini-3-flash-preview` / `api`→`claude-sonnet-4-6`) | thinking_budget=0 | see bench below — user's call pending |
-| Draft — incumbent champion | workhorse | `claude-sonnet-4-6` | max_tokens=1024 | default until the drafting model is decided |
+| Draft / follow-up | workhorse generation | **`gemini-3-flash-preview`** (LLM_PROVIDER=gemini) | thinking_budget=0 | won the Gemini bench 4–2 AND 3× cheaper than 3.5-flash; on the credit |
+| Draft — fallback | workhorse | `claude-sonnet-4-6` (LLM_PROVIDER=api) | max_tokens=1024 | one env var away if ever needed |
 
 ### Drafting bench (2026-07-19, 6 frozen ICP leads, judge=claude-haiku-4-5, bench/draft_bench.py)
-| Model | Envelope-clean (first pass) | Avg words (target <110) | Blind pairwise vs sonnet |
+Round 1 — Gemini vs the Claude incumbent (judge not told the word limit → length bias):
+sonnet won the blind judge 6–0 over gemini-3-flash but overshot the 125-word cap 5/6;
+gemini-3-flash was most compliant (4/6). Confounded (same-family judge), so inconclusive
+on prose.
+Round 2 — **user's call: the two Gemini flash models head-to-head**, judge now told to
+reward brevity (both generators Gemini → judge fully decorrelated):
+| Model | $/1M (in/out) | Envelope-clean (1st pass) | Blind pairwise |
 |---|---|---|---|
-| claude-sonnet-4-6 | 1/6 | 129.2 | — |
-| gemini-3-flash-preview | **4/6** | **120.2** | 0–6 (judge preferred sonnet) |
-| gemini-3.1-flash-lite | 2/6 | 126.5 | 3–3 |
-Read: all three produce compliant, on-brand drafts. Gemini-flash follows the hard
-brevity/compliance constraints BEST; sonnet overshoots the 125-word cap 5/6 times
-(recovered in prod by draft_one's retry). The judge preferred sonnet's prose, but
-that signal is confounded (same Claude family as the judge; n=6; the judge wasn't
-told the <110-word rule so it may reward length). Cost: Gemini ~10× cheaper + on the
-GCP credit. Decision surfaced to the user; sonnet stays one env var away (LLM_PROVIDER=api).
+| **`gemini-3-flash-preview`** | 0.50/3.00 | 2/6 | **won 4–2** |
+| `gemini-3.5-flash` | 1.50/9.00 | 1/6 | lost 2–4 |
+**Decision: `gemini-3-flash-preview` for drafting** — it won the head-to-head AND is
+3× cheaper. Both overshoot the word cap on first pass (~2/6 clean); draft_one's retry
+recovers it. LLM_PROVIDER=gemini promoted 2026-07-19.
 | Reply classification | — | none (deterministic regex) | — | works, free |
 
 ## Provider details
