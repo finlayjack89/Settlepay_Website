@@ -44,7 +44,13 @@ ENV_VARS="BASE_PATH=$BASE_PATH,DB_SCHEMA=outreach,ENQUIRY_SOURCE_TABLE=leads"
 # Gemini promoted after the drafting bench (gemini-3-flash-preview won 4-2 + 3x cheaper).
 # Draws the GCP credit; signal/ICP use gemini-3.1-flash-lite, drafting gemini-3-flash-preview.
 ENV_VARS+=",LLM_PROVIDER=gemini,WEBSITE_RESOLVER=firecrawl,INBOUND_SOURCE=inline"
-ENV_VARS+=",GEMINI_PROJECT=$PROJECT,PIPELINE_AUTONOMOUS=0"
+# `deploy` uses --set-env-vars, which REPLACES the whole env block — so every var the
+# running service relies on must be re-stated here or it is silently dropped. Autonomy
+# and pacing are therefore env-overridable (conservative defaults preserved): export
+# PIPELINE_AUTONOMOUS=1 PLACES_PER_TICK=4 CREDIT_START_DATE=... alongside a deploy to
+# keep a live autonomous service autonomous.
+ENV_VARS+=",GEMINI_PROJECT=$PROJECT,PIPELINE_AUTONOMOUS=${PIPELINE_AUTONOMOUS:-0}"
+ENV_VARS+=",PLACES_PER_TICK=${PLACES_PER_TICK:-16}"
 ENV_VARS+=",CREDIT_START_DATE=${CREDIT_START_DATE:-}"   # YYYY-MM-DD → 90-day credit countdown
 ENV_VARS+=",GMAIL_SENDER=${GMAIL_SENDER:-finlay@settlepaygroup.uk}"
 
