@@ -17,7 +17,7 @@ import datetime
 
 from . import audit, config, db, draft, sequence
 from .firewall import check_suppression
-from .llm import get_provider
+from .llm import draft_provider
 
 
 def working_days_between(a, b) -> int:
@@ -125,10 +125,9 @@ def followup_one(company_number: str, company_name: str, signal: str, parent_dra
 
 def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     if provider is None:
-        # api when configured (real unattended drafts); otherwise the safe
+        # gemini/api when configured (real unattended drafts); otherwise the safe
         # provisional fallback so a bare run never fabricates a real-looking email.
-        provider = (get_provider("api") if config.LLM_PROVIDER == "api"
-                    else get_provider("inline", responder=provisional_followup_responder))
+        provider = draft_provider(responder=provisional_followup_responder)
     own = cur is None
     conn = None
     if own:

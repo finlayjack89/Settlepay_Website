@@ -178,3 +178,15 @@ def get_provider(name: Optional[str] = None, **kwargs) -> LLMProvider:
     if name == "gemini":
         return GeminiProvider(**kwargs)
     raise ValueError(f"unknown LLM provider: {name!r}")
+
+
+def draft_provider(**inline_kwargs) -> LLMProvider:
+    """The provider for DRAFTING / FOLLOW-UP, per config.LLM_PROVIDER. gemini uses
+    the workhorse GEMINI_MODEL (not the fast signal model); api uses Anthropic;
+    anything else is the inline provisional fallback. One place, so both stages and
+    the bench agree on how the provider is chosen."""
+    if config.LLM_PROVIDER == "gemini":
+        return get_provider("gemini", model=config.GEMINI_MODEL)
+    if config.LLM_PROVIDER == "api":
+        return get_provider("api")
+    return get_provider("inline", **inline_kwargs)

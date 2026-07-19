@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 from . import audit, config, db
-from .llm import LLMUnavailable, get_provider
+from .llm import LLMUnavailable, draft_provider
 
 PLAYBOOK_PATH = config.PROJECT_ROOT / "prompts" / "draft_email.md"
 MAX_WORDS = 125
@@ -148,8 +148,7 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     if provider is None:
         # api when configured (real unattended drafts); otherwise the safe
         # provisional fallback so a bare run never fabricates a real-looking email.
-        provider = (get_provider("api") if config.LLM_PROVIDER == "api"
-                    else get_provider("inline", responder=provisional_responder))
+        provider = draft_provider(responder=provisional_responder)
     own = cur is None
     conn = None
     if own:
