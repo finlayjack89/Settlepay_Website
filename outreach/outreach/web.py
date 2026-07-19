@@ -131,6 +131,7 @@ NAV_GROUPS = [
         ("/outreach", "Outreach", "megaphone"),
         ("/outreach/queue", "Approval queue", "clipboard"),
         ("/outreach/leads", "Leads", "users"),
+        ("/intelligence", "Intelligence", "chart"),
     ]),
     ("Operate", [
         ("/tasks", "Launch", "play"),
@@ -143,6 +144,7 @@ ICONS = {
     "grid": "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
     "inbox": "M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z",
     "calendar": "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5",
+    "chart": "M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z",
     "megaphone": "M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535",
     "clipboard": "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z",
     "users": "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
@@ -783,6 +785,51 @@ def leads(state: str = "", vertical: str = ""):
 def _short(url: str) -> str:
     import re as _re
     return _re.sub(r"^https?://(www\.)?", "", url or "").rstrip("/")[:38]
+
+
+@router.get("/intelligence", response_class=HTMLResponse)
+def intelligence():
+    with db.cursor(commit=False) as cur:
+        credit = stats.credit_status(cur)
+        segments = stats.places_segments(cur)
+
+    # credit burn-down panel
+    days = f'{credit["days_left"]} days left' if credit["days_left"] is not None else "set CREDIT_START_DATE for countdown"
+    pct = min(100.0, credit["pct"])
+    credit_html = f"""<div class="panel">
+<div class="row" style="justify-content:space-between;align-items:baseline">
+  <h3 style="margin:0">GCP credit</h3><span class="muted">{html.escape(days)}</span></div>
+<div style="height:10px;background:var(--line,#e2e8f0);border-radius:6px;overflow:hidden;margin:.6rem 0">
+  <div style="height:100%;width:{pct:.1f}%;background:#3B82F6"></div></div>
+<div class="row" style="justify-content:space-between">
+  <span>£{credit['spent']:.2f} used <span class="muted">({credit['pct']}%)</span></span>
+  <span class="muted">£{credit['remaining']:.2f} of £{credit['budget']:.2f} left</span></div>
+</div>"""
+
+    # sole-trader intelligence: vertical × class density (corporate = sendable, else salvage)
+    by_v: dict[str, dict[str, int]] = {}
+    for vertical, cls, n in segments:
+        by_v.setdefault(vertical, {})[cls] = n
+    trs = ""
+    for v in sorted(by_v, key=lambda k: -sum(by_v[k].values())):
+        d = by_v[v]
+        corp = d.get("corporate", 0)
+        research = d.get("individual", 0) + d.get("unknown", 0) + d.get("unclassified", 0)
+        tot = corp + research
+        rate = f"{100*corp/tot:.0f}%" if tot else "—"
+        trs += (f'<tr><td><b>{html.escape(v)}</b></td>'
+                f'<td class="num"><span class="badge b-success">{corp}</span></td>'
+                f'<td class="num"><span class="muted">{research}</span></td>'
+                f'<td class="num">{rate}</td><td class="num">{tot}</td></tr>')
+    if not trs:
+        trs = '<tr><td colspan=5 class="empty">No Places leads yet — run the discover_places task.</td></tr>'
+    seg_html = f"""<div class="panel"><h3 style="margin:0 0 .3rem">Local market — Places segments</h3>
+<p class="muted" style="margin:0 0 1rem;font-size:.82rem">Corporate = cold-emailable; research-only = sole traders / unmatched, kept for market intelligence, a re-incorporation watch, and paid-ad / postal personas (never cold-emailed).</p>
+<table><tr><th>Vertical</th><th class="num">Corporate</th><th class="num">Research-only</th><th class="num">Corp %</th><th class="num">Total</th></tr>
+{trs}</table></div>"""
+
+    return _shell("/intelligence", "Intelligence",
+                  "GCP credit burn-down + local-market segments", credit_html + seg_html)
 
 
 @router.get("/outreach/lead/{company_number}", response_class=HTMLResponse)

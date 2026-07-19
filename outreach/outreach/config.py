@@ -98,6 +98,10 @@ def _float(name: str, default: float) -> float:
 
 
 MONTHLY_SPEND_CAP_GBP = _float("MONTHLY_SPEND_CAP_GBP", 50.0)
+# GCP free-trial credit (separate from the cash cap): $300 over 90 days. Tracked in GBP
+# (spend is recorded in GBP). CREDIT_START_DATE (YYYY-MM-DD) drives the 90-day burn-down.
+CREDIT_BUDGET_GBP = _float("CREDIT_BUDGET_GBP", 237.0)   # ≈ $300 at USD_TO_GBP
+CREDIT_START_DATE = os.environ.get("CREDIT_START_DATE", "")   # e.g. 2026-07-19
 # token -> GBP conversion for the spend ledger (claude-sonnet-4-6 list prices; override on model change)
 ANTHROPIC_INPUT_USD_PER_MTOK = _float("ANTHROPIC_INPUT_USD_PER_MTOK", 3.0)
 ANTHROPIC_OUTPUT_USD_PER_MTOK = _float("ANTHROPIC_OUTPUT_USD_PER_MTOK", 15.0)

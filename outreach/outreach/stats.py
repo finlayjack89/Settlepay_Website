@@ -23,6 +23,31 @@ def _scalar(cur, q, params=()):
     return (row[0] if row and row[0] is not None else 0)
 
 
+def credit_status(cur) -> dict:
+    """GCP-credit burn-down vs the $300/90-day budget (separate from the cash cap)."""
+    from . import config, spend
+    spent = spend.credit_spent_gbp(cur)
+    budget = config.CREDIT_BUDGET_GBP
+    out = {"spent": round(spent, 2), "budget": round(budget, 2),
+           "remaining": round(max(0.0, budget - spent), 2),
+           "pct": round(100 * spent / budget, 1) if budget else 0.0, "days_left": None}
+    if config.CREDIT_START_DATE:
+        cur.execute("select 90 - (current_date - %s::date)", (config.CREDIT_START_DATE,))
+        out["days_left"] = max(0, cur.fetchone()[0])
+    return out
+
+
+def places_segments(cur) -> list[tuple]:
+    """Places reservoir grouped by vertical × subscriber class — the sole-trader
+    intelligence view (corporate = sendable, individual/unknown = research-only salvage)."""
+    cur.execute(
+        "select coalesce(registered_address->>'primary_type','(unknown)') vertical, "
+        "coalesce(subscriber_class::text,'unclassified') cls, count(*) n "
+        "from outreach.leads where source='places' "
+        "group by 1,2 order by vertical, cls")
+    return cur.fetchall()
+
+
 def reservoir_status(cur, target: int) -> dict:
     """The demand-pull reservoir: `ready` = enriched-and-fit leads awaiting a draft;
     `backlog` = corporate leads discovered but not yet enriched. `deficit` drives how

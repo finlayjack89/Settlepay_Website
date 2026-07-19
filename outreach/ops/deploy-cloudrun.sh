@@ -45,6 +45,7 @@ ENV_VARS="BASE_PATH=$BASE_PATH,DB_SCHEMA=outreach,ENQUIRY_SOURCE_TABLE=leads"
 # Draws the GCP credit; signal/ICP use gemini-3.1-flash-lite, drafting gemini-3-flash-preview.
 ENV_VARS+=",LLM_PROVIDER=gemini,WEBSITE_RESOLVER=firecrawl,INBOUND_SOURCE=inline"
 ENV_VARS+=",GEMINI_PROJECT=$PROJECT,PIPELINE_AUTONOMOUS=0"
+ENV_VARS+=",CREDIT_START_DATE=${CREDIT_START_DATE:-}"   # YYYY-MM-DD → 90-day credit countdown
 ENV_VARS+=",GMAIL_SENDER=${GMAIL_SENDER:-finlay@settlepaygroup.uk}"
 
 cmd="${1:-}"
