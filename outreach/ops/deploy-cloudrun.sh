@@ -40,8 +40,11 @@ SECRETS=(DATABASE_URL COMPANIES_HOUSE_API_KEY MILLIONVERIFIER_API_KEY
 # Non-secret runtime config. Deliberately conservative: autonomy off, inbound
 # inline, dry-run posture. Flip via `gcloud run services update --update-env-vars`.
 ENV_VARS="BASE_PATH=$BASE_PATH,DB_SCHEMA=outreach,ENQUIRY_SOURCE_TABLE=leads"
+# LLM_PROVIDER stays 'api' (Anthropic) until the drafting bench promotes Gemini;
+# GEMINI_PROJECT is wired now so the Vertex provider is available for signal/ICP.
 ENV_VARS+=",LLM_PROVIDER=api,WEBSITE_RESOLVER=firecrawl,INBOUND_SOURCE=inline"
-ENV_VARS+=",PIPELINE_AUTONOMOUS=0,GMAIL_SENDER=${GMAIL_SENDER:-finlay@settlepaygroup.uk}"
+ENV_VARS+=",GEMINI_PROJECT=$PROJECT,PIPELINE_AUTONOMOUS=0"
+ENV_VARS+=",GMAIL_SENDER=${GMAIL_SENDER:-finlay@settlepaygroup.uk}"
 
 cmd="${1:-}"
 
@@ -49,7 +52,7 @@ case "$cmd" in
   bootstrap)
     gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
       artifactregistry.googleapis.com secretmanager.googleapis.com \
-      cloudscheduler.googleapis.com --project "$PROJECT"
+      cloudscheduler.googleapis.com aiplatform.googleapis.com --project "$PROJECT"
     gcloud artifacts repositories describe "$REPO" --location "$REGION" --project "$PROJECT" \
       >/dev/null 2>&1 || gcloud artifacts repositories create "$REPO" \
       --repository-format docker --location "$REGION" --project "$PROJECT"
@@ -66,6 +69,9 @@ case "$cmd" in
       gcloud secrets add-iam-policy-binding "$s" --member "serviceAccount:$RUN_SA" \
         --role roles/secretmanager.secretAccessor --project "$PROJECT" --quiet >/dev/null
     done
+    # Gemini via Vertex AI runs as the runtime SA (no key — ADC on Cloud Run).
+    gcloud projects add-iam-policy-binding "$PROJECT" --member "serviceAccount:$RUN_SA" \
+      --role roles/aiplatform.user --condition=None --quiet >/dev/null
     echo "bootstrap done. Set each secret, then: build && deploy"
     ;;
 

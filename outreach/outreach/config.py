@@ -51,12 +51,20 @@ ACCEPT_CATCH_ALL = _bool("ACCEPT_CATCH_ALL", True)
 RISKY_SEND_ENABLED = _bool("RISKY_SEND_ENABLED", False)
 
 # --- LLM provider ---
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")   # inline | api (Anthropic) | gemini (Vertex)
 # api provider (the unattended "brain" — lets enrich/draft run with no human loop
 # session, which is what makes headless/cloud operation possible).
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 # verified against ~/.claude/LLM_MODELS.md — do not "correct" from memory. Override via env.
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+
+# Gemini via Vertex AI — bills against the GCP credit; auth via ADC / the runtime
+# service account (no API key). Model IDs verified live on Vertex 2026-07-19; do not
+# "correct" from memory. Thinking is disabled per-call in the provider for cost.
+GEMINI_PROJECT = os.environ.get("GEMINI_PROJECT", "")            # e.g. settlepay-502417
+GEMINI_LOCATION = os.environ.get("GEMINI_LOCATION", "global")    # global avoids the +10% regional surcharge
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")          # workhorse (draft)
+GEMINI_FAST_MODEL = os.environ.get("GEMINI_FAST_MODEL", "gemini-3.1-flash-lite")  # fast extraction (signal/ICP)
 
 # --- autonomy (unattended, scheduled operation) ---
 # Master gate for the FULL-CHAIN tick (discover -> enrich -> draft). Off by default:
