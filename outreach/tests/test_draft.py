@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -6,6 +7,11 @@ from outreach import draft
 from outreach.llm import InlineProvider
 
 pytestmark = pytest.mark.floor_e
+
+
+def _payload(subject: str, body: str) -> str:
+    """Providers return the {subject, body} JSON contract (playbook v2.0)."""
+    return json.dumps({"subject": subject, "body": body})
 
 
 # ---- playbook is versioned (the value itself changes with copy revisions) ----
@@ -78,12 +84,12 @@ class _ScriptedProvider:
     def __init__(self, by_company):
         self.by_company = by_company
 
-    def complete(self, prompt, *, purpose, max_words=None):
+    def complete(self, prompt, *, purpose, max_words=None, schema=None):
         from outreach.llm import LLMResult
         for name, body in self.by_company.items():
             if f"COMPANY: {name}" in prompt:
                 return LLMResult(body, self.name, {"purpose": purpose})
-        return LLMResult("(none)", self.name, {"purpose": purpose})
+        return LLMResult(_payload("no match", "(none)"), self.name, {"purpose": purpose})
 
 
 def test_run_isolates_a_bad_draft_and_keeps_the_good_ones(db_rollback):
@@ -98,10 +104,12 @@ def test_run_isolates_a_bad_draft_and_keeps_the_good_ones(db_rollback):
             "insert into outreach.enrichment (company_number, website, contact_email, "
             "email_verified, signal) values (%s,'https://x.co','info@x.co',true,'sig')", (cn,))
 
-    compliant = ("Hi Good Co, a note from SettlePay. Payments are handled by "
-                 "FCA-regulated partners. Reply unsubscribe to opt out. "
-                 "Kind regards, Finlay Salisbury SettlePay")
-    overlong = ("SettlePay FCA-regulated partners unsubscribe " + "word " * 130)
+    compliant = _payload("payments at good co",
+                         "Hi Good Co, a note from SettlePay. Payments are handled by "
+                         "FCA-regulated partners. Reply unsubscribe to opt out. "
+                         "Kind regards, Finlay Salisbury SettlePay")
+    overlong = _payload("payments at bad co",
+                        "SettlePay FCA-regulated partners unsubscribe " + "word " * 130)
     provider = _ScriptedProvider({"Good Co Ltd": compliant, "Bad Co Ltd": overlong})
 
     res = draft.run(provider=provider, cur=cur)
@@ -115,3 +123,84 @@ def test_run_isolates_a_bad_draft_and_keeps_the_good_ones(db_rollback):
     assert cur.fetchone()[0] == 1
     cur.execute("select count(*) from outreach.drafts where company_number=%s", (bad,))
     assert cur.fetchone()[0] == 0
+
+
+# ---- v2.0: the copywriting-skill contract (subject, craft modules, variation) ----
+def test_playbook_compiles_in_the_vendored_craft_modules():
+    text = draft.load_playbook()
+    # the craft guidance must actually reach the model, not just sit in the repo
+    assert "Cold email to UK SMEs" in text
+    assert "compliance layer" in text.lower()
+    # ...and the SettlePay brief must come after it, so the brief wins on conflict
+    assert text.index("Cold email to UK SMEs") < text.index("SettlePay cold-email drafting playbook")
+
+
+def test_missing_craft_module_is_fatal(monkeypatch, tmp_path):
+    monkeypatch.setattr(draft, "CRAFT_DIR", tmp_path)
+    with pytest.raises(RuntimeError, match="missing vendored craft module"):
+        draft.load_playbook()
+
+
+def test_check_subject_rejects_the_v1_failure_and_the_spam_tells():
+    assert draft.check_subject("") == ["empty subject"]          # v1.x stored NULL
+    assert draft.check_subject(None) == ["empty subject"]
+    assert not draft.check_subject("getting paid at greenway")
+    assert any("Re:" in v for v in draft.check_subject("Re: your invoices"))
+    assert any("ALL CAPS" in v for v in draft.check_subject("URGENT PAYMENT NOTICE"))
+    assert any("merge tag" in v for v in draft.check_subject("hello {FirstName} there"))
+    assert any("chars" in v for v in draft.check_subject("a " * 40))
+    assert any("link" in v for v in draft.check_subject("see www.example.com now"))
+
+
+def test_check_style_flags_banned_openers_and_flat_rhythm():
+    assert any("came across" in v for v in
+               draft.check_style("I came across your website and thought I'd write."))
+    assert any("following up" in v for v in draft.check_style("Just following up on this."))
+    # five sentences of identical length == the clearest machine-prose tell
+    flat = " ".join(["One two three four five six seven."] * 5)
+    assert any("rhythm" in v for v in draft.check_style(flat))
+    # a varied one should pass the rhythm check
+    varied = ("Saw you cover call-outs in Otley. That usually means invoicing after "
+              "the job, then chasing it for a fortnight while the work piles up. "
+              "Worth a look? It takes ten minutes.")
+    assert not any("rhythm" in v for v in draft.check_style(varied))
+
+
+def test_check_style_flags_drift_to_the_hard_word_cap():
+    assert any("tighten" in v for v in draft.check_style("word " * 120))
+    assert not any("tighten" in v for v in draft.check_style("word " * 60))
+
+
+def test_parse_payload_handles_json_fenced_json_and_junk():
+    assert draft.parse_payload('{"subject":"s","body":"b"}') == ("s", "b")
+    assert draft.parse_payload('```json\n{"subject":"s","body":"b"}\n```') == ("s", "b")
+    with pytest.raises(draft.DraftFormatError):
+        draft.parse_payload("hi, please buy things")
+    with pytest.raises(draft.DraftFormatError):
+        draft.parse_payload('{"body":"b"}')
+
+
+def test_draft_angle_is_deterministic_and_varies_across_leads():
+    assert draft.draft_angle("SC123456") == draft.draft_angle("SC123456")
+    angles = {draft.draft_angle(f"PLACE:{i}") for i in range(60)}
+    # rotation must actually rotate, or every draft shares one middle paragraph
+    assert len(angles) > 3
+
+
+def test_draft_persists_the_subject(db_rollback):
+    cur = db_rollback.cursor()
+    cn = f"SUBJ_{uuid.uuid4().hex[:8]}"
+    cur.execute(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state) values (%s,'Subj Co Ltd','ltd','corporate','enriched')", (cn,))
+    cur.execute(
+        "insert into outreach.enrichment (company_number, website, contact_email, "
+        "email_verified, signal) values (%s,'https://x.co','info@x.co',true,'sig')", (cn,))
+    body = ("Hi Subj Co, a note from SettlePay. Payments are handled by "
+            "FCA-regulated partners. Reply unsubscribe to opt out. "
+            "Kind regards, Finlay Salisbury SettlePay")
+    provider = InlineProvider(responder=lambda p: _payload("payments at subj co", body))
+    res = draft.draft_one(cn, "Subj Co Ltd", "sig", provider=provider, cur=cur)
+    assert res["subject"] == "payments at subj co"
+    cur.execute("select subject from outreach.drafts where id=%s", (res["draft_id"],))
+    assert cur.fetchone()[0] == "payments at subj co"

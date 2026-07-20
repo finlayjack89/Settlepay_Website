@@ -658,14 +658,14 @@ def draft_view(request: Request, draft_id: str, err: str = ""):
     with db.cursor(commit=False) as cur:
         cur.execute(
             "select d.company_number, l.company_name, d.body_original, d.status, "
-            "e.contact_email, e.email_verify_result, e.website, e.signal "
+            "e.contact_email, e.email_verify_result, e.website, e.signal, d.subject "
             "from outreach.drafts d join outreach.leads l on l.company_number=d.company_number "
             "left join outreach.enrichment e on e.company_number=d.company_number "
             "where d.id=%s", (draft_id,))
         row = cur.fetchone()
     if not row:
         return HTMLResponse(_shell("/outreach/queue", "Not found", "", '<div class="panel"><div class="empty">Draft not found.</div></div>'), status_code=404)
-    cn, name, body, status, email, vres, website, signal = row
+    cn, name, body, status, email, vres, website, signal, subject = row
     errhtml = f'<div class="alert">{html.escape(err)}</div>' if err else ""
     site = f'<a href="{html.escape(website)}" target="_blank">{html.escape(website)}</a>' if website else "—"
     body_html = f"""
@@ -675,6 +675,10 @@ def draft_view(request: Request, draft_id: str, err: str = ""):
     <div class="hint">body_original is immutable. Edit below to approve a revised version (compliance is re-checked on save).</div>
     <form method="post" action="/outreach/approve/{draft_id}">
       {_csrf_field(request)}
+      <label class="fld">Subject{'' if subject else ' — MISSING (pre-v2.0 draft; re-draft or write one)'}</label>
+      <input name="edited_subject" style="width:100%" maxlength="120"
+             value="{html.escape(subject or '')}" placeholder="3-7 words, lowercase, under 50 chars">
+      <label class="fld" style="margin-top:.75rem">Body</label>
       <textarea name="edited">{html.escape(body)}</textarea>
       <div class="row">
         <div><label class="fld">Reviewer</label><input name="reviewer" required placeholder="Your name"></div>
@@ -707,16 +711,22 @@ def draft_view(request: Request, draft_id: str, err: str = ""):
 
 @router.post("/outreach/approve/{draft_id}")
 def approve(request: Request, draft_id: str, reviewer: str = Form(...),
-            edited: str = Form(""), note: str = Form(""), csrf: str = Form("")):
+            edited: str = Form(""), note: str = Form(""), csrf: str = Form(""),
+            edited_subject: str = Form("")):
     if not _csrf_ok(request, csrf):
         return _CSRF_DENIED
     try:
         with db.cursor(commit=False) as cur:
-            cur.execute("select body_original from outreach.drafts where id=%s", (draft_id,))
+            cur.execute("select body_original, subject from outreach.drafts where id=%s",
+                        (draft_id,))
             r = cur.fetchone()
         original = (r[0] if r else "") or ""
+        orig_subject = (r[1] if r else "") or ""
         edit_arg = None if edited.strip() == original.strip() else edited
-        review.approve(draft_id, reviewer, edited=edit_arg, note=note or None)
+        # unchanged -> None so edit_ratio only counts real reviewer edits
+        subj_arg = None if edited_subject.strip() == orig_subject.strip() else edited_subject.strip()
+        review.approve(draft_id, reviewer, edited=edit_arg, note=note or None,
+                       edited_subject=subj_arg)
     except Exception as e:
         return RedirectResponse(u(f"/outreach/draft/{draft_id}?err={html.escape(str(e))}"), status_code=303)
     return RedirectResponse(u("/outreach/queue"), status_code=303)

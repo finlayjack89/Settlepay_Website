@@ -17,7 +17,7 @@ import argparse
 import sys
 
 from . import audit, db
-from .draft import check_envelope
+from .draft import check_envelope, check_subject
 from .states import LeadState, transition
 
 
@@ -30,7 +30,8 @@ def list_pending(cur) -> list[tuple]:
     return cur.fetchall()
 
 
-def _decide(draft_id, *, new_status, lead_target, event, reviewer, body_final, note, cur) -> str:
+def _decide(draft_id, *, new_status, lead_target, event, reviewer, body_final, note, cur,
+            subject_final=None) -> str:
     if not reviewer:
         raise ValueError("a reviewer name is required (recorded human decision)")
     cur.execute(
@@ -47,9 +48,10 @@ def _decide(draft_id, *, new_status, lead_target, event, reviewer, body_final, n
     transition(LeadState(lead_state), lead_target)  # enforce the state machine
 
     cur.execute(
-        "update outreach.drafts set status=%s, body_final=%s, reviewer_note=%s, "
+        "update outreach.drafts set status=%s, body_final=%s, "
+        "subject_final=coalesce(%s, subject), reviewer_note=%s, "
         "decided_by=%s, decided_at=now() where id=%s",
-        (new_status, body_final, note, reviewer, draft_id))
+        (new_status, body_final, subject_final, note, reviewer, draft_id))
     cur.execute(
         "update outreach.leads set state=%s, updated_at=now() where company_number=%s",
         (lead_target.value, company_number))
@@ -59,27 +61,34 @@ def _decide(draft_id, *, new_status, lead_target, event, reviewer, body_final, n
     return company_number
 
 
-def approve(draft_id, reviewer, *, edited: str | None = None, note: str | None = None, cur=None) -> str:
+def approve(draft_id, reviewer, *, edited: str | None = None, note: str | None = None,
+            edited_subject: str | None = None, cur=None) -> str:
     """Approve a draft. With `edited`, body_final = the revised text (+ reviewer_note),
-    body_original untouched; without, body_final = a copy of body_original."""
+    body_original untouched; without, body_final = a copy of body_original. The same
+    split applies to the subject: `subject` stays as the model wrote it, subject_final
+    is what sends (defaulting to the original when the reviewer didn't touch it)."""
     own = cur is None
     conn = None
     if own:
         conn = db.connect(); cur = conn.cursor()
     try:
-        cur.execute("select body_original from outreach.drafts where id=%s", (draft_id,))
+        cur.execute("select body_original, subject from outreach.drafts where id=%s", (draft_id,))
         r = cur.fetchone()
         if not r:
             raise ValueError(f"draft {draft_id} not found")
         body_final = edited if edited is not None else r[0]
         if not body_final or not body_final.strip():
             raise ValueError("approved draft body_final cannot be empty")
-        # a human edit must not break compliance — the envelope is non-negotiable
-        violations = check_envelope(body_final)
+        subject_final = edited_subject if edited_subject is not None else r[1]
+        # a human edit must not break compliance — the envelope is non-negotiable,
+        # and an empty subject is exactly the v1.x bug this release exists to close
+        violations = check_envelope(body_final) + [
+            f"subject: {s}" for s in check_subject(subject_final)]
         if violations:
             raise ValueError(f"approved draft violates compliance envelope: {violations}")
         cn = _decide(draft_id, new_status="approved", lead_target=LeadState.APPROVED,
-                     event="approved", reviewer=reviewer, body_final=body_final, note=note, cur=cur)
+                     event="approved", reviewer=reviewer, body_final=body_final, note=note,
+                     subject_final=subject_final, cur=cur)
         if own:
             conn.commit()
         return cn

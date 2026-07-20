@@ -60,8 +60,10 @@ def test_tick_dry_run_sends_in_window(db_rollback):
         "insert into outreach.enrichment (company_number, contact_email, email_verified, signal) "
         "values (%s,%s,true,'s')", (cn, f"info-{uuid.uuid4().hex[:6]}@example.com"))
     cur.execute(
-        "insert into outreach.drafts (company_number, body_original, body_final, prompt_version, "
-        "status, decided_by, decided_at) values (%s,%s,%s,'placeholder-v0','approved','F',now())",
+        "insert into outreach.drafts (company_number, subject, subject_final, body_original, "
+        "body_final, prompt_version, status, decided_by, decided_at) "
+        "values (%s,'payments at test co','payments at test co',%s,%s,"
+        "'placeholder-v0','approved','F',now())",
         (cn, body, body))
     run_mod.run(stage="send", dry_run=True, now=IN_WINDOW, cur=cur)
     cur.execute("select mode, status from outreach.sends where company_number=%s", (cn,))

@@ -20,9 +20,10 @@ def _seed_approved(cur, *, email=None, sub="corporate", tier=None):
         "email_verified, contact_tier, signal) values (%s,'https://x.co',%s,%s,%s,'sig')",
         (cn, email, tier != "risky", tier))
     cur.execute(
-        "insert into outreach.drafts (company_number, body_original, body_final, "
-        "prompt_version, status, decided_by, decided_at) "
-        "values (%s,%s,%s,'placeholder-v0','approved','Finlay',now()) returning id",
+        "insert into outreach.drafts (company_number, subject, subject_final, "
+        "body_original, body_final, prompt_version, status, decided_by, decided_at) "
+        "values (%s,'payments at test co','payments at test co',%s,%s,"
+        "'placeholder-v0','approved','Finlay',now()) returning id",
         (cn, COMPLIANT, COMPLIANT))
     return cn, email, cur.fetchone()[0]
 
@@ -122,3 +123,26 @@ def test_warmup_limits_below_steady_cap(db_rollback, monkeypatch):
     _, _, over = _seed_approved(cur)
     with pytest.raises(send.SendRefused):
         send.send_one(over, mode="dry_run", inbox=inbox, cur=cur)  # ramp cap reached
+
+
+def test_send_refuses_a_subjectless_pre_v2_draft(db_rollback):
+    """Playbook v1.x stored subject=NULL on every draft and send posts `subject or ""`.
+    Those rows must be refused, not delivered with a blank Subject header."""
+    cur = db_rollback.cursor()
+    cn, email, did = _seed_approved(cur)
+    cur.execute("update outreach.drafts set subject=null, subject_final=null where id=%s", (did,))
+    with pytest.raises(send.SendRefused, match="no subject"):
+        send.send_one(did, mode="dry_run", cur=cur)
+
+
+def test_send_prefers_the_reviewer_edited_subject(db_rollback):
+    """subject_final (what the reviewer approved) must win over subject (what the
+    model wrote). Proven via the guardrail: with subject NULL and only subject_final
+    set, the send must still go through — which it can only do if coalesce reads
+    subject_final."""
+    cur = db_rollback.cursor()
+    cn, email, did = _seed_approved(cur)
+    cur.execute("update outreach.drafts set subject=null, subject_final=%s where id=%s",
+                ("reviewer rewrote this", did))
+    res = send.send_one(did, mode="dry_run", cur=cur)
+    assert res["status"] == "dry_run_ok"

@@ -68,7 +68,8 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     inbox = inbox or config.GMAIL_SENDER or "test@getsettlepay.uk"
 
     cur.execute(
-        "select d.company_number, d.subject, d.body_final, d.status, "
+        # subject_final is what the reviewer approved; subject is what the model wrote
+        "select d.company_number, coalesce(d.subject_final, d.subject), d.body_final, d.status, "
         "       l.subscriber_class::text, l.state::text, e.contact_email, e.contact_tier "
         "from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
@@ -84,6 +85,10 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
         raise SendRefused(f"draft not approved ({status})")
     if not body_final or not body_final.strip():
         raise SendRefused("no body_final to send")
+    # Playbook v1.x produced no subject at all and stored NULL; those rows predate
+    # v2.0 and must never go out as a blank Subject header. Refuse rather than send.
+    if not subject or not subject.strip():
+        raise SendRefused("no subject to send (pre-v2.0 draft — re-draft it)")
 
     # ---- GUARDRAILS (enforced for dry-run AND live) ----
     if _kill_switch_on(cur):

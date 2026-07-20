@@ -1,4 +1,5 @@
 import datetime
+import json
 import uuid
 
 import pytest
@@ -150,7 +151,8 @@ def test_run_is_idempotent_per_company(db_rollback):
 def test_envelope_enforced_on_followup(db_rollback):
     cur = db_rollback.cursor()
     cn, _, did = _seed_sent(cur, days_ago=7)
-    bad = InlineProvider(responder=lambda prompt: "hi, please buy things")
+    bad = InlineProvider(responder=lambda prompt: json.dumps(
+        {"subject": "buy things", "body": "hi, please buy things"}))
     with pytest.raises(draft.EnvelopeViolation):
         followup.followup_one(cn, cn, "sig", did, provider=bad, cur=cur)
     cur.execute("select count(*) from outreach.drafts where company_number=%s and touch=2", (cn,))
