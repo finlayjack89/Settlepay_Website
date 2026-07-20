@@ -12,6 +12,9 @@ dependencies = [
   "argon2-cffi>=23.1",
   "itsdangerous>=2.1",
   "google-auth>=2.29",
+  # python:3.12-slim ships no tz database, so ZoneInfo("Europe/London") raises in
+  # the container. The send window is UK wall-clock time — this is load-bearing.
+  "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]

@@ -26,6 +26,8 @@ from fastapi import APIRouter, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from . import config, db, enquiries, graduation, jobs, monitor, review, stats, webauth
+# aliased: this module defines a `schedule()` route that would shadow the import
+from . import schedule as send_queue
 from . import tasks as _tasks  # noqa: F401 — importing populates jobs.REGISTRY
 from .sequence import graduation_thresholds, load_sequence_config
 
@@ -635,6 +637,7 @@ def _badge_event(ev: str) -> str:
 def queue():
     with db.cursor(commit=False) as cur:
         rows = review.list_pending(cur)
+        upcoming = send_queue.queue(cur, days=7)
         sigs = {}
         if rows:
             cns = tuple(r[1] for r in rows)
@@ -648,9 +651,23 @@ def queue():
         f'<a class="btn btn-primary" href="/outreach/draft/{did}">Review &rarr;</a></div>'
         for did, cn, name, _body in rows
     ) or '<div class="panel"><div class="empty">Nothing awaiting approval. Drafts will appear here once leads are enriched and drafted.</div></div>'
+    if upcoming:
+        gated = "" if config.send_enabled() else " <b>dry-run</b> (G-SEND not set)"
+        sched_rows = "".join(
+            f'<tr><td>{d["day"]:%a %d %b}</td><td>{d["count"]}</td>'
+            f'<td class="m">{d["first"]:%H:%M}–{d["last"]:%H:%M}</td></tr>'
+            for d in upcoming)
+        sched = (f'<div class="panel"><h2>Send queue</h2>'
+                 f'<div class="hint">Approved drafts are spaced across the send window '
+                 f'(UK time) up to the warm-up cap for each day; the overflow rolls to '
+                 f'the next weekday. Delivery is{gated or " <b>live</b>"}.</div>'
+                 f'<table class="tbl"><thead><tr><th>Day</th><th>Emails</th>'
+                 f'<th>Window</th></tr></thead><tbody>{sched_rows}</tbody></table></div>')
+    else:
+        sched = ""
     head = f'<div class="panel"><h2>{len(rows)} draft{"" if len(rows)==1 else "s"} awaiting your decision</h2>' \
-           f'<div class="hint">Approving advances a draft to <b>approved</b> only — sending stays gated behind G-SEND.</div></div>'
-    return _shell("/outreach/queue", "Approval queue", "The human gate before any send", head + cards)
+           f'<div class="hint">Approving queues a draft for a specific minute in the send window — sending stays gated behind G-SEND.</div></div>'
+    return _shell("/outreach/queue", "Approval queue", "The human gate before any send", head + sched + cards)
 
 
 @router.get("/outreach/draft/{draft_id}", response_class=HTMLResponse)

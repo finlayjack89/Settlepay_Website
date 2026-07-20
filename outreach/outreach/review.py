@@ -89,6 +89,14 @@ def approve(draft_id, reviewer, *, edited: str | None = None, note: str | None =
         cn = _decide(draft_id, new_status="approved", lead_target=LeadState.APPROVED,
                      event="approved", reviewer=reviewer, body_final=body_final, note=note,
                      subject_final=subject_final, cur=cur)
+        # approval enqueues rather than making the draft immediately sendable: it
+        # gets a jittered slot on the first day with capacity, so a review session
+        # that approves 200 drafts paces them out instead of firing them at once
+        from . import schedule
+        slot = schedule.assign_slot(draft_id, cur=cur)
+        audit.record(cn, "queued", source="approval",
+                     lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     reason=f"send slot {slot:%Y-%m-%d %H:%M}", cur=cur)
         if own:
             conn.commit()
         return cn

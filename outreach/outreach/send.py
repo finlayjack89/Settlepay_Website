@@ -105,10 +105,13 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
         raise SendRefused("risky (catch-all) contact — set RISKY_SEND_ENABLED to send")
     # warm-up-aware per-inbox daily cap: ramp a new sending mailbox up gradually
     # (deliverability) — effective cap = min(steady ceiling, today's warm-up cap).
-    cur.execute("select min(created_at::date) from outreach.sends "
-                "where from_inbox = %s and mode = 'live'", (inbox,))
-    first_live = cur.fetchone()[0]
-    warmup_day = ((datetime.date.today() - first_live).days + 1) if first_live else 1
+    # counted in SENDING days, not calendar days: a weekend must not advance the
+    # ramp with no email going out, or Friday's 25/day becomes Monday's 50/day —
+    # a doubling after two days of silence, the exact spike the ramp prevents.
+    cur.execute("select count(distinct created_at::date) from outreach.sends "
+                "where from_inbox = %s and mode = 'live' "
+                "and created_at::date < current_date", (inbox,))
+    warmup_day = cur.fetchone()[0] + 1
     effective_cap = min(config.PER_INBOX_DAILY_CAP, sequence.warmup_cap(warmup_day))
     cur.execute(
         "select count(*) from outreach.sends "

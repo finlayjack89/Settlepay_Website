@@ -36,13 +36,20 @@ AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich", "draft
 
 
 def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
-    """One step: send each approved draft that has no send row yet."""
+    """One step: send each approved draft whose scheduled slot has arrived.
+
+    The `scheduled_at <= now()` filter is what paces sending. Without it this loop
+    fired every approved draft at once, which at the 50/day ceiling is a burst of
+    50 cold emails in seconds. Drafts approved before the queue existed have a NULL
+    slot and stay eligible immediately, so nothing already approved gets stranded.
+    """
     cur.execute(
         "select d.id from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
         "where d.status = 'approved' "
+        "and (d.scheduled_at is null or d.scheduled_at <= now()) "
         "and not exists (select 1 from outreach.sends s where s.draft_id = d.id) "
-        "order by d.created_at")
+        "order by d.scheduled_at nulls first, d.created_at")
     mode = "dry_run" if dry_run else "live"
     out: list[dict] = []
     for (draft_id,) in cur.fetchall():
