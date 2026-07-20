@@ -25,6 +25,20 @@ def _stub_stages(monkeypatch, order):
                         rec("monitor", ret={"paused": False}))
     monkeypatch.setattr(run_mod.report, "send_daily_digest",
                         rec("digest", ret={"skipped": "no operator email"}))
+    # These gates read LIVE reservoir/credit state from the shared database, so
+    # production data decides whether discover/enrich run at all — a full reservoir
+    # legitimately skips discovery and made this order assertion fail. Pin them:
+    # the subject here is stage ORDER, not the demand-pull arithmetic (covered in
+    # test_reservoir.py).
+    monkeypatch.setattr(run_mod.stats, "reservoir_status",
+                        lambda *a, **k: {"ready": 0, "backlog": 0, "deficit": 50,
+                                         "target": 50})
+    monkeypatch.setattr(run_mod.stats, "credit_status",
+                        lambda *a, **k: {"spent": 0.0, "budget": 237.0,
+                                         "remaining": 237.0, "pct": 0.0,
+                                         "days_left": 90})
+    monkeypatch.setattr(run_mod.places, "discover_grid", rec("discover_places"))
+    monkeypatch.setattr(run_mod.crossref, "run", rec("crossref"))
 
 
 def test_bare_tick_excludes_autonomous_stages(db_rollback, monkeypatch):
