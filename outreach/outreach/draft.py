@@ -134,6 +134,9 @@ def check_subject(subject: str) -> list[str]:
     return v
 
 
+# A greeting line: "Hi Sarah," / "Hello," — anything else is treated as missing.
+GREETING_RE = re.compile(r"^(hi|hello|good (morning|afternoon))\b[^\n]{0,40}[,:]?\s*\n", re.I)
+
 # Openers and phrases the craft module names as instantly pattern-matched as bulk.
 BANNED_PHRASES = (
     "i came across", "i came accross", "hope this finds you well",
@@ -144,7 +147,10 @@ BANNED_PHRASES = (
 
 
 def _sentences(text: str) -> list[str]:
+    """Prose sentences only. The greeting and sign-off are fixed furniture — counting
+    them would flatter the burstiness measure with lengths the model never chose."""
     body = re.split(r"\n\s*kind regards", text, flags=re.I)[0]
+    body = GREETING_RE.sub("", body.lstrip(), count=1)
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", body) if len(s.strip().split()) > 1]
 
 
@@ -161,6 +167,10 @@ def check_style(text: str) -> list[str]:
     if words > SOFT_MAX_WORDS:
         # without this the model drifts to the 125 hard cap and ignores the brief
         v.append(f"{words} words (tighten to under {SOFT_MAX_WORDS})")
+    # a UK owner-manager reads a missing greeting as brusque; v2.3 and earlier
+    # produced none at all because the playbook's shape list started at the opener
+    if not GREETING_RE.match(text.lstrip()):
+        v.append("no greeting line")
     for phrase in BANNED_PHRASES:
         if phrase in low:
             v.append(f"banned opener/filler: {phrase!r}")
@@ -288,12 +298,17 @@ def provisional_responder(prompt: str) -> str:
 
 # ---- the mechanism ----
 def draft_one(company_number: str, company_name: str, signal: str, *,
-              provider, cur, playbook: str | None = None) -> dict:
+              provider, cur, playbook: str | None = None,
+              contact_name: str | None = None) -> dict:
     playbook = playbook or load_playbook()
     # per-lead variables LAST: everything above is a byte-identical prefix across
     # leads, which is what a prefix cache needs.
     prompt = (f"{playbook}\n\n{draft_angle(company_number)}"
               f"COMPANY: {company_name}\nSIGNAL: {signal or ''}\n")
+    if contact_name:
+        prompt += (f"CONTACT NAME: {contact_name}\n"
+                   "Greet them by FIRST NAME only. Do not use their surname or any "
+                   "title, and do not mention where you found their name.\n")
 
     def ask(extra: str = "") -> tuple[str, str]:
         r = provider.complete(prompt + extra, purpose="draft", max_words=MAX_WORDS,
