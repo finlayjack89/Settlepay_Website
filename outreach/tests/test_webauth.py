@@ -62,8 +62,15 @@ def test_session_expired(configured, monkeypatch):
 
 
 def test_session_tampered(configured):
+    # Tamper in the MIDDLE, not at the end. The signature is 20 bytes -> 27 base64url
+    # chars, and 27x6 = 162 bits carries 2 spare: the final character always has its
+    # low bits clear, so 'A' and 'B' there decode to identical bytes. Flipping the last
+    # char was therefore a no-op whenever it happened to be 'A' (~1 run in 16) and the
+    # test failed at that rate for reasons nothing to do with the code under test.
     token = webauth.create_session()
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    i = len(token) // 2
+    tampered = token[:i] + ("A" if token[i] != "A" else "Z") + token[i + 1:]
+    assert tampered != token
     assert webauth.verify_session(tampered) is False
 
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from . import config, crossref, dns_auth, draft, firewall, followup, graduation, inbound
 from . import enrich as enrich_mod
-from . import find_leads, places, report
+from . import find_leads, places, report, research
 from . import run as run_mod
 from . import send as send_mod
 from .jobs import Param, task
@@ -50,6 +50,16 @@ def discover_places(ctx, count=16):
       params=(Param("limit", "How many", kind="int", default=50),))
 def crossref_task(ctx, limit=50):
     return crossref.run(limit=limit)
+
+
+@task("research_url", "Research a website",
+      "Paste a company's URL: scrape the site, cross-reference Companies House, pull "
+      "the local Places record, score ICP fit, and build a CRM profile. Skips instantly "
+      "(and spends nothing) if the domain is already on file.",
+      params=(Param("url", "Website URL", required=True),
+              Param("force", "Re-research even if already held", kind="bool", default=False)))
+def research_url_task(ctx, url="", force=False):
+    return research.run(url, force=force, log=ctx.log)
 
 
 @task("classify", "Classify (PECR firewall)",

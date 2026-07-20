@@ -24,7 +24,7 @@ from __future__ import annotations
 from . import config, db, firewall
 from . import draft as draft_mod
 from . import enrich as enrich_mod
-from . import crossref, find_leads, followup, graduation, inbound, monitor, places
+from . import crossref, find_leads, followup, graduation, inbound, monitor, outbox, places
 from . import report, spend, stats
 from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
@@ -42,14 +42,20 @@ def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
     fired every approved draft at once, which at the 50/day ceiling is a burst of
     50 cold emails in seconds. Drafts approved before the queue existed have a NULL
     slot and stay eligible immediately, so nothing already approved gets stranded.
+
+    A draft in the OUTBOX (manual "send now", undo window elapsed) is due whatever
+    its slot says. The sweeper thread normally gets there first — this is the safety
+    net for a manual send whose instance was torn down before the sweep ran, so it
+    goes out late rather than sitting in the outbox for ever.
     """
     cur.execute(
         "select d.id from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
         "where d.status = 'approved' "
-        "and (d.scheduled_at is null or d.scheduled_at <= now()) "
+        "and (d.scheduled_at is null or d.scheduled_at <= now() "
+        f"     or d.outbox_at + interval '{outbox.UNDO_SECONDS} seconds' <= now()) "
         "and not exists (select 1 from outreach.sends s where s.draft_id = d.id) "
-        "order by d.scheduled_at nulls first, d.created_at")
+        "order by d.outbox_at nulls last, d.scheduled_at nulls first, d.created_at")
     mode = "dry_run" if dry_run else "live"
     out: list[dict] = []
     sent = 0
@@ -64,6 +70,10 @@ def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
             sent += 1
         except send_mod.SendRefused as e:
             out.append({"draft_id": str(draft_id), "refused": str(e)})
+        # leave the outbox empty either way: a refused manual send that stayed in it
+        # would be retried on every tick and every sweep, for ever
+        cur.execute("update outreach.drafts set outbox_at = null "
+                    "where id = %s and outbox_at is not null", (draft_id,))
     return out
 
 

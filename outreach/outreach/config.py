@@ -125,6 +125,14 @@ MV_COST_GBP_PER_VERIFY = _float("MV_COST_GBP_PER_VERIFY", 0.003)
 # max chars of scraped page text fed to the LLM signal prompt
 ENRICH_PAGE_TEXT_MAX_CHARS = _int("ENRICH_PAGE_TEXT_MAX_CHARS", 6000)
 
+# --- manual research (operator-initiated: paste a URL, get a full company profile) ---
+# Capture named individuals from a researched website into the CRM profile. OFF by
+# default and deliberately so: a role address (info@) is not personal data, but a NAMED
+# person is, and holding names pulls in the full UK GDPR duties a role address avoids —
+# transparency within ~a month and an absolute right to object. Same posture as the
+# never-persist-phones rule: opt in knowingly, or not at all.
+RESEARCH_CAPTURE_PEOPLE = _bool("RESEARCH_CAPTURE_PEOPLE", False)
+
 # --- operator alerting / digests (transactional mail to the operator, not outreach) ---
 OPERATOR_EMAIL = os.environ.get("OPERATOR_EMAIL")
 

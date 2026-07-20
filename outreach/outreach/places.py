@@ -17,6 +17,7 @@ from typing import Optional
 import httpx
 
 from . import audit, config, db, spend
+from .enrich import normalise_domain
 
 SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 
@@ -112,11 +113,14 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
                         "types": b.get("types"), "business_status": b.get("business_status"),
                         "query": q}
                 cur.execute(
+                    # domain is the manual-research dedupe key: without it, pasting the
+                    # URL of a business Places already found would re-research it
                     "insert into outreach.leads (company_number, company_name, "
-                    "registered_address, state, source, place_id) "
-                    "values (%s,%s,%s::jsonb,'discovered','places',%s) "
+                    "registered_address, state, source, place_id, domain) "
+                    "values (%s,%s,%s::jsonb,'discovered','places',%s,%s) "
                     "on conflict (company_number) do nothing returning company_number",
-                    (f"PLACE:{pid}", name, json.dumps(addr), pid))
+                    (f"PLACE:{pid}", name, json.dumps(addr), pid,
+                     normalise_domain(b.get("website"))))
                 if cur.fetchone():
                     inserted += 1
                     audit.record(f"PLACE:{pid}", "discovered", source="places",
