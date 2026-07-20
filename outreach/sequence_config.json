@@ -3,8 +3,8 @@
   "send_window": {
     "start_hour": 9,
     "end_hour": 16,
-    "days": [1, 2, 3],
-    "_comment": "v1 — weekday ints (Mon=0). Send Tue–Thu, 09:00–16:00 UK: avoids the Monday inbox pile-up and the Friday wind-down."
+    "days": [0, 1, 2, 3, 4],
+    "_comment": "v2 — weekday ints (Mon=0). Mon–Fri, 09:00–16:00 UK. v1 used Tue–Thu on the standard 'Monday pile-up / Friday wind-down' convention; that is weakly evidenced AND mismatched to this ICP — mobile trades, auctioneers and clinic owners are not at a desk on Tuesday morning, they do admin early, at lunch, or in the evening. Tue–Thu cost 40% of send capacity for a convention borrowed from office-worker outreach. Hours stay 09:00–16:00: Google's bulk-sender guidance asks for a consistent rate, so widen DAYS (which the per-inbox daily cap still governs) rather than blasting at odd hours."
   },
   "follow_up_delays_days": [4],
   "max_follow_ups": 1,
@@ -12,7 +12,7 @@
   "warmup": {
     "daily_caps": [5, 8, 12, 18, 25, 35, 45, 50],
     "steady": 50,
-    "_comment": "Per-inbox daily send ceiling by warm-up day (1-indexed). Ramps a new sending mailbox up gradually to protect deliverability; caps at `steady`. Effective cap = min(PER_INBOX_DAILY_CAP, this). Day derived from the inbox's first LIVE send."
+    "_comment": "Per-inbox daily send ceiling by warm-up day (1-indexed), reaching steady on day 8. Effective cap = min(PER_INBOX_DAILY_CAP, this) — so PER_INBOX_DAILY_CAP must be >= steady or it silently pins the ramp (it was 5, which held sending at 5/day forever). Day derived from the inbox's first LIVE send. The ramp is NOT reputation mysticism: you cannot build positive engagement signals from cold recipients. It exists because (a) Google's bulk-sender guidance explicitly says to avoid sudden volume increases, and (b) below ~1,000 sends you cannot measure your own spam rate — Google wants <0.10% and treats 0.30% as harmful, but at 50/day a SINGLE complaint is 2%. Ramping is how a bad list surfaces at 8/day instead of at scale. 50/day/mailbox is the sustained cold ceiling; scale past it by adding mailboxes, never by raising this."
   },
   "graduation": {
     "min_reviewed_drafts_per_vertical": 50,
