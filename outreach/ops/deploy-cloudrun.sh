@@ -138,8 +138,13 @@ JSON
       gcloud iam service-accounts create ops-tick --display-name "ops tick invoker" --project "$PROJECT"
     gcloud scheduler jobs describe ops-tick --location "$REGION" --project "$PROJECT" >/dev/null 2>&1 && \
       gcloud scheduler jobs delete ops-tick --location "$REGION" --project "$PROJECT" --quiet
+    # Matched to the send window (sequence_config send_window: Mon-Fri 08:00-15:00).
+    # Ticks used to run 07:00-18:59, and because instance-based billing charges for
+    # the whole instance lifecycle — and a tick every 10 minutes never lets it scale
+    # to zero — that kept the container warm ~12h/day to do nothing outside the
+    # window. 8-14 covers every slot (the last is ~14:43, one tick short of close).
     gcloud scheduler jobs create http ops-tick --location "$REGION" --project "$PROJECT" \
-      --schedule "*/10 7-18 * * 1-5" --time-zone "Europe/London" \
+      --schedule "*/10 8-14 * * 1-5" --time-zone "Europe/London" \
       --uri "$url/tick" --http-method POST \
       --oidc-service-account-email "$sa" --oidc-token-audience "$url"
     echo "Scheduler created. Set on the service:"

@@ -117,3 +117,14 @@ def test_after_the_window_closes_it_rolls_to_the_next_send_day(db_rollback):
     t = schedule.assign_slot(did, cur=cur, inbox="l@x.uk",
                              now=datetime.datetime(2026, 7, 24, 18, 0))   # Fri evening
     assert t.date() == datetime.date(2026, 7, 27)                          # Monday
+
+
+def test_slots_never_fall_after_the_days_last_tick():
+    """A slot past the final in-window tick would never fire: the tick that would
+    send it lands outside the window."""
+    ids = [uuid.uuid4() for _ in range(50)]
+    ts = sorted(schedule._slot_time(MON, i, 50, ids[i]) for i in range(50))
+    _, end_h, _ = schedule._window()
+    close = datetime.datetime.combine(MON, datetime.time(hour=end_h),
+                                      tzinfo=schedule.sequence.send_tz())
+    assert (close - ts[-1]).total_seconds() / 60 >= schedule.TICK_INTERVAL_MIN

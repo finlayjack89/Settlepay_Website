@@ -34,6 +34,10 @@ from . import config, sequence
 # Scheduling to the minute is still worth it — the varying number of drafts due
 # per tick (0, 1, 2) is what makes the outgoing pattern irregular.
 JITTER_MARGIN = 0.1   # keep each send inside its own slot, so two can never collide
+# Reserve the tail of the window: a slot after the day's LAST tick would never fire,
+# because the tick that would send it falls outside the window. Must be >= the
+# Cloud Scheduler interval.
+TICK_INTERVAL_MIN = 10
 
 
 def _window(seq=None) -> tuple[int, int, list[int]]:
@@ -88,7 +92,9 @@ def _slot_time(day: datetime.date, index: int, capacity: int, draft_id, seq=None
     """Position `index` of `capacity` within the window, jittered inside its own
     slot. Deterministic per draft, irregular across drafts."""
     start_h, end_h, _ = _window(seq)
-    span = max((end_h - start_h) * 60, 1)
+    # usable span stops one tick short of the window close, so the last slot still
+    # has a tick left to send it
+    span = max((end_h - start_h) * 60 - TICK_INTERVAL_MIN, 1)
     slot = span / max(capacity, 1)
     # 0..1 from the draft id — stable across processes (hash() is salted per run)
     h = hashlib.sha256(str(draft_id).encode()).digest()

@@ -82,6 +82,16 @@ PLACES_PER_TICK = _int("PLACES_PER_TICK", 16)      # Places grid queries per tic
 CROSSREF_PER_TICK = _int("CROSSREF_PER_TICK", 50)  # Places leads classified per tick
 ENRICH_PER_TICK = _int("ENRICH_PER_TICK", 10)
 DRAFT_PER_TICK = _int("DRAFT_PER_TICK", 10)
+# Stop drafting once this many drafts are waiting on a human. Drafting is the last
+# credit-spending stage before the manual review gate, so without this the pipeline
+# writes email nobody has read yet, for ever. The demand-pull chain then throttles
+# itself: drafting stops -> 'enriched' leads accumulate -> the reservoir deficit
+# hits zero -> enrich stops -> only (cheap, credit-billed) discovery keeps running.
+DRAFT_BACKLOG_MAX = _int("DRAFT_BACKLOG_MAX", 400)
+# Max sends per tick. The queue already spaces slots, but if the service was down or
+# a tick was missed, several slots fall due at once and would fire together — the
+# burst the queue exists to prevent. Catch-up is spread over subsequent ticks.
+SEND_PER_TICK = _int("SEND_PER_TICK", 3)
 FOLLOWUP_PER_TICK = _int("FOLLOWUP_PER_TICK", 10)
 INBOUND_MAX_PER_RUN = _int("INBOUND_MAX_PER_RUN", 50)
 # CSV of SIC codes to discover; empty => targeting.TARGET_SICS (the ICP default set).

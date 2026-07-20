@@ -52,9 +52,16 @@ def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
         "order by d.scheduled_at nulls first, d.created_at")
     mode = "dry_run" if dry_run else "live"
     out: list[dict] = []
+    sent = 0
     for (draft_id,) in cur.fetchall():
+        # SEND_PER_TICK smooths catch-up: after downtime several slots are due at
+        # once, and firing them together is the burst the queue exists to prevent.
+        if sent >= config.SEND_PER_TICK:
+            out.append({"deferred": "SEND_PER_TICK reached; remaining slots roll to the next tick"})
+            break
         try:
             out.append(send_mod.send_one(draft_id, mode=mode, cur=cur))
+            sent += 1
         except send_mod.SendRefused as e:
             out.append({"draft_id": str(draft_id), "refused": str(e)})
     return out
@@ -165,8 +172,17 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
             do("enrich", lambda: enrich_mod.discover_and_run(limit=limit, cur=cur), paid=True)
 
     if want("draft"):
-        do("draft", lambda: draft_mod.run(cur=cur, limit=config.DRAFT_PER_TICK),
-           paid=(config.LLM_PROVIDER == "api"))
+        backlog = stats.review_backlog(cur) if cur is not None else 0
+        if backlog >= config.DRAFT_BACKLOG_MAX:
+            # the human gate is the bottleneck; drafting past it just spends credit
+            summary["steps"]["draft"] = {"skipped": "review backlog full",
+                                         "awaiting_approval": backlog,
+                                         "max": config.DRAFT_BACKLOG_MAX}
+        else:
+            do("draft", lambda: draft_mod.run(
+                cur=cur, limit=min(config.DRAFT_PER_TICK,
+                                   config.DRAFT_BACKLOG_MAX - backlog)),
+               paid=(config.LLM_PROVIDER == "api"))
 
     if want("followup"):
         do("followup", lambda: followup.run(cur=cur, limit=config.FOLLOWUP_PER_TICK),

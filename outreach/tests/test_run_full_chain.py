@@ -105,3 +105,30 @@ def test_monitor_trip_halts_tick(db_rollback, monkeypatch):
     res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
     assert res.get("halted") == "kill switch tripped by monitor"
     assert "discover" not in res["steps"]  # nothing after the trip
+
+
+def test_draft_stops_when_the_review_backlog_is_full(db_rollback, monkeypatch):
+    """Drafting is the last credit-spending stage before the manual gate. Without a
+    cap the pipeline pays to write email nobody has read yet, indefinitely."""
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DRAFT_BACKLOG_MAX", 10)
+    monkeypatch.setattr(run_mod.stats, "review_backlog", lambda *a, **k: 10)
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
+    assert "skipped" in res["steps"]["draft"]
+    assert "draft" not in order
+
+
+def test_draft_runs_and_is_limited_by_remaining_backlog_room(db_rollback, monkeypatch):
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DRAFT_BACKLOG_MAX", 10)
+    monkeypatch.setattr(run_mod.config, "DRAFT_PER_TICK", 10)
+    monkeypatch.setattr(run_mod.stats, "review_backlog", lambda *a, **k: 7)
+    captured = {}
+    monkeypatch.setattr(run_mod.draft_mod, "run",
+                        lambda **k: captured.update(k) or [])
+    run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
+    assert captured["limit"] == 3      # only room for 3 more before the cap

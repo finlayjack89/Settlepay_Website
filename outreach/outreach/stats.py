@@ -48,6 +48,14 @@ def places_segments(cur) -> list[tuple]:
     return cur.fetchall()
 
 
+def review_backlog(cur) -> int:
+    """Drafts waiting on a human. Drafting is the last credit-spending stage before
+    the manual gate, so this is what must throttle it: without a cap the pipeline
+    drafts for ever and pays to write email nobody has read yet."""
+    return _scalar(cur, "select count(*) from outreach.drafts "
+                        "where status = 'awaiting_approval'")
+
+
 def reservoir_status(cur, target: int) -> dict:
     """The demand-pull reservoir: `ready` = enriched-and-fit leads awaiting a draft;
     `backlog` = corporate leads discovered but not yet enriched. `deficit` drives how
