@@ -143,6 +143,7 @@ NAV_GROUPS = [
         ("/outreach/sending", "Sending", "send"),
         ("/outreach/leads", "Leads", "users"),
         ("/research", "Research", "search"),
+        ("/auctions", "Auctions", "gavel"),
         ("/intelligence", "Intelligence", "chart"),
     ]),
     ("Operate", [
@@ -164,6 +165,7 @@ ICONS = {
     "list": "M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zM3.75 12h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z",
     "send": "M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5",
     "search": "M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z",
+    "gavel": "M12 3v3.75m0 0l3.75 3.75M12 6.75L8.25 10.5m-3 3l6-6m-6 6l3 3m-3-3l-1.5 1.5a2.121 2.121 0 003 3L8.25 16.5m9-9l1.5-1.5a2.121 2.121 0 00-3-3L14.25 4.5M4.5 20.25h9",
     "cog": "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
 }
 
@@ -1038,6 +1040,116 @@ def research_submit(request: Request, url: str = Form(...), csrf: str = Form("")
             return RedirectResponse(u(f"/outreach/lead/{hit['company_number']}?known={domain}"),
                                     status_code=303)
     job_id = jobs.enqueue("research_url", {"url": domain, "force": bool(force)},
+                          requested_by="console")
+    return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Auctions — paste a platform link, run the whole recon pipeline
+# --------------------------------------------------------------------------- #
+@router.get("/auctions", response_class=HTMLResponse)
+def auctions_page(request: Request, err: str = ""):
+    from .auctions.sources import PLANNED, REGISTRY, get_source
+
+    with db.cursor(commit=False) as cur:
+        cur.execute(
+            "select l.company_number, l.company_name, e.contact_email, e.contact_name, "
+            "       e.contact_tier, l.state::text, e.scraped->>'score' "
+            "from outreach.leads l left join outreach.enrichment e "
+            "  on e.company_number = l.company_number "
+            "where l.source = 'easylive' order by l.updated_at desc limit 40")
+        rows = cur.fetchall()
+        cur.execute("select count(*) from outreach.leads where source='easylive'")
+        total = cur.fetchone()[0]
+        cur.execute("select id, status, created_at from outreach.jobs "
+                    "where kind='auction_run' order by id desc limit 5")
+        recent_jobs = cur.fetchall()
+
+    supported = "".join(
+        f'<li><b>{html.escape(k)}</b> — {html.escape(get_source(k).display_name)}<br>'
+        f'<span class="muted" style="font-size:.78rem">{html.escape(get_source(k).terms_note)}</span></li>'
+        for k in sorted(REGISTRY))
+    planned = ", ".join(sorted(set(PLANNED.values())))
+
+    jobs_html = "".join(
+        f'<a class="chip" href="/jobs/{jid}">#{jid} {html.escape(st)} '
+        f'<span class="muted">{at:%d %b %H:%M}</span></a>' for jid, st, at in recent_jobs)
+
+    trs = ""
+    for cn, name, email, contact_name, tier, state, score in rows:
+        who = f'{html.escape(email or "—")}'
+        if contact_name:
+            who += f'<br><span class="muted" style="font-size:.74rem">{html.escape(contact_name)}</span>'
+        badge = ('<span class="badge b-success">named</span>' if tier == "named"
+                 else '<span class="badge b-success">verified</span>' if tier == "verified"
+                 else '<span class="badge b-warning">risky</span>' if tier == "risky"
+                 else '<span class="muted">—</span>')
+        trs += (f'<tr class="clk" onclick="location.href=\'/outreach/lead/{html.escape(cn)}\'">'
+                f'<td class="num">{html.escape(score or "—")}</td>'
+                f'<td><b>{html.escape(name)}</b></td><td>{who}</td>'
+                f'<td>{badge}</td><td>{_badge(state)}</td></tr>')
+    if not trs:
+        trs = ('<tr><td colspan=5 class="empty">No auction houses yet — paste a platform '
+               'link above and run it.</td></tr>')
+
+    errhtml = f'<div class="alert">{html.escape(err)}</div>' if err else ""
+    body = f"""{errhtml}
+<div class="panel"><h2>Run a platform</h2>
+<div class="hint">Paste an auction platform link. These platforms run the <em>bidding</em>
+only — the auctioneer still invoices the winner and collects payment themselves, usually
+by bank transfer. So every house listed is a pre-qualified SettlePay lead. One run does
+the lot: scrape the directory → resolve each house's own website → capture how they tell
+winners to pay → Companies House PECR gate + directors → verified decision-maker email →
+score → into the lead pipeline.</div>
+<form method="post" action="/auctions/run">
+  {_csrf_field(request)}
+  <div class="row" style="align-items:flex-end">
+    <div style="flex:1"><label class="fld">Platform link</label>
+      <input name="url" style="width:100%" required value="easyliveauction.com"
+             placeholder="easyliveauction.com"></div>
+    <div style="width:150px"><label class="fld">How many houses</label>
+      <input name="limit" type="number" min="1" max="500" value="25" style="width:100%"></div>
+    <button class="btn btn-primary" type="submit">Run recon</button>
+  </div>
+  <label class="fld" style="margin-top:.8rem;font-weight:400">
+    <input type="checkbox" name="ingest" value="1" checked> Add results to the lead pipeline
+    (so they get drafted and reviewed like any other lead)
+  </label>
+</form>
+<p class="muted" style="margin-top:.9rem;font-size:.78rem">Roughly 8 seconds per house
+(~3.5 min for 25). It runs as a background job — you can leave the page.</p>
+</div>
+
+<div class="two">
+  <div class="panel"><h3 style="margin:0 0 .5rem">Supported platforms</h3>
+    <ul style="margin:0;padding-left:1.1rem;font-size:.88rem">{supported}</ul>
+    <p class="muted" style="margin-top:.8rem;font-size:.78rem">Recognised but not built yet
+    (each needs its own robots.txt + Terms recon first): {html.escape(planned)}.</p>
+  </div>
+  <div class="panel"><h3 style="margin:0 0 .5rem">Recent runs</h3>
+    <div class="chips">{jobs_html or '<span class="muted">No runs yet.</span>'}</div>
+  </div>
+</div>
+
+<div class="panel"><h2>Auction houses found <span class="muted">({total})</span></h2>
+<table><tr><th class="num">Score</th><th>Auction house</th><th>Contact</th>
+<th>Tier</th><th>State</th></tr>{trs}</table></div>"""
+    return _shell("/auctions", "Auctions", "Auction-platform lead recon", body)
+
+
+@router.post("/auctions/run")
+def auctions_run(request: Request, url: str = Form(...), limit: int = Form(25),
+                 ingest: str = Form(""), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    from .auctions.sources import PlatformNotSupported, platform_for_url
+    try:
+        platform_for_url(url)                      # fail fast with a readable message
+    except PlatformNotSupported as e:
+        return RedirectResponse(u(f"/auctions?err={html.escape(str(e))}"), status_code=303)
+    job_id = jobs.enqueue("auction_run",
+                          {"url": url, "limit": max(1, min(int(limit or 25), 500)),
+                           "ingest": bool(ingest)},
                           requested_by="console")
     return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
 

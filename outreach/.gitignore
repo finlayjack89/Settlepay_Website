@@ -19,3 +19,5 @@ dist/
 
 # operator console runtime logs
 ops/logs/
+auction_output/
+.auction_cache/

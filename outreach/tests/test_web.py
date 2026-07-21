@@ -230,3 +230,53 @@ def test_research_submit_enqueues_a_job_for_a_new_domain(monkeypatch):
     r = client.post("/research", data={"url": "https://brand-new-domain.co.uk"},
                     follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"].endswith("/jobs/4242")
+
+
+# --------------------------------------------------------------------------- #
+#  Auctions tab — paste a platform link, run the pipeline
+# --------------------------------------------------------------------------- #
+def test_auctions_page_renders_with_terms_and_supported_platforms():
+    r = client.get("/auctions")
+    assert r.status_code == 200
+    assert "Run a platform" in r.text and "Supported platforms" in r.text
+    # the ToS position must be visible to the operator on every visit
+    assert "Terms prohibit" in r.text
+    assert "the-saleroom.com" in r.text          # listed as recognised-but-not-built
+
+
+def test_auctions_run_enqueues_a_job_for_a_supported_platform(monkeypatch):
+    from outreach import web
+    captured = {}
+    monkeypatch.setattr(web.jobs, "enqueue",
+                        lambda kind, params, **k: captured.update(kind=kind, **params) or 77)
+    r = client.post("/auctions/run",
+                    data={"url": "https://www.easyliveauction.com/", "limit": "30", "ingest": "1"},
+                    follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].endswith("/jobs/77")
+    assert captured["kind"] == "auction_run" and captured["limit"] == 30
+    assert captured["ingest"] is True
+
+
+def test_auctions_run_refuses_an_unreconned_platform_without_queueing(monkeypatch):
+    """No adapter => no job, and a readable reason — never scrape a site we've not
+    checked robots/Terms for."""
+    from outreach import web
+    monkeypatch.setattr(web.jobs, "enqueue",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not queue")))
+    r = client.post("/auctions/run", data={"url": "the-saleroom.com", "limit": "10"},
+                    follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/auctions?err=")
+
+
+def test_auctions_run_clamps_an_absurd_limit(monkeypatch):
+    from outreach import web
+    captured = {}
+    monkeypatch.setattr(web.jobs, "enqueue",
+                        lambda kind, params, **k: captured.update(**params) or 1)
+    client.post("/auctions/run", data={"url": "easylive", "limit": "99999"},
+                follow_redirects=False)
+    assert captured["limit"] == 500
+
+
+def test_auctions_in_sidebar():
+    assert "/auctions" in client.get("/").text
