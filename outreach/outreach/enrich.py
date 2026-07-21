@@ -241,46 +241,19 @@ def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None
     return sorted(pool, key=score)[0]
 
 
-def verify_email(email: str, *, api_key: Optional[str] = None,
-                 client: Optional[httpx.Client] = None, retries: int = 1) -> tuple[bool, str]:
-    """MillionVerifier single-email check -> (verified, result_string).
-    Verified only when result == 'ok' (conservative: catch_all/unknown are not).
-    A transient HTTP/parse failure is retried once, then returns (False,
-    'verify_error') rather than raising — one slow verify must never abort a batch."""
-    api_key = api_key or config.MILLIONVERIFIER_API_KEY
-    owns = client is None
-    client = client or httpx.Client(timeout=25)
-    try:
-        for attempt in range(retries + 1):
-            try:
-                r = client.get("https://api.millionverifier.com/api/v3/",
-                               params={"api": api_key, "email": email})
-                data = r.json()
-                result = str(data.get("result", "error"))
-                try:  # meter the paid call; metering must never fail the verify
-                    from . import spend
-                    spend.record("millionverifier", purpose="verify", units_in=1,
-                                 cost_gbp=config.MV_COST_GBP_PER_VERIFY)
-                except Exception:
-                    pass
-                return (result == "ok", result)
-            except (httpx.HTTPError, ValueError):
-                if attempt >= retries:
-                    return (False, "verify_error")
-        return (False, "verify_error")
-    finally:
-        if owns:
-            client.close()
-
+# Email verification now runs through a provider CHAIN (MillionVerifier -> Reoon ->
+# ZeroBounce, config.VERIFIER_CHAIN) so one provider running dry fails over instead of
+# stranding leads — the fix the MillionVerifier incident earned. verify_email +
+# TRANSIENT_RESULTS live in verify.py; re-exported here so every existing call site
+# (enrich, decisionmakers, auctions, tests) keeps working unchanged.
+from .verify import verify_email, TRANSIENT_RESULTS  # noqa: E402,F401
 
 RISKY_RESULTS = ("catch_all",)  # deliverable but unconfirmable (M365/Workspace catch-all)
-# The verifier failed to ANSWER — out of credits, rate-limited, timed out. This is not
-# a verdict about the address and must never be treated as one: on 2026-07-20 the
-# MillionVerifier balance went negative, every check started returning 'error', and the
-# pipeline discarded 178 leads in a day that each had a perfectly good contact address.
-# A verifier outage defers a lead; only the verifier actually saying no discards it.
-TRANSIENT_RESULTS = ("error", "verify_error")
-# consecutive transient results that mean "the verifier is down, stop paying to scrape"
+# A verifier failing to ANSWER (all providers out/erroring) is a non-answer, never a
+# verdict: on 2026-07-20 MillionVerifier went negative, every check returned 'error', and
+# the pipeline discarded 178 good leads in a day. A transient result defers a lead; only a
+# real 'invalid' discards it.
+# consecutive transient results that mean "verification is down, stop paying to scrape"
 VERIFIER_DOWN_AFTER = 3
 
 

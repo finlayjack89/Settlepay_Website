@@ -34,6 +34,14 @@ COMPANIES_HOUSE_API_KEY = os.environ.get("COMPANIES_HOUSE_API_KEY")
 # Google Maps Platform (Places API New + Geocoding) — local ICP discovery; GCP credit.
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
 MILLIONVERIFIER_API_KEY = os.environ.get("MILLIONVERIFIER_API_KEY")
+# Fallback email verifiers, tried in VERIFIER_CHAIN order when the one before runs out of
+# credits (the MillionVerifier-ran-dry incident is exactly what this defends against).
+REOON_API_KEY = os.environ.get("REOON_API_KEY")            # free 600/month, good role-addr handling
+ZEROBOUNCE_API_KEY = os.environ.get("ZEROBOUNCE_API_KEY")  # small free tier; last resort
+# Provider order. A provider with no key is skipped; one reporting "out of credits" is
+# skipped for the rest of the run. All out/erroring => the lead DEFERS (never a false verdict).
+VERIFIER_CHAIN = [p.strip() for p in os.environ.get(
+    "VERIFIER_CHAIN", "millionverifier,reoon,zerobounce").split(",") if p.strip()]
 
 # --- website discovery (phase D): inline (loop agent) | firecrawl | brave ---
 WEBSITE_RESOLVER = os.environ.get("WEBSITE_RESOLVER", "inline")
