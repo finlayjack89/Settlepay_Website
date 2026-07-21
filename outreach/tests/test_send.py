@@ -146,3 +146,31 @@ def test_send_prefers_the_reviewer_edited_subject(db_rollback):
                 ("reviewer rewrote this", did))
     res = send.send_one(did, mode="dry_run", cur=cur)
     assert res["status"] == "dry_run_ok"
+
+
+def test_named_contact_send_uses_the_transparency_footer(db_rollback, monkeypatch):
+    """A live send to a 'named' contact must go out with the art. 14 footer; a role
+    address must not. We intercept the Gmail backend and inspect the rendered body."""
+    cur = db_rollback.cursor()
+    monkeypatch.setattr(config, "G_SEND", "1")        # clear the live gate for this test
+    captured = {}
+
+    def _fake_send(sender, to_email, subject, body, html=None):
+        captured["text"] = body
+        captured["html"] = html or ""
+        return "msgid-123"
+    monkeypatch.setattr("outreach.gmail.send_message", _fake_send)
+
+    # named contact
+    cn, email, did = _seed_approved(cur, tier="named")
+    send.send_one(did, mode="live", inbox="s@settlepayhq.uk", cur=cur)
+    assert "Companies House" in captured["text"]      # art. 14 source, plain-text part
+    assert "Companies House" in captured["html"]      # ...and the html part
+    assert config.PRIVACY_NOTICE_URL in captured["text"]
+
+    # role address on the same run must NOT carry it
+    captured.clear()
+    cn2, email2, did2 = _seed_approved(cur, tier="verified")
+    send.send_one(did2, mode="live", inbox="s@settlepayhq.uk", cur=cur)
+    assert "Companies House" not in captured["text"]
+    assert "Companies House" not in captured["html"]

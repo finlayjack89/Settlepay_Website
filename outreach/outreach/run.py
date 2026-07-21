@@ -22,7 +22,7 @@ stays gated behind G-SEND regardless of --live.
 from __future__ import annotations
 
 from . import config, db, firewall
-from . import draft as draft_mod
+from . import decisionmakers, draft as draft_mod
 from . import enrich as enrich_mod
 from . import crossref, find_leads, followup, graduation, inbound, monitor, outbox, places
 from . import report, spend, stats
@@ -30,9 +30,10 @@ from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
 
 FULL_CHAIN = ("inbound", "classify", "monitor", "discover_places", "crossref",
-              "discover", "enrich", "draft", "followup", "auto_approve", "send", "digest")
-AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich", "draft",
-                     "followup", "auto_approve")
+              "discover", "enrich", "decision_makers", "draft", "followup",
+              "auto_approve", "send", "digest")
+AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich",
+                     "decision_makers", "draft", "followup", "auto_approve")
 
 
 def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
@@ -180,6 +181,13 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
         else:
             limit = min(config.ENRICH_PER_TICK, pool["deficit"]) if pool else config.ENRICH_PER_TICK
             do("enrich", lambda: enrich_mod.discover_and_run(limit=limit, cur=cur), paid=True)
+
+    if want("decision_makers"):  # Companies House officers -> inferred named email (MV, paid)
+        if not config.DM_ENABLED:
+            summary["steps"]["decision_makers"] = {"skipped": "DECISION_MAKER_ENABLED off"}
+        else:
+            do("decision_makers",
+               lambda: decisionmakers.run(cur=cur, limit=config.DM_PER_TICK), paid=True)
 
     if want("draft"):
         backlog = stats.review_backlog(cur) if cur is not None else 0

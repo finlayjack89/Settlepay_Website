@@ -42,20 +42,27 @@ def _kill_switch_on(cur=None) -> bool:
         return False
 
 
-def _gmail_send(sender: str, to_email: str, subject: str, body: str) -> str:
+def _gmail_send(sender: str, to_email: str, subject: str, body: str,
+                *, named: bool = False) -> str:
     """Real Gmail API users.messages.send (per-user OAuth + refresh token), via the
     shared gmail/google_oauth layer (also used by operator alerts + digests). Only
     ever reached on a LIVE send, which itself requires G-SEND cleared. WHY no
     service account / domain-wide delegation: the refresh token is inherently
     mailbox-scoped — it only works for the single mailbox that consented, so
     cross-mailbox sending is impossible by construction. Returns the Gmail
-    message id."""
+    message id.
+
+    `named` selects the art. 14 transparency footer: a send to a named individual
+    must tell them where we got their details, which a role-address send need not."""
     from . import emailfmt, gmail
     from .google_oauth import OAuthNotConfigured
 
     try:
-        html = emailfmt.render_html(body)
-        body = body + emailfmt.TEXT_FOOTER   # text part mirrors the html footer
+        # a named send carries the art. 14 transparency note in BOTH parts (a recipient
+        # sees only one of them); a role-address send keeps the plain footer.
+        note = emailfmt.NAMED_FOOTER_NOTE if named else None
+        html = emailfmt.render_html(body, footer_note=note)
+        body = body + (emailfmt.named_text_footer() if named else emailfmt.TEXT_FOOTER)
     except Exception:
         html = None   # formatting must never block a send — plain text suffices
     try:
@@ -124,7 +131,9 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     if mode == "live":
         if not config.send_enabled():
             raise SendRefused("live send disabled — gate G-SEND not cleared (G_SEND unset)")
-        provider_id = _gmail_send(inbox, email, subject or "", body_final)
+        # a 'named' contact is a real person -> the art. 14 transparency footer applies
+        provider_id = _gmail_send(inbox, email, subject or "", body_final,
+                                  named=(tier == "named"))
         send_mode, send_status = "live", "sent"
     else:
         provider_id, send_mode, send_status = None, "dry_run", "dry_run_ok"

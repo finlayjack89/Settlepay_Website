@@ -12,6 +12,8 @@ content here — the signature/footer are static, code-reviewed constants.
 from __future__ import annotations
 import html as _html
 
+from . import config
+
 INK = "#0F172A"
 BODY = "#475569"
 MUTED = "#64748B"
@@ -24,6 +26,22 @@ LOGO_URL = "https://settlepay.uk/email/logo.png"
 # Contact line only (operator decision): the trading-name/address disclosure
 # lives on the website; the sender's name is already in the sign-off.
 TEXT_FOOTER = "\n\n—\nhello@settlepay.uk · settlepay.uk"
+
+
+# The art. 14 transparency sentence, shown in BOTH the html and text parts of a
+# named-individual send (a recipient sees only one). States the source of their details,
+# links the privacy notice, and gives the art. 21 way to object.
+NAMED_FOOTER_NOTE = (
+    "We found your business details through Companies House and public sources. "
+    f"How we use them: {config.PRIVACY_NOTICE_URL} — reply 'unsubscribe' and we'll "
+    "remove you and not contact you again.")
+
+
+def named_text_footer() -> str:
+    """Plain-text footer for a send to a NAMED individual: the standard contact line plus
+    the art. 14 transparency note. Role-address sends use the plain TEXT_FOOTER; this is
+    the extra transparency that targeting a person legally requires."""
+    return f"{TEXT_FOOTER}\n{NAMED_FOOTER_NOTE}"
 
 _P = f'style="margin:0 0 16px;font-size:16px;line-height:1.7;color:{INK};"'
 _P_UNSUB = f'style="margin:0 0 16px;font-size:14px;line-height:1.6;color:{MUTED};"'
@@ -49,9 +67,13 @@ def _signature_block(lines: list[str]) -> str:
     return "".join(out)
 
 
-def render_html(text: str) -> str:
+def render_html(text: str, *, footer_note: str | None = None) -> str:
     """Plain-text email body -> house-style HTML. Escapes all content; the only
-    markup is what this function emits (no anchors anywhere; one logo image)."""
+    markup is what this function emits (no anchors anywhere; one logo image).
+
+    `footer_note` (art. 14 transparency for named sends) is rendered as a final muted
+    paragraph AFTER the signature block, so the sign-off/logo stay intact and the notice
+    sits below them."""
     paras = [p for p in (chunk.strip() for chunk in text.split("\n\n")) if p]
     rendered: list[str] = []
     for i, para in enumerate(paras):
@@ -63,6 +85,8 @@ def render_html(text: str) -> str:
         style = _P_UNSUB if "unsubscribe" in para.lower() else _P
         body = "<br>".join(_html.escape(l) for l in lines)
         rendered.append(f"<p {style}>{body}</p>")
+    if footer_note:
+        rendered.append(f'<p {_P_UNSUB}>{_html.escape(footer_note)}</p>')
     return (
         "<!doctype html><html><body style=\"margin:0;padding:0;\">"
         # outer pad gives breathing room on every client (mobile was flush-left);

@@ -39,6 +39,7 @@ def _stub_stages(monkeypatch, order):
                                          "days_left": 90})
     monkeypatch.setattr(run_mod.places, "discover_grid", rec("discover_places"))
     monkeypatch.setattr(run_mod.crossref, "run", rec("crossref"))
+    monkeypatch.setattr(run_mod.decisionmakers, "run", rec("decision_makers", ret={}))
 
 
 def test_bare_tick_excludes_autonomous_stages(db_rollback, monkeypatch):
@@ -55,11 +56,25 @@ def test_autonomous_tick_runs_full_chain_in_order(db_rollback, monkeypatch):
     order = []
     _stub_stages(monkeypatch, order)
     monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", True)
     res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
     for s in ("discover", "enrich", "draft", "followup", "auto_approve"):
         assert s in res["steps"], s
-    assert order.index("monitor") < order.index("discover") < order.index("enrich") \
-        < order.index("draft") < order.index("followup") < order.index("auto_approve")
+    # decision_makers runs AFTER enrich (needs a domain) and BEFORE draft (so the send
+    # can go to the named contact)
+    assert order.index("monitor") < order.index("enrich") \
+        < order.index("decision_makers") < order.index("draft") \
+        < order.index("followup") < order.index("auto_approve")
+
+
+def test_decision_makers_stage_is_skipped_when_disabled(db_rollback, monkeypatch):
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
+    assert res["steps"]["decision_makers"] == {"skipped": "DECISION_MAKER_ENABLED off"}
+    assert "decision_makers" not in order
 
 
 def test_single_stage_runs_without_autonomy_gate(db_rollback, monkeypatch):

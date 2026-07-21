@@ -133,6 +133,20 @@ ENRICH_PAGE_TEXT_MAX_CHARS = _int("ENRICH_PAGE_TEXT_MAX_CHARS", 6000)
 # never-persist-phones rule: opt in knowingly, or not at all.
 RESEARCH_CAPTURE_PEOPLE = _bool("RESEARCH_CAPTURE_PEOPLE", False)
 
+# --- decision-maker sourcing (Companies House officers -> inferred named work email) ---
+# OFF by default: turning it on moves outreach from role addresses to NAMED individuals,
+# which is a full-UK-GDPR posture the operator opts into knowingly. When on, the tick
+# fetches directors from Companies House (free) and tries to CONFIRM one work email per
+# lead via MillionVerifier — never a guess, only an 'ok'.
+DM_ENABLED = _bool("DECISION_MAKER_ENABLED", False)
+DM_MAX_PATTERNS = _int("DM_MAX_PATTERNS", 4)          # email patterns tried per person
+DM_MAX_VERIFY_PER_LEAD = _int("DM_MAX_VERIFY_PER_LEAD", 6)  # hard MV-spend cap per lead
+DM_PER_TICK = _int("DM_PER_TICK", 10)
+# Where the art. 14 privacy notice lives — linked in every named-individual send so the
+# person can see what we hold and how to object. The notice ITSELF must state that we
+# source details from Companies House / public records (operator content task).
+PRIVACY_NOTICE_URL = os.environ.get("PRIVACY_NOTICE_URL", "https://settlepay.uk/privacy/")
+
 # --- operator alerting / digests (transactional mail to the operator, not outreach) ---
 OPERATOR_EMAIL = os.environ.get("OPERATOR_EMAIL")
 

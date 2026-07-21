@@ -11,7 +11,8 @@ mode='live' but nothing leaves an inbox unless a human has set G_SEND.
 """
 from __future__ import annotations
 
-from . import config, crossref, dns_auth, draft, firewall, followup, graduation, inbound
+from . import config, crossref, decisionmakers, dns_auth, draft, firewall, followup
+from . import graduation, inbound
 from . import enrich as enrich_mod
 from . import find_leads, places, report, research
 from . import run as run_mod
@@ -73,6 +74,15 @@ def classify(ctx):
       params=(Param("limit", "How many", kind="int", default=10),))
 def enrich(ctx, limit=10):
     return {"enriched": enrich_mod.discover_and_run(limit=limit)}
+
+
+@task("decision_makers", "Find decision-makers",
+      "Fetch directors from Companies House and try to CONFIRM one named work email per "
+      "lead via MillionVerifier (never a guess). Off unless DECISION_MAKER_ENABLED is set; "
+      "moves outreach to named individuals (full UK GDPR).",
+      params=(Param("limit", "How many", kind="int", default=10),))
+def decision_makers_task(ctx, limit=10):
+    return decisionmakers.run(limit=limit)
 
 
 @task("draft", "Draft emails",

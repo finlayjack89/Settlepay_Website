@@ -75,3 +75,41 @@ def test_send_message_builds_multipart_alternative(monkeypatch):
     plain = next(p for p in msg.walk() if p.get_content_type() == "text/plain")
     text = plain.get_payload(decode=True).decode()
     assert "Kind regards" in text and "hello@settlepay.uk" in text
+
+
+# --------------------------------------------------------------------------- #
+#  Article 14 transparency footer for NAMED-individual sends
+# --------------------------------------------------------------------------- #
+from outreach import config  # noqa: E402
+
+
+def test_named_footer_carries_source_privacy_link_and_objection():
+    note = emailfmt.NAMED_FOOTER_NOTE
+    assert "Companies House" in note                  # art. 14 source disclosure
+    assert config.PRIVACY_NOTICE_URL in note          # link to the privacy notice
+    assert "unsubscribe" in note.lower()              # art. 21 right to object
+
+
+def test_named_footer_note_appears_in_both_html_and_text():
+    """A recipient sees only one part of the multipart mail, so the transparency has to
+    be in both — not just the plain-text alternative."""
+    html_out = emailfmt.render_html(BODY, footer_note=emailfmt.NAMED_FOOTER_NOTE)
+    assert "Companies House" in html_out
+    assert "hello@settlepay.uk" in html_out           # signature still intact
+    assert "border-top" in html_out                   # signature block preserved
+    text = BODY + emailfmt.named_text_footer()
+    assert "Companies House" in text and config.PRIVACY_NOTICE_URL in text
+
+
+def test_role_address_footer_has_no_transparency_note():
+    """A role mailbox (info@) is not personal data — it must NOT carry the named-person
+    disclosure, or every cold email would over-claim a source it didn't use."""
+    assert "Companies House" not in emailfmt.render_html(BODY)
+    assert "Companies House" not in emailfmt.TEXT_FOOTER
+
+
+def test_named_footer_still_has_no_anchor():
+    """The privacy URL is bare text, like every other link in these emails — the
+    zero-anchor rule holds even for the transparency line."""
+    out = emailfmt.render_html(BODY, footer_note=emailfmt.NAMED_FOOTER_NOTE)
+    assert "<a " not in out.lower() and "href" not in out.lower()

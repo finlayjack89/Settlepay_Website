@@ -1125,9 +1125,13 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
         if not lead:
             return HTMLResponse(_shell("/outreach/leads", "Not found", "", '<div class="panel"><div class="empty">Lead not found.</div></div>'), status_code=404)
         cur.execute(
-            "select website, contact_email, email_verified, email_verify_result, signal, scraped, contact_tier "
+            "select website, contact_email, email_verified, email_verify_result, signal, "
+            "scraped, contact_tier, contact_name "
             "from outreach.enrichment where company_number=%s", (company_number,))
         enr = cur.fetchone()
+        cur.execute("select name, role, appointed_on from outreach.officers "
+                    "where company_number=%s order by appointed_on nulls last", (company_number,))
+        officers = cur.fetchall()
         cur.execute(
             "select id, status, body_original, body_final, decided_by, decided_at "
             "from outreach.drafts where company_number=%s order by created_at desc", (company_number,))
@@ -1149,22 +1153,38 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
       <dt>Location</dt><dd>{html.escape(locality or '—')}</dd></dl>"""
 
     if enr:
-        website, email, verified, vres, signal, scraped, tier = enr
+        website, email, verified, vres, signal, scraped, tier, contact_name = enr
         site = f'<a href="{html.escape(website)}" target="_blank">{html.escape(website)}</a>' if website else '—'
         cands = ", ".join((scraped or {}).get("candidates", [])) if scraped else ""
         src = (scraped or {}).get("source") if scraped else None
         tier_badge = {"verified": '<span class="badge b-success">verified</span>',
-                      "risky": '<span class="badge b-warning">risky · catch-all</span>'}.get(
+                      "risky": '<span class="badge b-warning">risky · catch-all</span>',
+                      "named": '<span class="badge b-success">named · verified</span>'}.get(
                           tier, '<span class="badge b-muted">—</span>')
+        contact_line = html.escape(email or '—')
+        if contact_name:  # a decision-maker, not a role mailbox
+            contact_line += f' <span class="muted">— {html.escape(contact_name)}</span>'
         enr_html = f"""<dl class="kv">
           <dt>Website</dt><dd>{site}</dd>
-          <dt>Contact</dt><dd>{html.escape(email or '—')}</dd>
+          <dt>Contact</dt><dd>{contact_line}</dd>
           <dt>Contact tier</dt><dd>{tier_badge} <span class="muted">({html.escape(vres or 'n/a')})</span></dd>
           <dt>Scraper</dt><dd>{html.escape(src or '—')}</dd>
           <dt>Candidates</dt><dd>{html.escape(cands or '—')}</dd>
           <dt>Signal</dt><dd>{html.escape(signal or '—')}</dd></dl>"""
     else:
         enr_html = '<div class="empty">Not enriched.</div>'
+
+    if officers:
+        orows = "".join(
+            f'<tr><td>{html.escape(n)}</td><td class="m">{html.escape((r or "").replace("-"," "))}</td>'
+            f'<td class="m">{a:%b %Y}</td></tr>' if a else
+            f'<tr><td>{html.escape(n)}</td><td class="m">{html.escape((r or "").replace("-"," "))}</td><td class="m">—</td></tr>'
+            for n, r, a in officers)
+        officers_html = (f'<table><tr><th>Officer</th><th>Role</th><th>Appointed</th></tr>'
+                         f'{orows}</table><p class="muted" style="font-size:.74rem;margin-top:.6rem">'
+                         f'From the Companies House public register (names + roles only).</p>')
+    else:
+        officers_html = '<div class="empty">No officers on file. Run “Find decision-makers”.</div>'
 
     draft_html = ""
     for did, dstatus, bo, bf, by, at in drafts:
@@ -1191,6 +1211,7 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
   <div class="panel"><h2>Enrichment</h2><div class="hint">Discovery → scrape → verify</div>{enr_html}</div>
 </div>
 {_profile_panel(request, profile)}
+<div class="panel"><h2>Decision-makers</h2>{officers_html}</div>
 <div class="panel"><h2>Drafts</h2>{draft_html}</div>
 <div class="panel"><h2>Audit timeline</h2><div class="feed">{feed}</div></div>
 <p class="muted" style="font-size:.8rem"><a href="/outreach/leads">&larr; Back to leads</a></p>"""
