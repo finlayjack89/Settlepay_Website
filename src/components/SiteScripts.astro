@@ -160,11 +160,13 @@
     // On interior pages the page-header stands in for the hero: the bar slides
     // in once the header scrolls away, never on first paint.
     const hero = document.getElementById('hero') || document.querySelector('.page-header');
-    // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
-    // selector here if consent UI is ever added.)
-    const suppressors = ['.cta-section', '.footer']
-      .map((s) => document.querySelector(s))
-      .filter((el): el is Element => el !== null);
+    // Suppressors: don't cover the real CTA / footer. Dark sections are
+    // suppressors too — an opaque bar over a full-bleed dark band leaves a dark
+    // strip behind iOS Safari's floating toolbar (no web layer can paint there;
+    // verified on device), so the bar steps aside for the dark chapters. (Add a
+    // cookie-banner selector here if consent UI is ever added.)
+    const suppressors = ['.cta-section', '.footer', '.section--dark']
+      .flatMap((s) => Array.from(document.querySelectorAll(s)));
     const watched = [hero, ...suppressors].filter((el): el is Element => el !== null);
     const intersecting = new Map<Element, boolean>();
     watched.forEach((el) => intersecting.set(el, true));
@@ -173,10 +175,13 @@
       const suppressed = suppressors.some((el) => intersecting.get(el));
       stickyCta.classList.toggle('is-visible', heroGone && !suppressed);
     };
+    // Bottom rootMargin extends the root ~1 toolbar-strip below the fold, so a
+    // dark section entering that strip suppresses the bar BEFORE it would show a
+    // dark gap under it.
     const stickyIo = new IntersectionObserver((entries) => {
       entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
       syncSticky();
-    }, { threshold: 0 });
+    }, { threshold: 0, rootMargin: '0px 0px 140px 0px' });
     watched.forEach((el) => stickyIo.observe(el));
     syncSticky();
   }
