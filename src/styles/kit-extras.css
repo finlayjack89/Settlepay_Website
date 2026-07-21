@@ -187,13 +187,19 @@
 .calculator__range:focus-visible::-moz-range-track { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
 
 /* ---- Enquire modal ---- */
-/* While the modal is open, the ROOT CANVAS is the only layer iOS paints in
-   the strips behind the status bar and toolbar — every fixed layer (the
-   scrim included) is clipped to the layout viewport, and the body scroll
-   lock blanks the document layer out there. Recolour the canvas to the veil
-   tone so those strips join the veil instead of flashing the page's white.
-   Matches the JS theme-color swap in SiteScripts. */
-html.sp-modal-open { background: #7B7F8A; }
+/* Full-bleed veil coverage, verified on a real iPhone (iOS 26 Simulator):
+   every position:fixed layer — the scrim included — is hard-clipped to the
+   layout viewport, so none can paint the strips behind the status bar and the
+   floating toolbar. The layer iOS DOES extend edge-to-edge into those strips
+   is the BODY background. So while the modal is open we recolour the body (not
+   just html — body's opaque `--color-pure-white` was painting over the html
+   canvas, which is why the earlier html-only rule still showed white strips).
+   The tone #7B7F8A is exactly rgba(15,23,42,0.55) (the scrim) composited over
+   white, so the flat strips match the blurred viewport centre seamlessly. The
+   JS theme-color swap in SiteScripts covers the same zones for top-URL-bar
+   layouts. */
+html.sp-modal-open,
+html.sp-modal-open body { background-color: #7B7F8A; }
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
   display: flex; align-items: center; justify-content: center;
