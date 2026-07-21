@@ -134,8 +134,43 @@ def check_subject(subject: str) -> list[str]:
     return v
 
 
-# A greeting line: "Hi Sarah," / "Hello," — anything else is treated as missing.
-GREETING_RE = re.compile(r"^(hi|hello|good (morning|afternoon))\b[^\n]{0,40}[,:]?\s*\n", re.I)
+# A greeting line, always "Dear <business name or first name>," on its own line.
+# Anything else (a bare "Hi,", no greeting, a company shouted in capitals with "Ltd")
+# is treated as missing so the soft check catches it.
+GREETING_RE = re.compile(r"^dear\s+[^\n]{1,60}[,:]\s*\n", re.I)
+
+
+def first_name(contact_name: str | None) -> str | None:
+    """The first name to greet a named contact by. Companies House holds names
+    surname-first ('SMITH, John Andrew'); a scraped/manual name is 'John Smith'. Both
+    reduce to 'John'. Returns None when there is no usable forename."""
+    if not contact_name or not contact_name.strip():
+        return None
+    n = contact_name.strip()
+    part = n.split(",", 1)[1] if "," in n else n     # after the comma = the forenames
+    tokens = [t for t in part.split() if t]
+    return tokens[0].title() if tokens else None
+
+
+_SUFFIX_RE = re.compile(
+    r"[\s,]+(ltd|limited|llp|plc|l\.?l\.?p\.?|"
+    r"cyf|ccc|company|co)\.?$", re.I)
+
+
+def _clean_business_name(company_name: str | None) -> str:
+    """A business name fit to greet: the registered suffix dropped, and a SHOUTED
+    all-caps name given ordinary capitalisation ('ACME JOINERY LTD' -> 'Acme Joinery').
+    Used for the provisional fallback; the real drafter asks the model to do the same so
+    the tidy reads naturally rather than mechanically."""
+    name = (company_name or "there").strip()
+    prev = None
+    while prev != name:                               # strip stacked suffixes ("... Co Ltd")
+        prev = name
+        name = _SUFFIX_RE.sub("", name).strip()
+    if name and name == name.upper():                 # all-caps -> Title Case, but keep
+        # short initialisms shouting ('DC', 'JCB') rather than mangling them to 'Dc'
+        name = " ".join(w if len(w) <= 2 else w.title() for w in name.split())
+    return name or "there"
 
 # Openers and phrases the craft module names as instantly pattern-matched as bulk.
 BANNED_PHRASES = (
@@ -167,10 +202,10 @@ def check_style(text: str) -> list[str]:
     if words > SOFT_MAX_WORDS:
         # without this the model drifts to the 125 hard cap and ignores the brief
         v.append(f"{words} words (tighten to under {SOFT_MAX_WORDS})")
-    # a UK owner-manager reads a missing greeting as brusque; v2.3 and earlier
-    # produced none at all because the playbook's shape list started at the opener
+    # every draft opens "Dear <business name or first name>,"; a UK owner-manager reads
+    # a missing or clumsy greeting as brusque
     if not GREETING_RE.match(text.lstrip()):
-        v.append("no greeting line")
+        v.append("no 'Dear <name>,' greeting line")
     for phrase in BANNED_PHRASES:
         if phrase in low:
             v.append(f"banned opener/filler: {phrase!r}")
@@ -271,10 +306,10 @@ def _extract(prompt: str, key: str) -> str:
 def provisional_draft(company_name: str, signal: str) -> str:
     """A minimal, compliant, explicitly-provisional message — NOT conversion copy.
     The researched playbook replaces this; it exists only to exercise the mechanism."""
-    company = (company_name or "there").strip()
+    company = _clean_business_name(company_name)
     sig = " ".join((signal or "").split()[:25])
     return (
-        f"Hello {company},\n\n"
+        f"Dear {company},\n\n"
         "This is a PROVISIONAL PLACEHOLDER, generated only to exercise SettlePay's "
         "drafting mechanism. The approved messaging is not written yet, so it is not "
         "for sending.\n\n"
@@ -305,10 +340,12 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     # leads, which is what a prefix cache needs.
     prompt = (f"{playbook}\n\n{draft_angle(company_number)}"
               f"COMPANY: {company_name}\nSIGNAL: {signal or ''}\n")
-    if contact_name:
-        prompt += (f"CONTACT NAME: {contact_name}\n"
-                   "Greet them by FIRST NAME only. Do not use their surname or any "
-                   "title, and do not mention where you found their name.\n")
+    greet = first_name(contact_name)
+    if greet:
+        prompt += (f"CONTACT NAME: {greet}\n"
+                   f'Open with "Dear {greet}," on its own line. Use this first name '
+                   "only — no surname, no title — and do not mention where you found "
+                   "their name.\n")
 
     def ask(extra: str = "") -> tuple[str, str]:
         r = provider.complete(prompt + extra, purpose="draft", max_words=MAX_WORDS,
@@ -379,18 +416,19 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     results: list[dict] = []
     try:
         cur.execute(
-            "select l.company_number, l.company_name, e.signal from outreach.leads l "
+            "select l.company_number, l.company_name, e.signal, e.contact_name "
+            "from outreach.leads l "
             "join outreach.enrichment e on e.company_number=l.company_number "
             "where l.state='enriched' order by l.updated_at "
             + ("limit %s" if limit else ""), ((limit,) if limit else ())
         )
-        for cn, name, sig in cur.fetchall():
+        for cn, name, sig, contact_name in cur.fetchall():
             # Per-lead savepoint: one lead's failure must never discard the whole
             # batch (a single overlong draft used to roll back every good one).
             cur.execute("savepoint draft_lead")
             try:
-                results.append(draft_one(cn, name, sig, provider=provider,
-                                         cur=cur, playbook=playbook))
+                results.append(draft_one(cn, name, sig, provider=provider, cur=cur,
+                                         playbook=playbook, contact_name=contact_name))
                 cur.execute("release savepoint draft_lead")
             except EnvelopeViolation as e:
                 # Unfixable after one retry — discard this lead (bounded: it will

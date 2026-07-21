@@ -1,4 +1,4 @@
-<!-- PLAYBOOK VERSION: v2.4 -->
+<!-- PLAYBOOK VERSION: v2.5 -->
 <!-- v2.1: opener/subject SHAPE rotation. v2.0's single worked example anchored the -->
 <!-- model hard — 43 of 49 sampled drafts opened with the word "Saw" and 32 shared -->
 <!-- two subject stems, which is the bulk fingerprint the module warns about. The -->
@@ -132,11 +132,16 @@ Return **JSON only**, exactly these two keys, nothing else:
 Plain text, **under 110 words**, in this shape — but written as a note from one
 person to another, not as a filled-in template:
 
-0. **Greeting**, on its own line. `Hi <first name>,` when `CONTACT NAME` is supplied
-   and is a real person's first name. Otherwise `Hello,` — never `Hi there,`,
-   never `Dear Sir/Madam`, never the company name as if it were a person, and
-   never a `{merge tag}`. A UK owner-manager reads a missing greeting as brusque;
-   this is not the place to be clever.
+0. **Greeting**, on its own line, always beginning `Dear `:
+   - when `CONTACT NAME` is supplied → `Dear <first name>,` (that person's FIRST
+     name only — no surname, no title).
+   - otherwise → `Dear <business name>,`, where `<business name>` is `COMPANY`
+     written naturally: drop any `Ltd`/`Limited`/`LLP`/`plc` suffix, and if
+     `COMPANY` is in capitals use ordinary capitalisation (e.g.
+     `ACME JOINERY LTD` → `Dear Acme Joinery,`).
+   Never `Dear Sir/Madam`, never `Hi there,`, never a `{merge tag}`, never the
+   registered suffix. A UK owner-manager reads a missing or clumsy greeting as
+   brusque; this is not the place to be clever.
 1. **Opener** — observation → implication (above), starting on the next line.
 2. **The gap** — bank transfer / manual invoicing means chasing and hand-matching.
    Observe; never assert a fact about them you weren't given.

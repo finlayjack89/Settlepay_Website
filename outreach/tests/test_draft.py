@@ -204,3 +204,63 @@ def test_draft_persists_the_subject(db_rollback):
     assert res["subject"] == "payments at subj co"
     cur.execute("select subject from outreach.drafts where id=%s", (res["draft_id"],))
     assert cur.fetchone()[0] == "payments at subj co"
+
+
+# ---- greeting: always "Dear <business name>," or "Dear <first name>," ----
+def test_first_name_reduces_ch_and_plain_names():
+    assert draft.first_name("SMITH, John Andrew") == "John"
+    assert draft.first_name("John Smith") == "John"
+    assert draft.first_name("COOK, Akleem") == "Akleem"
+    assert draft.first_name(None) is None
+    assert draft.first_name("   ") is None
+
+
+def test_clean_business_name_drops_suffix_and_stops_shouting():
+    assert draft._clean_business_name("ACME JOINERY LTD") == "Acme Joinery"
+    assert draft._clean_business_name("Acme Lettings Ltd") == "Acme Lettings"
+    assert draft._clean_business_name("NAISH ESTATE AGENTS LIMITED") == "Naish Estate Agents"
+    assert draft._clean_business_name("C & S Electrical Wholesale") == "C & S Electrical Wholesale"
+    # short initialisms keep shouting rather than becoming 'Dc'
+    assert draft._clean_business_name("DC SERVICES ELECTRICAL CONTRACTOR LTD") == \
+        "DC Services Electrical Contractor"
+
+
+def test_greeting_regex_wants_dear_and_rejects_the_old_forms():
+    assert draft.GREETING_RE.match("Dear Acme Joinery,\n")
+    assert draft.GREETING_RE.match("Dear John,\n")
+    assert not draft.GREETING_RE.match("Hi John,\n")
+    assert not draft.GREETING_RE.match("Hello,\n")
+    assert any("greeting" in v for v in draft.check_style(
+        "Hello, a note from SettlePay. FCA-regulated partners. unsubscribe. "
+        "Kind regards, Finlay Salisbury SettlePay"))
+
+
+def test_provisional_draft_greets_the_business_by_clean_name():
+    assert draft.provisional_draft("ACME JOINERY LTD", "x").startswith("Dear Acme Joinery,")
+
+
+def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
+    """A named contact must reach the drafter as a 'Dear <first name>,' instruction —
+    the whole point of resolving a decision-maker."""
+    cur = db_rollback.cursor()
+    import uuid
+    cn = f"GRT_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,'Acme Ltd','ltd','corporate','enriched')", (cn,))
+    cur.execute("insert into outreach.enrichment (company_number, website, contact_email, "
+                "contact_name, contact_tier, email_verified, signal) "
+                "values (%s,'https://x.co','j.smith@x.co','SMITH, John','named',true,'sig')", (cn,))
+    seen = {}
+
+    class _P:
+        def complete(self, prompt, **k):
+            seen["prompt"] = prompt
+            import json as _j
+            return type("R", (), {"text": _j.dumps({
+                "subject": "payments at acme",
+                "body": ("Dear John,\n\nA note from SettlePay. Payments are handled by "
+                         "FCA-regulated partners. Reply unsubscribe to opt out.\n\n"
+                         "Kind regards,\nFinlay Salisbury\nSettlePay")})})()
+
+    draft.run(provider=_P(), cur=cur, limit=1)
+    assert 'Dear John,' in seen["prompt"] and "CONTACT NAME: John" in seen["prompt"]
