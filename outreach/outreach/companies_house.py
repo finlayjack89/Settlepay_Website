@@ -63,7 +63,17 @@ class CompaniesHouseClient:
                         company_status: str = "active", size: int = 50,
                         start_index: int = 0, incorporated_from: Optional[str] = None,
                         incorporated_to: Optional[str] = None,
-                        company_name_includes: Optional[str] = None) -> dict:
+                        company_name_includes: Optional[str] = None,
+                        location: Optional[str] = None) -> dict:
+        """Advanced search. Unlike /search/companies this does no relevance ranking —
+        `company_name_includes` is a literal substring filter and `location` matches the
+        registered-office address (postcode or town). That precision is what makes it
+        usable for resolving a TRADING name, where relevance ranking gets swamped by the
+        generic words every business in the sector shares.
+
+        A search with no matches answers 404, not an empty list — returned here as an
+        empty result so callers can treat "nothing found" as data rather than an error.
+        """
         self.limiter.acquire()
         params = {"company_status": company_status, "size": size, "start_index": start_index}
         if sic_codes:
@@ -74,7 +84,11 @@ class CompaniesHouseClient:
             params["incorporated_to"] = incorporated_to
         if company_name_includes:                   # name-based discovery (e.g. auctioneers)
             params["company_name_includes"] = company_name_includes
+        if location:                                # registered-office postcode or town
+            params["location"] = location
         r = self._client.get("/advanced-search/companies", params=params)
+        if r.status_code == 404:
+            return {"items": [], "hits": 0}
         r.raise_for_status()
         return r.json()
 

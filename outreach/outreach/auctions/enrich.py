@@ -18,12 +18,13 @@ pipeline uses.
 """
 from __future__ import annotations
 
+import difflib
 import re
 from typing import Optional
 
 import httpx
 
-from .. import crossref, decisionmakers
+from .. import crossref, decisionmakers, deepmatch, places
 from .. import enrich as _enrich
 from ..companies_house import CompaniesHouseClient
 from ..firewall import SubscriberClass
@@ -74,11 +75,55 @@ def _name_matches_domain(business_name: str, url: str) -> Optional[bool]:
     return any(w in stem for w in words)
 
 
-def _resolve_website(raw: AuctionLead, resolver) -> tuple[Optional[str], Optional[str]]:
+def places_fill(raw: AuctionLead, *, cur=None) -> Optional[dict]:
+    """Google Places lookup for a lead the platform under-described.
+
+    Only called when the platform left a gap (no website, or no postcode) — Places bills
+    GCP credit per search, and the ATG platforms already supply both. It is the better
+    source than a web search when it answers: the website comes from a maintained
+    business listing rather than a search result that happened to rank first.
+
+    Guarded on the business NAME matching the listing: a name-only Places hit is as
+    likely to be a different company in a different town, which is exactly the failure
+    that put a Maine auction house and a newspaper article into the last sample.
+    """
+    if not (raw.business_name and config._oc.GOOGLE_MAPS_API_KEY):
+        return None
+    where = raw.postcode or raw.location or ""
+    try:
+        results = places.text_search(f"{raw.business_name} {where}".strip(),
+                                     max_results=5, cur=cur)
+    except Exception:
+        return None                     # Places is nice-to-have; never block the lead
+    want = deepmatch._norm(raw.business_name)
+    for r in results:
+        got = deepmatch._norm(r.get("name") or "")
+        if not got:
+            continue
+        ratio = difflib.SequenceMatcher(None, want, got).ratio()
+        if ratio < 0.6:
+            continue
+        if (r.get("business_status") or "OPERATIONAL") != "OPERATIONAL":
+            continue                    # closed premises: not a lead, and not our postcode
+        site = r.get("website")
+        if site and (any(p in site.lower() for p in _REJECT_DOMAINS)
+                     or _name_matches_domain(raw.business_name, site) is False):
+            site = None                 # a listing pointing at a platform/other company
+        return {"website": site, "postcode": r.get("postcode"),
+                "locality": (r.get("address") or "").split(",")[-2].strip()
+                if (r.get("address") or "").count(",") >= 2 else None,
+                "name_ratio": round(ratio, 2)}
+    return None
+
+
+def _resolve_website(raw: AuctionLead, resolver, places_hit: Optional[dict] = None
+                     ) -> tuple[Optional[str], Optional[str]]:
     """Returns (url, note). The note explains a rejection so a blank website is never
     just an unexplained gap in the output."""
     if raw.own_website:
         return raw.own_website, None    # the platform told us — no guessing involved
+    if places_hit and places_hit.get("website"):
+        return places_hit["website"], None   # a maintained listing beats a search result
     if resolver is None:
         return None, None
     hint = "auctioneer " + (raw.categories[0] if raw.categories else "auction house")
@@ -186,8 +231,20 @@ def enrich_lead(raw: AuctionLead, *, http: Optional[httpx.Client] = None,
     own_http = http is None
     http = http or httpx.Client(timeout=20, follow_redirects=True, headers=_UA)
     try:
+        # 0. fill the platform's gaps from Places, but only where there IS a gap —
+        #    the ATG platforms already supply both website and postcode.
+        places_hit = None
+        if not raw.own_website or not raw.postcode:
+            places_hit = places_fill(raw)
+            if places_hit:
+                if not raw.postcode and places_hit.get("postcode"):
+                    lead.postcode = places_hit["postcode"]
+                    lead.notes.append(f"postcode {places_hit['postcode']} from Places")
+                if not raw.location and places_hit.get("locality"):
+                    lead.location = places_hit["locality"]
+
         # 1. website + payment behaviour + ICP signal
-        website, note = _resolve_website(raw, resolver)
+        website, note = _resolve_website(raw, resolver, places_hit)
         if note:
             lead.notes.append(note)
         lead.own_website = website
@@ -206,9 +263,22 @@ def enrich_lead(raw: AuctionLead, *, http: Optional[httpx.Client] = None,
         else:
             lead.notes.append("own website not resolved")
 
-        # 2. Companies House PECR gate + entity facts
+        # 2. Companies House PECR gate + entity facts.
+        #    The shallow (relevance-ranked) search resolves a business trading under its
+        #    registered name. When it can't — the common case for auctioneers, whose
+        #    trading name rarely matches the register — fall through to the deep matcher,
+        #    which searches on distinctive words and corroborates against the postcode,
+        #    the domain we just resolved, the SIC code and the town. Deep only ever
+        #    UPGRADES an unknown: a shallow match that already succeeded is left alone.
         if ch is not None:
-            cls, number, reason = crossref.match_company(ch, raw.business_name, raw.postcode)
+            cls, number, reason = crossref.match_company(ch, raw.business_name,
+                                                         lead.postcode or raw.postcode)
+            if cls is SubscriberClass.UNKNOWN and number is None:
+                d_cls, d_number, d_reason = deepmatch.classify_deep(
+                    ch, raw.business_name, postcode=lead.postcode or raw.postcode,
+                    domain=lead.domain, locality=lead.location or raw.location)
+                if d_number:
+                    cls, number, reason = d_cls, d_number, d_reason
             lead.pecr_class = cls.value
             lead.company_number = number
             if number:

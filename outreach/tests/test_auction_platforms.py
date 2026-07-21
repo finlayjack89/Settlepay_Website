@@ -275,6 +275,100 @@ def test_a_platform_supplied_website_skips_the_guard_entirely():
     assert _resolve_website(raw, resolver=None) == ("https://ationsss.co.uk", None)
 
 
+# --------------------------------------------------------------------------- #
+#  Places fill — the thin sources' missing website and postcode
+# --------------------------------------------------------------------------- #
+def _places(monkeypatch, results):
+    from outreach import config as oc
+    from outreach.auctions import enrich as ae
+    monkeypatch.setattr(oc, "GOOGLE_MAPS_API_KEY", "test-key")
+    monkeypatch.setattr(ae.places, "text_search", lambda *a, **k: results)
+
+
+def test_places_supplies_the_postcode_a_platform_never_gave(monkeypatch):
+    """Invaluable exposes a town and nothing else; without a postcode the Companies
+    House match has only the name to go on."""
+    from outreach.auctions.enrich import places_fill
+    from outreach.auctions.models import AuctionLead
+    _places(monkeypatch, [{"name": "A F Brock and Co Ltd", "website": None,
+                           "postcode": "SK7 4PL", "address": "269 London Rd, Stockport, UK",
+                           "business_status": "OPERATIONAL"}])
+    hit = places_fill(AuctionLead(platform="invaluable", business_name="A F Brock and Co Ltd",
+                                  listing_url="x", source_id="y", location="Stockport"))
+    assert hit["postcode"] == "SK7 4PL"
+
+
+def test_places_result_for_a_different_business_is_ignored(monkeypatch):
+    """A name-only Places hit is as likely to be another company in another town."""
+    from outreach.auctions.enrich import places_fill
+    from outreach.auctions.models import AuctionLead
+    _places(monkeypatch, [{"name": "Casco Bay Auctions", "website": "https://cascobayauctions.com",
+                           "postcode": "04101", "address": "Portland, ME, USA",
+                           "business_status": "OPERATIONAL"}])
+    assert places_fill(AuctionLead(platform="invaluable", business_name="A J Cobern",
+                                   listing_url="x", source_id="y")) is None
+
+
+def test_places_website_still_goes_through_the_name_guard(monkeypatch):
+    """Places listings carry stale or wrong websites too — one source of truth for
+    'is this really their site', not two."""
+    from outreach.auctions.enrich import places_fill
+    from outreach.auctions.models import AuctionLead
+    _places(monkeypatch, [{"name": "A J Cobern Auctions", "website": "https://cascobayauctions.com",
+                           "postcode": "RH4 1AA", "address": "Dorking, UK",
+                           "business_status": "OPERATIONAL"}])
+    hit = places_fill(AuctionLead(platform="invaluable", business_name="A J Cobern",
+                                  listing_url="x", source_id="y"))
+    assert hit is not None and hit["website"] is None      # kept the postcode, dropped the site
+
+
+def test_places_skips_a_closed_business(monkeypatch):
+    from outreach.auctions.enrich import places_fill
+    from outreach.auctions.models import AuctionLead
+    _places(monkeypatch, [{"name": "Ashley Waller Auctioneers", "website": "https://ashleywaller.co.uk",
+                           "postcode": "SK11 9DU", "address": "Macclesfield, UK",
+                           "business_status": "CLOSED_PERMANENTLY"}])
+    assert places_fill(AuctionLead(platform="saleroom", business_name="Ashley Waller Auctioneers",
+                                   listing_url="x", source_id="y")) is None
+
+
+def test_places_is_not_called_without_a_key(monkeypatch):
+    from outreach import config as oc
+    from outreach.auctions import enrich as ae
+    from outreach.auctions.models import AuctionLead
+    monkeypatch.setattr(oc, "GOOGLE_MAPS_API_KEY", None)
+    monkeypatch.setattr(ae.places, "text_search",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no spend")))
+    assert ae.places_fill(AuctionLead(platform="invaluable", business_name="X",
+                                      listing_url="x", source_id="y")) is None
+
+
+def test_places_failure_never_blocks_the_lead(monkeypatch):
+    from outreach import config as oc
+    from outreach.auctions import enrich as ae
+    from outreach.auctions.models import AuctionLead
+    monkeypatch.setattr(oc, "GOOGLE_MAPS_API_KEY", "test-key")
+    monkeypatch.setattr(ae.places, "text_search",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("places down")))
+    assert ae.places_fill(AuctionLead(platform="invaluable", business_name="X",
+                                      listing_url="x", source_id="y")) is None
+
+
+def test_a_places_website_is_preferred_over_a_search_guess():
+    """A maintained business listing beats whatever a web search ranked first."""
+    from outreach.auctions.enrich import _resolve_website
+    from outreach.auctions.models import AuctionLead
+
+    class _Resolver:
+        def resolve(self, **_):
+            raise AssertionError("must not fall through to a search")
+
+    raw = AuctionLead(platform="liveauctioneers", business_name="Ashley Waller Auctioneers",
+                      listing_url="x", source_id="y")
+    url, note = _resolve_website(raw, _Resolver(), {"website": "https://ashleywaller.co.uk"})
+    assert url == "https://ashleywaller.co.uk" and note is None
+
+
 def test_invaluable_stops_when_a_page_repeats_itself():
     """The listing silently serves page 1 again past the end, so 'nothing new' — not
     'nothing at all' — has to be the stop condition, or paging never terminates."""
