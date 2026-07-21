@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from . import config, db, enquiries, graduation, jobs, monitor, outbox, research
+from . import config, db, emailfmt, enquiries, graduation, jobs, monitor, outbox, research
 from . import review, stats, webauth
 # aliased: this module defines a `schedule()` route that would shadow the import
 from . import schedule as send_queue
@@ -720,7 +720,10 @@ def draft_view(request: Request, draft_id: str, err: str = ""):
         <div><label class="fld">Reviewer</label><input name="reviewer" required placeholder="Your name"></div>
         <div style="flex:1"><label class="fld">Note (optional)</label><input name="note" style="width:100%"></div>
       </div>
-      <div class="row" style="margin-top:1rem"><button class="btn btn-primary" type="submit">Approve</button></div>
+      <div class="row" style="margin-top:1rem;align-items:center;gap:.75rem">
+        <button class="btn btn-primary" type="submit">Approve</button>
+        <a class="btn btn-ghost" href="/outreach/draft/{draft_id}/preview" target="_blank">Preview email &rarr;</a>
+      </div>
     </form>
     <form method="post" action="/outreach/reject/{draft_id}" style="margin-top:1.25rem;border-top:1px solid var(--line);padding-top:1.1rem">
       {_csrf_field(request)}
@@ -743,6 +746,73 @@ def draft_view(request: Request, draft_id: str, err: str = ""):
   </div>
 </div>"""
     return _shell("/outreach/queue", f"Review · {name}", "Approve, edit, or reject this draft", body_html)
+
+
+# Charcoal swatches for the live font control. First is the shipping default (emailfmt.INK).
+_CHARCOALS = ["#111827", "#0F172A", "#1F2937", "#030712", "#374151"]
+
+
+@router.get("/outreach/draft/{draft_id}/preview", response_class=HTMLResponse)
+def draft_preview(draft_id: str):
+    """Render the ACTUAL email HTML (exactly what send builds) so the operator sees what
+    lands, and can trial the body charcoal live before we bake a shade in."""
+    with db.cursor(commit=False) as cur:
+        cur.execute(
+            "select coalesce(d.body_final, d.body_original), l.company_name, e.contact_tier "
+            "from outreach.drafts d join outreach.leads l on l.company_number = d.company_number "
+            "left join outreach.enrichment e on e.company_number = d.company_number "
+            "where d.id = %s", (draft_id,))
+        row = cur.fetchone()
+    if not row:
+        return HTMLResponse(_shell("/outreach/queue", "Not found", "",
+                                   '<div class="panel"><div class="empty">Draft not found.</div></div>'),
+                            status_code=404)
+    body, name, tier = row
+    # match the send path exactly: named contacts carry the art. 14 footer note
+    note = emailfmt.NAMED_FOOTER_NOTE if tier == "named" else None
+    email_html = emailfmt.render_html(body or "", footer_note=note)
+    default = emailfmt.INK
+    swatches = "".join(
+        f'<button type="button" class="sw" data-c="{c}" style="background:{c}" title="{c}"></button>'
+        for c in _CHARCOALS)
+    page = f"""<div class="panel">
+  <div class="hint">This is the real rendered email (HTML part), exactly as it sends —
+  logo, signature and all. Drag the picker or tap a swatch to trial the body charcoal
+  live; tell me the hex you like and I'll bake it into every send.</div>
+  <div class="row" style="align-items:center;gap:1rem;margin:.4rem 0 1rem">
+    <label class="fld" style="margin:0">Body colour</label>
+    <input type="color" id="pick" value="{default}" style="width:48px;height:34px;border:0;background:none">
+    <span id="hex" style="font-variant-numeric:tabular-nums;font-weight:600">{default}</span>
+    <span class="swrow" style="display:flex;gap:.4rem">{swatches}</span>
+    <span class="muted" style="font-size:.78rem">shipping default: {default}</span>
+  </div>
+  <div style="max-width:620px;margin:0 auto;border:1px solid var(--line,#e2e8f0);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm,0 1px 3px rgba(0,0,0,.08))">
+    <iframe id="eml" style="width:100%;height:640px;border:0;background:#fff"></iframe>
+  </div>
+</div>
+<style>.sw{{width:26px;height:26px;border-radius:6px;border:1px solid rgba(0,0,0,.15);cursor:pointer;padding:0}}</style>
+<script>
+(function(){{
+  var base = {json.dumps(email_html)};
+  var DEFAULT = {json.dumps(default)};
+  var frame = document.getElementById('eml');
+  var hex = document.getElementById('hex');
+  function paint(c){{
+    // the body copy uses the default charcoal inline; swap every occurrence so the
+    // preview recolours live (the muted wordmark/footer stay as they are)
+    frame.srcdoc = base.split(DEFAULT).join(c);
+    hex.textContent = c;
+    document.getElementById('pick').value = c;
+  }}
+  document.getElementById('pick').addEventListener('input', function(e){{ paint(e.target.value); }});
+  [].forEach.call(document.querySelectorAll('.sw'), function(b){{
+    b.addEventListener('click', function(){{ paint(b.dataset.c); }});
+  }});
+  paint(DEFAULT);
+}})();
+</script>"""
+    return _shell("/outreach/queue", f"Email preview · {name}",
+                  "Exactly what sends — trial the body charcoal live", page)
 
 
 @router.post("/outreach/approve/{draft_id}")

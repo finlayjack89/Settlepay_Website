@@ -113,3 +113,46 @@ def test_named_footer_still_has_no_anchor():
     zero-anchor rule holds even for the transparency line."""
     out = emailfmt.render_html(BODY, footer_note=emailfmt.NAMED_FOOTER_NOTE)
     assert "<a " not in out.lower() and "href" not in out.lower()
+
+
+# --------------------------------------------------------------------------- #
+#  CRLF line endings must not collapse the whole email into one light paragraph
+# --------------------------------------------------------------------------- #
+def test_crlf_body_still_splits_into_paragraphs():
+    """Drafts arrive with Windows CRLF. A paragraph break is '\\r\\n\\r\\n', which
+    split('\\n\\n') misses — the bug that rendered the whole email as one muted-grey
+    blob with no signature/logo."""
+    crlf = ("Dear Acme,\r\n\r\n"
+            "Most firms wait on bank transfers.\r\n\r\n"
+            "Worth a look? Reply unsubscribe to opt out.\r\n\r\n"
+            "Kind regards,\r\nFinlay Salisbury\r\nSettlePay")
+    out = emailfmt.render_html(crlf)
+    assert out.count("<p ") >= 4                       # greeting + 2 body + sign-off pieces
+    assert "border-top" in out and emailfmt.LOGO_URL in out   # signature + logo render
+    # the body copy is the dark charcoal, not the muted grey
+    assert f"color:{emailfmt.INK}" in out
+    # only the wordmark + contact line are muted (no body paragraph is)
+    assert out.count(f"color:{emailfmt.MUTED}") == 2
+
+
+def test_body_paragraphs_are_dark_not_muted():
+    body = ("Dear Acme,\r\n\r\nA note about payments. FCA-regulated partners handle it.\r\n\r\n"
+            "Reply unsubscribe to opt out.\r\n\r\nKind regards,\r\nFinlay Salisbury\r\nSettlePay")
+    out = emailfmt.render_html(body)
+    import re
+    # the body content paragraphs (not the signature contact line) are all dark charcoal,
+    # INCLUDING a standalone opt-out line
+    for needle in ("A note about payments", "Reply unsubscribe to opt out"):
+        m = re.search(rf'<p style="[^"]*color:(#[0-9A-Fa-f]{{6}})[^"]*">[^<]*{re.escape(needle)}', out)
+        assert m and m.group(1) == emailfmt.INK, needle
+
+
+def test_a_combined_ask_and_unsub_line_is_not_greyed():
+    """The ask and the opt-out are often one sentence; greying it hides the ask."""
+    body = ("Dear Acme,\r\n\r\nWorth a quick look at your invoicing? Reply unsubscribe "
+            "to stop hearing from me.\r\n\r\nKind regards,\r\nFinlay Salisbury\r\nSettlePay")
+    out = emailfmt.render_html(body)
+    import re
+    ask = [c for c, t in re.findall(r'<p style="[^"]*color:(#[0-9A-Fa-f]{6})[^"]*">([^<]+)', out)
+           if "Worth a quick look" in t]
+    assert ask == [emailfmt.INK]                       # the ask is dark, not muted
