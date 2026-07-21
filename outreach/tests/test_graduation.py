@@ -33,8 +33,10 @@ def _seed_awaiting(cur, sic, *, held=False, prompt_version=draft.PROMPT_VERSION)
     cn = _cn(held=held)
     _seed_lead(cur, cn, sic)
     cur.execute(
-        "insert into outreach.drafts (company_number, body_original, prompt_version, status) "
-        "values (%s,%s,%s,'awaiting_approval') returning id", (cn, BODY, prompt_version))
+        "insert into outreach.drafts (company_number, subject, body_original, "
+        "prompt_version, status) "
+        "values (%s,'payments at test co',%s,%s,'awaiting_approval') returning id",
+        (cn, BODY, prompt_version))
     return cn, cur.fetchone()[0]
 
 
@@ -52,8 +54,9 @@ def _seed_proven_vertical(cur, sic, *, reviewed=52, rejected=2,
         "insert into outreach.leads (company_number, company_name, company_type, "
         "subscriber_class, state, sic_codes) values (%s,%s,'ltd','corporate',%s,%s)", leads)
     cur.executemany(
-        "insert into outreach.drafts (company_number, body_original, body_final, "
-        "prompt_version, status, decided_by, decided_at) values (%s,%s,%s,%s,%s,'Finlay',now())",
+        "insert into outreach.drafts (company_number, subject, body_original, body_final, "
+        "prompt_version, status, decided_by, decided_at) "
+        "values (%s,'payments at test co',%s,%s,%s,%s,'Finlay',now())",
         drafts)
     return [l[0] for l in leads]
 

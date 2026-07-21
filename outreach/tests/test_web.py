@@ -9,6 +9,21 @@ from outreach.web import app  # noqa: E402
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _open_console(monkeypatch):
+    """Render pages as the console does in local dev: no login gate.
+
+    Without this every test here silently asserts against the LOGIN page rather than
+    the page it names — because config is read from the real outreach/.env, and once
+    that file gained CONSOLE_PASSWORD_HASH + SESSION_SECRET for the deployment, the
+    middleware started gating localhost too. The tests that are actually ABOUT auth
+    call _configure_auth(monkeypatch) and set these back.
+    """
+    from outreach import config
+    monkeypatch.setattr(config, "SESSION_SECRET", None)
+    monkeypatch.setattr(config, "CONSOLE_PASSWORD_HASH", None)
+
+
 def test_landing_combines_inbound_and_outbound():
     r = client.get("/")
     assert r.status_code == 200
@@ -169,3 +184,49 @@ def test_prefix_links_rewrites_under_base_path(monkeypatch):
     assert 'action="/dashboard/login"' in out
     assert "location.href='/dashboard/jobs/1'" in out
     assert 'href="https://x.co/"' in out  # absolute externals untouched
+
+
+# --------------------------------------------------------------------------- #
+#  Manual overrides: the sending queue, the outbox, and manual research
+# --------------------------------------------------------------------------- #
+def test_sending_page_renders_the_approved_queue():
+    r = client.get("/outreach/sending")
+    assert r.status_code == 200
+    assert "Approved &amp; queued" in r.text
+    # the override must always advertise what it does NOT override
+    assert "warm-up cap and G-SEND all still apply" in r.text
+
+
+def test_research_page_renders():
+    r = client.get("/research")
+    assert r.status_code == 200
+    assert "Research a company" in r.text
+    assert "Recently researched" in r.text
+
+
+def test_research_submit_rejects_a_non_url():
+    r = client.post("/research", data={"url": "not a website"}, follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/research?err=")
+    assert "usable%20website%20address" in r.headers["location"]
+
+
+def test_research_submit_redirects_to_an_existing_record(monkeypatch):
+    """A domain already on file must go straight to the record: no job, no spend."""
+    from outreach import research, web
+    monkeypatch.setattr(research, "find_existing",
+                        lambda d, cur: {"company_number": "12345678", "matched_on": "profile"})
+    monkeypatch.setattr(web.jobs, "enqueue",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no job")))
+    r = client.post("/research", data={"url": "https://acme.co.uk"}, follow_redirects=False)
+    assert r.status_code == 303
+    assert "/outreach/lead/12345678" in r.headers["location"]
+
+
+def test_research_submit_enqueues_a_job_for_a_new_domain(monkeypatch):
+    from outreach import research, web
+    monkeypatch.setattr(research, "find_existing", lambda d, cur: None)
+    monkeypatch.setattr(web.jobs, "enqueue", lambda kind, params, **k: 4242)
+    r = client.post("/research", data={"url": "https://brand-new-domain.co.uk"},
+                    follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].endswith("/jobs/4242")

@@ -15,8 +15,10 @@ def _seed_drafted(cur, body=BODY):
         "insert into outreach.leads (company_number, company_name, company_type, "
         "subscriber_class, state) values (%s,%s,'ltd','corporate','drafted')", (cn, cn))
     cur.execute(
-        "insert into outreach.drafts (company_number, body_original, prompt_version, status) "
-        "values (%s,%s,'placeholder-v0','awaiting_approval') returning id", (cn, body))
+        "insert into outreach.drafts (company_number, subject, body_original, "
+        "prompt_version, status) "
+        "values (%s,'payments at test co',%s,'placeholder-v0','awaiting_approval') "
+        "returning id", (cn, body))
     return cn, cur.fetchone()[0]
 
 

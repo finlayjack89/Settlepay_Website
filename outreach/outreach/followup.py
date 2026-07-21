@@ -14,10 +14,11 @@ really sent would be a first touch wearing a follow-up's clothes.
 """
 from __future__ import annotations
 import datetime
+import json
 
 from . import audit, config, db, draft, sequence
 from .firewall import check_suppression
-from .llm import get_provider
+from .llm import draft_provider
 
 
 def working_days_between(a, b) -> int:
@@ -55,8 +56,11 @@ def provisional_followup(company_name: str, signal: str) -> str:
 
 
 def provisional_followup_responder(prompt: str) -> str:
-    return provisional_followup(draft._extract(prompt, "COMPANY:"),
-                                draft._extract(prompt, "SIGNAL:"))
+    return json.dumps({
+        "subject": "following up on payments",
+        "body": provisional_followup(draft._extract(prompt, "COMPANY:"),
+                                     draft._extract(prompt, "SIGNAL:")),
+    })
 
 
 def eligible(cur, *, limit=None) -> list[tuple]:
@@ -101,17 +105,24 @@ def followup_one(company_number: str, company_name: str, signal: str, parent_dra
         "above (~60-80 words, admin-saved angle, same envelope).\n"
         f"COMPANY: {company_name}\nSIGNAL: {signal or ''}\n"
     )
-    body = provider.complete(prompt, purpose="followup", max_words=80).text.strip()
+    r = provider.complete(prompt, purpose="followup", max_words=80,
+                          schema=draft.DRAFT_SCHEMA)
+    try:
+        subject, body = draft.parse_payload(r.text)
+    except draft.DraftFormatError as e:
+        # same reason as in draft_one: run() isolates EnvelopeViolation per lead
+        raise draft.EnvelopeViolation(company_number, [f"unparseable draft: {e}"]) from e
 
-    violations = draft.check_envelope(body)
+    violations = draft.check_envelope(body) + [
+        f"subject: {s}" for s in draft.check_subject(subject)]
     if violations:
         raise draft.EnvelopeViolation(company_number, violations)
 
     cur.execute(
-        "insert into outreach.drafts (company_number, body_original, prompt_version, "
-        "status, touch, parent_draft_id) "
-        "values (%s, %s, %s, 'awaiting_approval', 2, %s) returning id",
-        (company_number, body, draft.PROMPT_VERSION, parent_draft_id),
+        "insert into outreach.drafts (company_number, subject, body_original, "
+        "prompt_version, status, touch, parent_draft_id) "
+        "values (%s, %s, %s, %s, 'awaiting_approval', 2, %s) returning id",
+        (company_number, subject, body, draft.PROMPT_VERSION, parent_draft_id),
     )
     followup_id = cur.fetchone()[0]
     audit.record(company_number, "followup_drafted", source="followup",
@@ -120,15 +131,14 @@ def followup_one(company_number: str, company_name: str, signal: str, parent_dra
                          f"{draft.PROMPT_VERSION}); envelope ok"), cur=cur)
     return {"company_number": company_number, "draft_id": str(followup_id),
             "parent_draft_id": str(parent_draft_id), "touch": 2,
-            "words": len(body.split())}
+            "subject": subject, "words": len(body.split())}
 
 
 def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     if provider is None:
-        # api when configured (real unattended drafts); otherwise the safe
+        # gemini/api when configured (real unattended drafts); otherwise the safe
         # provisional fallback so a bare run never fabricates a real-looking email.
-        provider = (get_provider("api") if config.LLM_PROVIDER == "api"
-                    else get_provider("inline", responder=provisional_followup_responder))
+        provider = draft_provider(responder=provisional_followup_responder)
     own = cur is None
     conn = None
     if own:

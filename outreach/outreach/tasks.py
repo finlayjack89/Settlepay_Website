@@ -11,9 +11,10 @@ mode='live' but nothing leaves an inbox unless a human has set G_SEND.
 """
 from __future__ import annotations
 
-from . import config, dns_auth, draft, firewall, followup, graduation, inbound
+from . import config, crossref, decisionmakers, dns_auth, draft, firewall, followup
+from . import graduation, inbound
 from . import enrich as enrich_mod
-from . import find_leads, report
+from . import find_leads, places, report, research
 from . import run as run_mod
 from . import send as send_mod
 from .jobs import Param, task
@@ -36,6 +37,32 @@ def discover(ctx, target=10):
     return find_leads.run(target=target, sic_codes=config.TARGET_SIC_CODES or None)
 
 
+@task("discover_places", "Discover (Places, local)",
+      "Google Places sweep of the town×vertical grid into leads (paid: GCP credit). "
+      "Paged by a cursor so each run advances the grid.",
+      params=(Param("count", "How many queries", kind="int", default=16),))
+def discover_places(ctx, count=16):
+    return places.discover_grid(count=count)
+
+
+@task("crossref", "Cross-reference (PECR gate)",
+      "Match Places leads to Companies House; only confident active-corporate matches "
+      "become sendable, the rest are kept research-only.",
+      params=(Param("limit", "How many", kind="int", default=50),))
+def crossref_task(ctx, limit=50):
+    return crossref.run(limit=limit)
+
+
+@task("research_url", "Research a website",
+      "Paste a company's URL: scrape the site, cross-reference Companies House, pull "
+      "the local Places record, score ICP fit, and build a CRM profile. Skips instantly "
+      "(and spends nothing) if the domain is already on file.",
+      params=(Param("url", "Website URL", required=True),
+              Param("force", "Re-research even if already held", kind="bool", default=False)))
+def research_url_task(ctx, url="", force=False):
+    return research.run(url, force=force, log=ctx.log)
+
+
 @task("classify", "Classify (PECR firewall)",
       "Classify unclassified leads; individual/unknown are hard-suppressed.")
 def classify(ctx):
@@ -47,6 +74,15 @@ def classify(ctx):
       params=(Param("limit", "How many", kind="int", default=10),))
 def enrich(ctx, limit=10):
     return {"enriched": enrich_mod.discover_and_run(limit=limit)}
+
+
+@task("decision_makers", "Find decision-makers",
+      "Fetch directors from Companies House and try to CONFIRM one named work email per "
+      "lead via MillionVerifier (never a guess). Off unless DECISION_MAKER_ENABLED is set; "
+      "moves outreach to named individuals (full UK GDPR).",
+      params=(Param("limit", "How many", kind="int", default=10),))
+def decision_makers_task(ctx, limit=10):
+    return decisionmakers.run(limit=limit)
 
 
 @task("draft", "Draft emails",

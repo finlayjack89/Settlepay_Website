@@ -22,32 +22,59 @@ stays gated behind G-SEND regardless of --live.
 from __future__ import annotations
 
 from . import config, db, firewall
-from . import draft as draft_mod
+from . import decisionmakers, draft as draft_mod
 from . import enrich as enrich_mod
-from . import find_leads, followup, graduation, inbound, monitor, report, spend
+from . import crossref, find_leads, followup, graduation, inbound, monitor, outbox, places
+from . import report, spend, stats
 from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
 
-FULL_CHAIN = ("inbound", "classify", "monitor", "discover", "enrich", "draft",
-              "followup", "auto_approve", "send", "digest")
-AUTONOMOUS_STAGES = ("discover", "enrich", "draft", "followup", "auto_approve")
+FULL_CHAIN = ("inbound", "classify", "monitor", "discover_places", "crossref",
+              "discover", "enrich", "decision_makers", "draft", "followup",
+              "auto_approve", "send", "digest")
+AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich",
+                     "decision_makers", "draft", "followup", "auto_approve")
 
 
 def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
-    """One step: send each approved draft that has no send row yet."""
+    """One step: send each approved draft whose scheduled slot has arrived.
+
+    The `scheduled_at <= now()` filter is what paces sending. Without it this loop
+    fired every approved draft at once, which at the 50/day ceiling is a burst of
+    50 cold emails in seconds. Drafts approved before the queue existed have a NULL
+    slot and stay eligible immediately, so nothing already approved gets stranded.
+
+    A draft in the OUTBOX (manual "send now", undo window elapsed) is due whatever
+    its slot says. The sweeper thread normally gets there first — this is the safety
+    net for a manual send whose instance was torn down before the sweep ran, so it
+    goes out late rather than sitting in the outbox for ever.
+    """
     cur.execute(
         "select d.id from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
         "where d.status = 'approved' "
+        "and (d.scheduled_at is null or d.scheduled_at <= now() "
+        f"     or d.outbox_at + interval '{outbox.UNDO_SECONDS} seconds' <= now()) "
         "and not exists (select 1 from outreach.sends s where s.draft_id = d.id) "
-        "order by d.created_at")
+        "order by d.outbox_at nulls last, d.scheduled_at nulls first, d.created_at")
     mode = "dry_run" if dry_run else "live"
     out: list[dict] = []
+    sent = 0
     for (draft_id,) in cur.fetchall():
+        # SEND_PER_TICK smooths catch-up: after downtime several slots are due at
+        # once, and firing them together is the burst the queue exists to prevent.
+        if sent >= config.SEND_PER_TICK:
+            out.append({"deferred": "SEND_PER_TICK reached; remaining slots roll to the next tick"})
+            break
         try:
             out.append(send_mod.send_one(draft_id, mode=mode, cur=cur))
+            sent += 1
         except send_mod.SendRefused as e:
             out.append({"draft_id": str(draft_id), "refused": str(e)})
+        # leave the outbox empty either way: a refused manual send that stayed in it
+        # would be retried on every tick and every sweep, for ever
+        cur.execute("update outreach.drafts set outbox_at = null "
+                    "where id = %s and outbox_at is not null", (draft_id,))
     return out
 
 
@@ -115,18 +142,65 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
             summary["halted"] = "kill switch tripped by monitor"
             return summary
 
+    # Demand-pull reservoir: discover/enrich run only to refill the ready pool
+    # toward READY_POOL_TARGET, then idle (£0) when it's full — this is what
+    # amortises the expensive stages. Deficit is computed once per tick.
+    pool = stats.reservoir_status(cur, config.READY_POOL_TARGET) if cur is not None else None
+
+    if want("discover_places"):  # Google Places (GCP credit) — credit-gated, NOT enriched-pool-gated
+        # Discovery is cheap on credit and should build a big classified reservoir, so it
+        # is gated by the CREDIT budget + a backlog cap, not the (cash-bound) enriched pool.
+        credit = stats.credit_status(cur) if cur is not None else None
+        if credit and credit["remaining"] <= config.CREDIT_FLOOR_GBP:
+            summary["steps"]["discover_places"] = {"skipped": "credit budget floor reached", **credit}
+        elif pool and pool["backlog"] >= config.CLASSIFIED_BACKLOG_MAX:
+            summary["steps"]["discover_places"] = {"skipped": "classified backlog full", **pool}
+        else:  # credit-billed, not cash — the credit gate above is the control
+            do("discover_places",
+               lambda: places.discover_grid(count=config.PLACES_PER_TICK, cur=cur))
+
+    if want("crossref"):  # PECR gate for Places leads — classify corporate vs research-only
+        do("crossref", lambda: crossref.run(limit=config.CROSSREF_PER_TICK, cur=cur))
+
     if want("discover"):
-        do("discover", lambda: find_leads.run(
-            target=config.DISCOVER_PER_TICK,
-            sic_codes=config.TARGET_SIC_CODES or None))
+        if pool and pool["deficit"] <= 0:
+            summary["steps"]["discover"] = {"skipped": "reservoir full", **pool}
+        else:
+            # only fetch raw leads if the discovered backlog can't cover the deficit
+            need = min(config.DISCOVER_PER_TICK,
+                       max(0, pool["deficit"] - pool["backlog"])) if pool else config.DISCOVER_PER_TICK
+            if need <= 0:
+                summary["steps"]["discover"] = {"skipped": "backlog covers deficit", **(pool or {})}
+            else:
+                do("discover", lambda: find_leads.run(
+                    target=need, sic_codes=config.TARGET_SIC_CODES or None))
 
     if want("enrich"):  # MillionVerifier + Firecrawl are paid
-        do("enrich", lambda: enrich_mod.discover_and_run(
-            limit=config.ENRICH_PER_TICK, cur=cur), paid=True)
+        if pool and pool["deficit"] <= 0:
+            summary["steps"]["enrich"] = {"skipped": "reservoir full", **pool}
+        else:
+            limit = min(config.ENRICH_PER_TICK, pool["deficit"]) if pool else config.ENRICH_PER_TICK
+            do("enrich", lambda: enrich_mod.discover_and_run(limit=limit, cur=cur), paid=True)
+
+    if want("decision_makers"):  # Companies House officers -> inferred named email (MV, paid)
+        if not config.DM_ENABLED:
+            summary["steps"]["decision_makers"] = {"skipped": "DECISION_MAKER_ENABLED off"}
+        else:
+            do("decision_makers",
+               lambda: decisionmakers.run(cur=cur, limit=config.DM_PER_TICK), paid=True)
 
     if want("draft"):
-        do("draft", lambda: draft_mod.run(cur=cur, limit=config.DRAFT_PER_TICK),
-           paid=(config.LLM_PROVIDER == "api"))
+        backlog = stats.review_backlog(cur) if cur is not None else 0
+        if backlog >= config.DRAFT_BACKLOG_MAX:
+            # the human gate is the bottleneck; drafting past it just spends credit
+            summary["steps"]["draft"] = {"skipped": "review backlog full",
+                                         "awaiting_approval": backlog,
+                                         "max": config.DRAFT_BACKLOG_MAX}
+        else:
+            do("draft", lambda: draft_mod.run(
+                cur=cur, limit=min(config.DRAFT_PER_TICK,
+                                   config.DRAFT_BACKLOG_MAX - backlog)),
+               paid=(config.LLM_PROVIDER == "api"))
 
     if want("followup"):
         do("followup", lambda: followup.run(cur=cur, limit=config.FOLLOWUP_PER_TICK),

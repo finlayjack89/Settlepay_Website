@@ -9,6 +9,7 @@ import datetime
 import json
 import pathlib
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from . import config
 
@@ -19,10 +20,27 @@ def load_sequence_config(path=None) -> dict:
     return json.loads((pathlib.Path(path) if path else SEQ_PATH).read_text())
 
 
+def send_tz(seq: Optional[dict] = None) -> ZoneInfo:
+    """The timezone the send window is expressed in. Never the machine's local time:
+    Cloud Run sets no TZ, so the container runs UTC, and a naive comparison would put
+    an "08:00-15:00 UK" window at 09:00-16:00 BST for the whole of British Summer
+    Time — an hour late all summer and correct only in winter."""
+    return ZoneInfo((seq or {}).get("timezone", "Europe/London"))
+
+
+def local_now(seq: Optional[dict] = None, now: Optional[datetime.datetime] = None):
+    """`now` as wall-clock time in the send timezone. Accepts naive (assumed already
+    local, which is what tests pass) or aware datetimes."""
+    tz = send_tz(seq)
+    if now is None:
+        return datetime.datetime.now(tz)
+    return now.astimezone(tz) if now.tzinfo is not None else now
+
+
 def in_send_window(seq: dict, now: Optional[datetime.datetime] = None) -> bool:
     """True if `now` falls inside the configured send window (config-driven, no
-    hardcoded hours/days)."""
-    now = now or datetime.datetime.now()
+    hardcoded hours/days). Compared in the send timezone, not the machine's."""
+    now = local_now(seq, now)
     w = seq.get("send_window", {})
     days = w.get("days")
     if days is not None and now.weekday() not in days:

@@ -93,9 +93,11 @@ def run(*, cur=None) -> dict:
         cur = conn.cursor()
     counts = {"corporate": 0, "individual": 0, "unknown": 0, "suppressed": 0}
     try:
+        # Places-sourced leads carry no company_type — the corporate cross-reference
+        # (crossref.py) classifies them instead. Skip them here.
         cur.execute(
             "select company_number, company_type from outreach.leads "
-            "where subscriber_class is null"
+            "where subscriber_class is null and source <> 'places'"
         )
         for company_number, company_type in cur.fetchall():
             cls = classify(company_type)

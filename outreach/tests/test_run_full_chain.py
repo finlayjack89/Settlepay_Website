@@ -25,6 +25,21 @@ def _stub_stages(monkeypatch, order):
                         rec("monitor", ret={"paused": False}))
     monkeypatch.setattr(run_mod.report, "send_daily_digest",
                         rec("digest", ret={"skipped": "no operator email"}))
+    # These gates read LIVE reservoir/credit state from the shared database, so
+    # production data decides whether discover/enrich run at all — a full reservoir
+    # legitimately skips discovery and made this order assertion fail. Pin them:
+    # the subject here is stage ORDER, not the demand-pull arithmetic (covered in
+    # test_reservoir.py).
+    monkeypatch.setattr(run_mod.stats, "reservoir_status",
+                        lambda *a, **k: {"ready": 0, "backlog": 0, "deficit": 50,
+                                         "target": 50})
+    monkeypatch.setattr(run_mod.stats, "credit_status",
+                        lambda *a, **k: {"spent": 0.0, "budget": 237.0,
+                                         "remaining": 237.0, "pct": 0.0,
+                                         "days_left": 90})
+    monkeypatch.setattr(run_mod.places, "discover_grid", rec("discover_places"))
+    monkeypatch.setattr(run_mod.crossref, "run", rec("crossref"))
+    monkeypatch.setattr(run_mod.decisionmakers, "run", rec("decision_makers", ret={}))
 
 
 def test_bare_tick_excludes_autonomous_stages(db_rollback, monkeypatch):
@@ -41,11 +56,25 @@ def test_autonomous_tick_runs_full_chain_in_order(db_rollback, monkeypatch):
     order = []
     _stub_stages(monkeypatch, order)
     monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", True)
     res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
     for s in ("discover", "enrich", "draft", "followup", "auto_approve"):
         assert s in res["steps"], s
-    assert order.index("monitor") < order.index("discover") < order.index("enrich") \
-        < order.index("draft") < order.index("followup") < order.index("auto_approve")
+    # decision_makers runs AFTER enrich (needs a domain) and BEFORE draft (so the send
+    # can go to the named contact)
+    assert order.index("monitor") < order.index("enrich") \
+        < order.index("decision_makers") < order.index("draft") \
+        < order.index("followup") < order.index("auto_approve")
+
+
+def test_decision_makers_stage_is_skipped_when_disabled(db_rollback, monkeypatch):
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
+    assert res["steps"]["decision_makers"] == {"skipped": "DECISION_MAKER_ENABLED off"}
+    assert "decision_makers" not in order
 
 
 def test_single_stage_runs_without_autonomy_gate(db_rollback, monkeypatch):
@@ -91,3 +120,30 @@ def test_monitor_trip_halts_tick(db_rollback, monkeypatch):
     res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
     assert res.get("halted") == "kill switch tripped by monitor"
     assert "discover" not in res["steps"]  # nothing after the trip
+
+
+def test_draft_stops_when_the_review_backlog_is_full(db_rollback, monkeypatch):
+    """Drafting is the last credit-spending stage before the manual gate. Without a
+    cap the pipeline pays to write email nobody has read yet, indefinitely."""
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DRAFT_BACKLOG_MAX", 10)
+    monkeypatch.setattr(run_mod.stats, "review_backlog", lambda *a, **k: 10)
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
+    assert "skipped" in res["steps"]["draft"]
+    assert "draft" not in order
+
+
+def test_draft_runs_and_is_limited_by_remaining_backlog_room(db_rollback, monkeypatch):
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DRAFT_BACKLOG_MAX", 10)
+    monkeypatch.setattr(run_mod.config, "DRAFT_PER_TICK", 10)
+    monkeypatch.setattr(run_mod.stats, "review_backlog", lambda *a, **k: 7)
+    captured = {}
+    monkeypatch.setattr(run_mod.draft_mod, "run",
+                        lambda **k: captured.update(k) or [])
+    run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
+    assert captured["limit"] == 3      # only room for 3 more before the cap

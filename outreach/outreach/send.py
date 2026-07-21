@@ -42,19 +42,31 @@ def _kill_switch_on(cur=None) -> bool:
         return False
 
 
-def _gmail_send(sender: str, to_email: str, subject: str, body: str) -> str:
+def _gmail_send(sender: str, to_email: str, subject: str, body: str,
+                *, named: bool = False) -> str:
     """Real Gmail API users.messages.send (per-user OAuth + refresh token), via the
     shared gmail/google_oauth layer (also used by operator alerts + digests). Only
     ever reached on a LIVE send, which itself requires G-SEND cleared. WHY no
     service account / domain-wide delegation: the refresh token is inherently
     mailbox-scoped — it only works for the single mailbox that consented, so
     cross-mailbox sending is impossible by construction. Returns the Gmail
-    message id."""
-    from . import gmail
+    message id.
+
+    `named` selects the art. 14 transparency footer: a send to a named individual
+    must tell them where we got their details, which a role-address send need not."""
+    from . import emailfmt, gmail
     from .google_oauth import OAuthNotConfigured
 
     try:
-        return gmail.send_message(sender, to_email, subject or "", body)
+        # a named send carries the art. 14 transparency note in BOTH parts (a recipient
+        # sees only one of them); a role-address send keeps the plain footer.
+        note = emailfmt.NAMED_FOOTER_NOTE if named else None
+        html = emailfmt.render_html(body, footer_note=note)
+        body = body + (emailfmt.named_text_footer() if named else emailfmt.TEXT_FOOTER)
+    except Exception:
+        html = None   # formatting must never block a send — plain text suffices
+    try:
+        return gmail.send_message(sender, to_email, subject or "", body, html=html)
     except OAuthNotConfigured as e:
         raise SendRefused(f"Gmail API credentials not configured ({e})") from e
 
@@ -63,7 +75,8 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     inbox = inbox or config.GMAIL_SENDER or "test@getsettlepay.uk"
 
     cur.execute(
-        "select d.company_number, d.subject, d.body_final, d.status, "
+        # subject_final is what the reviewer approved; subject is what the model wrote
+        "select d.company_number, coalesce(d.subject_final, d.subject), d.body_final, d.status, "
         "       l.subscriber_class::text, l.state::text, e.contact_email, e.contact_tier "
         "from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
@@ -79,6 +92,10 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
         raise SendRefused(f"draft not approved ({status})")
     if not body_final or not body_final.strip():
         raise SendRefused("no body_final to send")
+    # Playbook v1.x produced no subject at all and stored NULL; those rows predate
+    # v2.0 and must never go out as a blank Subject header. Refuse rather than send.
+    if not subject or not subject.strip():
+        raise SendRefused("no subject to send (pre-v2.0 draft — re-draft it)")
 
     # ---- GUARDRAILS (enforced for dry-run AND live) ----
     if _kill_switch_on(cur):
@@ -95,10 +112,13 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
         raise SendRefused("risky (catch-all) contact — set RISKY_SEND_ENABLED to send")
     # warm-up-aware per-inbox daily cap: ramp a new sending mailbox up gradually
     # (deliverability) — effective cap = min(steady ceiling, today's warm-up cap).
-    cur.execute("select min(created_at::date) from outreach.sends "
-                "where from_inbox = %s and mode = 'live'", (inbox,))
-    first_live = cur.fetchone()[0]
-    warmup_day = ((datetime.date.today() - first_live).days + 1) if first_live else 1
+    # counted in SENDING days, not calendar days: a weekend must not advance the
+    # ramp with no email going out, or Friday's 25/day becomes Monday's 50/day —
+    # a doubling after two days of silence, the exact spike the ramp prevents.
+    cur.execute("select count(distinct created_at::date) from outreach.sends "
+                "where from_inbox = %s and mode = 'live' "
+                "and created_at::date < current_date", (inbox,))
+    warmup_day = cur.fetchone()[0] + 1
     effective_cap = min(config.PER_INBOX_DAILY_CAP, sequence.warmup_cap(warmup_day))
     cur.execute(
         "select count(*) from outreach.sends "
@@ -111,7 +131,9 @@ def send_one(draft_id, *, mode: str = "dry_run", inbox: Optional[str] = None, cu
     if mode == "live":
         if not config.send_enabled():
             raise SendRefused("live send disabled — gate G-SEND not cleared (G_SEND unset)")
-        provider_id = _gmail_send(inbox, email, subject or "", body_final)
+        # a 'named' contact is a real person -> the art. 14 transparency footer applies
+        provider_id = _gmail_send(inbox, email, subject or "", body_final,
+                                  named=(tier == "named"))
         send_mode, send_status = "live", "sent"
     else:
         provider_id, send_mode, send_status = None, "dry_run", "dry_run_ok"

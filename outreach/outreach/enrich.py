@@ -274,6 +274,14 @@ def verify_email(email: str, *, api_key: Optional[str] = None,
 
 
 RISKY_RESULTS = ("catch_all",)  # deliverable but unconfirmable (M365/Workspace catch-all)
+# The verifier failed to ANSWER — out of credits, rate-limited, timed out. This is not
+# a verdict about the address and must never be treated as one: on 2026-07-20 the
+# MillionVerifier balance went negative, every check started returning 'error', and the
+# pipeline discarded 178 leads in a day that each had a perfectly good contact address.
+# A verifier outage defers a lead; only the verifier actually saying no discards it.
+TRANSIENT_RESULTS = ("error", "verify_error")
+# consecutive transient results that mean "the verifier is down, stop paying to scrape"
+VERIFIER_DOWN_AFTER = 3
 
 
 def contact_tier(result: str, *, accept_catch_all: Optional[bool] = None) -> Optional[str]:
@@ -290,10 +298,27 @@ def contact_tier(result: str, *, accept_catch_all: Optional[bool] = None) -> Opt
     return None
 
 
-def _domain_of(url: Optional[str]) -> Optional[str]:
-    if not url:
+_SCHEME_RE = re.compile(r"^\s*(?:https?:)?/*", re.I)
+
+
+def normalise_domain(url: Optional[str]) -> Optional[str]:
+    """'https://WWW.Acme.co.uk/contact?x=1' -> 'acme.co.uk'.
+
+    THE canonical rule, deliberately in one place: it is both the scrape's
+    same-domain test and the key manual research dedupes on, and migration 0009
+    backfilled with the SQL equivalent. A bare word with no dot is a typo, not a
+    domain, so it returns None rather than a key that would match nothing.
+    """
+    if not url or not url.strip():
         return None
-    return re.sub(r"^https?://(www\.)?", "", url).split("/")[0].lower() or None
+    host = _SCHEME_RE.sub("", url.strip()).split("/")[0].split("?")[0].split("#")[0]
+    host = host.split("@")[-1].split(":")[0].lower().rstrip(".")
+    if host.startswith("www."):
+        host = host[4:]
+    return host if host and "." in host and " " not in host else None
+
+
+_domain_of = normalise_domain   # internal alias, kept for the existing call sites
 
 
 _TAG_RE = re.compile(r"<(script|style)\b.*?</\1>|<[^>]+>", re.S | re.I)
@@ -355,6 +380,98 @@ def llm_signal(company_name: str, vertical: Optional[str], town: Optional[str],
         return None
 
 
+# The ICP-fit gate schema: one structured call does BOTH the personalisation signal
+# AND the qualify/disqualify decision. payment_context is the load-bearing field —
+# the ICP is businesses that bill AWAY from a fixed till (mobile/remote/invoice), for
+# whom an online branded card page is NEW infra, not a fixed-till shop that already
+# takes card in person.
+_PAYMENT_CONTEXTS = ["invoice_remote", "fixed_till_retail", "online_ecommerce", "mixed", "unclear"]
+# contexts that DISQUALIFY: a shop taking card at a till, or an existing online checkout.
+_DISQUALIFYING_CONTEXTS = {"fixed_till_retail", "online_ecommerce"}
+_FIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "icp_fit": {"type": "boolean"},
+        "payment_context": {"type": "string", "enum": _PAYMENT_CONTEXTS},
+        "size_band": {"type": "string", "enum": ["micro", "small", "medium", "large"]},
+        "signal": {"type": "string"},
+        "confidence": {"type": "number"},
+    },
+    "required": ["icp_fit", "payment_context", "size_band", "signal", "confidence"],
+}
+
+
+def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[str],
+                   text: str, *, provider=None) -> dict:
+    """ICP-fit gate + personalisation signal in ONE structured Gemini call, from
+    scraped page text. Returns {available, icp_fit, payment_context, size_band,
+    signal, confidence}. `available` is False on no text / no Gemini / any error —
+    the caller then falls back to the factual signal and admits the lead flagged
+    for human review (fail-open, but the downstream review→approve gate catches it;
+    the compliance gates that must fail CLOSED are check_envelope + the firewall).
+    A definite not-fit / fixed-till / already-online verdict discards the lead
+    cheaply, before any drafting spend."""
+    unavailable = {"available": False, "icp_fit": None, "payment_context": None,
+                   "size_band": None, "signal": None, "confidence": None}
+    if not text:
+        return unavailable
+    if provider is None:
+        if not config.GEMINI_PROJECT:
+            return unavailable   # structured fit needs the Gemini/Vertex provider
+        from .llm import get_provider
+        provider = get_provider("gemini", model=config.GEMINI_FAST_MODEL)
+    prompt = (
+        "You qualify UK businesses for SettlePay, which builds a branded card-payment "
+        "page + invoicing on a business's own domain, with automatic reconciliation. "
+        "The KEY question is WHERE money changes hands.\n"
+        "IDEAL FIT: small businesses that bill AWAY from a fixed counter — mobile, "
+        "remote, appointment- or job-based, or invoice-based — so they take cash, "
+        "bank transfer or manual invoices and an online branded card page is NEW, "
+        "useful infrastructure. Examples: tradespeople (plumbers, electricians, "
+        "builders), auctioneers, clinics and private practices, consultants and "
+        "advisers, mobile services (mobile mechanics, mobile physio, mobile grooming), "
+        "installers, surveyors.\n"
+        "NOT A FIT (disqualify):\n"
+        "- fixed_till_retail: a shop/salon/cafe/barber with a physical premises and a "
+        "till/card machine — they ALREADY take card in person at the counter, so an "
+        "online page is redundant.\n"
+        "- online_ecommerce: already sells/takes card online (checkout, basket, "
+        "Stripe/PayPal/Shopify/WooCommerce).\n"
+        "- medium/large or enterprise-serving firms (banks, big consultancies, ~50+ staff).\n\n"
+        f"BUSINESS: {company_name}" + (f" — {vertical}" if vertical else "")
+        + (f", {town}" if town else "") + "\n"
+        f"WEBSITE TEXT (may be partial):\n{text}\n\n"
+        "From the text ONLY decide:\n"
+        "- payment_context: invoice_remote (bills away from a till — the ideal) | "
+        "fixed_till_retail (counter shop taking card in person) | online_ecommerce "
+        "(already online) | mixed | unclear.\n"
+        "- icp_fit: true ONLY if this is a small business that bills remotely/by "
+        "invoice, for whom an online branded card page is NEW infrastructure.\n"
+        "- size_band: micro/small/medium/large.\n"
+        "- signal: 2-3 factual UK-English sentences — what they do, how customers "
+        "appear to pay (invoice, bank transfer, cash, card in person), and ONE hook "
+        "about taking card online via a branded page. Say 'not stated' rather than "
+        "guessing. Under 80 words, no URLs.\n"
+        "- confidence: 0-1 in your icp_fit call."
+    )
+    from .llm import LLMUnavailable
+    try:
+        raw = provider.complete(prompt, purpose="icp_fit", schema=_FIT_SCHEMA).text.strip()
+        data = json.loads(raw)
+        sig = " ".join(str(data.get("signal") or "").split())[:500] or None
+        ctx = data.get("payment_context")
+        return {"available": True,
+                "icp_fit": bool(data.get("icp_fit")),
+                "payment_context": ctx if ctx in _PAYMENT_CONTEXTS else "unclear",
+                "size_band": data.get("size_band"),
+                "signal": sig,
+                "confidence": float(data.get("confidence") or 0.0)}
+    except (LLMUnavailable, ValueError, KeyError, TypeError):
+        return unavailable
+    except Exception:
+        return unavailable
+
+
 def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
             verifier=None, guess_generics: bool = True) -> dict:
     """The SLOW, networked half of enrichment (guess/scrape + verify), with NO
@@ -404,23 +521,50 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
     the connection for milliseconds, never across network I/O."""
     email, verified, result = g["email"], g["verified"], g["result"]
     tier = contact_tier(result) if email else None   # 'verified' | 'risky' | None
-    acceptable = tier is not None
-    scraped = json.dumps({  # provenance for the dashboard
+    contactable = tier is not None
+    # ICP-fit gate: a DEFINITE negative verdict (not fit, or already takes card
+    # online) disqualifies the lead here — before any drafting spend. Fit unknown
+    # (LLM unavailable) admits-if-contactable but flags for human review.
+    fit = g.get("fit") or {}
+    fit_available = bool(fit.get("available"))
+    disqualified = fit_available and (
+        not fit.get("icp_fit") or fit.get("payment_context") in _DISQUALIFYING_CONTEXTS)
+    acceptable = contactable and not disqualified
+    scraped = json.dumps({  # provenance for the dashboard + CSV export
         "source": g["scrape_source"], "emails_found": len(g["candidates"]),
         "candidates": g["candidates"][:8], "verify_result": result, "tier": tier,
         "signal_source": g.get("signal_source", "factual"),
+        "icp_fit": fit.get("icp_fit"), "payment_context": fit.get("payment_context"),
+        "size_band": fit.get("size_band"), "fit_confidence": fit.get("confidence"),
+        "fit_source": "llm" if fit_available else "unknown",
     })
+    # The verifier didn't answer. Write NOTHING and leave the lead 'discovered': the
+    # enrich backlog picks up leads that have no enrichment row, so an absent row is
+    # what schedules the retry. A row saying 'error' would both discard the lead AND
+    # make it invisible to the backlog query — permanent loss from a temporary outage.
+    deferred = bool(email) and not disqualified and result in TRANSIENT_RESULTS
+    if deferred:
+        audit.record(company_number, "verify_deferred", source="enrich",
+                     lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     reason=f"verifier unavailable ({result}) for {email} — held for retry",
+                     cur=cur)
+        return {"company_number": company_number, "email": email, "verified": False,
+                "result": result, "tier": None, "icp_fit": fit.get("icp_fit"),
+                "disqualified": False, "deferred": True}
+
     cur.execute(
+        # `domain` is the dedupe key manual research checks BEFORE spending anything,
+        # so every enrichment has to write it, not just the manual path
         "insert into outreach.enrichment "
-        "(company_number, website, contact_email, email_verified, email_verify_result, "
+        "(company_number, website, domain, contact_email, email_verified, email_verify_result, "
         " contact_tier, signal, scraped) "
-        "values (%s,%s,%s,%s,%s,%s,%s,%s::jsonb) "
+        "values (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb) "
         "on conflict (company_number) do update set "
-        "website=excluded.website, contact_email=excluded.contact_email, "
+        "website=excluded.website, domain=excluded.domain, contact_email=excluded.contact_email, "
         "email_verified=excluded.email_verified, email_verify_result=excluded.email_verify_result, "
         "contact_tier=excluded.contact_tier, signal=excluded.signal, scraped=excluded.scraped",
-        (company_number, website, email, (verified if email else None), result,
-         tier, signal, scraped),
+        (company_number, website, _domain_of(website), email, (verified if email else None),
+         result, tier, signal, scraped),
     )
     if acceptable:
         cur.execute(
@@ -434,11 +578,18 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
         cur.execute(
             "update outreach.leads set state='discarded', updated_at=now() "
             "where company_number=%s and state in ('discovered','enriched')", (company_number,))
+        if disqualified:
+            ctx = fit.get("payment_context")
+            why = {"fixed_till_retail": "fixed-till retail (takes card in person)",
+                   "online_ecommerce": "already takes card online"}.get(ctx, "not ICP fit")
+            reason = f"{why} ({fit.get('size_band')}, conf {fit.get('confidence')})"
+        else:
+            reason = f"unverifiable contact ({result})"
         audit.record(company_number, "discarded", source="enrich",
-                     lawful_basis=audit.LEGITIMATE_INTERESTS,
-                     reason=f"unverifiable contact ({result})", cur=cur)
+                     lawful_basis=audit.LEGITIMATE_INTERESTS, reason=reason, cur=cur)
     return {"company_number": company_number, "email": email, "verified": verified,
-            "result": result, "tier": tier}
+            "result": result, "tier": tier, "icp_fit": fit.get("icp_fit"),
+            "disqualified": disqualified, "deferred": False}
 
 
 def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
@@ -499,21 +650,38 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     # phase 2 — slow networked work (resolve + scrape + verify), NO DB connection held
     http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
     gathered: list[tuple] = []
+    consecutive_verify_failures = 0
     try:
-        for cn, name, town, sic in leads:
+        for cn, name, town, sic, known_website in leads:
+            # Circuit breaker. Verification is the LAST step, so a dead verifier means
+            # every scrape before it was paid for and thrown away. Stop the batch
+            # instead of grinding through the backlog achieving nothing.
+            if consecutive_verify_failures >= VERIFIER_DOWN_AFTER:
+                break
             vertical = stats.sic_label(sic)  # e.g. "Accountants", "Estate agents"
             hint = vertical if vertical and vertical != "Unknown" else None
-            try:
-                website = resolver.resolve(company_name=name, address=town or "", hint=hint)
-            except Exception:
-                website = None
+            if known_website:   # Places already gave us the site — don't pay to re-resolve
+                website = known_website
+            else:
+                try:
+                    website = resolver.resolve(company_name=name, address=town or "", hint=hint)
+                except Exception:
+                    website = None
             signal = name + (f" — {vertical}" if hint else "") + (f" in {town}" if town else "")
             g = _gather(website, http_client=http)
+            if g["email"] and g["result"] in TRANSIENT_RESULTS:
+                consecutive_verify_failures += 1
+            elif g["result"] not in TRANSIENT_RESULTS:
+                consecutive_verify_failures = 0
             g["signal_source"] = "factual"
-            if website:  # richer LLM signal when the api brain is available
-                s = llm_signal(name, hint, town, page_text(website, client=http))
-                if s:
-                    signal, g["signal_source"] = s, "llm"
+            g["fit"] = None   # unknown → admitted flagged for review (fail-open)
+            if website:  # structured ICP-fit gate + signal in one Gemini call
+                fit = signal_and_fit(name, hint, town, page_text(website, client=http))
+                g["fit"] = fit
+                if fit["available"]:
+                    g["signal_source"] = "llm"
+                    if fit["signal"]:
+                        signal = fit["signal"]
             gathered.append((cn, website, signal, g))
     finally:
         http.close()
@@ -533,7 +701,8 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
 
 
 _BACKLOG_SQL = (
-    "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1] "
+    "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1], "
+    "       l.registered_address->>'website' "
     "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
     "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
     "order by l.company_name limit %s")

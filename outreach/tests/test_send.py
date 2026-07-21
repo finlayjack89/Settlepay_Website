@@ -20,9 +20,10 @@ def _seed_approved(cur, *, email=None, sub="corporate", tier=None):
         "email_verified, contact_tier, signal) values (%s,'https://x.co',%s,%s,%s,'sig')",
         (cn, email, tier != "risky", tier))
     cur.execute(
-        "insert into outreach.drafts (company_number, body_original, body_final, "
-        "prompt_version, status, decided_by, decided_at) "
-        "values (%s,%s,%s,'placeholder-v0','approved','Finlay',now()) returning id",
+        "insert into outreach.drafts (company_number, subject, subject_final, "
+        "body_original, body_final, prompt_version, status, decided_by, decided_at) "
+        "values (%s,'payments at test co','payments at test co',%s,%s,"
+        "'placeholder-v0','approved','Finlay',now()) returning id",
         (cn, COMPLIANT, COMPLIANT))
     return cn, email, cur.fetchone()[0]
 
@@ -122,3 +123,54 @@ def test_warmup_limits_below_steady_cap(db_rollback, monkeypatch):
     _, _, over = _seed_approved(cur)
     with pytest.raises(send.SendRefused):
         send.send_one(over, mode="dry_run", inbox=inbox, cur=cur)  # ramp cap reached
+
+
+def test_send_refuses_a_subjectless_pre_v2_draft(db_rollback):
+    """Playbook v1.x stored subject=NULL on every draft and send posts `subject or ""`.
+    Those rows must be refused, not delivered with a blank Subject header."""
+    cur = db_rollback.cursor()
+    cn, email, did = _seed_approved(cur)
+    cur.execute("update outreach.drafts set subject=null, subject_final=null where id=%s", (did,))
+    with pytest.raises(send.SendRefused, match="no subject"):
+        send.send_one(did, mode="dry_run", cur=cur)
+
+
+def test_send_prefers_the_reviewer_edited_subject(db_rollback):
+    """subject_final (what the reviewer approved) must win over subject (what the
+    model wrote). Proven via the guardrail: with subject NULL and only subject_final
+    set, the send must still go through — which it can only do if coalesce reads
+    subject_final."""
+    cur = db_rollback.cursor()
+    cn, email, did = _seed_approved(cur)
+    cur.execute("update outreach.drafts set subject=null, subject_final=%s where id=%s",
+                ("reviewer rewrote this", did))
+    res = send.send_one(did, mode="dry_run", cur=cur)
+    assert res["status"] == "dry_run_ok"
+
+
+def test_named_contact_send_uses_the_transparency_footer(db_rollback, monkeypatch):
+    """A live send to a 'named' contact must go out with the art. 14 footer; a role
+    address must not. We intercept the Gmail backend and inspect the rendered body."""
+    cur = db_rollback.cursor()
+    monkeypatch.setattr(config, "G_SEND", "1")        # clear the live gate for this test
+    captured = {}
+
+    def _fake_send(sender, to_email, subject, body, html=None):
+        captured["text"] = body
+        captured["html"] = html or ""
+        return "msgid-123"
+    monkeypatch.setattr("outreach.gmail.send_message", _fake_send)
+
+    # named contact
+    cn, email, did = _seed_approved(cur, tier="named")
+    send.send_one(did, mode="live", inbox="s@settlepayhq.uk", cur=cur)
+    assert "Companies House" in captured["text"]      # art. 14 source, plain-text part
+    assert "Companies House" in captured["html"]      # ...and the html part
+    assert config.PRIVACY_NOTICE_URL in captured["text"]
+
+    # role address on the same run must NOT carry it
+    captured.clear()
+    cn2, email2, did2 = _seed_approved(cur, tier="verified")
+    send.send_one(did2, mode="live", inbox="s@settlepayhq.uk", cur=cur)
+    assert "Companies House" not in captured["text"]
+    assert "Companies House" not in captured["html"]

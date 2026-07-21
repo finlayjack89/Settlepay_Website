@@ -1,0 +1,16 @@
+# secrets must NEVER enter the image — Cloud Run injects them from Secret Manager
+.env
+.env.*
+!.env.example
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+docs/
+ops/
+Dockerfile
+.dockerignore
+.gitignore
+README.md

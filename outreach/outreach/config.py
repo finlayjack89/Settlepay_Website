@@ -31,6 +31,8 @@ ENQUIRY_SOURCE_TABLE = os.environ.get("ENQUIRY_SOURCE_TABLE", "leads")
 
 # --- external APIs ---
 COMPANIES_HOUSE_API_KEY = os.environ.get("COMPANIES_HOUSE_API_KEY")
+# Google Maps Platform (Places API New + Geocoding) — local ICP discovery; GCP credit.
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
 MILLIONVERIFIER_API_KEY = os.environ.get("MILLIONVERIFIER_API_KEY")
 
 # --- website discovery (phase D): inline (loop agent) | firecrawl | brave ---
@@ -51,20 +53,45 @@ ACCEPT_CATCH_ALL = _bool("ACCEPT_CATCH_ALL", True)
 RISKY_SEND_ENABLED = _bool("RISKY_SEND_ENABLED", False)
 
 # --- LLM provider ---
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "inline")   # inline | api (Anthropic) | gemini (Vertex)
 # api provider (the unattended "brain" — lets enrich/draft run with no human loop
 # session, which is what makes headless/cloud operation possible).
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 # verified against ~/.claude/LLM_MODELS.md — do not "correct" from memory. Override via env.
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
+# Gemini via Vertex AI — bills against the GCP credit; auth via ADC / the runtime
+# service account (no API key). Model IDs verified live on Vertex 2026-07-19; do not
+# "correct" from memory. Thinking is disabled per-call in the provider for cost.
+GEMINI_PROJECT = os.environ.get("GEMINI_PROJECT", "")            # e.g. settlepay-502417
+GEMINI_LOCATION = os.environ.get("GEMINI_LOCATION", "global")    # global avoids the +10% regional surcharge
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")          # workhorse (draft)
+GEMINI_FAST_MODEL = os.environ.get("GEMINI_FAST_MODEL", "gemini-3.1-flash-lite")  # fast extraction (signal/ICP)
+
 # --- autonomy (unattended, scheduled operation) ---
 # Master gate for the FULL-CHAIN tick (discover -> enrich -> draft). Off by default:
 # a bare tick stays the safe classify+send only. Turn on for headless operation.
 PIPELINE_AUTONOMOUS = _bool("PIPELINE_AUTONOMOUS", False)
+# Reservoir / amortisation: keep this many enriched-and-fit leads ready to draft.
+# discover/enrich are demand-pulled — they run ONLY to refill toward this target,
+# then idle (£0) when the pool is full, so the expensive stages amortise. The
+# PER_TICK values are the per-tick rate caps applied on top of the deficit.
+READY_POOL_TARGET = _int("READY_POOL_TARGET", 150)
 DISCOVER_PER_TICK = _int("DISCOVER_PER_TICK", 10)
+PLACES_PER_TICK = _int("PLACES_PER_TICK", 16)      # Places grid queries per tick (credit)
+CROSSREF_PER_TICK = _int("CROSSREF_PER_TICK", 50)  # Places leads classified per tick
 ENRICH_PER_TICK = _int("ENRICH_PER_TICK", 10)
 DRAFT_PER_TICK = _int("DRAFT_PER_TICK", 10)
+# Stop drafting once this many drafts are waiting on a human. Drafting is the last
+# credit-spending stage before the manual review gate, so without this the pipeline
+# writes email nobody has read yet, for ever. The demand-pull chain then throttles
+# itself: drafting stops -> 'enriched' leads accumulate -> the reservoir deficit
+# hits zero -> enrich stops -> only (cheap, credit-billed) discovery keeps running.
+DRAFT_BACKLOG_MAX = _int("DRAFT_BACKLOG_MAX", 400)
+# Max sends per tick. The queue already spaces slots, but if the service was down or
+# a tick was missed, several slots fall due at once and would fire together — the
+# burst the queue exists to prevent. Catch-up is spread over subsequent ticks.
+SEND_PER_TICK = _int("SEND_PER_TICK", 3)
 FOLLOWUP_PER_TICK = _int("FOLLOWUP_PER_TICK", 10)
 INBOUND_MAX_PER_RUN = _int("INBOUND_MAX_PER_RUN", 50)
 # CSV of SIC codes to discover; empty => targeting.TARGET_SICS (the ICP default set).
@@ -81,6 +108,15 @@ def _float(name: str, default: float) -> float:
 
 
 MONTHLY_SPEND_CAP_GBP = _float("MONTHLY_SPEND_CAP_GBP", 50.0)
+# GCP free-trial credit (separate from the cash cap): $300 over 90 days. Tracked in GBP
+# (spend is recorded in GBP). CREDIT_START_DATE (YYYY-MM-DD) drives the 90-day burn-down.
+CREDIT_BUDGET_GBP = _float("CREDIT_BUDGET_GBP", 237.0)   # ≈ $300 at USD_TO_GBP
+CREDIT_START_DATE = os.environ.get("CREDIT_START_DATE", "")   # e.g. 2026-07-19
+# Stop credit-billed discovery when this little credit remains (hard ceiling, doctrine 9).
+CREDIT_FLOOR_GBP = _float("CREDIT_FLOOR_GBP", 10.0)
+# Cap the classified-corporate backlog so discovery builds a big-but-bounded reservoir
+# (Places is cheap on credit; enrich stays gated by READY_POOL_TARGET to control cash).
+CLASSIFIED_BACKLOG_MAX = _int("CLASSIFIED_BACKLOG_MAX", 2000)
 # token -> GBP conversion for the spend ledger (claude-sonnet-4-6 list prices; override on model change)
 ANTHROPIC_INPUT_USD_PER_MTOK = _float("ANTHROPIC_INPUT_USD_PER_MTOK", 3.0)
 ANTHROPIC_OUTPUT_USD_PER_MTOK = _float("ANTHROPIC_OUTPUT_USD_PER_MTOK", 15.0)
@@ -88,6 +124,28 @@ USD_TO_GBP = _float("USD_TO_GBP", 0.79)
 MV_COST_GBP_PER_VERIFY = _float("MV_COST_GBP_PER_VERIFY", 0.003)
 # max chars of scraped page text fed to the LLM signal prompt
 ENRICH_PAGE_TEXT_MAX_CHARS = _int("ENRICH_PAGE_TEXT_MAX_CHARS", 6000)
+
+# --- manual research (operator-initiated: paste a URL, get a full company profile) ---
+# Capture named individuals from a researched website into the CRM profile. OFF by
+# default and deliberately so: a role address (info@) is not personal data, but a NAMED
+# person is, and holding names pulls in the full UK GDPR duties a role address avoids —
+# transparency within ~a month and an absolute right to object. Same posture as the
+# never-persist-phones rule: opt in knowingly, or not at all.
+RESEARCH_CAPTURE_PEOPLE = _bool("RESEARCH_CAPTURE_PEOPLE", False)
+
+# --- decision-maker sourcing (Companies House officers -> inferred named work email) ---
+# OFF by default: turning it on moves outreach from role addresses to NAMED individuals,
+# which is a full-UK-GDPR posture the operator opts into knowingly. When on, the tick
+# fetches directors from Companies House (free) and tries to CONFIRM one work email per
+# lead via MillionVerifier — never a guess, only an 'ok'.
+DM_ENABLED = _bool("DECISION_MAKER_ENABLED", False)
+DM_MAX_PATTERNS = _int("DM_MAX_PATTERNS", 4)          # email patterns tried per person
+DM_MAX_VERIFY_PER_LEAD = _int("DM_MAX_VERIFY_PER_LEAD", 6)  # hard MV-spend cap per lead
+DM_PER_TICK = _int("DM_PER_TICK", 10)
+# Where the art. 14 privacy notice lives — linked in every named-individual send so the
+# person can see what we hold and how to object. The notice ITSELF must state that we
+# source details from Companies House / public records (operator content task).
+PRIVACY_NOTICE_URL = os.environ.get("PRIVACY_NOTICE_URL", "https://settlepay.uk/privacy/")
 
 # --- operator alerting / digests (transactional mail to the operator, not outreach) ---
 OPERATOR_EMAIL = os.environ.get("OPERATOR_EMAIL")

@@ -220,3 +220,112 @@ def test_catch_all_discarded_when_disabled(db_rollback, monkeypatch):
     assert res["tier"] is None
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "discarded"
+
+
+# --------------------------------------------------------------------------- #
+#  A verifier OUTAGE is not a verdict about the address
+# --------------------------------------------------------------------------- #
+def _discovered(cur, cn):
+    cur.execute(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state) values (%s,%s,'ltd','corporate','discovered')", (cn, cn))
+
+
+def test_a_verifier_outage_defers_the_lead_instead_of_discarding_it(db_rollback):
+    """On 2026-07-20 the MillionVerifier balance went negative, every check returned
+    'error', and 178 leads with perfectly good contact addresses were discarded in a
+    day. 'The verifier said no' and 'the verifier did not answer' are different facts."""
+    import uuid
+    from outreach import enrich
+    cur = db_rollback.cursor()
+    cn = f"DEF_{uuid.uuid4().hex[:8]}"
+    _discovered(cur, cn)
+    g = {"email": "info@acme.co.uk", "verified": False, "result": "error",
+         "scrape_source": "httpx", "candidates": ["info@acme.co.uk"], "fit": None}
+    out = enrich._persist(cn, "https://acme.co.uk", "sig", g, cur=cur)
+
+    assert out["deferred"] is True
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discovered"        # NOT discarded
+
+
+def test_a_deferred_lead_writes_no_enrichment_row_so_the_backlog_retries_it(db_rollback):
+    """The backlog selects leads with no enrichment row. A row saying 'error' would
+    both discard the lead and hide it from the retry — permanent loss from a
+    temporary outage."""
+    import uuid
+    from outreach import enrich
+    cur = db_rollback.cursor()
+    cn = f"DEF_{uuid.uuid4().hex[:8]}"
+    _discovered(cur, cn)
+    g = {"email": "info@acme.co.uk", "verified": False, "result": "verify_error",
+         "scrape_source": "httpx", "candidates": [], "fit": None}
+    enrich._persist(cn, "https://acme.co.uk", "sig", g, cur=cur)
+
+    cur.execute("select count(*) from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == 0
+    cur.execute(enrich._BACKLOG_SQL, (500,))
+    assert cn in {r[0] for r in cur.fetchall()}
+
+
+def test_a_real_negative_verdict_still_discards(db_rollback):
+    """The deferral must not become a way for undeliverable addresses to survive."""
+    import uuid
+    from outreach import enrich
+    cur = db_rollback.cursor()
+    cn = f"DEF_{uuid.uuid4().hex[:8]}"
+    _discovered(cur, cn)
+    g = {"email": "info@acme.co.uk", "verified": False, "result": "invalid",
+         "scrape_source": "httpx", "candidates": [], "fit": None}
+    out = enrich._persist(cn, "https://acme.co.uk", "sig", g, cur=cur)
+    assert out["deferred"] is False
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discarded"
+
+
+def test_an_icp_disqualification_still_discards_even_if_verification_errored(db_rollback):
+    """Fit is decided from the page, not the verifier — a known bad fit shouldn't be
+    held for retry just because the mailbox check happened to fail."""
+    import uuid
+    from outreach import enrich
+    cur = db_rollback.cursor()
+    cn = f"DEF_{uuid.uuid4().hex[:8]}"
+    _discovered(cur, cn)
+    g = {"email": "info@acme.co.uk", "verified": False, "result": "error",
+         "scrape_source": "httpx", "candidates": [],
+         "fit": {"available": True, "icp_fit": False, "payment_context": "fixed_till_retail",
+                 "size_band": "micro", "confidence": 0.9}}
+    out = enrich._persist(cn, "https://acme.co.uk", "sig", g, cur=cur)
+    assert out["deferred"] is False and out["disqualified"] is True
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "discarded"
+
+
+def test_enrich_stops_the_batch_when_the_verifier_looks_down(db_rollback, monkeypatch):
+    """Verification is the LAST step, so a dead verifier means every scrape before it
+    was paid for and thrown away."""
+    import uuid
+    from outreach import enrich
+    cur = db_rollback.cursor()
+    cns = []
+    for _ in range(enrich.VERIFIER_DOWN_AFTER + 4):
+        cn = f"DWN_{uuid.uuid4().hex[:8]}"
+        cur.execute(
+            "insert into outreach.leads (company_number, company_name, company_type, "
+            "subscriber_class, state, created_at, registered_address) "
+            "values (%s,%s,'ltd','corporate','discovered','1990-01-01',"
+            "'{\"website\": \"https://acme.co.uk\"}'::jsonb)", (cn, cn))
+        cns.append(cn)
+
+    calls = {"n": 0}
+
+    def _gather_stub(website, **k):
+        calls["n"] += 1
+        return {"email": "info@acme.co.uk", "verified": False, "result": "error",
+                "scrape_source": "httpx", "candidates": []}
+
+    monkeypatch.setattr(enrich, "_gather", _gather_stub)
+    monkeypatch.setattr(enrich, "signal_and_fit", lambda *a, **k: {"available": False})
+    monkeypatch.setattr(enrich, "page_text", lambda *a, **k: "")
+    enrich.discover_and_run(limit=len(cns), cur=cur)
+    assert calls["n"] == enrich.VERIFIER_DOWN_AFTER
