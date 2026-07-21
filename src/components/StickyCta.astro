@@ -7,23 +7,19 @@
  *    screen (Our Work, the comparison matrix, the ROI calculator), and stands
  *    aside for the hero, the final CTA band and the footer. SiteScripts drives
  *    this with an IntersectionObserver.
- * 2. FILLS THE BOTTOM — a real panel (headline + action + reassurance) with
- *    sheet-style rounded top corners and an opaque background, not a one-line
- *    strip. Opaque rather than frosted on purpose: a solid surface is what
- *    reads as "filled", and it dodges the iOS backdrop-filter clipping quirks.
+ * 2. COMPACT — one action plus one reassurance line, and nothing else. It fills
+ *    the width and reaches the bottom of the layout viewport; it does not earn
+ *    height by stacking copy.
  *
- * Note the hard iOS constraint (verified on device): no fixed element can paint
- * the strip behind Safari's floating address bar — that zone sits outside the
- * layout viewport. The panel therefore fills to the viewport's bottom edge,
- * which is as far as any web layer reaches; safe-area padding covers the home
- * indicator once Safari's toolbar collapses.
+ * Opaque rather than frosted on purpose: a solid surface is what reads as
+ * "filled", and it dodges the iOS backdrop-filter clipping quirks. On the
+ * unreachable strip below the layout viewport, see the note in the CSS.
  */
 import { SITE } from '../data/site.mjs';
 import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
   <div class="sticky-cta__panel">
-    <p class="sticky-cta__line">Ready to Get Paid Faster?</p>
     <Button variant="primary" size="large" icon="arrow" enquire data-enquire-source="sticky-cta">
       {SITE.cta.primary.label}
     </Button>
@@ -33,6 +29,14 @@ import Button from './Button.astro';
 
 <style>
   .sticky-cta {
+    /* Do NOT try to overscan this panel past `bottom: 0` to chase the strip
+       behind Safari's floating toolbar. That strip is outside the layout
+       viewport and every fixed layer is clipped to it — measured four ways on
+       an iPhone 17 Pro Max / iOS 26 (a separate overscan element, a ::after,
+       a negative `bottom` on this box, and `theme-color`: all no-ops). What
+       shows there is the scrolling document, which only the body background can
+       replace, and only while the document is scroll-locked — which is exactly
+       why the modal veil fix works and this cannot. */
     position: fixed;
     left: 0;
     right: 0;
@@ -41,7 +45,9 @@ import Button from './Button.astro';
     display: none; /* desktop: never */
     background: var(--color-pure-white);
     border-radius: var(--radius-card) var(--radius-card) 0 0;
-    padding: 1.6rem 1.25rem calc(1.6rem + env(safe-area-inset-bottom));
+    /* env() needs an explicit fallback — without one the whole calc() is
+       invalidated on engines that don't support it. */
+    padding: 1.15rem 1.25rem calc(1.15rem + env(safe-area-inset-bottom, 0px));
     box-shadow:
       0 -1px 0 rgba(15, 23, 42, 0.05),
       0 -18px 48px rgba(15, 23, 42, 0.16);
@@ -71,16 +77,6 @@ import Button from './Button.astro';
     align-items: center;
     text-align: center;
     gap: 0.9rem;
-  }
-
-  .sticky-cta__line {
-    margin: 0;
-    max-width: 22ch;
-    font-size: 1.15rem;
-    font-weight: 700;
-    line-height: 1.25;
-    letter-spacing: -0.015em;
-    color: var(--color-primary-brand);
   }
 
   .sticky-cta :global(.btn-primary) {
