@@ -20,7 +20,14 @@
 }
 .navbar__mobile .navbar__link { opacity: 0.8; font-size: 1rem; }
 @media (max-width: 768px) {
-  .navbar__toggle-btn { display: inline-flex; }
+  .navbar__toggle-btn { display: inline-flex; position: relative; }
+  /* 24px icon + 8px padding = 40px box; invisible extension to 48px.
+     Padding must not grow — it would change the frosted bar's height. */
+  .navbar__toggle-btn::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
 }
 
 /* ---- Checkout mockup: let it size naturally (no cramped scroll box) ---- */
@@ -180,17 +187,48 @@
 .calculator__range:focus-visible::-moz-range-track { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
 
 /* ---- Enquire modal ---- */
+/* While the modal is open, the ROOT CANVAS is the only layer iOS paints in
+   the strips behind the status bar and toolbar — every fixed layer (the
+   scrim included) is clipped to the layout viewport, and the body scroll
+   lock blanks the document layer out there. Recolour the canvas to the veil
+   tone so those strips join the veil instead of flashing the page's white.
+   Matches the JS theme-color swap in SiteScripts. */
+html.sp-modal-open { background: #7B7F8A; }
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(15, 23, 42, 0.55);
-  -webkit-backdrop-filter: blur(var(--blur-glass-veil));
-  backdrop-filter: blur(var(--blur-glass-veil));
   display: flex; align-items: center; justify-content: center;
   /* Safety net on very short screens: overlay scrolls if even the capped modal
      can't fit. Modal centring is preserved by align-items/justify-content above. */
   overflow-y: auto;
   padding: 1.5rem;
-  animation: spFade 0.2s var(--ease-snappy);
+  /* --curve-*, not --ease-*: the ease shorthands bundle a duration, which the
+     animation shorthand would parse as a DELAY — visible as an open-then-blink. */
+  animation: spFade 0.2s var(--curve-snappy);
+}
+/* The veil in two layers, both fixed children of the overlay (so they inherit
+   its fade and its [hidden]):
+   — The SCRIM is filter-free and overscanned far beyond every screen edge.
+     iOS paints the page canvas behind the status bar and the collapsing
+     toolbar, OUTSIDE the layout viewport that position:fixed;inset:0 is
+     clamped to — and it clips any backdrop-filtered element's paint to the
+     backdrop it can sample, so only an unfiltered layer can cover those
+     zones. Overscan needs no viewport-unit trivia: it wins in every toolbar
+     state on every device.
+   — The FROST carries the blur over the layout viewport only, where a
+     backdrop exists to sample. Beyond it the scrim alone veils the ghost
+     content, which reads identically through the translucent system bars. */
+.sp-modal__scrim {
+  position: fixed;
+  inset: -25vh -2rem;
+  background: rgba(15, 23, 42, 0.55);
+  pointer-events: none;
+}
+.sp-modal__frost {
+  position: fixed;
+  inset: 0;
+  -webkit-backdrop-filter: blur(var(--blur-glass-veil));
+  backdrop-filter: blur(var(--blur-glass-veil));
+  pointer-events: none;
 }
 @keyframes spFade { from { opacity: 0; } to { opacity: 1; } }
 .sp-modal {
@@ -202,7 +240,7 @@
      narrow screens width:100% (minus the overlay padding) makes it full-width. */
   width: 100%; max-width: 500px;
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
-  animation: spRise 0.35s var(--ease-cinematic);
+  animation: spRise 0.35s var(--curve-cinematic);
   /* Never exceed the viewport — the content scrolls inside instead of being
      clipped top & bottom (the old align-items:center made overflow unreachable). */
   max-height: calc(100vh - 3rem);
@@ -218,8 +256,24 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-modal { animation: spFade 0.25s ease; } /* keep the fade, drop the rise */
 }
+/* Content scrolling inside the view must fade out under the card's top edge
+   instead of colliding with the close button. White over white when unscrolled
+   — invisible. */
+.sp-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3rem;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: linear-gradient(to bottom, var(--color-pure-white) 35%, rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 2;
+}
 .sp-modal__close {
   position: absolute; top: 1.1rem; right: 1.1rem;
+  z-index: 3; /* above the top fade and the sticky submit */
   background: var(--color-secondary-bg); border: none; cursor: pointer;
   width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -237,6 +291,9 @@
 .sp-field { position: relative; }
 .sp-field input {
   width: 100%; box-sizing: border-box;
+  /* Kill the native iOS input chrome (inner shadow / square overlay). */
+  appearance: none;
+  -webkit-appearance: none;
   padding: 1.3rem 0.9rem 0.5rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-input);
@@ -257,6 +314,8 @@
 .sp-field--area { display: block; }
 .sp-field--area textarea {
   width: 100%; box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
   padding: 1.5rem 0.9rem 0.6rem;
   border: 1px solid rgba(15, 23, 42, 0.14); border-radius: var(--radius-input);
   font: inherit; font-size: 1rem; line-height: 1.5; color: var(--color-primary-brand);
@@ -286,6 +345,21 @@
 .sp-modal__success h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 0.6rem; }
 .sp-modal__success p { font-size: 0.92rem; line-height: 1.6; color: var(--color-primary-brand); opacity: 0.55; margin-bottom: 1.5rem; }
 .sp-modal__success .btn-secondary { width: 100%; }
+
+/* Phone-height budget: compact chrome so the head, all four fields and the
+   submit fit the capped modal without internal scrolling. The reassurance
+   list and privacy note move below the submit (visual order only — DOM,
+   focus and submission order are unchanged); nothing is removed. */
+@media (max-width: 768px) {
+  .sp-modal { padding: 1.5rem 1.25rem 1.25rem; }
+  .sp-modal__head { margin-bottom: 1rem; }
+  .sp-modal__title { font-size: 1.25rem; margin: 0.6rem 0 0.35rem; }
+  .sp-modal__sub { font-size: 0.875rem; }
+  .sp-modal__form { gap: 0.7rem; }
+  .sp-field--area textarea { height: 5.6rem; min-height: 5.6rem; }
+  .sp-modal__assure { order: 1; }
+  .sp-modal__submit + .sp-field__hint { order: 2; }
+}
 
 /* =========================================================================
    Value-prop reconstructions — drop-in app mockups for the zig-zag visuals.
@@ -1115,6 +1189,17 @@
   background: var(--color-success);
 }
 .trust-strip__live:hover { background: rgba(16, 185, 129, 0.16); }
+/* Touch: the ~28px pill link → 44px vertical hit area, invisibly.
+   ::before is the live dot, so the extension uses ::after. It is the
+   strip's only interactive element — nothing adjacent to overlap. */
+@media (max-width: 768px) {
+  .trust-strip__live { position: relative; }
+  .trust-strip__live::after {
+    content: '';
+    position: absolute;
+    inset: -8px 0;
+  }
+}
 @media (max-width: 640px) {
   .trust-strip__row { column-gap: 1.25rem; }
   .trust-strip__item { font-size: 0.78rem; }
@@ -1680,6 +1765,10 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  /* The shader paints the face to the canvas edge ("true free edge") and
+     relies on THIS clip for the corners — without it the opaque canvas
+     renders as a square over the rounded card (visible on iOS). */
+  border-radius: inherit;
   opacity: 0;
   pointer-events: none;
 }
@@ -1859,6 +1948,16 @@ body { counter-reset: srcnote; }
   color: var(--color-primary-action);
 }
 .src-note:hover::after { text-decoration: underline; }
+/* Touch: the ~9px superscript is untappable — grow the hit area without
+   any visual change. ::after is the counter, so ::before is free. */
+@media (max-width: 768px) {
+  .src-note { position: relative; }
+  .src-note::before {
+    content: '';
+    position: absolute;
+    inset: -14px -10px;
+  }
+}
 
 .sources {
   background-color: var(--color-primary-brand);
@@ -2489,6 +2588,32 @@ body { counter-reset: srcnote; }
 }
 .compare__tick svg { color: #0f8a63; }
 .compare__cross svg { color: #b6bdcc; }
+/* Phone fit: the SAME matrix as desktop — raised win column and all —
+   compacted to fit without a scrollport. Dropping the 640px min-width is
+   what kills the Chrome mobile viewport latch (painted inside the
+   scrollport it re-laid the whole page out at 592px). 721px+ unchanged. */
+@media (max-width: 720px) {
+  .compare__scroll { overflow-x: visible; }
+  .compare__table {
+    min-width: 0;
+    font-size: 0.8125rem;
+  }
+  .compare__table thead th {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    padding: 0.5rem 0.3rem;
+  }
+  .compare__table thead th:first-child { width: 38%; }
+  .compare__table tbody th {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    padding: 0.55rem 0.5rem 0.55rem 0;
+    max-width: none;
+  }
+  .compare__table tbody td { padding: 0.55rem 0.2rem; }
+  .compare__tick svg,
+  .compare__cross svg { width: 15px; height: 15px; }
+}
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -2707,4 +2832,16 @@ body { counter-reset: srcnote; }
 .pay-card.pay-card--gl {
   border-color: transparent;
   box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
+}
+
+/* =========================================================================
+   Mobile type floor — nothing under 13px (0.8125rem) renders on phones.
+   Desktop sizes untouched. Written exemptions (deliberately NOT raised):
+   .section-badge / .status-chip uppercase chips and mockup-internal text —
+   see Docs/DESIGN-SYSTEM.md.
+   ========================================================================= */
+@media (max-width: 768px) {
+  .trust-strip__caption { font-size: 0.8125rem; }
+  .hero__eyebrow { font-size: 0.8125rem; }
+  .sources__list li { font-size: 0.8125rem; }
 }

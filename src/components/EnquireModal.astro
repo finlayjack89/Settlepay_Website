@@ -17,6 +17,12 @@ import Button from './Button.astro';
   aria-labelledby="enquire-title"
   hidden
 >
+  <!-- Coverage and frost are separate layers: iOS clips a backdrop-filtered
+       element's paint to the layout viewport it can sample, so the filtered
+       layer can never reach the status-bar/toolbar zones — the filter-free
+       overscanned scrim covers those instead. Styles in kit-extras.css. -->
+  <div class="sp-modal__scrim" aria-hidden="true"></div>
+  <div class="sp-modal__frost" aria-hidden="true"></div>
   <div class="sp-modal">
     <button class="sp-modal__close" data-modal-close aria-label="Close consultation form">
       <Icon name="close" sw={2} />
@@ -68,7 +74,9 @@ import Button from './Button.astro';
           <li><Icon name="check" sw={2.5} />A reply within one working day</li>
           <li><Icon name="check" sw={2.5} />Payments are processed by FCA-regulated partners</li>
         </ul>
-        <Button type="submit" icon="arrow" data-submit-btn>Send My Enquiry</Button>
+        <div class="sp-modal__submit">
+          <Button type="submit" icon="arrow" data-submit-btn>Send My Enquiry</Button>
+        </div>
         <p class="sp-field__hint">
           By submitting, you agree to our <a href="/privacy/">Privacy Policy</a>.
         </p>
@@ -115,9 +123,33 @@ import Button from './Button.astro';
     from { opacity: 0; transform: translateY(8px) scale(0.99); }
     to   { opacity: 1; transform: none; }
   }
-  .sp-modal__success:not([hidden]) { animation: spSuccessIn 0.32s var(--ease-cinematic); }
+  /* --curve-*, not --ease-*: the ease shorthands bundle a duration, which the
+     animation shorthand would parse as a DELAY — visible as an open-then-blink. */
+  .sp-modal__success:not([hidden]) { animation: spSuccessIn 0.32s var(--curve-cinematic); }
   @media (prefers-reduced-motion: reduce) {
     .sp-modal__success:not([hidden]) { animation: none; }
+  }
+
+  /* The submit pins to the bottom of the scrolling view while it is below
+     the fold, and releases at its natural position — inert (zero visual
+     change) whenever the modal fits the viewport without overflowing. */
+  .sp-modal__submit {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--color-pure-white);
+  }
+  /* Top fade so content scrolls under cleanly. While unpinned the strip
+     sits entirely inside the empty gap above the button — invisible. */
+  .sp-modal__submit::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: 0;
+    right: 0;
+    height: 14px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--color-pure-white));
+    pointer-events: none;
   }
 
   /* Zone-local reassurance at the submit button. */

@@ -5,22 +5,65 @@
  * Shown/hidden by SiteScripts via IntersectionObserver: slides in once the hero
  * has scrolled away, and hides whenever the final CTA band or footer is on screen
  * so it never doubles up on the real button. Homepage only.
+ *
+ * Sticky, NOT fixed, on purpose: in-browser iOS Safari clips every fixed layer
+ * to the layout viewport, so nothing fixed can ever paint into the strip it
+ * exposes below (behind the collapsing toolbar / home indicator) — three fix
+ * rounds proved this on device. Sticky elements belong to the scrolling
+ * document layer, which iOS DOES paint there, so the bleed hanging below the
+ * anchor line reaches the zone a fixed bar never could. The root is a
+ * zero-height anchor at the end of <body>: no flow space, pinned to the
+ * scrollport bottom for the whole page.
  */
 import { SITE } from '../data/site.mjs';
 import Button from './Button.astro';
 ---
 <div class="sticky-cta" data-sticky-cta>
-  <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+  <div class="sticky-cta__slide">
+    <div class="sticky-cta__bar">
+      <Button variant="primary" size="large" icon="arrow" enquire>{SITE.cta.primary.label}</Button>
+    </div>
+    <div class="sticky-cta__bleed" aria-hidden="true"></div>
+  </div>
 </div>
 
 <style>
   .sticky-cta {
-    position: fixed;
-    left: 0;
-    right: 0;
+    position: sticky;
     bottom: 0;
+    height: 0;
     z-index: 90; /* below the nav (100) and modal overlay */
     display: none; /* desktop: never */
+  }
+
+  @media (max-width: 768px) {
+    .sticky-cta { display: block; }
+  }
+
+  /* Hangs upward from the anchor line; off-screen + non-focusable until shown.
+     Visibility flips after the slide-out. */
+  .sticky-cta__slide {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(130%);
+    visibility: hidden;
+    transition:
+      transform 400ms var(--curve-spring),
+      visibility 0s linear 400ms;
+  }
+
+  .sticky-cta.is-visible .sticky-cta__slide {
+    transform: translateY(0);
+    visibility: visible;
+    transition:
+      transform 400ms var(--curve-spring),
+      visibility 0s;
+  }
+
+  .sticky-cta__bar {
+    display: flex;
     justify-content: center;
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.85);
@@ -30,24 +73,22 @@ import Button from './Button.astro';
     box-shadow:
       0 -1px 0 rgba(15, 23, 42, 0.06),
       0 -8px 24px rgba(15, 23, 42, 0.08);
-    /* Off-screen + non-focusable until shown; visibility flips after the slide-out. */
-    transform: translateY(130%);
-    visibility: hidden;
-    transition:
-      transform 400ms var(--curve-spring),
-      visibility 0s linear 400ms;
   }
 
-  @media (max-width: 768px) {
-    .sticky-cta { display: flex; }
-  }
-
-  .sticky-cta.is-visible {
-    transform: translateY(0);
-    visibility: visible;
-    transition:
-      transform 400ms var(--curve-spring),
-      visibility 0s;
+  /* Fills the strip below the anchor line. Filter-free (a filtered element's
+     paint is clipped to its sampled backdrop) and in the scroll layer via the
+     sticky root — see the component comment. Capped, not viewport-sized: the
+     box is real scrollable overflow at the anchor's static position, so it
+     must stay shorter than the footer below it or it would extend the page's
+     scroll range. 12rem outsizes every iOS toolbar/home-indicator zone. */
+  .sticky-cta__bleed {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 12rem;
+    background: rgba(255, 255, 255, 0.96);
+    pointer-events: none;
   }
 
   .sticky-cta :global(.btn-primary) {
@@ -57,6 +98,6 @@ import Button from './Button.astro';
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .sticky-cta { transition: visibility 0s; }
+    .sticky-cta__slide { transition: visibility 0s; }
   }
 </style>

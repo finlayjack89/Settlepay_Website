@@ -1998,6 +1998,23 @@ html.reveal-ready .section--dark .integration__step.is-current {
     height: 36px;
   }
 
+  /* 36px logo → 44px vertical hit area; .navbar__logo is position:relative. */
+  .navbar__logo::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+  }
+
+  /* Real tall link rows on touch — drop the desktop negative-margin trick. */
+  .footer__col a,
+  .footer__col span {
+    padding-block: 12px;
+    margin-block: 0;
+  }
+
+  /* Mobile type floor (13px); exemptions listed in Docs/DESIGN-SYSTEM.md. */
+  .footer__bottom p { font-size: 0.8125rem; }
+
   .top-bar .container {
     justify-content: center;
     text-align: center;

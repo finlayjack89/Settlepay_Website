@@ -1027,3 +1027,9 @@ button.sp-cal__cell--selected:hover {
     transform: none;
   }
 }
+
+/* Mobile type floor (13px) — must live here: site.css loads after
+   kit-extras.css, so an override there could not win this selector. */
+@media (max-width: 768px) {
+  .faq-objection__go { font-size: 0.8125rem; }
+}

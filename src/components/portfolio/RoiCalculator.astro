@@ -216,6 +216,13 @@ const sliders = [
     border-bottom-style: solid;
     border-bottom-color: var(--color-primary-action);
   }
+  /* iOS zooms any focused input under 16px. Root font-size is ≥16px at all
+     widths, so 1rem clears it; bumping .roi__value keeps the £/mo affixes
+     matched (.roi__num inherits via font: inherit) and the ch-based input
+     widths scale with the font automatically. */
+  @media (max-width: 768px) {
+    .roi__value { font-size: 1rem; }
+  }
   .roi__results {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
