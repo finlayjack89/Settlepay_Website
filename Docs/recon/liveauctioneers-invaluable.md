@@ -90,14 +90,40 @@ mailto domain) is a fact, not a guess, and bypasses the guard entirely.
 
 ---
 
+## Two enrichment upgrades that followed (deep CH match + Places)
+
+The first sample runs matched only ~7 of 19 leads to Companies House, and Invaluable
+matched zero — because the shallow, relevance-ranked name search cannot place a *trading*
+name (it returned a brass band for "1818 Auctioneers"). Two fixes, both robust-tested:
+
+- **Deep matcher** (`deepmatch.py`) — uses Advanced Search (an unranked substring +
+  location filter) on the *distinctive* words of the name, then corroborates each
+  candidate against postcode, the resolved domain, SIC code and town. Evidence-weighted
+  and fail-closed: a shared postcode alone can't pass, two equally-good candidates refuse
+  rather than guess, and a name that's just a number ("1818") can't carry a match.
+- **Places fill** (`auctions.enrich.places_fill`) — called only when the platform left a
+  gap (Invaluable's missing postcode, LiveAuctioneers' missing website). A maintained
+  Google listing beats a web-search guess, and its website still goes through the same
+  name-match guard.
+
+Measured on the same 20-lead sample, corporate (= emailable) rate: saleroom 2/5 → **4/5**,
+LiveAuctioneers 2/5 → **3/5**, Invaluable 0/5 → **1/5**. Adam Partridge, Acreman, Ashley
+Waller and A F Brock all went from unmatched to a confident corporate match.
+
+> Note: decision-maker emails currently read 0 across every run because **all three
+> verifiers are out of credit** (MillionVerifier, Reoon free-600, ZeroBounce) — the
+> directors are fetched and the permutations generated, but the chain correctly DEFERS
+> rather than guessing. Top up any one provider and named emails resume. See
+> [[verifier-fallback-chain]].
+
 ## Worth running?
 
 | | ATG (saleroom/bidspotter/i-bidder) | LiveAuctioneers | Invaluable |
 |---|---|---|---|
 | UK houses | ~590 / ~160 / ~240 | ~289 | ~98 (filtered) |
-| Postcode in source | ✅ | ✅ | ❌ |
-| Own website in source | ✅ (mailto domain) | ❌ | ❌ |
-| CH match strength | strong (name + postcode) | strong | weak (name only) |
+| Postcode in source | ✅ | ✅ | ❌ → Places |
+| Own website in source | ✅ (mailto domain) | ❌ → Places | ❌ → Places |
+| CH match strength | strong (name + postcode + domain) | strong (+ Places postcode) | now viable (deep match + Places) |
 
 Run the ATG platforms first. LiveAuctioneers is a reasonable second sweep. Invaluable is
 last — it is small, heavily overlapping with the others, and its leads cost the most to
