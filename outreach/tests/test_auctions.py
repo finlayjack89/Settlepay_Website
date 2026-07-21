@@ -199,24 +199,26 @@ def test_platform_resolves_from_any_link_form(value):
     assert platform_for_url(value) == "easylive"
 
 
-@pytest.mark.parametrize("value,needle", [
-    ("the-saleroom.com", "no adapter"), ("bidspotter.co.uk", "no adapter"),
-    ("i-bidder.com", "no adapter")])
-def test_known_platform_without_adapter_says_recon_needed(value, needle):
-    """A platform we recognise but haven't reconned must refuse with a reason — never
-    silently scrape a site whose robots/Terms we've not read."""
+@pytest.mark.parametrize("value,platform", [
+    ("the-saleroom.com", "saleroom"), ("https://www.the-saleroom.com/en-gb", "saleroom"),
+    ("bidspotter.co.uk", "bidspotter"), ("www.i-bidder.com", "ibidder"),
+    ("liveauctioneers.com", "liveauctioneers"), ("invaluable.com", "invaluable")])
+def test_every_reconned_platform_resolves(value, platform):
+    assert platform_for_url(value) == platform
+
+
+def test_unrelated_url_is_refused_as_a_capability_limit():
+    """The only thing that stops a run is having no adapter — and the message must say
+    so plainly rather than citing anyone's Terms, which never gated this."""
     with pytest.raises(PlatformNotSupported) as e:
-        platform_for_url(value)
-    assert needle in str(e.value) and "recon" in str(e.value).lower()
-
-
-def test_unrelated_url_is_refused():
-    with pytest.raises(PlatformNotSupported):
         platform_for_url("https://example.com")
+    msg = str(e.value).lower()
+    assert "no adapter" in msg and "terms" not in msg
 
 
-def test_the_adapter_carries_its_terms_verdict():
-    """The ToS position travels with the adapter so it shows in the console + job log."""
-    from outreach.auctions.sources import get_source
-    note = get_source("easylive").terms_note
-    assert "Terms" in note and "consent" in note
+def test_every_adapter_carries_its_terms_verdict():
+    """The robots/Terms position travels with each adapter so it reaches the console and
+    every job log. It is a record, not a gate — nothing branches on it."""
+    from outreach.auctions.sources import REGISTRY, get_source
+    for key in REGISTRY:
+        assert len(get_source(key).terms_note) > 20, key

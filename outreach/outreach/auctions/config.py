@@ -21,6 +21,17 @@ RATE_LIMIT_SECONDS = float(os.environ.get("AUCTION_RATE_LIMIT_SECONDS", "2.5")) 
 MAX_RETRIES = int(os.environ.get("AUCTION_MAX_RETRIES", "3"))
 TIMEOUT_SECONDS = float(os.environ.get("AUCTION_TIMEOUT_SECONDS", "30"))
 
+# Rendered fetches (Firecrawl) are slower and cost a credit each — see
+# PoliteClient.get_rendered. Cost is per scraped page on the current plan; it feeds the
+# spend ledger, so keep it honest rather than optimistic.
+RENDER_TIMEOUT_SECONDS = float(os.environ.get("AUCTION_RENDER_TIMEOUT_SECONDS", "120"))
+RENDER_COST_GBP = float(os.environ.get("AUCTION_RENDER_COST_GBP", "0.004"))
+# Hard stop on directory paging, so a parser change can never walk a site forever.
+MAX_DIRECTORY_PAGES = int(os.environ.get("AUCTION_MAX_DIRECTORY_PAGES", "40"))
+# Only UK auctioneers are usable: the PECR gate is Companies House, so a non-UK lead is
+# spend with no possible outcome. Set 0 to keep everything a platform lists.
+UK_ONLY = os.environ.get("AUCTION_UK_ONLY", "1") not in ("0", "false", "False", "")
+
 # On-disk response cache so re-runs never re-hit the site. Under the scratch/ dir by
 # default; override for a durable location.
 CACHE_DIR = pathlib.Path(os.environ.get(

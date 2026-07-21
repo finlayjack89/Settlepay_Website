@@ -63,7 +63,8 @@ def run_pipeline(platform: str = "easylive", *, limit: Optional[int] = None,
 
     # shared clients. CH cap generous for the batch (search + profile + officers per lead).
     ch = CompaniesHouseClient(max_requests=max(60, (limit or 200) * 4))
-    # the platform never exposes the auctioneer's own site, so website discovery is
+    # Most platforms keep bidders on-site and never link the auctioneer's own website
+    # (the ATG ones leak it via a mailto, the rest not at all), so website discovery is
     # essential — force Firecrawl regardless of the local WEBSITE_RESOLVER default.
     resolver = (_enrich.get_website_resolver("firecrawl")
                 if config._oc.FIRECRAWL_API_KEY else _enrich.get_website_resolver())

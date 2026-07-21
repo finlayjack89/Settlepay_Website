@@ -1,37 +1,44 @@
 """Source registry — the one line that adds a platform.
 
-Each platform's adapter is registered by its `platform` key. Adding the-saleroom /
-BidSpotter / i-bidder later is: write the adapter (after its own robots + Terms recon),
-import it here, add it to REGISTRY. Everything downstream is platform-agnostic.
+Every platform we can currently reach has an adapter. `platform_for_url` lets the console
+accept a pasted platform link rather than a key, and reports the only thing that can now
+stop a run: no adapter exists for that site yet. That is a CAPABILITY limit, not a policy
+one — a scraper is per-site code, so an unknown domain would yield nothing rather than
+worse results, and saying so beats failing silently.
 
-`platform_for_url` lets the console accept a pasted platform link rather than a key, and
-— importantly — distinguishes "not an auction platform I know" from "a platform I know
-but have no adapter for yet, because it needs its own recon first".
+Each adapter still carries a `terms_note`, printed into the run log. It does not block
+anything; it is the record of what the site's robots/Terms actually said, so the decision
+to run anyway stays visible and dated rather than forgotten.
 """
 from __future__ import annotations
 
 import re
 
+from .atg import BidSpotterSource, IBidderSource, TheSaleroomSource
 from .base import Source
 from .easylive import EasyLiveSource
+from .invaluable import InvaluableSource
+from .liveauctioneers import LiveAuctioneersSource
 
 REGISTRY: dict[str, type[Source]] = {
     EasyLiveSource.platform: EasyLiveSource,
-    # 'saleroom':  TheSaleroomSource,   # TODO: recon the-saleroom.com robots + ToS first
-    # 'bidspotter': BidSpotterSource,   # TODO: recon bidspotter.co.uk robots + ToS first
-    # 'ibidder':    IBidderSource,      # TODO: recon i-bidder.com robots + ToS first
+    TheSaleroomSource.platform: TheSaleroomSource,
+    BidSpotterSource.platform: BidSpotterSource,
+    IBidderSource.platform: IBidderSource,
+    LiveAuctioneersSource.platform: LiveAuctioneersSource,
+    InvaluableSource.platform: InvaluableSource,
 }
 
 # domain fragment -> registered platform key, so a pasted link resolves
-DOMAIN_TO_PLATFORM = {"easyliveauction": "easylive"}
-
-# Recognised platforms with NO adapter yet. Each needs its own robots.txt + Terms of Use
-# recon before any scraping — one site's answer never carries to another.
-PLANNED = {
-    "the-saleroom": "the-saleroom.com", "saleroom": "the-saleroom.com",
-    "bidspotter": "bidspotter.co.uk", "i-bidder": "i-bidder.com",
-    "ibidder": "i-bidder.com", "invaluable": "invaluable.com",
-    "liveauctioneers": "liveauctioneers.com",
+DOMAIN_TO_PLATFORM = {
+    "easyliveauction": "easylive",
+    "the-saleroom": "saleroom",
+    "saleroom": "saleroom",
+    "bidspotter": "bidspotter",
+    "i-bidder": "ibidder",
+    "ibidder": "ibidder",
+    "liveauctioneers": "liveauctioneers",
+    "invaluable": "invaluable",
 }
 
 
@@ -53,14 +60,9 @@ def platform_for_url(url_or_key: str) -> str:
     for fragment, platform in DOMAIN_TO_PLATFORM.items():
         if fragment in host or fragment in raw:
             return platform
-    for fragment, domain in PLANNED.items():
-        if fragment in host or fragment in raw:
-            raise PlatformNotSupported(
-                f"{domain} is a known auction platform, but there's no adapter for it yet — "
-                f"it needs its own robots.txt + Terms of Use recon first. "
-                f"Supported today: {', '.join(sorted(REGISTRY))}.")
     raise PlatformNotSupported(
-        f"Not a supported auction platform: {url_or_key!r}. "
+        f"No adapter for {url_or_key!r} yet — scraping is per-site code, so an unknown "
+        f"platform would return nothing rather than poor results. "
         f"Supported today: {', '.join(sorted(REGISTRY))}.")
 
 

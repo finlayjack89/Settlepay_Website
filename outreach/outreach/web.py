@@ -1049,17 +1049,18 @@ def research_submit(request: Request, url: str = Form(...), csrf: str = Form("")
 # --------------------------------------------------------------------------- #
 @router.get("/auctions", response_class=HTMLResponse)
 def auctions_page(request: Request, err: str = ""):
-    from .auctions.sources import PLANNED, REGISTRY, get_source
+    from .auctions.sources import REGISTRY, get_source, platforms
 
+    keys = platforms()
     with db.cursor(commit=False) as cur:
         cur.execute(
             "select l.company_number, l.company_name, e.contact_email, e.contact_name, "
-            "       e.contact_tier, l.state::text, e.scraped->>'score' "
+            "       e.contact_tier, l.state::text, e.scraped->>'score', l.source "
             "from outreach.leads l left join outreach.enrichment e "
             "  on e.company_number = l.company_number "
-            "where l.source = 'easylive' order by l.updated_at desc limit 40")
+            "where l.source = any(%s) order by l.updated_at desc limit 40", (keys,))
         rows = cur.fetchall()
-        cur.execute("select count(*) from outreach.leads where source='easylive'")
+        cur.execute("select count(*) from outreach.leads where source = any(%s)", (keys,))
         total = cur.fetchone()[0]
         cur.execute("select id, status, created_at from outreach.jobs "
                     "where kind='auction_run' order by id desc limit 5")
@@ -1069,14 +1070,13 @@ def auctions_page(request: Request, err: str = ""):
         f'<li><b>{html.escape(k)}</b> — {html.escape(get_source(k).display_name)}<br>'
         f'<span class="muted" style="font-size:.78rem">{html.escape(get_source(k).terms_note)}</span></li>'
         for k in sorted(REGISTRY))
-    planned = ", ".join(sorted(set(PLANNED.values())))
 
     jobs_html = "".join(
         f'<a class="chip" href="/jobs/{jid}">#{jid} {html.escape(st)} '
         f'<span class="muted">{at:%d %b %H:%M}</span></a>' for jid, st, at in recent_jobs)
 
     trs = ""
-    for cn, name, email, contact_name, tier, state, score in rows:
+    for cn, name, email, contact_name, tier, state, score, platform in rows:
         who = f'{html.escape(email or "—")}'
         if contact_name:
             who += f'<br><span class="muted" style="font-size:.74rem">{html.escape(contact_name)}</span>'
@@ -1086,10 +1086,11 @@ def auctions_page(request: Request, err: str = ""):
                  else '<span class="muted">—</span>')
         trs += (f'<tr class="clk" onclick="location.href=\'/outreach/lead/{html.escape(cn)}\'">'
                 f'<td class="num">{html.escape(score or "—")}</td>'
-                f'<td><b>{html.escape(name)}</b></td><td>{who}</td>'
+                f'<td><b>{html.escape(name)}</b></td>'
+                f'<td class="muted">{html.escape(platform or "—")}</td><td>{who}</td>'
                 f'<td>{badge}</td><td>{_badge(state)}</td></tr>')
     if not trs:
-        trs = ('<tr><td colspan=5 class="empty">No auction houses yet — paste a platform '
+        trs = ('<tr><td colspan=6 class="empty">No auction houses yet — paste a platform '
                'link above and run it.</td></tr>')
 
     errhtml = f'<div class="alert">{html.escape(err)}</div>' if err else ""
@@ -1123,8 +1124,10 @@ score → into the lead pipeline.</div>
 <div class="two">
   <div class="panel"><h3 style="margin:0 0 .5rem">Supported platforms</h3>
     <ul style="margin:0;padding-left:1.1rem;font-size:.88rem">{supported}</ul>
-    <p class="muted" style="margin-top:.8rem;font-size:.78rem">Recognised but not built yet
-    (each needs its own robots.txt + Terms recon first): {html.escape(planned)}.</p>
+    <p class="muted" style="margin-top:.8rem;font-size:.78rem">A platform not listed here
+    has no adapter yet — scraping is per-site code, so it would return nothing rather
+    than worse results. The notes above are what each site's robots/Terms said; they are
+    logged with every run, not enforced.</p>
   </div>
   <div class="panel"><h3 style="margin:0 0 .5rem">Recent runs</h3>
     <div class="chips">{jobs_html or '<span class="muted">No runs yet.</span>'}</div>
@@ -1132,7 +1135,7 @@ score → into the lead pipeline.</div>
 </div>
 
 <div class="panel"><h2>Auction houses found <span class="muted">({total})</span></h2>
-<table><tr><th class="num">Score</th><th>Auction house</th><th>Contact</th>
+<table><tr><th class="num">Score</th><th>Auction house</th><th>Platform</th><th>Contact</th>
 <th>Tier</th><th>State</th></tr>{trs}</table></div>"""
     return _shell("/auctions", "Auctions", "Auction-platform lead recon", body)
 
