@@ -31,11 +31,16 @@ from .models import AuctionLead, EnrichedLead
 
 _UA = {"User-Agent": config.USER_AGENT}
 
-# The auction platforms themselves — a search often returns the platform's OWN directory
-# page for the auctioneer, which is NOT their own website. Rejecting these also stops
-# dedupe collapsing every unresolved lead onto a shared platform domain.
-_PLATFORM_DOMAINS = ("easyliveauction.com", "the-saleroom.com", "saleroom.com",
-                     "bidspotter.co.uk", "bidspotter.com", "i-bidder.com", "the-auctioncollective.com")
+# A resolved URL on one of these is NOT the auctioneer's own website — it's another
+# auction platform / aggregator, or a video/marketplace page. Rejecting them also stops
+# dedupe collapsing every unresolved lead onto a shared platform domain. (facebook/
+# linkedin/twitter/instagram etc. are already handled by enrich.SKIP_DOMAINS.)
+_REJECT_DOMAINS = (
+    "easyliveauction.com", "the-saleroom.com", "saleroom.com", "bidspotter.co.uk",
+    "bidspotter.com", "i-bidder.com", "the-auctioncollective.com", "liveauctioneers.com",
+    "invaluable.com", "the-saleroom", "auctionet.com", "bidsquare.com", "the-auction",
+    "youtube.com", "youtu.be", "vimeo.com", "ebay.co.uk", "ebay.com", "etsy.com",
+    "the-saleroom.com")
 
 
 def _resolve_website(raw: AuctionLead, resolver) -> Optional[str]:
@@ -49,8 +54,8 @@ def _resolve_website(raw: AuctionLead, resolver) -> Optional[str]:
                                address=raw.postcode or raw.location or "", hint=hint)
     except Exception:
         return None
-    if url and any(p in url.lower() for p in _PLATFORM_DOMAINS):
-        return None                     # a platform directory page is not their own site
+    if url and any(p in url.lower() for p in _REJECT_DOMAINS):
+        return None                     # a platform / aggregator / video page, not their site
     return url
 
 
