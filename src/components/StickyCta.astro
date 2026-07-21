@@ -1,0 +1,102 @@
+---
+/**
+ * StickyCta — the mobile enquiry panel that rises from the bottom of the screen.
+ *
+ * Two deliberate properties, both asked for directly:
+ * 1. CONTEXTUAL — it appears only while a value-demonstrating section is on
+ *    screen (Our Work, the comparison matrix, the ROI calculator), and stands
+ *    aside for the hero, the final CTA band and the footer. SiteScripts drives
+ *    this with an IntersectionObserver.
+ * 2. FILLS THE BOTTOM — a real panel (headline + action + reassurance) with
+ *    sheet-style rounded top corners and an opaque background, not a one-line
+ *    strip. Opaque rather than frosted on purpose: a solid surface is what
+ *    reads as "filled", and it dodges the iOS backdrop-filter clipping quirks.
+ *
+ * Note the hard iOS constraint (verified on device): no fixed element can paint
+ * the strip behind Safari's floating address bar — that zone sits outside the
+ * layout viewport. The panel therefore fills to the viewport's bottom edge,
+ * which is as far as any web layer reaches; safe-area padding covers the home
+ * indicator once Safari's toolbar collapses.
+ */
+import { SITE } from '../data/site.mjs';
+import Button from './Button.astro';
+---
+<div class="sticky-cta" data-sticky-cta>
+  <div class="sticky-cta__panel">
+    <p class="sticky-cta__line">Ready to Get Paid Faster?</p>
+    <Button variant="primary" size="large" icon="arrow" enquire data-enquire-source="sticky-cta">
+      {SITE.cta.primary.label}
+    </Button>
+    <p class="sticky-cta__note">Free and no obligation — a reply within one working day.</p>
+  </div>
+</div>
+
+<style>
+  .sticky-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90; /* below the nav (100) and the modal overlay (1000) */
+    display: none; /* desktop: never */
+    background: var(--color-pure-white);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    padding: 1.6rem 1.25rem calc(1.6rem + env(safe-area-inset-bottom));
+    box-shadow:
+      0 -1px 0 rgba(15, 23, 42, 0.05),
+      0 -18px 48px rgba(15, 23, 42, 0.16);
+    /* Off-screen + non-focusable until shown; visibility flips after the slide. */
+    transform: translateY(110%);
+    visibility: hidden;
+    transition:
+      transform 420ms var(--curve-spring),
+      visibility 0s linear 420ms;
+  }
+
+  @media (max-width: 768px) {
+    .sticky-cta { display: block; }
+  }
+
+  .sticky-cta.is-visible {
+    transform: translateY(0);
+    visibility: visible;
+    transition:
+      transform 420ms var(--curve-spring),
+      visibility 0s;
+  }
+
+  .sticky-cta__panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.9rem;
+  }
+
+  .sticky-cta__line {
+    margin: 0;
+    max-width: 22ch;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: var(--color-primary-brand);
+  }
+
+  .sticky-cta :global(.btn-primary) {
+    width: 100%;
+    max-width: 420px;
+    justify-content: center;
+  }
+
+  .sticky-cta__note {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sticky-cta { transition: visibility 0s; }
+  }
+</style>

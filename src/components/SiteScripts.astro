@@ -150,6 +150,44 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Mobile enquiry panel — CONTEXTUAL, not permanently pinned. It rises only
+  // while a value-demonstrating section is on screen (the moments where the ask
+  // has earned attention) and stands aside for the final CTA band and footer so
+  // it never doubles up. Pages without those trigger sections (the case study,
+  // About, FAQ) fall back to "the page header has scrolled away".
+  // Per-element Map because the IO callback only reports entries that changed.
+  // ---------------------------------------------------------------------------
+  const stickyCta = document.querySelector('[data-sticky-cta]');
+  if (stickyCta) {
+    const pick = (sels: string[]) =>
+      sels.flatMap((s) => Array.from(document.querySelectorAll(s)));
+    const triggers = pick(['#work', '#compare', '.calculator']);
+    const suppressors = pick(['#enquire', '.footer']);
+    const header = document.getElementById('hero') || document.querySelector('.page-header');
+    // Fallback for pages with no trigger sections: treat the header as an
+    // inverted trigger (show once it's gone), preserving the old behaviour.
+    const usesFallback = triggers.length === 0;
+    const watched = [...triggers, ...suppressors, ...(header ? [header] : [])];
+    if (watched.length) {
+      const intersecting = new Map<Element, boolean>();
+      watched.forEach((el) => intersecting.set(el, false));
+      const syncSticky = () => {
+        const suppressed = suppressors.some((el) => intersecting.get(el));
+        const active = usesFallback
+          ? (header ? !intersecting.get(header) : false)
+          : triggers.some((el) => intersecting.get(el));
+        stickyCta.classList.toggle('is-visible', active && !suppressed);
+      };
+      const stickyIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+        syncSticky();
+      }, { threshold: 0 });
+      watched.forEach((el) => stickyIo.observe(el));
+      syncSticky();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Scroll reveals — subtle enter for [data-reveal] groups. The hidden state
   // only exists under html.reveal-ready, so no-JS visitors see everything.
   // Stagger is per parent group (capped) via --reveal-delay.
