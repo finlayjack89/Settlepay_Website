@@ -5,10 +5,10 @@ enrichment, dedupe, scoring and output are platform-agnostic and live outside. T
 split is the whole point: adding the-saleroom / BidSpotter / i-bidder later is a new
 Source subclass and a registry line, touching no other code.
 
-Each Source MUST, before doing anything, have had its robots.txt AND Terms of Use
-checked (see docs/recon/<platform>.md). The `terms_note` field carries that verdict so
-it travels with the adapter and shows up in the run log — a Source whose terms forbid
-automated access is not silently run.
+Each Source records what its robots.txt and Terms of Use actually said (see
+docs/recon/<platform>.md) in `terms_note`. That note travels with the adapter and is
+printed into every run log. It does not gate anything — running is the operator's call —
+but the call stays visible and dated rather than forgotten.
 """
 from __future__ import annotations
 

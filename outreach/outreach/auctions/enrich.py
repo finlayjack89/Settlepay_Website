@@ -18,6 +18,7 @@ pipeline uses.
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 import httpx
@@ -43,20 +44,59 @@ _REJECT_DOMAINS = (
     "the-saleroom.com")
 
 
-def _resolve_website(raw: AuctionLead, resolver) -> Optional[str]:
-    if raw.own_website:
-        return raw.own_website
-    if resolver is None:
+# Words that carry no identity — every auction house has them, so they can never be the
+# thing that matches a domain to a business.
+_GENERIC_NAME_WORDS = frozenset({
+    "auction", "auctions", "auctioneer", "auctioneers", "auctioneering", "saleroom",
+    "salerooms", "sale", "sales", "valuer", "valuers", "valuation", "valuations",
+    "ltd", "limited", "llp", "plc", "the", "and", "for", "with", "company", "group",
+    "holdings", "services", "trading", "house", "online", "uk", "gb", "london", "fine",
+    "art", "arts", "antique", "antiques", "estate", "estates", "gallery", "galleries",
+    "international", "consultancy", "solutions", "centre", "center", "bid", "bidding"})
+
+
+def _name_matches_domain(business_name: str, url: str) -> Optional[bool]:
+    """Does this domain plausibly belong to this business? None = can't tell.
+
+    A distinctive word from the name must survive in the domain. Without this the
+    resolver's best guess is accepted verbatim, and on thin sources (Invaluable gives no
+    postcode at all) that guess is regularly a different company or a newspaper article
+    about them — which would then supply the payment signal, the domain and the email
+    guesses for the WRONG business.
+    """
+    stem = re.sub(r"[^a-z0-9]", "", _enrich.normalise_domain(url) or "")
+    if not stem:
         return None
+    words = [w for w in re.split(r"[^a-z0-9]+", business_name.lower())
+             if len(w) >= 4 and w not in _GENERIC_NAME_WORDS]
+    if not words:
+        return None                     # nothing distinctive to check against
+    return any(w in stem for w in words)
+
+
+def _resolve_website(raw: AuctionLead, resolver) -> tuple[Optional[str], Optional[str]]:
+    """Returns (url, note). The note explains a rejection so a blank website is never
+    just an unexplained gap in the output."""
+    if raw.own_website:
+        return raw.own_website, None    # the platform told us — no guessing involved
+    if resolver is None:
+        return None, None
     hint = "auctioneer " + (raw.categories[0] if raw.categories else "auction house")
     try:
         url = resolver.resolve(company_name=raw.business_name,
                                address=raw.postcode or raw.location or "", hint=hint)
     except Exception:
-        return None
-    if url and any(p in url.lower() for p in _REJECT_DOMAINS):
-        return None                     # a platform / aggregator / video page, not their site
-    return url
+        return None, None
+    if not url:
+        return None, None
+    if any(p in url.lower() for p in _REJECT_DOMAINS):
+        return None, None               # a platform / aggregator / video page, not their site
+    match = _name_matches_domain(raw.business_name, url)
+    if match is False:
+        return None, f"website candidate {url} rejected: name does not match the domain"
+    if match is None:
+        return url, f"website {url} unverified: no distinctive word in the business name"
+    return url, None
 
 
 def _payment_scan(website: str, http: httpx.Client) -> dict:
@@ -147,7 +187,9 @@ def enrich_lead(raw: AuctionLead, *, http: Optional[httpx.Client] = None,
     http = http or httpx.Client(timeout=20, follow_redirects=True, headers=_UA)
     try:
         # 1. website + payment behaviour + ICP signal
-        website = _resolve_website(raw, resolver)
+        website, note = _resolve_website(raw, resolver)
+        if note:
+            lead.notes.append(note)
         lead.own_website = website
         lead.domain = _enrich.normalise_domain(website) if website else None
         if website:

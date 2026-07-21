@@ -239,9 +239,11 @@ def test_auctions_page_renders_with_terms_and_supported_platforms():
     r = client.get("/auctions")
     assert r.status_code == 200
     assert "Run a platform" in r.text and "Supported platforms" in r.text
-    # the ToS position must be visible to the operator on every visit
-    assert "Terms prohibit" in r.text
-    assert "the-saleroom.com" in r.text          # listed as recognised-but-not-built
+    # the robots/Terms position must be visible to the operator on every visit
+    assert "Terms" in r.text
+    for platform in ("easylive", "saleroom", "bidspotter", "ibidder",
+                     "liveauctioneers", "invaluable"):
+        assert platform in r.text
 
 
 def test_auctions_run_enqueues_a_job_for_a_supported_platform(monkeypatch):
@@ -257,13 +259,28 @@ def test_auctions_run_enqueues_a_job_for_a_supported_platform(monkeypatch):
     assert captured["ingest"] is True
 
 
-def test_auctions_run_refuses_an_unreconned_platform_without_queueing(monkeypatch):
-    """No adapter => no job, and a readable reason — never scrape a site we've not
-    checked robots/Terms for."""
+@pytest.mark.parametrize("url,platform", [
+    ("https://www.the-saleroom.com/en-gb/auctioneers", "saleroom"),
+    ("bidspotter.co.uk", "bidspotter"), ("i-bidder.com", "ibidder"),
+    ("liveauctioneers.com", "liveauctioneers"), ("invaluable.com", "invaluable")])
+def test_auctions_run_accepts_every_built_platform(monkeypatch, url, platform):
+    from outreach import web
+    captured = {}
+    monkeypatch.setattr(web.jobs, "enqueue",
+                        lambda kind, params, **k: captured.update(**params) or 88)
+    r = client.post("/auctions/run", data={"url": url, "limit": "5"},
+                    follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].endswith("/jobs/88")
+    assert captured["url"] == url
+
+
+def test_auctions_run_refuses_a_platform_with_no_adapter_without_queueing(monkeypatch):
+    """No adapter => no job. A scraper is per-site code, so an unknown platform would
+    return nothing; saying so beats queueing a run that silently finds zero."""
     from outreach import web
     monkeypatch.setattr(web.jobs, "enqueue",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not queue")))
-    r = client.post("/auctions/run", data={"url": "the-saleroom.com", "limit": "10"},
+    r = client.post("/auctions/run", data={"url": "https://example.com", "limit": "10"},
                     follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"].startswith("/auctions?err=")
 

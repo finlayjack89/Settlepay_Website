@@ -22,8 +22,8 @@ class SpendCapExceeded(Exception):
 
 # Which providers hit the CARD (cash — gated by MONTHLY_SPEND_CAP_GBP) vs the GCP
 # CREDIT (tracked against the 90-day $300, not the cash cap). Gemini/Places/Geocoding
-# bill the credit; MillionVerifier + the Anthropic API bill cash.
-CASH_PROVIDERS = ("millionverifier", "anthropic")
+# bill the credit; the verifiers, Firecrawl and the Anthropic API bill cash.
+CASH_PROVIDERS = ("millionverifier", "reoon", "zerobounce", "firecrawl", "anthropic")
 CREDIT_PROVIDERS = ("gemini", "places", "geocoding")
 
 

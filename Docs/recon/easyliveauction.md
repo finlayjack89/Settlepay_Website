@@ -205,6 +205,16 @@ carries over.
 ---
 
 ## Status
-Phase 0 ✅ · Phase 1 ✅ · **Phases 2–6 NOT started** (blocked on the §6 seed-source
-decision — deliberately, per the brief's "do not write scrapers before completing Phase
-0 and 1; stop and show me after Phase 1").
+Phase 0 ✅ · Phase 1 ✅ — as written above, on 2026-07-21.
+
+**Superseded 2026-07-21 (same day).** The operator read §6 and decided to build and run
+the adapter anyway; the ToS caveat stays recorded in `EasyLiveSource.terms_note` and is
+printed into every job log. Phases 2–6 are built and live (console → Auctions tab).
+The §6 recommendation is left intact above as the record of what the Terms said and what
+was advised at the time — it is not a live blocker.
+
+The closing line "each needs its own robots + Terms check before any adapter" was then
+carried out for all four remaining platforms: see [`atg.md`](atg.md) and
+[`liveauctioneers-invaluable.md`](liveauctioneers-invaluable.md). Note what that recon
+found — none of them serves a robots.txt to a non-browser client at all, so on those
+sites there was never a crawl directive to honour or breach.
