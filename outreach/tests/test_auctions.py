@@ -183,3 +183,40 @@ def test_brief_leads_with_the_payment_quote():
 def test_brief_flags_research_only_for_non_corporate():
     bullets = brief.build(_lead(pecr_class="individual"))
     assert any("research-only" in b for b in bullets)
+
+
+# --------------------------------------------------------------------------- #
+#  Platform resolution from a pasted link (the console's entry point)
+# --------------------------------------------------------------------------- #
+from outreach.auctions.sources import (  # noqa: E402
+    PlatformNotSupported, platform_for_url)
+
+
+@pytest.mark.parametrize("value", [
+    "easylive", "easyliveauction.com", "www.easyliveauction.com",
+    "https://www.easyliveauction.com/auctioneers/", "HTTPS://EasyLiveAuction.com/x?y=1"])
+def test_platform_resolves_from_any_link_form(value):
+    assert platform_for_url(value) == "easylive"
+
+
+@pytest.mark.parametrize("value,needle", [
+    ("the-saleroom.com", "no adapter"), ("bidspotter.co.uk", "no adapter"),
+    ("i-bidder.com", "no adapter")])
+def test_known_platform_without_adapter_says_recon_needed(value, needle):
+    """A platform we recognise but haven't reconned must refuse with a reason — never
+    silently scrape a site whose robots/Terms we've not read."""
+    with pytest.raises(PlatformNotSupported) as e:
+        platform_for_url(value)
+    assert needle in str(e.value) and "recon" in str(e.value).lower()
+
+
+def test_unrelated_url_is_refused():
+    with pytest.raises(PlatformNotSupported):
+        platform_for_url("https://example.com")
+
+
+def test_the_adapter_carries_its_terms_verdict():
+    """The ToS position travels with the adapter so it shows in the console + job log."""
+    from outreach.auctions.sources import get_source
+    note = get_source("easylive").terms_note
+    assert "Terms" in note and "consent" in note

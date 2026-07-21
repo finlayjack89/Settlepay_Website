@@ -45,6 +45,22 @@ def discover_places(ctx, count=16):
     return places.discover_grid(count=count)
 
 
+@task("auction_run", "Auction platform recon",
+      "Paste an auction platform link: scrape its auctioneer directory, then run each "
+      "house through the full chain — own website, how they take payment, Companies "
+      "House PECR gate + directors, verified decision-maker email — score it, and land "
+      "the results in the lead pipeline. Paid (Firecrawl/Gemini/verifier); ~8s per house.",
+      params=(Param("url", "Platform link or key", default="easyliveauction.com"),
+              Param("limit", "How many auction houses", kind="int", default=25),
+              Param("ingest", "Add results to the lead pipeline", kind="bool", default=True)))
+def auction_run_task(ctx, url="easyliveauction.com", limit=25, ingest=True):
+    from .auctions import run as auction_run
+    from .auctions.sources import platform_for_url
+    platform = platform_for_url(url)          # raises PlatformNotSupported with a message
+    ctx.log(f"platform: {platform} (from {url!r})")
+    return auction_run.run_pipeline(platform, limit=limit, ingest=ingest, log=ctx.log)
+
+
 @task("crossref", "Cross-reference (PECR gate)",
       "Match Places leads to Companies House; only confident active-corporate matches "
       "become sendable, the rest are kept research-only.",
