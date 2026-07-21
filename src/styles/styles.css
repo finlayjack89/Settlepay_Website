@@ -81,10 +81,10 @@
      LAST. On-dark stage internals (hero layers 6px, flow nodes 8px) stay local. */
   --blur-glass-veil: 4px;   /* modal overlay — soften, don't frost */
   --blur-glass-chip: 14px;  /* StatusChip pills over imagery/dark stages */
-  --blur-glass-bar:  16px;  /* StickyCta mobile action bar (saturate-soft) */
+  --blur-glass-bar:  16px;  /* frosted action-bar / larger-sheet tier (reserved) */
   --blur-glass-nav:  18px;  /* the floating-island nav pill */
   --glass-saturate:      1.8; /* default frost saturation (nav, chips) */
-  --glass-saturate-soft: 1.4; /* larger sheets (StickyCta) */
+  --glass-saturate-soft: 1.4; /* larger sheets (reserved) */
 
   /* Animation — curve/duration split; the bundled --ease-* compositions are the
      everyday shorthand. Curves alone for keyframes/bespoke durations. */

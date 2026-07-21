@@ -16,12 +16,12 @@ import EnquireModal from '../components/EnquireModal.astro';
 import StickyCta from '../components/StickyCta.astro';
 import SiteScripts from '../components/SiteScripts.astro';
 
-const isHome = Astro.url.pathname === '/';
-// Mobile sticky CTA: homepage + the persuasion pages. Deliberately absent from
-// /book/ and /manage/ (they ARE the funnel), legal pages, and the preview tool
-// (it has its own post-generation CTA).
+// Mobile enquiry panel: homepage + the persuasion pages. Deliberately absent
+// from /book/ and /manage/ (they ARE the funnel), the legal pages, and the
+// preview tool (it has its own post-generation CTA). Where it actually surfaces
+// within those pages is contextual — see SiteScripts.
 const showStickyCta =
-  isHome || /^\/(work|about|faq)(\/|$)/.test(Astro.url.pathname);
+  Astro.url.pathname === '/' || /^\/(work|about|faq)(\/|$)/.test(Astro.url.pathname);
 
 const {
   title,
@@ -61,14 +61,9 @@ const {
     <main id="main" class={mainClass}>
       <slot />
     </main>
-    <!-- StickyCta sits BEFORE the footer on purpose: its sticky anchor's
-         static position must have real content below it, so the bleed
-         hanging under the anchor tucks beneath the footer instead of
-         extending the page's scroll range past it. It docks (and is
-         IO-suppressed) exactly as the footer scrolls in. -->
-    {showStickyCta && <StickyCta />}
     <Footer />
     <EnquireModal />
+    {showStickyCta && <StickyCta />}
     <SiteScripts />
   </body>
 </html>
