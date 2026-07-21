@@ -3,7 +3,7 @@ import uuid
 import httpx
 import pytest
 
-from outreach import enrich
+from outreach import enrich, verify
 
 pytestmark = pytest.mark.floor_d
 
@@ -55,13 +55,16 @@ class _FakeMVClient:
         return _FakeMVResponse(self._result)
 
 
-@pytest.mark.parametrize("result,expected", [
-    ("ok", True), ("catch_all", False), ("unknown", False),
-    ("invalid", False), ("disposable", False),
+# the verifier chain normalises each provider to one vocabulary: 'disposable' collapses
+# to 'invalid' (both mean discard), the rest pass through.
+@pytest.mark.parametrize("result,expected_verified,expected_res", [
+    ("ok", True, "ok"), ("catch_all", False, "catch_all"), ("unknown", False, "unknown"),
+    ("invalid", False, "invalid"), ("disposable", False, "invalid"),
 ])
-def test_verify_email_mapping(result, expected):
-    verified, res = enrich.verify_email("x@y.com", api_key="k", client=_FakeMVClient(result))
-    assert verified is expected and res == result
+def test_verify_email_mapping(result, expected_verified, expected_res):
+    verify.reset_exhausted()
+    verified, res = enrich.verify_email("x@y.com", client=_FakeMVClient(result))
+    assert verified is expected_verified and res == expected_res
 
 
 class _TimeoutMVClient:
