@@ -13,15 +13,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import EnquireModal from '../components/EnquireModal.astro';
-import StickyCta from '../components/StickyCta.astro';
 import SiteScripts from '../components/SiteScripts.astro';
-
-const isHome = Astro.url.pathname === '/';
-// Mobile sticky CTA: homepage + the persuasion pages. Deliberately absent from
-// /book/ and /manage/ (they ARE the funnel), legal pages, and the preview tool
-// (it has its own post-generation CTA).
-const showStickyCta =
-  isHome || /^\/(work|about|faq)(\/|$)/.test(Astro.url.pathname);
 
 const {
   title,
@@ -63,7 +55,6 @@ const {
     </main>
     <Footer />
     <EnquireModal />
-    {showStickyCta && <StickyCta />}
     <SiteScripts />
   </body>
 </html>
