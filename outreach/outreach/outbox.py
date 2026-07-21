@@ -30,12 +30,14 @@ from . import audit, config, db
 # waiting around. Also the window the tick safety net uses, so keep them in step.
 UNDO_SECONDS = 30
 
-# Only an approved, never-sent draft can enter the outbox. `sends` is the source of
-# truth for "already went out" — the same guard _advance_sends uses.
+# Only an approved draft that has not gone out LIVE can enter the outbox. A dry-run send
+# is a test, not a real send, so it must NOT block: otherwise clicking "send now" while
+# G-SEND is off (which dry-runs) would permanently burn the draft. Only a live send means
+# "already went out".
 _SENDABLE = (
     "select d.status from outreach.drafts d "
     "where d.id = %s "
-    "and not exists (select 1 from outreach.sends s where s.draft_id = d.id)")
+    "and not exists (select 1 from outreach.sends s where s.draft_id = d.id and s.mode = 'live')")
 
 
 class OutboxRefused(Exception):
@@ -85,13 +87,15 @@ DUE_SQL = (
     "select d.id from outreach.drafts d "
     "where d.status = 'approved' and d.outbox_at is not null "
     f"and d.outbox_at + interval '{UNDO_SECONDS} seconds' <= now() "
-    "and not exists (select 1 from outreach.sends s where s.draft_id = d.id) "
+    # mode-aware: don't re-send in the SAME mode (no dry-run spam), but a prior dry-run
+    # never blocks a live send — that is the whole bug fix
+    "and not exists (select 1 from outreach.sends s where s.draft_id = d.id and s.mode = %s) "
     "order by d.outbox_at")
 
 
-def due(cur) -> list:
-    """Draft ids whose undo window has closed."""
-    cur.execute(DUE_SQL)
+def due(cur, *, mode: str = "live") -> list:
+    """Draft ids whose undo window has closed and haven't gone out in this mode."""
+    cur.execute(DUE_SQL, (mode,))
     return [r[0] for r in cur.fetchall()]
 
 
@@ -102,7 +106,7 @@ def pending(cur) -> list[dict]:
         "       coalesce(d.subject_final, d.subject) "
         "from outreach.drafts d join outreach.leads l on l.company_number = d.company_number "
         "where d.status = 'approved' and d.outbox_at is not null "
-        "and not exists (select 1 from outreach.sends s where s.draft_id = d.id) "
+        "and not exists (select 1 from outreach.sends s where s.draft_id = d.id and s.mode = 'live') "
         "order by d.outbox_at")
     return [{"id": i, "company_number": cn, "company_name": n,
              "outbox_at": at, "subject": subj,
@@ -120,12 +124,12 @@ def flush(*, dry_run: bool = True, cur=None) -> list[dict]:
     conn = None
     if own:
         conn = db.connect(); cur = conn.cursor()
+    mode = "dry_run" if dry_run else "live"
     out: list[dict] = []
     try:
-        for draft_id in due(cur):
+        for draft_id in due(cur, mode=mode):
             try:
-                out.append(send_mod.send_one(draft_id, mode=("dry_run" if dry_run else "live"),
-                                             cur=cur))
+                out.append(send_mod.send_one(draft_id, mode=mode, cur=cur))
             except send_mod.SendRefused as e:
                 out.append({"draft_id": str(draft_id), "refused": str(e)})
             cur.execute("update outreach.drafts set outbox_at = null where id = %s", (draft_id,))
