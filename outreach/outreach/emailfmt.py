@@ -14,9 +14,11 @@ import html as _html
 
 from . import config
 
-INK = "#0F172A"
-BODY = "#475569"
-MUTED = "#64748B"
+# Body text is a deep charcoal — deliberately dark for a cold email to a 45-65 owner who
+# reads it once. INK is the near-black used for the body copy and the sign-off name.
+INK = "#111827"          # body copy + name (dark charcoal)
+BODY = "#111827"         # wrapper fallback — same charcoal, so stray text is never light
+MUTED = "#6B7280"        # ONLY the wordmark + a bare unsubscribe line (deliberately quiet)
 HAIRLINE = "#E2E8F0"
 FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 LOGO_URL = "https://settlepay.uk/email/logo.png"
@@ -74,6 +76,13 @@ def render_html(text: str, *, footer_note: str | None = None) -> str:
     `footer_note` (art. 14 transparency for named sends) is rendered as a final muted
     paragraph AFTER the signature block, so the sign-off/logo stay intact and the notice
     sits below them."""
+    # Normalise line endings FIRST. Drafts arrive with Windows CRLF (\r\n), so a
+    # paragraph break is "\r\n\r\n" — which split("\n\n") does NOT match (the \r sits
+    # between the newlines). The result was the ENTIRE email collapsing into one
+    # paragraph: no signature block, no logo, and — because that one blob contains the
+    # word "unsubscribe" — the whole thing rendered in the light muted grey. This one
+    # line is the fix for "the font is too light".
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     paras = [p for p in (chunk.strip() for chunk in text.split("\n\n")) if p]
     rendered: list[str] = []
     for i, para in enumerate(paras):
@@ -82,9 +91,11 @@ def render_html(text: str, *, footer_note: str | None = None) -> str:
         if is_last and lines and lines[0].strip().lower().startswith("kind regards"):
             rendered.append(_signature_block(lines))
             continue
-        style = _P_UNSUB if "unsubscribe" in para.lower() else _P
+        # ALL body copy is the dark charcoal — including the opt-out line, which often
+        # shares a sentence with the ask. Only the wordmark, the contact line (in the
+        # signature block) and the art. 14 footer_note are deliberately muted.
         body = "<br>".join(_html.escape(l) for l in lines)
-        rendered.append(f"<p {style}>{body}</p>")
+        rendered.append(f"<p {_P}>{body}</p>")
     if footer_note:
         rendered.append(f'<p {_P_UNSUB}>{_html.escape(footer_note)}</p>')
     return (
