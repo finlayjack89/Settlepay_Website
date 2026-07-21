@@ -1,0 +1,1326 @@
+[
+  {
+    "platform": "easylive",
+    "business_name": "A7 Waverley Auctions Ltd",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/a7waverleyauctions/",
+    "source_id": "a7waverleyauctions",
+    "location": null,
+    "postcode": "TD1 1BT",
+    "categories": [
+      "antiques",
+      "gold",
+      "silver",
+      "collectables",
+      "clearance",
+      "household"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 4,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC16915-B0D3-6A3F-437607FD9FAE2389.JPG",
+    "own_website": "https://www.waverleyauctions.com/",
+    "domain": "waverleyauctions.com",
+    "payment_methods": [
+      "bank transfer",
+      "bacs",
+      "cheque",
+      "cash"
+    ],
+    "payment_quote": null,
+    "signal": "A7 Waverley Auctions is an auction house that manages the sale of antiques and collectibles. They currently operate through an auction platform and professional estimation requests rather than a standard e-commerce checkout. Implementing a branded card-payment page would be ideal for this business to streamline post-auction invoicing and remote settlement for winning bidders.",
+    "icp_fit": true,
+    "company_number": "SC882964",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "PURVES, George William",
+      "PURVES, Ross"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 80,
+    "score_breakdown": {
+      "manual_payment_signal": 1.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Takes payment by bank transfer, bacs, cheque, cash — no online card page.",
+      "Specialises in antiques, gold, silver.",
+      "4 catalogue(s) currently live — actively trading.",
+      "2 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Acanthus Auctions Ltd",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/acanthusauctions/",
+    "source_id": "acanthusauctions",
+    "location": "Wiltshire",
+    "postcode": "SP3 6JB",
+    "categories": [
+      "antiques"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 7,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC18448-92C6-252B-4B731D2DF08B0D66.JPG",
+    "own_website": "https://acanthusauctions.co.uk/",
+    "domain": "acanthusauctions.co.uk",
+    "payment_methods": [
+      "bank transfer"
+    ],
+    "payment_quote": "Payment will be made by Bank transfer unless otherwise arranged.",
+    "signal": "Acanthus Auctions is a local auction house in Wiltshire specializing in antiques and collectibles. They operate through scheduled monthly auctions where buyers settle after bidding, typically via manual invoicing or bank transfer rather than at a fixed retail till. Implementing a branded online card payment page would provide a professional, integrated solution for them to collect buyer payments remotely without relying on slow bank transfers.",
+    "icp_fit": true,
+    "company_number": "16785067",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "LLOYD, Marcus"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 80,
+    "score_breakdown": {
+      "manual_payment_signal": 1.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Says on their site: \"Payment will be made by Bank transfer unless otherwise arranged.\"",
+      "Specialises in antiques.",
+      "7 catalogue(s) currently live — actively trading.",
+      "1 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Stanley Gibbons Baldwin's",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/ahbaldwin/",
+    "source_id": "ahbaldwin",
+    "location": null,
+    "postcode": "WC2R 0LX",
+    "categories": [
+      "books"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 5,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1AC0F-FC0A-6B65-07BD64703BCBDC7A.JPG",
+    "own_website": "https://sgbaldwins.com/",
+    "domain": "sgbaldwins.com",
+    "payment_methods": [
+      "bank transfer",
+      "cheque",
+      "cash"
+    ],
+    "payment_quote": "5.4.3 Payment should be made in sterling by one of the following methods: (i) Direct bank transfer to our account details of which are set out on the invoice.",
+    "signal": "Stanley Gibbons Baldwin's is an established auction house facilitating high-value sales of stamps, coins, and collectibles. They operate via an online bidding platform with integrated digital storefronts for shopping. As they already utilize sophisticated e-commerce auction technology, a basic branded card payment page is not new or necessary infrastructure for their established model.",
+    "icp_fit": false,
+    "company_number": "15143599",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "GRIFFITHS, Ian Ward",
+      "HUGHES-WARD, Jenni Louise",
+      "MABY, Charlotte Clare",
+      "MURPHY, Iain Richard"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 71,
+    "score_breakdown": {
+      "manual_payment_signal": 1.0,
+      "category_value": 0.63,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Says on their site: \"5.4.3 Payment should be made in sterling by one of the following methods: (i) Direct bank transfer to our account details of which are set out on the invoice.\"",
+      "Specialises in books.",
+      "5 catalogue(s) currently live — actively trading.",
+      "4 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Abbey Auction Rooms Ltd",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/abbeyauctionrooms/",
+    "source_id": "abbeyauctionrooms",
+    "location": "Kent",
+    "postcode": "ME7 4DH",
+    "categories": [
+      "antiques",
+      "ceramics",
+      "jewellery",
+      "stamps",
+      "collectables",
+      "furniture",
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC16F0E-030D-CFD1-354176EE86486472.JPG",
+    "own_website": null,
+    "domain": null,
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": "13294606",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "ABBEY, Robert",
+      "ADAMS, Bridgette"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 40,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in antiques, ceramics, jewellery.",
+      "1 catalogue(s) currently live — actively trading.",
+      "2 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "own website not resolved"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "ABC Auction",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/abcauctions/",
+    "source_id": "abcauctions",
+    "location": "County Armagh",
+    "postcode": "bt61 7ad",
+    "categories": [
+      "coins",
+      "gold",
+      "silver"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC175B5-0813-70D8-CD1C18C681A5FC93.JPG",
+    "own_website": null,
+    "domain": null,
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": "12590231",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "DAVIES, Stewart James",
+      "JONES, Damian John Nicholas",
+      "MCKAY, Colette Anne"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 40,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in coins, gold, silver.",
+      "1 catalogue(s) currently live — actively trading.",
+      "3 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "own website not resolved"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "AJ Auctions Fife Ltd",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/ajauctionsfife/",
+    "source_id": "ajauctionsfife",
+    "location": "Fife",
+    "postcode": "KY4 8HG",
+    "categories": [
+      "antiques",
+      "collectables",
+      "clearance"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 4,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1B2BA-B29D-D5DD-886D2E550E46303F.JPG",
+    "own_website": "https://www.ajauctions.co.uk/",
+    "domain": "ajauctions.co.uk",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "AJ Auctions Fife provides house clearance and auction services for homeowners and solicitors. Their process involves deducting service fees from final sale proceeds and settling the balance, indicating a model based on invoicing and settlements rather than point-of-sale card transactions. A branded online payment page would provide them with a streamlined, professional way to collect client fees or settle final balances remotely.",
+    "icp_fit": true,
+    "company_number": "SC616262",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "JACKSON, Allan",
+      "JACKSON, Helen Johnstone"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 40,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in antiques, collectables, clearance.",
+      "4 catalogue(s) currently live — actively trading.",
+      "2 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Antique Finds",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/antiquefinds/",
+    "source_id": "antiquefinds",
+    "location": "Hertfordshire",
+    "postcode": "SG8 5QL",
+    "categories": [
+      "antiques",
+      "collectables",
+      "clearance"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC206FA-CF16-EEE4-890B375ECB41662C.JPG",
+    "own_website": "https://www.youtube.com/watch?v=_VljrNxPjSY",
+    "domain": "youtube.com",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Antique Finds curates estate sale items for customers. The provided text contains YouTube platform metadata and no specific information regarding how they currently process payments or manage sales. A branded online card payment page could help them transition from manual payment methods to professional, automated digital invoicing for their private estate sales.",
+    "icp_fit": false,
+    "company_number": "04880307",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "MISSING, Roger"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 40,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in antiques, collectables, clearance.",
+      "1 catalogue(s) currently live — actively trading.",
+      "1 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Argents Auctioneers Ltd",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/argentsauctioneers/",
+    "source_id": "argentsauctioneers",
+    "location": null,
+    "postcode": "PO9 2NP",
+    "categories": [
+      "antiques",
+      "bronzes",
+      "ceramics",
+      "clocks",
+      "coins",
+      "glass",
+      "gold",
+      "jewellery",
+      "medals",
+      "silver",
+      "watches",
+      "art",
+      "toys",
+      "vintage"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC23B0C-B2BB-57F1-9515106487907779.JPG",
+    "own_website": "https://www.argentsauctions.co.uk/",
+    "domain": "argentsauctions.co.uk",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": "16637087",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "PIASCO, Carly Louise",
+      "PIASCO, Michel Henri"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 40,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in antiques, bronzes, ceramics.",
+      "1 catalogue(s) currently live — actively trading.",
+      "2 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Argyll Etkin Limited",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/argylletkin/",
+    "source_id": "argylletkin",
+    "location": null,
+    "postcode": "W1D 6PA",
+    "categories": [
+      "stamps",
+      "art",
+      "memorabilia"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC2350D-DA6C-42C7-1EC062970576917E.JPG",
+    "own_website": "https://www.argyll-etkin.com/",
+    "domain": "argyll-etkin.com",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Argyll Etkin is a London-based auction house and retailer specializing in stamps, postal history, and memorabilia. They currently sell their inventory through an integrated webstore, eBay, and Delcampe platforms, indicating an existing online checkout process. As they already utilize established e-commerce infrastructure for digital payments, a standalone branded card-payment page offers no incremental value.",
+    "icp_fit": false,
+    "company_number": "00604273",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "COOKE, Adam David",
+      "FROST, Patrick",
+      "WILLS, Phyllis Dora"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 40,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in stamps, art, memorabilia.",
+      "1 catalogue(s) currently live — actively trading.",
+      "3 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "1888 Auctioneers",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/1888auctioneers/",
+    "source_id": "1888auctioneers",
+    "location": null,
+    "postcode": "B33 0SG",
+    "categories": [
+      "memorabilia",
+      "sporting"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FCB2343-0640-57BF-9EDD1F898A683060.JPG",
+    "own_website": "https://1888auctioneers.com/",
+    "domain": "1888auctioneers.com",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "1888 Auctioneers facilitates the sale of sports memorabilia and art through an auction model where winners are billed via invoice. Customers currently pay primarily through bank wire, check, or manual card processing. Providing a branded payment page would streamline their reconciliation process and offer a professional alternative to their existing manual invoice settlement methods.",
+    "icp_fit": true,
+    "company_number": "12653603",
+    "company_status": "active",
+    "company_type": "ltd",
+    "directors": [
+      "GIBBONS, Jason Lee",
+      "MURRAY, Warren John",
+      "SOLOMON, Steven Eric"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 31,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 0.66,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in memorabilia, sporting.",
+      "1 catalogue(s) currently live — actively trading.",
+      "3 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "email verifier unavailable (error) — not attempted"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "A 1 Collectables Antiques Auctions",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/a1collectablesantiquesauctions/",
+    "source_id": "a1collectablesantiquesauctions",
+    "location": "Wales",
+    "postcode": "LL53 5RR",
+    "categories": [
+      "antiques",
+      "coins",
+      "jewellery",
+      "stamps",
+      "art",
+      "collectables",
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC15E4A-D770-B6FC-86C9762D0AA88987.JPG",
+    "own_website": null,
+    "domain": null,
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, coins, jewellery.",
+      "1 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "own website not resolved",
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "ACE Automobilia Auction",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/aceautomobiliaauction/",
+    "source_id": "aceautomobiliaauction",
+    "location": null,
+    "postcode": "93940",
+    "categories": [
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC189D5-E458-CE04-4FBA68265E0C4322.JPG",
+    "own_website": "https://automobiliacollectorsexpo.com/auction/auction-terms-and-conditions",
+    "domain": "automobiliacollectorsexpo.com",
+    "payment_methods": [
+      "bank transfer",
+      "cash"
+    ],
+    "payment_quote": "Accepted Methods: Cash, wire/bank transfer, and major credit cards.",
+    "signal": "ACE Automobilia Auction organizes live events where participants currently settle payments via bank transfer, cash, or credit cards. As they manage significant post-auction settlement processes and invoicing for buyers and consignors, they are a strong candidate for SettlePay. A branded card-payment page would streamline their payment collection and reconciliation by replacing manual handling with an automated online process.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 1.0,
+      "category_value": 0.3,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Says on their site: \"Accepted Methods: Cash, wire/bank transfer, and major credit cards.\"",
+      "Specialises in general.",
+      "1 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Acorn Internet Auction",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/acornauctions/",
+    "source_id": "acornauctions",
+    "location": "Hertfordshire",
+    "postcode": "CM21 9JX",
+    "categories": [
+      "antiques",
+      "clocks",
+      "gold",
+      "jewellery",
+      "militaria",
+      "silver",
+      "collectables",
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 4,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC190B5-DAD4-4F75-CD26F7110CF50DC1.JPG",
+    "own_website": "https://acornauction.co.uk/",
+    "domain": "acornauction.co.uk",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Acorn Internet Auction operates as an auction house providing valuations and house clearance services. The website does not specify their current payment methods but indicates a model based on quotes, appointments, and bidding, which typically involves invoice-based settlement. Implementing a branded card payment page on their domain would streamline the collection of auction winnings and service fees, replacing manual bank transfers or check payments.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, clocks, gold.",
+      "4 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Acreman St. Antiques Auction",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/acremanstantiques/",
+    "source_id": "acremanstantiques",
+    "location": "Dorset",
+    "postcode": "DT93PH",
+    "categories": [
+      "antiques",
+      "fine art",
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 7,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC19659-B7E0-487E-F69E27C39581A946.JPG",
+    "own_website": "https://www.acremanstreetantiques.co.uk/contact-us",
+    "domain": "acremanstreetantiques.co.uk",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Acreman St. Antiques Auction provides auctioneer and valuation services, including home visits for private collections. Their process typically involves remote invoicing or bank transfers rather than a fixed retail point-of-sale terminal. SettlePay would provide a valuable branded payment page to streamline client settlements for auctions and probate valuations.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, fine art, general.",
+      "7 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Adam's Auctioneers",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/adamsauctioneers/",
+    "source_id": "adamsauctioneers",
+    "location": null,
+    "postcode": "D02 X665",
+    "categories": [
+      "antiques",
+      "asian art",
+      "fine art",
+      "jewellery",
+      "silver",
+      "watches",
+      "wine",
+      "furniture",
+      "memorabilia",
+      "vintage",
+      "household",
+      "property"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC819AE-C020-6C93-A88AC6FF69F02359.JPG",
+    "own_website": "https://www.adams.ie/",
+    "domain": "adams.ie",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Adam's Auctioneers operates as a high-end auction house handling valuable fine art, jewellery, and antiques. They already facilitate online bidding and digital transactions via their website, including an existing payment portal. While they handle significant invoice-based transactions, their established digital infrastructure and high transaction volume categorize them as an ecommerce entity rather than a small business needing new payment infrastructure.",
+    "icp_fit": false,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, asian art, fine art.",
+      "1 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Alastair Gibson Auctions",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/alastairgibsonauctions/",
+    "source_id": "alastairgibsonauctions",
+    "location": "Kent",
+    "postcode": "TN255LR",
+    "categories": [
+      "asian art",
+      "ceramics",
+      "fine art"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1B89E-9492-8CD5-E58947C6E40DBCD1.JPG",
+    "own_website": "https://www.alastairgibsonauctions.com/",
+    "domain": "alastairgibsonauctions.com",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Alastair Gibson Auctions provides professional valuations, consultancy, and specialist auctions for fine Asian art. Customers typically interact via consultation and appointment-based auction services, which rely on manual invoicing and bank transfers rather than a fixed retail till. Implementing a branded online card payment page would provide a professional, secure method for clients to settle high-value invoices directly on their own domain.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in asian art, ceramics, fine art.",
+      "1 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Alliance Auctions",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/allianceauctions/",
+    "source_id": "allianceauctions",
+    "location": "Herts",
+    "postcode": "CM23 9JW",
+    "categories": [
+      "coins",
+      "stamps"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 5,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1CFB9-EC49-52AB-26E87299082A6EE6.JPG",
+    "own_website": "https://www.allianceauctions.com/",
+    "domain": "allianceauctions.com",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "Alliance Auctions facilitates the bidding and sale of stamps, coins, and militaria through postal, email, and phone channels. Customers currently manage payments through offline methods rather than a standard e-commerce checkout. Providing a branded card payment page would allow them to securely collect winning bid payments remotely and streamline their manual reconciliation process.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in coins, stamps.",
+      "5 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Alnwick Auctions",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/alnwickauctions/",
+    "source_id": "alnwickauctions",
+    "location": "Northumberland",
+    "postcode": "NE66 1TD",
+    "categories": [
+      "antiques"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 11,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1D510-DF18-2FDA-FEAE2134C8EC4090.JPG",
+    "own_website": "https://www.alnwickauctions.co.uk/",
+    "domain": "alnwickauctions.co.uk",
+    "payment_methods": [
+      "bank transfer",
+      "cheque",
+      "cash",
+      "online card"
+    ],
+    "payment_quote": "Proceeds due to vendors can be paid in cash, by bank transfer, or by cheque, depending on preference and will be available one month after the sale date.",
+    "signal": "Alnwick Auctions operates an auction house facilitating the sale of antiques, jewellery, and collectibles. Payments for auction lots typically occur post-sale via invoice, bank transfer, or collection, as they utilize third-party online bidding platforms rather than an integrated proprietary checkout. Implementing a branded card-payment page would streamline their reconciliation process for remote payments and eliminate reliance on manual invoice settlements.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.5,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Says on their site: \"Proceeds due to vendors can be paid in cash, by bank transfer, or by cheque, depending on preference and will be available one month after the sale date.\"",
+      "Specialises in antiques.",
+      "11 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Henry's Auctions (Altona)",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/altonaauctions/",
+    "source_id": "altonaauctions",
+    "location": null,
+    "postcode": "BT28 1RW",
+    "categories": [
+      "ceramics",
+      "clocks",
+      "glass",
+      "jewellery",
+      "watches",
+      "collectables",
+      "furniture",
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 8,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1DA99-BE6D-D4AF-BF7889F21B7AD1A2.JPG",
+    "own_website": null,
+    "domain": null,
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in ceramics, clocks, glass.",
+      "8 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "own website not resolved",
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Amersham Auction Rooms",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/amershamauctionrooms/",
+    "source_id": "amershamauctionrooms",
+    "location": "Buckinghamshire",
+    "postcode": "HP7 0AH",
+    "categories": [
+      "bronzes",
+      "ceramics",
+      "clocks",
+      "coins",
+      "fine art",
+      "glass",
+      "jewellery",
+      "militaria",
+      "paintings",
+      "silver",
+      "stamps",
+      "watches",
+      "books",
+      "furniture",
+      "sporting",
+      "toys",
+      "general",
+      "household"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 34,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1E059-E722-4DC5-D062BFC913786D41.JPG",
+    "own_website": "https://www.amershamauctionrooms.co.uk/",
+    "domain": "amershamauctionrooms.co.uk",
+    "payment_methods": [
+      "bank transfer",
+      "cheque",
+      "cash"
+    ],
+    "payment_quote": "Cheques and cash are not accepted as a method of payment but settlement may be made in person by the cardholder only, by credit card (subject to a small, published surcharge) debit card or electronic bank transfer.",
+    "signal": "Amersham Auction Rooms facilitates the auction of fine art, furniture, and collectibles through both physical viewings and absentee bidding processes. Payment terms and collection procedures indicate a remote invoicing or bank transfer approach rather than a standard online ecommerce checkout. Providing a branded card payment page would streamline their post-auction settlements and allow buyers to reconcile invoices instantly on the firm's own domain.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 1.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Says on their site: \"Cheques and cash are not accepted as a method of payment but settlement may be made in person by the cardholder only, by credit card (subject to a small, published surcharge) debit card or electronic bank transfer.\"",
+      "Specialises in bronzes, ceramics, clocks.",
+      "34 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "AMW Auctions",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/andovermarlboroughwinchesterauctions/",
+    "source_id": "andovermarlboroughwinchesterauctions",
+    "location": "Hampshire",
+    "postcode": "SP11 0QH",
+    "categories": [
+      "antiques",
+      "coins",
+      "gold",
+      "jewellery",
+      "collectables",
+      "general"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1ECC9-A2F1-4BC7-3CA5A783430A2DFB.JPG",
+    "own_website": "https://andoverauctions.co.uk/",
+    "domain": "andoverauctions.co.uk",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, coins, gold.",
+      "1 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Andrew Smith & Son",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/andrewsmithandson/",
+    "source_id": "andrewsmithandson",
+    "location": null,
+    "postcode": "SO24 0QT",
+    "categories": [
+      "antiques",
+      "asian art",
+      "ceramics",
+      "clocks",
+      "fine art",
+      "glass",
+      "jewellery",
+      "silver",
+      "watches",
+      "collectables",
+      "furniture",
+      "pictures",
+      "rugs"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 10,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1F30A-CB97-7DB8-C780BCDA6D3E096B.JPG",
+    "own_website": "https://www.andrewsmithandson.com/",
+    "domain": "andrewsmithandson.com",
+    "payment_methods": [
+      "bank transfer",
+      "cheque",
+      "card in person"
+    ],
+    "payment_quote": "Methods of payment As a general rule, any cheques tendered will need to be cleared before removal of goods is permitted.",
+    "signal": "Andrew Smith & Son is an auction house that facilitates bidding and valuations. They manage payments via remote invoicing for auction winnings rather than a traditional retail till. Providing a branded payment page would streamline their post-auction settlement process for successful bidders.",
+    "icp_fit": true,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 1.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Says on their site: \"Methods of payment As a general rule, any cheques tendered will need to be cleared before removal of goods is permitted.\"",
+      "Specialises in antiques, asian art, ceramics.",
+      "10 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Antikbar Original Vintage Posters",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/antikbar/",
+    "source_id": "antikbar",
+    "location": "London",
+    "postcode": "SW10 0LJ",
+    "categories": [
+      "antiques",
+      "art",
+      "vintage"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 4,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC1FF5A-933C-D9AA-C3F4CA4560466D44.JPG",
+    "own_website": "https://www.liveauctioneers.com/auctioneer/3087/antikbar-original-vintage-posters/?srsltid=AfmBOoqkTS5DaKoQG8nABoy9_J_4OMJuTiD6tLxrOrpa3R37a0ETuQ_Q",
+    "domain": "liveauctioneers.com",
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": "AntikBar is a physical gallery located on King's Road in London that specializes in original vintage posters. They operate as a retail storefront and attend trade fairs, implying they likely handle transactions in person via a fixed till. Implementing a branded online payment page would be redundant for their current retail and likely ecommerce-integrated business model.",
+    "icp_fit": false,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, art, vintage.",
+      "4 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "Antique 491",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/antique91/",
+    "source_id": "antique91",
+    "location": null,
+    "postcode": "BH1 4AE",
+    "categories": [
+      "antiques",
+      "paintings",
+      "furniture",
+      "toys",
+      "vintage"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 1,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC21FD3-EC8B-603B-A7F2112ABC6AB1A2.JPG",
+    "own_website": null,
+    "domain": null,
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": null,
+    "company_status": null,
+    "company_type": null,
+    "directors": [],
+    "pecr_class": "unknown",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 25,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 1.0,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0,
+      "pecr_cap": "research-only (<=25)"
+    },
+    "email_context": [
+      "Specialises in antiques, paintings, furniture.",
+      "1 catalogue(s) currently live — actively trading.",
+      "PECR: not a confirmed corporate subscriber — research-only, do not cold-email."
+    ],
+    "notes": [
+      "own website not resolved",
+      "PECR: unknown — research-only (no confident CH match (sole trader / unmatched))"
+    ]
+  },
+  {
+    "platform": "easylive",
+    "business_name": "A & C Auctions of Pendle",
+    "listing_url": "https://www.easyliveauction.com/auctioneers/aandcauctions/",
+    "source_id": "aandcauctions",
+    "location": "Lancashire",
+    "postcode": "BB8 8EG",
+    "categories": [
+      "clearance",
+      "general",
+      "surplus"
+    ],
+    "next_auction_date": null,
+    "upcoming_count": 4,
+    "logo_url": "https://content.easyliveauction.com/auctioneer/images/logos/3FC17D28-EDD1-F4DB-B52DDC39849D0CAF.JPG",
+    "own_website": null,
+    "domain": null,
+    "payment_methods": [],
+    "payment_quote": null,
+    "signal": null,
+    "icp_fit": null,
+    "company_number": "OC432138",
+    "company_status": "active",
+    "company_type": "llp",
+    "directors": [
+      "FALLOWS, Keiran Ian",
+      "KNOWLES, Elizabeth",
+      "KNOWLES, James Christian Ward"
+    ],
+    "pecr_class": "corporate",
+    "decision_maker_name": null,
+    "decision_maker_email": null,
+    "decision_maker_confidence": 0.0,
+    "generic_email": null,
+    "generic_confidence": 0.0,
+    "score": 22,
+    "score_breakdown": {
+      "manual_payment_signal": 0.0,
+      "category_value": 0.3,
+      "auction_activity": 1.0,
+      "decision_maker_email": 0.0
+    },
+    "email_context": [
+      "Specialises in clearance, general, surplus.",
+      "4 catalogue(s) currently live — actively trading.",
+      "3 director(s) on Companies House; no email confirmed yet."
+    ],
+    "notes": [
+      "own website not resolved"
+    ]
+  }
+]
