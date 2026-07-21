@@ -8,7 +8,7 @@ from outreach import outbox
 pytestmark = pytest.mark.floor_g
 
 
-def _draft(cur, status="approved", *, sent=False):
+def _draft(cur, status="approved", *, sent=False, sent_mode="live"):
     cn = f"OBX_{uuid.uuid4().hex[:8]}"
     did = uuid.uuid4()
     cur.execute(
@@ -21,7 +21,8 @@ def _draft(cur, status="approved", *, sent=False):
         (did, cn, status))
     if sent:
         cur.execute("insert into outreach.sends (draft_id, company_number, to_email, "
-                    "mode, status) values (%s,%s,'x@y.uk','dry_run','dry_run_ok')", (did, cn))
+                    "mode, status) values (%s,%s,'x@y.uk',%s,%s)",
+                    (did, cn, sent_mode, "sent" if sent_mode == "live" else "dry_run_ok"))
     return did, cn
 
 
@@ -47,11 +48,26 @@ def test_only_approved_drafts_can_be_sent_manually(db_rollback):
         outbox.send_now(did, requested_by="test", cur=cur)
 
 
-def test_an_already_sent_draft_cannot_be_re_sent(db_rollback):
+def test_an_already_live_sent_draft_cannot_be_re_sent(db_rollback):
     cur = db_rollback.cursor()
-    did, _ = _draft(cur, sent=True)
+    did, _ = _draft(cur, sent=True, sent_mode="live")
     with pytest.raises(outbox.OutboxRefused):
         outbox.send_now(did, requested_by="test", cur=cur)
+
+
+def test_a_dry_run_send_does_not_burn_the_draft_for_live(db_rollback):
+    """The bug behind 'I clicked send and nothing arrived': clicking 'send now' while
+    G-SEND is off dry-runs and records a send row. That must NOT stop the real live send
+    once G-SEND is on — only a LIVE send means 'already gone'."""
+    cur = db_rollback.cursor()
+    did, cn = _draft(cur, sent=True, sent_mode="dry_run")   # a prior dry-run
+    # still enters the outbox
+    outbox.send_now(did, requested_by="test", cur=cur)
+    cur.execute("select outbox_at from outreach.drafts where id=%s", (did,))
+    assert cur.fetchone()[0] is not None
+    _age(cur, did, outbox.UNDO_SECONDS + 1)
+    assert did in outbox.due(cur, mode="live")             # live-eligible despite the dry-run
+    assert did not in outbox.due(cur, mode="dry_run")      # ...but no dry-run spam
 
 
 def test_a_second_click_does_not_restart_the_undo_window(db_rollback):

@@ -49,15 +49,17 @@ def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
     net for a manual send whose instance was torn down before the sweep ran, so it
     goes out late rather than sitting in the outbox for ever.
     """
+    mode = "dry_run" if dry_run else "live"
     cur.execute(
         "select d.id from outreach.drafts d "
         "join outreach.leads l on l.company_number = d.company_number "
         "where d.status = 'approved' "
         "and (d.scheduled_at is null or d.scheduled_at <= now() "
         f"     or d.outbox_at + interval '{outbox.UNDO_SECONDS} seconds' <= now()) "
-        "and not exists (select 1 from outreach.sends s where s.draft_id = d.id) "
-        "order by d.outbox_at nulls last, d.scheduled_at nulls first, d.created_at")
-    mode = "dry_run" if dry_run else "live"
+        # mode-aware: a prior dry-run must not block the live send (that was the bug that
+        # burned a manually-sent draft); the SAME-mode check still prevents dry-run spam.
+        "and not exists (select 1 from outreach.sends s where s.draft_id = d.id and s.mode = %s) "
+        "order by d.outbox_at nulls last, d.scheduled_at nulls first, d.created_at", (mode,))
     out: list[dict] = []
     sent = 0
     for (draft_id,) in cur.fetchall():

@@ -790,7 +790,7 @@ from outreach.drafts d
 join outreach.leads l on l.company_number = d.company_number
 left join outreach.enrichment e on e.company_number = d.company_number
 where d.status = 'approved'
-  and not exists (select 1 from outreach.sends s where s.draft_id = d.id)
+  and not exists (select 1 from outreach.sends s where s.draft_id = d.id and s.mode = 'live')
 order by d.outbox_at nulls last, d.scheduled_at nulls first, d.created_at
 """
 
