@@ -171,6 +171,68 @@ def test_check_style_flags_drift_to_the_hard_word_cap():
     assert not any("tighten" in v for v in draft.check_style("word " * 60))
 
 
+# --------------------------------------------------------------------------- #
+#  check_grounding — the hard anti-hallucination gate for invented names
+# --------------------------------------------------------------------------- #
+def test_grounding_rejects_an_invented_name_when_no_contact_is_on_file():
+    """The exact production failure: 'Hi John,' on a lead with no contact name."""
+    body = "Hi John,\n\nYour firm handles a lot of invoicing. Kind regards, Finlay"
+    v = draft.check_grounding(body, contact_name=None, company_name="Bond Electrics Ltd")
+    assert v and "invented name" in v[0]
+
+
+def test_grounding_rejects_a_name_that_is_not_the_verified_contact():
+    body = "Dear Robert,\n\nYour roofing work is well regarded. Kind regards, Finlay"
+    v = draft.check_grounding(body, contact_name="SMITH, John Andrew",
+                              company_name="1st Active Roofing Limited")
+    assert v and "not the contact" in v[0]
+
+
+def test_grounding_accepts_the_verified_contact_first_name():
+    body = "Dear John,\n\nYour firm handles a lot of invoicing. Kind regards, Finlay"
+    assert draft.check_grounding(body, contact_name="SMITH, John Andrew",
+                                 company_name="Bond Electrics Ltd") == []
+
+
+def test_grounding_accepts_greeting_the_business_by_a_word_of_its_own_name():
+    """'Dear Adam,' for 'Adam Partridge Auctioneers' is greeting the business, not a
+    person — the token is a word of the company name, so it is grounded."""
+    assert draft.check_grounding("Dear Adam,\n\nYour salerooms... Kind regards, Finlay",
+                                 contact_name=None,
+                                 company_name="Adam Partridge Auctioneers & Valuers") == []
+
+
+def test_grounding_accepts_the_business_greeting_and_generic_openers():
+    assert draft.check_grounding("Dear Acme Joinery,\n\nYou... Kind regards, Finlay",
+                                 contact_name=None, company_name="ACME JOINERY LTD") == []
+    assert draft.check_grounding("Hi there,\n\nYou... Kind regards, Finlay",
+                                 contact_name=None, company_name="Acme Ltd") == []
+
+
+def test_grounding_is_wired_into_the_hard_gate(monkeypatch, db_rollback):
+    """A model that invents a greeting must not be able to persist a draft — even if
+    every compliance element is present. This is the retry+reject path end to end."""
+    import uuid
+
+    from outreach.llm import LLMResult
+
+    cn = f"TEST-{uuid.uuid4().hex[:8]}"
+    payload = json.dumps({"subject": "getting paid faster",
+                          "body": ("Hi John,\n\nMost trades wait on bank transfers. "
+                                   "SettlePay gives you a branded card page; funds are held "
+                                   "by FCA-regulated partners. Reply unsubscribe to opt out.\n\n"
+                                   "Kind regards,\nFinlay Salisbury\nSettlePay")})
+
+    class _Invents:
+        def complete(self, *a, **k):
+            return LLMResult(text=payload, provider="test")
+
+    with pytest.raises(draft.EnvelopeViolation) as e:
+        draft.draft_one(cn, "Bond Electrics Ltd", "electricians", provider=_Invents(),
+                        cur=db_rollback, contact_name=None)
+    assert any("invented name" in v for v in e.value.violations)
+
+
 def test_parse_payload_handles_json_fenced_json_and_junk():
     assert draft.parse_payload('{"subject":"s","body":"b"}') == ("s", "b")
     assert draft.parse_payload('```json\n{"subject":"s","body":"b"}\n```') == ("s", "b")
