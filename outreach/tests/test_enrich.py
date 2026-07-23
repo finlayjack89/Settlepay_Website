@@ -332,3 +332,36 @@ def test_enrich_stops_the_batch_when_the_verifier_looks_down(db_rollback, monkey
     monkeypatch.setattr(enrich, "page_text", lambda *a, **k: "")
     enrich.discover_and_run(limit=len(cns), cur=cur)
     assert calls["n"] == enrich.VERIFIER_DOWN_AFTER
+
+
+# --------------------------------------------------------------------------- #
+#  Signal grounding — no registered-office town, no raw SIC code
+# --------------------------------------------------------------------------- #
+def test_a_registered_office_town_is_never_asserted_as_a_trading_location():
+    """A Ltd's registered office is usually its accountant. Only a Places locality (a
+    real business listing) may seed 'in <town>' — this is why a Cheshire auctioneer was
+    being placed in Westbury-on-Severn."""
+    assert enrich.trading_town("Westbury-On-Severn", "companies_house_advanced_search") is None
+    assert enrich.trading_town("Hull", "places") == "Hull"
+
+
+def test_a_bare_sic_code_is_not_emitted_as_a_vertical():
+    """stats.sic_label falls through to the raw code for unmapped SICs; it must not
+    reach a signal as '— 47190 in ...'."""
+    assert enrich.usable_vertical("47190") is None
+    assert enrich.usable_vertical("Unknown") is None
+    assert enrich.usable_vertical("Accountants") == "Accountants"
+
+
+def test_factual_signal_omits_what_it_cannot_stand_behind():
+    # CH lead: no trustworthy town, unmapped SIC -> name only
+    assert enrich.factual_signal(
+        "MEWS AUCTION ROOMS LIMITED",
+        enrich.usable_vertical("47190"),
+        enrich.trading_town("Westbury-On-Severn", "companies_house_advanced_search"),
+    ) == "MEWS AUCTION ROOMS LIMITED"
+    # Places lead: real vertical + real trading town
+    assert enrich.factual_signal(
+        "24hr Electrical Services Ltd", enrich.usable_vertical("Electricians"),
+        enrich.trading_town("Hull", "places"),
+    ) == "24hr Electrical Services Ltd — Electricians in Hull"

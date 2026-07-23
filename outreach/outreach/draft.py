@@ -139,6 +139,45 @@ def check_subject(subject: str) -> list[str]:
 # is treated as missing so the soft check catches it.
 GREETING_RE = re.compile(r"^dear\s+[^\n]{1,60}[,:]\s*\n", re.I)
 
+# Any opener that addresses someone by a first name: "Dear John,", "Hi Robert,",
+# "Hello Sarah -". The captured token is the name the draft is greeting.
+_GREET_NAME_RE = re.compile(r"^\s*(?:dear|hi|hello|hey)\s+([A-Z][a-z]+)\b", re.I)
+_STOPWORD_GREETS = frozenset({"there", "team", "sir", "madam", "all", "sirs", "everyone"})
+
+
+def _grounding_tokens(*sources: str | None) -> set[str]:
+    """Lowercased words we are allowed to greet by — the verified contact's forename
+    and every word of the business's own name."""
+    out: set[str] = set()
+    for s in sources:
+        for w in re.split(r"[^a-z0-9]+", (s or "").lower()):
+            if len(w) >= 2:
+                out.add(w)
+    return out
+
+
+def check_grounding(text: str, *, contact_name: str | None,
+                    company_name: str | None) -> list[str]:
+    """HARD anti-hallucination gate: the draft may not name a PERSON it was not given.
+
+    The playbook already forbids inventing a name, yet the model still opens "Hi John,"
+    on a lead with no contact on file — an instruction an LLM will occasionally ignore,
+    so it cannot be the only line of defence. This rejects, deterministically, any
+    greeting that addresses a forename which is neither the verified contact's nor a
+    word of the business's own name. A fabricated "Dear <stranger>," is the single most
+    damaging tell in cold outreach: it is a lie the recipient spots instantly.
+    """
+    v: list[str] = []
+    greeted = _GREET_NAME_RE.match(text.lstrip())
+    if greeted:
+        token = greeted.group(1).lower()
+        allowed = _grounding_tokens(first_name(contact_name), company_name)
+        if token not in allowed and token not in _STOPWORD_GREETS:
+            who = "an invented name" if not contact_name else \
+                f"{token!r}, not the contact ({first_name(contact_name)!r})"
+            v.append(f"greeting names {who}")
+    return v
+
 
 def first_name(contact_name: str | None) -> str | None:
     """The first name to greet a named contact by. Companies House holds names
@@ -363,9 +402,11 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
             # isolates per-lead, and anything else aborts the whole batch.
             raise EnvelopeViolation(company_number, [f"unparseable draft: {e2}"]) from e2
 
-    # HARD gates (compliance + a sendable subject) and SOFT gates (craft) share one
-    # corrective retry; only the hard ones can discard the lead.
-    hard = check_envelope(body) + [f"subject: {s}" for s in check_subject(subject)]
+    # HARD gates (compliance + a sendable subject + no invented person) and SOFT gates
+    # (craft) share one corrective retry; only the hard ones can discard the lead.
+    hard = (check_envelope(body)
+            + [f"subject: {s}" for s in check_subject(subject)]
+            + check_grounding(body, contact_name=contact_name, company_name=company_name))
     soft = check_style(body)
     if hard or soft:
         try:
@@ -378,7 +419,8 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
                 "characters.")
         except DraftFormatError as e:
             raise EnvelopeViolation(company_number, [f"unparseable retry: {e}"]) from e
-        rv = check_envelope(r_body) + [f"subject: {s}" for s in check_subject(r_subject)]
+        rv = (check_envelope(r_body) + [f"subject: {s}" for s in check_subject(r_subject)]
+              + check_grounding(r_body, contact_name=contact_name, company_name=company_name))
         if rv:
             raise EnvelopeViolation(company_number, rv)
         subject, body, soft = r_subject, r_body, check_style(r_body)

@@ -1,4 +1,9 @@
-<!-- PLAYBOOK VERSION: v2.5 -->
+<!-- PLAYBOOK VERSION: v2.6 -->
+<!-- v2.6: grounding discipline. Drafts were opening "Hi John," on leads with no -->
+<!-- contact on file, and placing businesses in their registered-office town (an -->
+<!-- accountant's address, not where they trade). Assert-only-what's-in-SIGNAL rules -->
+<!-- for place/person/rating; backstopped by draft.check_grounding (HARD reject of a -->
+<!-- greeting naming anyone not the verified contact or the business). -->
 <!-- v2.1: opener/subject SHAPE rotation. v2.0's single worked example anchored the -->
 <!-- model hard — 43 of 49 sampled drafts opened with the word "Saw" and 32 shared -->
 <!-- two subject stems, which is the bulk fingerprint the module warns about. The -->
@@ -85,9 +90,21 @@ open alike. Follow it. These illustrate the range (use the logic, never the word
 > Since the yard runs six-day weeks, month-end matching probably lands on a Sunday.
 
 The observation must be real. If `SIGNAL` is thin or says no website was found,
-open on **trade and locality only** — never invent a detail, a client, a job, or a
+open on **trade only** — never invent a detail, a client, a job, or a
 compliment. A fabricated specific is worse than a general opener, because it is
 both a lie and instantly detectable.
+
+**Assert only what is in `SIGNAL`.** In particular:
+- **A place** — town, city, county, region — only if `SIGNAL` states the business is
+  based or works there. Never infer a location from a name, a phone code, or a guess.
+  If `SIGNAL` names no location, name none; write about the trade, not the map.
+- **A person's name** only when `CONTACT NAME` is supplied. With no `CONTACT NAME`
+  you do not know who reads this — greet the **business** (see below) and address it
+  as "you". Never open "Hi <first name>," with a name you were not given; a drafted
+  "Dear <stranger>," is rejected outright and is the worst tell in cold outreach.
+- **No rating, score, or statistic** about the business (no "9.9 on Checkatrade",
+  no "500 five-star reviews") even if one appears in `SIGNAL` — it is unverifiable
+  and reads as scraped.
 
 **Banned openers** (pattern-matched as bulk within seconds): "I came across…",
 "I hope this finds you well", "I'm Finlay from SettlePay", "Congratulations on…",

@@ -425,6 +425,10 @@ def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[st
         "appear to pay (invoice, bank transfer, cash, card in person), and ONE hook "
         "about taking card online via a branded page. Say 'not stated' rather than "
         "guessing. Under 80 words, no URLs.\n"
+        "  In the signal, do NOT include any person's name, job title, review score, "
+        "star rating, or statistic, and do NOT state a town, city or region unless the "
+        "WEBSITE TEXT itself says the business is based or works there. A detail you are "
+        "unsure of must be omitted, never guessed — a wrong specific is worse than none.\n"
         "- confidence: 0-1 in your icp_fit call."
     )
     from .llm import LLMUnavailable
@@ -625,14 +629,14 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     gathered: list[tuple] = []
     consecutive_verify_failures = 0
     try:
-        for cn, name, town, sic, known_website in leads:
+        for cn, name, town, sic, known_website, source in leads:
             # Circuit breaker. Verification is the LAST step, so a dead verifier means
             # every scrape before it was paid for and thrown away. Stop the batch
             # instead of grinding through the backlog achieving nothing.
             if consecutive_verify_failures >= VERIFIER_DOWN_AFTER:
                 break
-            vertical = stats.sic_label(sic)  # e.g. "Accountants", "Estate agents"
-            hint = vertical if vertical and vertical != "Unknown" else None
+            hint = usable_vertical(stats.sic_label(sic))  # "Accountants", or None
+            town_claim = trading_town(town, source)   # a Places locality, or None
             if known_website:   # Places already gave us the site — don't pay to re-resolve
                 website = known_website
             else:
@@ -640,7 +644,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                     website = resolver.resolve(company_name=name, address=town or "", hint=hint)
                 except Exception:
                     website = None
-            signal = name + (f" — {vertical}" if hint else "") + (f" in {town}" if town else "")
+            signal = factual_signal(name, hint, town_claim)
             g = _gather(website, http_client=http)
             if g["email"] and g["result"] in TRANSIENT_RESULTS:
                 consecutive_verify_failures += 1
@@ -649,7 +653,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
             g["signal_source"] = "factual"
             g["fit"] = None   # unknown → admitted flagged for review (fail-open)
             if website:  # structured ICP-fit gate + signal in one Gemini call
-                fit = signal_and_fit(name, hint, town, page_text(website, client=http))
+                fit = signal_and_fit(name, hint, town_claim, page_text(website, client=http))
                 g["fit"] = fit
                 if fit["available"]:
                     g["signal_source"] = "llm"
@@ -675,10 +679,36 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
 
 _BACKLOG_SQL = (
     "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1], "
-    "       l.registered_address->>'website' "
+    "       l.registered_address->>'website', l.source "
     "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
     "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
     "order by l.company_name limit %s")
+
+# Sources whose locality is the business's TRADING town (a Google/Places listing), not
+# a registered-office address. A Ltd's registered office is routinely its accountant or a
+# formation agent — asserting it as "based in X" is how a draft ends up placing a
+# Cheshire auctioneer in Westbury-on-Severn. Only these may seed a location claim.
+_TRADING_LOCALITY_SOURCES = frozenset({"places"})
+
+
+def usable_vertical(vertical: Optional[str]) -> Optional[str]:
+    """A human vertical label fit to put in a signal, or None. 'Unknown' and a bare
+    unmapped SIC code (stats.sic_label falls through to the raw digits) are NOT
+    descriptors — a signal reading '— 47190 in ...' is the SIC leak we saw in prod."""
+    if not vertical or vertical == "Unknown" or vertical.isdigit():
+        return None
+    return vertical
+
+
+def trading_town(town: Optional[str], source: Optional[str]) -> Optional[str]:
+    """The locality only when it is a trading address (a Places listing), never a
+    registered office — so no draft asserts an accountant's town as where they operate."""
+    return town if source in _TRADING_LOCALITY_SOURCES else None
+
+
+def factual_signal(name: str, vertical: Optional[str], town: Optional[str]) -> str:
+    """The deterministic fallback signal, built only from facts we can stand behind."""
+    return name + (f" — {vertical}" if vertical else "") + (f" in {town}" if town else "")
 
 
 if __name__ == "__main__":
