@@ -80,6 +80,19 @@ GEMINI_FAST_MODEL = os.environ.get("GEMINI_FAST_MODEL", "gemini-3.1-flash-lite")
 # Master gate for the FULL-CHAIN tick (discover -> enrich -> draft). Off by default:
 # a bare tick stays the safe classify+send only. Turn on for headless operation.
 PIPELINE_AUTONOMOUS = _bool("PIPELINE_AUTONOMOUS", False)
+# Which self-driving stages a scheduled tick may run, as a CSV allowlist. This is the
+# ramp: PIPELINE_AUTONOMOUS is all-or-nothing, and switching eight stages on together
+# is exactly the change nobody can safely observe. With an allowlist a stage is enabled,
+# watched for a day, and the next one added — so when something moves you know which
+# stage moved it.
+#
+#   AUTONOMOUS_STAGES=crossref                       # start here
+#   AUTONOMOUS_STAGES=crossref,discover_places,enrich
+#   AUTONOMOUS_STAGES=all                            # equivalent to PIPELINE_AUTONOMOUS=1
+#
+# PIPELINE_AUTONOMOUS=1 still means "all", so nothing already deployed changes meaning.
+AUTONOMOUS_STAGES_ENABLED = tuple(
+    s.strip() for s in os.environ.get("AUTONOMOUS_STAGES", "").split(",") if s.strip())
 # Reservoir / amortisation: keep this many enriched-and-fit leads ready to draft.
 # discover/enrich are demand-pulled — they run ONLY to refill toward this target,
 # then idle (£0) when the pool is full, so the expensive stages amortise. The

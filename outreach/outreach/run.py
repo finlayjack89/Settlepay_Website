@@ -101,11 +101,30 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
 
     seq = load_sequence_config()
     summary: dict = {"stage": stage, "dry_run": dry_run, "steps": {}}
+    # Recorded on every tick: 27 days of identical, silent results were only readable
+    # in hindsight because nothing in the output said which stages were even eligible.
+    summary["autonomous"] = (
+        "all" if config.PIPELINE_AUTONOMOUS
+        else (list(config.AUTONOMOUS_STAGES_ENABLED) or "none"))
 
     def want(name: str) -> bool:
-        if stage == "all":
-            return name not in AUTONOMOUS_STAGES or config.PIPELINE_AUTONOMOUS
-        return stage == name
+        """Which stages this tick runs.
+
+        A NAMED stage always runs — that is how an operator exercises one deliberately.
+        On `all`, the non-autonomous stages (inbound, classify, monitor, send, digest)
+        always run, and a self-driving stage runs only if it is switched on.
+
+        The switch is an ALLOWLIST, not a boolean. PIPELINE_AUTONOMOUS turned all eight
+        expensive stages on together, which is the one change whose effects cannot be
+        attributed: if spend or volume moves, you cannot tell which stage moved it. With
+        an allowlist a stage is enabled, watched for a day, and the next one added.
+        """
+        if stage != "all":
+            return stage == name
+        if name not in AUTONOMOUS_STAGES:
+            return True
+        enabled = config.AUTONOMOUS_STAGES_ENABLED
+        return bool(config.PIPELINE_AUTONOMOUS or "all" in enabled or name in enabled)
 
     def do(name: str, fn, *, paid: bool = False) -> None:
         if paid:
