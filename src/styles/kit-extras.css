@@ -357,14 +357,26 @@ html.sp-modal-open body { background-color: #7B7F8A; }
    list and privacy note move below the submit (visual order only — DOM,
    focus and submission order are unchanged); nothing is removed. */
 @media (max-width: 768px) {
-  .sp-modal { padding: 1.5rem 1.25rem 1.25rem; }
-  .sp-modal__head { margin-bottom: 1rem; }
+  /* Buy back vertical room so the consent line clears the fold on the 360
+     floor. The overlay's padding and the modal's max-height cap have to move
+     together — the cap subtracts exactly the overlay's vertical padding. */
+  .sp-modal-overlay { padding: 0.75rem; }
+  .sp-modal {
+    padding: 1.5rem 1.25rem 1.25rem;
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+  }
+  .sp-modal__head { margin-bottom: 0.75rem; }
   .sp-modal__title { font-size: 1.25rem; margin: 0.6rem 0 0.35rem; }
   .sp-modal__sub { font-size: 0.875rem; }
-  .sp-modal__form { gap: 0.7rem; }
-  .sp-field--area textarea { height: 5.6rem; min-height: 5.6rem; }
-  .sp-modal__assure { order: 1; }
-  .sp-modal__submit + .sp-field__hint { order: 2; }
+  .sp-modal__form { gap: 0.6rem; }
+  .sp-field--area textarea { height: 4.5rem; min-height: 4.5rem; }
+  /* Consent first, reassurance second. The consent line is the one thing that
+     must be read before the button is pressed, and at order 2 it sat entirely
+     below the scroll fold on every phone; the reassurance list is the safer
+     thing to let scroll. */
+  .sp-modal__submit + .sp-field__hint { order: 1; }
+  .sp-modal__assure { order: 2; }
 }
 
 /* =========================================================================

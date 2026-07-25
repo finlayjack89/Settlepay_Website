@@ -152,6 +152,30 @@ import Button from './Button.astro';
     pointer-events: none;
   }
 
+  /* Bottom fade on the scrolling view, mirroring the card's top fade. Without
+     it the fold cuts a line of text clean in half — on a phone that was the
+     FCA compliance line, which read as a rendering fault rather than as "there
+     is more below". Sticky (not absolute) so it tracks the scrollport's bottom
+     edge without needing the view's height, and z-index 1 so it passes under
+     the sticky submit at z-index 2. The negative margin means it overlays the
+     last strip of content instead of adding height. */
+  .sp-modal__view::after {
+    content: '';
+    display: block;
+    position: sticky;
+    bottom: 0;
+    height: 2.25rem;
+    margin-top: -2.25rem;
+    background: linear-gradient(to top, var(--color-pure-white) 25%, rgba(255, 255, 255, 0));
+    pointer-events: none;
+    z-index: 1;
+    opacity: 1;
+    transition: opacity 160ms var(--curve-snappy);
+  }
+  /* Nothing left to reveal — never dim the final line. Also covers the case
+     where the content fits and the view does not scroll at all. */
+  .sp-modal__view.is-at-end::after { opacity: 0; }
+
   /* Zone-local reassurance at the submit button. */
   .sp-modal__assure {
     display: flex;

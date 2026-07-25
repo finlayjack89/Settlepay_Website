@@ -977,6 +977,27 @@
     // modal is open so the system chrome doesn't read as a gap in the veil.
     const themeMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
     const themeDefault = themeMeta?.content || '';
+    // Bottom-fade state for the scrolling view. The fade says "there is more
+    // below"; once there is nothing left to reveal it has to go, or it dims the
+    // final line permanently. Also covers the no-overflow case, where the view
+    // never scrolls and the fade would otherwise wash out the last content.
+    const syncViewFade = () => {
+      if (!formView) return;
+      const atEnd = formView.scrollTop + formView.clientHeight >= formView.scrollHeight - 2;
+      formView.classList.toggle('is-at-end', atEnd);
+    };
+    formView?.addEventListener('scroll', syncViewFade, { passive: true });
+    window.addEventListener('resize', syncViewFade);
+    // The view also changes height without a scroll or a window resize: a
+    // validation note appearing, the soft keyboard opening. Observe the content
+    // rather than trying to enumerate those cases.
+    if (formView && 'ResizeObserver' in window) {
+      const viewRo = new ResizeObserver(syncViewFade);
+      viewRo.observe(formView);
+      Array.from(formView.children).forEach((c) => viewRo.observe(c));
+    }
+    window.visualViewport?.addEventListener('resize', syncViewFade);
+
     const openModal = () => {
       lastFocused = document.activeElement as HTMLElement;
       (modal as HTMLElement).hidden = false;
@@ -989,6 +1010,8 @@
       successView.hidden = true;
       const first = form?.querySelector('input, textarea') as HTMLElement | null;
       setTimeout(() => first?.focus(), 40);
+      // After layout, so scrollHeight is real.
+      requestAnimationFrame(syncViewFade);
     };
     const closeModal = () => {
       (modal as HTMLElement).hidden = true;
