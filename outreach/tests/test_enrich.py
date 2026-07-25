@@ -431,3 +431,76 @@ def test_generic_guessing_can_be_switched_back_on(monkeypatch):
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)
     out = enrich._gather("https://acme.co.uk", verifier=lambda a: (True, "ok"))
     assert out["email"] == "info@acme.co.uk" and out["scrape_source"] == "guess"
+
+
+# --------------------------------------------------------------------------- #
+#  Recipient identity — one wrong domain poisons recipient, place AND pitch
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("company,email", [
+    # every one of these was sitting in the live approval queue
+    ("1ST ACTIVE ROOFING LIMITED", "info@checkatrade.com"),     # a trade directory
+    ("CGH Electrical LTD", "info@checkatrade.com"),
+    ("AGS Electrical Services UK LTD", "info@trustmark.org.uk"),  # a government scheme
+    ("LUXSTON LTD", "hello@fresha.com"),                        # a booking platform
+    ("WILSONLAN LIMITED", "allaffiliationiptr@heartland.com"),  # a US payments company
+    ("ORIGINAL GALLERY LTD", "info@clarendonfineart.com"),      # a different gallery
+])
+def test_an_address_on_another_companys_domain_is_rejected(company, email):
+    assert enrich.recipient_mismatch(company, email) is True
+
+
+@pytest.mark.parametrize("company,email", [
+    ("Rotherham Taylor Limited", "info@rtaccountants.co.uk"),   # unjudgeable -> allowed
+    ("Acme Joinery Ltd", "info@acmejoinery.co.uk"),
+    ("AVO Electrical Contractors LTD", "info@avoltd.co.uk"),
+])
+def test_a_plausible_address_survives(company, email):
+    assert enrich.recipient_mismatch(company, email) is False
+
+
+def test_a_missing_address_is_not_a_mismatch():
+    assert enrich.recipient_mismatch("Acme Ltd", None) is False
+    assert enrich.recipient_mismatch("Acme Ltd", "") is False
+
+
+def test_sector_words_alone_never_match_a_domain():
+    """'Electrical' is in every electrician's name — matching on it must not let one
+    electrician's site be adopted for another."""
+    assert enrich.name_matches_domain("Newton Electrical Contractors",
+                                      "https://someoneelseelectrical.co.uk") is False
+
+
+def test_a_firm_trading_under_its_initials_is_not_called_a_mismatch():
+    """Rotherham Taylor -> rtaccountants.co.uk is their real site. Rejecting an acronym
+    match would discard the company's own domain."""
+    assert enrich.name_matches_domain("Rotherham Taylor Limited",
+                                      "https://rtaccountants.co.uk") is None
+    # afbrock carries the surname outright, so this is a positive match, not an abstain
+    assert enrich.name_matches_domain("A F Brock and Co Ltd",
+                                      "https://afbrock.co.uk") is True
+
+
+def test_a_directory_domain_is_caught_by_the_denylist_regardless_of_the_name():
+    """The deterministic list is what makes this class reliable — a directory is never
+    the prospect however its name compares."""
+    assert enrich.recipient_mismatch("CGH Electrical LTD", "info@checkatrade.com") is True
+    assert enrich.recipient_mismatch("Anything At All Ltd", "hello@fresha.com") is True
+
+
+def test_an_unjudgeable_name_abstains_rather_than_guessing():
+    assert enrich.name_matches_domain("The Building Company Ltd", "https://tbc.co.uk") is None
+
+
+def test_a_mismatched_contact_never_makes_a_lead_contactable(db_rollback):
+    """The hard gate: a directory's mailbox must not promote a lead to 'enriched', however
+    cleanly it verifies."""
+    cur = db_rollback.cursor()
+    cn = f"ENR_MM_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    g = {"email": "info@checkatrade.com", "verified": True, "result": "ok",
+         "scrape_source": "httpx", "candidates": ["info@checkatrade.com"],
+         "company_name": "1ST ACTIVE ROOFING LIMITED"}
+    out = enrich._persist(cn, "https://checkatrade.com", "sig", g, cur=cur)
+    assert out["email"] is None and out["result"] == "recipient_mismatch"
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] != "enriched"

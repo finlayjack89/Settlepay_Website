@@ -30,6 +30,60 @@ def list_pending(cur) -> list[tuple]:
     return cur.fetchall()
 
 
+# Sort options offered in the console. Newest-first is the default because the queue is
+# reviewed after a drafting run, and what you want to check is what just changed.
+QUEUE_SORTS = {
+    "newest": "d.created_at desc",
+    "oldest": "d.created_at asc",
+    "company": "l.company_name asc",
+}
+
+
+def list_pending_detail(cur, *, sort: str = "newest", version: str = "all",
+                        current_version: str | None = None, limit: int = 300) -> list[dict]:
+    """The approval queue with everything needed to judge a draft at a glance.
+
+    Beyond the body: WHEN it was drafted and under WHICH playbook, so a re-drafted queue
+    can be told apart from one written months ago, plus the verified constants that
+    bounded what the draft was allowed to say. `version` filters to 'current' (drafts on
+    `current_version`) or 'older' (everything else) — the split that matters after a
+    re-draft, when both generations sit in the queue together.
+    """
+    where = ["d.status = 'awaiting_approval'"]
+    params: list = []
+    if version == "current" and current_version:
+        where.append("d.prompt_version = %s")
+        params.append(current_version)
+    elif version == "older" and current_version:
+        where.append("d.prompt_version is distinct from %s")
+        params.append(current_version)
+    order = QUEUE_SORTS.get(sort, QUEUE_SORTS["newest"])
+    params.append(limit)
+    cur.execute(
+        "select d.id, d.company_number, l.company_name, d.subject, d.body_original, "
+        "       d.created_at, d.prompt_version, e.signal, e.facts, e.contact_email, "
+        "       e.contact_tier "
+        "from outreach.drafts d "
+        "join outreach.leads l on l.company_number = d.company_number "
+        "left join outreach.enrichment e on e.company_number = d.company_number "
+        f"where {' and '.join(where)} order by {order} limit %s", tuple(params))
+    cols = ("id", "company_number", "company_name", "subject", "body", "created_at",
+            "prompt_version", "signal", "facts", "contact_email", "contact_tier")
+    return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def queue_counts(cur, *, current_version: str | None = None) -> dict:
+    """How the queue splits by playbook generation — the header numbers."""
+    cur.execute(
+        "select count(*), "
+        "       count(*) filter (where prompt_version = %s), "
+        "       min(created_at), max(created_at) "
+        "from outreach.drafts where status = 'awaiting_approval'", (current_version,))
+    total, current, oldest, newest = cur.fetchone()
+    return {"total": total or 0, "current": current or 0,
+            "older": (total or 0) - (current or 0), "oldest": oldest, "newest": newest}
+
+
 def _decide(draft_id, *, new_status, lead_target, event, reviewer, body_final, note, cur,
             subject_final=None) -> str:
     if not reviewer:

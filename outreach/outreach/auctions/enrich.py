@@ -19,7 +19,6 @@ pipeline uses.
 from __future__ import annotations
 
 import difflib
-import re
 from typing import Optional
 
 import httpx
@@ -45,34 +44,11 @@ _REJECT_DOMAINS = (
     "the-saleroom.com")
 
 
-# Words that carry no identity — every auction house has them, so they can never be the
-# thing that matches a domain to a business.
-_GENERIC_NAME_WORDS = frozenset({
-    "auction", "auctions", "auctioneer", "auctioneers", "auctioneering", "saleroom",
-    "salerooms", "sale", "sales", "valuer", "valuers", "valuation", "valuations",
-    "ltd", "limited", "llp", "plc", "the", "and", "for", "with", "company", "group",
-    "holdings", "services", "trading", "house", "online", "uk", "gb", "london", "fine",
-    "art", "arts", "antique", "antiques", "estate", "estates", "gallery", "galleries",
-    "international", "consultancy", "solutions", "centre", "center", "bid", "bidding"})
-
-
-def _name_matches_domain(business_name: str, url: str) -> Optional[bool]:
-    """Does this domain plausibly belong to this business? None = can't tell.
-
-    A distinctive word from the name must survive in the domain. Without this the
-    resolver's best guess is accepted verbatim, and on thin sources (Invaluable gives no
-    postcode at all) that guess is regularly a different company or a newspaper article
-    about them — which would then supply the payment signal, the domain and the email
-    guesses for the WRONG business.
-    """
-    stem = re.sub(r"[^a-z0-9]", "", _enrich.normalise_domain(url) or "")
-    if not stem:
-        return None
-    words = [w for w in re.split(r"[^a-z0-9]+", business_name.lower())
-             if len(w) >= 4 and w not in _GENERIC_NAME_WORDS]
-    if not words:
-        return None                     # nothing distinctive to check against
-    return any(w in stem for w in words)
+# The name-vs-domain guard now lives in the shared enrichment module: it started here
+# for auction leads, then the main pipeline turned out to need it just as badly (drafts
+# addressed to info@checkatrade.com). One implementation, one vocabulary of generic
+# words, so a fix in either path fixes both.
+_name_matches_domain = _enrich.name_matches_domain
 
 
 def places_fill(raw: AuctionLead, *, cur=None) -> Optional[dict]:

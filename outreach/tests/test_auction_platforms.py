@@ -258,11 +258,16 @@ def test_a_genuine_website_survives_the_guard(name, url):
     assert _name_matches_domain(name, url) is True
 
 
-def test_the_guard_abstains_when_the_name_has_nothing_distinctive():
-    """'A.S.H Auctions' is all generic words and initials — unjudgeable, so the URL is
-    kept with a note rather than silently dropped."""
+def test_a_dotted_initialism_matches_its_own_domain():
+    """'A.S.H Auctions' -> ashauctions.co.uk is their site: the separated initials read
+    as one initialism, which is how a person parses it."""
     from outreach.auctions.enrich import _name_matches_domain
-    assert _name_matches_domain("A.S.H Auctions", "https://ashauctions.co.uk") is None
+    assert _name_matches_domain("A.S.H Auctions", "https://ashauctions.co.uk") is True
+
+
+def test_the_guard_abstains_when_there_is_nothing_identifying():
+    from outreach.auctions.enrich import _name_matches_domain
+    assert _name_matches_domain("The Auction Company Ltd", "https://tac.co.uk") is None
 
 
 def test_a_platform_supplied_website_skips_the_guard_entirely():
