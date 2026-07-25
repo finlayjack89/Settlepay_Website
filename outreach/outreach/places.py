@@ -12,6 +12,7 @@ by the credit budget.
 """
 from __future__ import annotations
 import json
+import re
 from typing import Optional
 
 import httpx
@@ -41,6 +42,37 @@ def _postcode(components: list[dict]) -> Optional[str]:
         if "postal_code" in (c.get("types") or []):
             return c.get("longText") or c.get("shortText")
     return None
+
+
+_POSTCODE_TAIL_RE = re.compile(r"\s*[A-Z]{1,2}[0-9][A-Z0-9]?\s*[0-9][A-Z]{2}\s*$", re.I)
+_COUNTRY_PARTS = frozenset({"uk", "united kingdom", "gb", "great britain", "england",
+                            "scotland", "wales", "northern ireland"})
+
+
+def locality_of(address: Optional[str]) -> Optional[str]:
+    """The town from a Places formatted address: '21 Cavendish St, Harrogate HG1 4NT, UK'
+    -> 'Harrogate'.
+
+    Worth the parse rather than skipping: this is a TRADING address from a maintained
+    business listing, which is the one location source a draft is allowed to assert. The
+    postcode is already stored as its own field but the town was only ever inside this
+    string, so leads had no admissible locality at all and drafts could name no town.
+    """
+    if not address:
+        return None
+    parts = [p.strip() for p in address.split(",") if p.strip()]
+    while parts and parts[-1].lower() in _COUNTRY_PARTS:
+        parts.pop()
+    if not parts:
+        return None
+    town = _POSTCODE_TAIL_RE.sub("", parts[-1]).strip()
+    # a bare postcode segment leaves nothing; fall back to the segment before it
+    if not town and len(parts) > 1:
+        town = _POSTCODE_TAIL_RE.sub("", parts[-2]).strip()
+    # a street line ("21 Cavendish St") is not a town — reject anything starting numeric
+    if not town or town[0].isdigit() or len(town) < 3:
+        return None
+    return town
 
 
 def _normalise(p: dict) -> dict:
@@ -109,6 +141,10 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
                     duplicates += 1
                     continue
                 addr = {"postcode": b.get("postcode"), "formatted": b.get("address"),
+                        # the trading town, stored as its own field: it is the only
+                        # location a draft may assert, so it has to be addressable
+                        # rather than buried in the formatted string
+                        "locality": locality_of(b.get("address")),
                         "website": b.get("website"), "primary_type": b.get("primary_type"),
                         "types": b.get("types"), "business_status": b.get("business_status"),
                         "query": q}

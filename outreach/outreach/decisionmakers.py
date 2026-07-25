@@ -26,6 +26,7 @@ Compliance posture (the price of targeting a named person, baked in, not optiona
 """
 from __future__ import annotations
 
+import json
 import re
 from typing import Optional
 
@@ -202,8 +203,17 @@ def _adopt_named_contact(company_number: str, officer_name: str, email: str, *, 
     'verified' (role), so send.py prefers it; contact_name records who it is."""
     cur.execute(
         "update outreach.enrichment set contact_email=%s, contact_name=%s, "
-        "contact_tier='named', email_verified=true, email_verify_result='ok' "
-        "where company_number=%s", (email, officer_name, company_number))
+        "contact_tier='named', email_verified=true, email_verify_result='ok', "
+        # keep the drafting constants in step: a name the drafter may greet by is exactly
+        # a name we have CONFIRMED (officer on the register + a verified work address).
+        # Without this the facts block would still say contact_name UNKNOWN and the draft
+        # would open "Dear <business>," despite our knowing who runs it.
+        "facts = jsonb_set(coalesce(facts, '{}'::jsonb), '{contact_name}', %s::jsonb, true) "
+        "where company_number=%s",
+        (email, officer_name,
+         json.dumps({"value": officer_name, "source": "ch_officer_verified_email",
+                     "verified": True}),
+         company_number))
     audit.record(company_number, "decision_maker", source="decisionmakers",
                  lawful_basis=audit.LEGITIMATE_INTERESTS,
                  reason=f"named contact {email} ({officer_name}) — verified, art.14 notice on send",

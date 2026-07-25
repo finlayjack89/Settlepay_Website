@@ -14,8 +14,27 @@ from __future__ import annotations
 
 import json
 
-from .. import audit, db
+from .. import audit, db, facts
 from .models import EnrichedLead
+
+
+def _facts(lead: EnrichedLead) -> dict:
+    """The auction path resolves the richest constants in the pipeline: the location is
+    the auctioneer's own listed address, and payment_method is a sentence quoted verbatim
+    from their own site rather than inferred from a category."""
+    payment = None
+    if lead.payment_methods:
+        payment = ", ".join(lead.payment_methods)
+    return facts.build(
+        company_name=lead.business_name, company_name_source=f"{lead.platform}_listing",
+        contact_name=lead.decision_maker_name,
+        contact_name_source="ch_officer_verified_email" if lead.decision_maker_name else None,
+        location=lead.location,
+        location_source="platform_listing" if lead.location else None,
+        vertical=lead.categories[0] if lead.categories else None,
+        vertical_source="platform_listing" if lead.categories else None,
+        payment_method=payment,
+        payment_method_source="site_quote" if payment else None)
 
 
 def _signal(lead: EnrichedLead) -> str:
@@ -55,15 +74,17 @@ def to_pipeline(leads: list[EnrichedLead], *, cur) -> dict:
             cur.execute(
                 "insert into outreach.enrichment (company_number, website, domain, "
                 " contact_email, contact_name, contact_tier, email_verified, "
-                " email_verify_result, signal, scraped) "
-                "values (%s,%s,%s,%s,%s,%s,true,'ok',%s,%s::jsonb) "
+                " email_verify_result, signal, scraped, facts) "
+                "values (%s,%s,%s,%s,%s,%s,true,'ok',%s,%s::jsonb,%s::jsonb) "
                 "on conflict (company_number) do update set "
                 "contact_email=excluded.contact_email, contact_name=excluded.contact_name, "
-                "contact_tier=excluded.contact_tier, signal=excluded.signal",
+                "contact_tier=excluded.contact_tier, signal=excluded.signal, "
+                "facts=excluded.facts",
                 (cn, lead.own_website, lead.domain, email,
                  lead.decision_maker_name, tier, _signal(lead),
                  json.dumps({"source": lead.platform, "payment_methods": lead.payment_methods,
-                             "score": lead.score})))
+                             "score": lead.score}),
+                 facts.dumps(_facts(lead))))
         audit.record(cn, "researched", source="auctions",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
                      reason=f"{lead.platform} lead, score {lead.score}, {lead.pecr_class}",
