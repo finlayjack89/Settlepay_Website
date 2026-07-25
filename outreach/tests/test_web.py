@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 # the web UI is an optional extra; skip cleanly if fastapi isn't installed
@@ -297,3 +299,20 @@ def test_auctions_run_clamps_an_absurd_limit(monkeypatch):
 
 def test_auctions_in_sidebar():
     assert "/auctions" in client.get("/").text
+
+
+# --------------------------------------------------------------------------- #
+#  Drafting constants panel — the operator must be able to SEE what's verified
+# --------------------------------------------------------------------------- #
+def test_constants_panel_shows_values_sources_and_unknowns():
+    from outreach import facts, web
+    block = facts.build(company_name="Acme Joinery", location="Hull",
+                        location_source="places_listing")
+    out = web._constants_panel(json.loads(facts.dumps(block)))
+    assert "Acme Joinery" in out and "Hull" in out and "places_listing" in out
+    assert "unknown" in out and "draftable" in out       # contact_name is a known-unknown
+
+
+def test_constants_panel_explains_an_unresolved_lead():
+    from outreach import web
+    assert "not draftable" in web._constants_panel(None)

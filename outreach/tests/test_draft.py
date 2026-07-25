@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from outreach import draft
+from outreach import draft, facts
 from outreach.llm import InlineProvider
 
 pytestmark = pytest.mark.floor_e
@@ -78,7 +78,8 @@ def test_draft_one_writes_body_original_and_advances(db_rollback):
 
 # ---- one bad lead must not abort the batch (per-lead savepoint isolation) ----
 class _ScriptedProvider:
-    """Returns a fixed body per COMPANY name; used to force one bad draft."""
+    """Returns a fixed body per company name; used to force one bad draft. Keys off the
+    company_name CONSTANT, which is how the drafter now identifies the lead."""
     name = "scripted"
 
     def __init__(self, by_company):
@@ -87,7 +88,7 @@ class _ScriptedProvider:
     def complete(self, prompt, *, purpose, max_words=None, schema=None):
         from outreach.llm import LLMResult
         for name, body in self.by_company.items():
-            if f"COMPANY: {name}" in prompt:
+            if f"company_name: {name}" in prompt:
                 return LLMResult(body, self.name, {"purpose": purpose})
         return LLMResult(_payload("no match", "(none)"), self.name, {"purpose": purpose})
 
@@ -102,7 +103,9 @@ def test_run_isolates_a_bad_draft_and_keeps_the_good_ones(db_rollback):
             "subscriber_class, state) values (%s,%s,'ltd','corporate','enriched')", (cn, nm))
         cur.execute(
             "insert into outreach.enrichment (company_number, website, contact_email, "
-            "email_verified, signal) values (%s,'https://x.co','info@x.co',true,'sig')", (cn,))
+            "email_verified, signal, facts) "
+            "values (%s,'https://x.co','info@x.co',true,'sig',%s::jsonb)",
+            (cn, facts.dumps(facts.build(company_name=nm))))
 
     compliant = _payload("payments at good co",
                          "Hi Good Co, a note from SettlePay. Payments are handled by "
@@ -209,6 +212,102 @@ def test_grounding_accepts_the_business_greeting_and_generic_openers():
                                  contact_name=None, company_name="Acme Ltd") == []
 
 
+# --- place + statistic claims, checked against the FACTS constants ---------- #
+def _facts(**kw):
+    from outreach import facts as f
+    kw.setdefault("company_name", "Acme Joinery")
+    return f.build(**kw)
+
+
+def test_grounding_rejects_a_place_that_is_not_the_resolved_location():
+    """The wrong-location failure: a town nobody verified, asserted as fact."""
+    body = ("Dear Acme Joinery,\n\nMost firms in Westbury-On-Severn still wait on "
+            "bank transfers. Kind regards, Finlay")
+    v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                              lead_facts=_facts())
+    assert v and "Westbury-On-Severn" in v[0]
+
+
+def test_grounding_accepts_the_resolved_location():
+    body = ("Dear Acme Joinery,\n\nMost firms in Hull still wait on bank transfers. "
+            "Kind regards, Finlay")
+    assert draft.check_grounding(
+        body, contact_name=None, company_name="Acme Joinery",
+        lead_facts=_facts(location="Hull", location_source="places_listing")) == []
+
+
+@pytest.mark.parametrize("phrase", [
+    "across the UK", "in England", "around the county", "in your area"])
+def test_grounding_allows_generic_geography(phrase):
+    """These assert nothing specific about this lead, so they are not location claims."""
+    body = f"Dear Acme Joinery,\n\nTrades {phrase} wait on transfers. Kind regards, Finlay"
+    assert draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                                 lead_facts=_facts()) == []
+
+
+def test_grounding_rejects_a_partially_matching_place():
+    """'Greater Manchester' must not pass just because 'Manchester' was resolved — the
+    claim is a different, larger area."""
+    body = ("Dear Acme Joinery,\n\nFirms across Greater Manchester wait on transfers. "
+            "Kind regards, Finlay")
+    v = draft.check_grounding(
+        body, contact_name=None, company_name="Acme Joinery",
+        lead_facts=_facts(location="Manchester", location_source="places_listing"))
+    assert v and "Greater Manchester" in v[0]
+
+
+@pytest.mark.parametrize("claim", [
+    "Your 9.9 rating on Checkatrade speaks for itself.",
+    "With 500 five-star reviews behind you, ",
+    "After 20 years in the trade, "])
+def test_grounding_rejects_an_unverifiable_statistic(claim):
+    """A scraped number about the recipient — the '9.9 on Checkatrade' that reached a
+    real draft came from a signal that had read the wrong website entirely."""
+    body = f"Dear Acme Joinery,\n\n{claim}Kind regards, Finlay"
+    v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                              lead_facts=_facts())
+    assert any("statistic" in x for x in v)
+
+
+def test_grounding_does_not_flag_ordinary_prose_numbers():
+    body = ("Dear Acme Joinery,\n\nIt takes about ten minutes to set up, and I can show "
+            "you 1 example. Kind regards, Finlay")
+    assert not any("statistic" in x for x in draft.check_grounding(
+        body, contact_name=None, company_name="Acme Joinery", lead_facts=_facts()))
+
+
+def test_grounding_uses_the_facts_contact_not_the_stale_argument():
+    """When a facts block is supplied it is authoritative — decision-maker resolution
+    writes the contact there, so a draft may greet by it."""
+    body = "Dear Robert,\n\nYour joinery work... Kind regards, Finlay"
+    assert draft.check_grounding(
+        body, contact_name=None, company_name="Acme Joinery",
+        lead_facts=_facts(contact_name="Robert", contact_name_source="ch_officer")) == []
+
+
+def test_a_lead_without_resolved_facts_is_not_drafted(db_rollback):
+    """The readiness gate: drafting waits on enrichment resolving the constants rather
+    than proceeding from a free-text signal. This is what forces enrichment to do its
+    job instead of the drafter guessing."""
+    import uuid
+    cur = db_rollback.cursor()
+    cn = f"NOFACTS_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,'Nofacts Ltd','ltd','corporate','enriched')",
+                (cn,))
+    cur.execute("insert into outreach.enrichment (company_number, website, contact_email, "
+                "email_verified, signal) values (%s,'https://x.co','info@x.co',true,'sig')",
+                (cn,))
+
+    class _MustNotRun:
+        def complete(self, *a, **k):
+            raise AssertionError("drafted a lead whose constants were never resolved")
+
+    draft.run(provider=_MustNotRun(), cur=cur, limit=50)
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "enriched"        # still waiting, not discarded
+
+
 def test_grounding_is_wired_into_the_hard_gate(monkeypatch, db_rollback):
     """A model that invents a greeting must not be able to persist a draft — even if
     every compliance element is present. This is the retry+reject path end to end."""
@@ -310,8 +409,12 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
     cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
                 "subscriber_class, state) values (%s,'Acme Ltd','ltd','corporate','enriched')", (cn,))
     cur.execute("insert into outreach.enrichment (company_number, website, contact_email, "
-                "contact_name, contact_tier, email_verified, signal) "
-                "values (%s,'https://x.co','j.smith@x.co','SMITH, John','named',true,'sig')", (cn,))
+                "contact_name, contact_tier, email_verified, signal, facts) "
+                "values (%s,'https://x.co','j.smith@x.co','SMITH, John','named',true,'sig',"
+                "%s::jsonb)",
+                (cn, facts.dumps(facts.build(
+                    company_name="Acme Ltd", contact_name="SMITH, John",
+                    contact_name_source="ch_officer_verified_email"))))
     seen = {}
 
     class _P:
@@ -325,4 +428,6 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
                          "Kind regards,\nFinlay Salisbury\nSettlePay")})})()
 
     draft.run(provider=_P(), cur=cur, limit=1)
-    assert 'Dear John,' in seen["prompt"] and "CONTACT NAME: John" in seen["prompt"]
+    # the name reaches the model as a resolved CONSTANT plus the greeting instruction
+    assert 'Dear John,' in seen["prompt"]
+    assert "contact_name: SMITH, John" in seen["prompt"]

@@ -13,7 +13,7 @@ from typing import Optional
 
 import httpx
 
-from . import audit, config, db, stats
+from . import audit, config, db, facts, stats
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 GENERIC_PREFIXES = ("info", "contact", "enquiries", "enquiry", "hello", "sales", "admin", "office", "mail")
@@ -492,6 +492,20 @@ def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = Non
             "scrape_source": scrape_source, "candidates": candidates}
 
 
+def _facts_for(company_number: str, g: dict, *, cur) -> str:
+    """The facts block to store. Callers that know the lead's context supply it in
+    `g['facts']`; anything else falls back to a minimal block built from the register, so
+    EVERY enrichment row carries valid constants no matter which path wrote it — a row
+    without them would simply never become draftable."""
+    block = g.get("facts")
+    if not block:
+        cur.execute("select company_name from outreach.leads where company_number=%s",
+                    (company_number,))
+        row = cur.fetchone()
+        block = facts.build(company_name=row[0] if row else None)
+    return facts.dumps(block)
+
+
 def _persist(company_number: str, website: Optional[str], signal: Optional[str],
              g: dict, *, cur) -> dict:
     """The FAST, DB-only half: write enrichment + advance/discard the lead. Holds
@@ -534,14 +548,15 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
         # so every enrichment has to write it, not just the manual path
         "insert into outreach.enrichment "
         "(company_number, website, domain, contact_email, email_verified, email_verify_result, "
-        " contact_tier, signal, scraped) "
-        "values (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb) "
+        " contact_tier, signal, scraped, facts) "
+        "values (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb) "
         "on conflict (company_number) do update set "
         "website=excluded.website, domain=excluded.domain, contact_email=excluded.contact_email, "
         "email_verified=excluded.email_verified, email_verify_result=excluded.email_verify_result, "
-        "contact_tier=excluded.contact_tier, signal=excluded.signal, scraped=excluded.scraped",
+        "contact_tier=excluded.contact_tier, signal=excluded.signal, scraped=excluded.scraped, "
+        "facts=excluded.facts",
         (company_number, website, _domain_of(website), email, (verified if email else None),
-         result, tier, signal, scraped),
+         result, tier, signal, scraped, _facts_for(company_number, g, cur=cur)),
     )
     if acceptable:
         cur.execute(
@@ -629,14 +644,14 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     gathered: list[tuple] = []
     consecutive_verify_failures = 0
     try:
-        for cn, name, town, sic, known_website, source in leads:
+        for cn, name, town, sic, known_website, source, formatted in leads:
             # Circuit breaker. Verification is the LAST step, so a dead verifier means
             # every scrape before it was paid for and thrown away. Stop the batch
             # instead of grinding through the backlog achieving nothing.
             if consecutive_verify_failures >= VERIFIER_DOWN_AFTER:
                 break
             hint = usable_vertical(stats.sic_label(sic))  # "Accountants", or None
-            town_claim = trading_town(town, source)   # a Places locality, or None
+            town_claim = trading_town(town, source, formatted)   # a trading town, or None
             if known_website:   # Places already gave us the site — don't pay to re-resolve
                 website = known_website
             else:
@@ -659,6 +674,15 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                     g["signal_source"] = "llm"
                     if fit["signal"]:
                         signal = fit["signal"]
+            # The constants the drafter may name. contact_name is filled later by
+            # decision-maker resolution; payment_method stays unknown here because the
+            # main pipeline only infers a payment CATEGORY, and an inference is not a
+            # fact — the auction path sets it from the auctioneer's own quoted sentence.
+            g["facts"] = facts.build(
+                company_name=name, company_name_source="companies_house",
+                location=town_claim,
+                location_source="places_listing" if town_claim else None,
+                vertical=hint, vertical_source="sic_label" if hint else None)
             gathered.append((cn, website, signal, g))
     finally:
         http.close()
@@ -678,8 +702,9 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
 
 
 _BACKLOG_SQL = (
-    "select l.company_number, l.company_name, l.registered_address->>'locality', l.sic_codes[1], "
-    "       l.registered_address->>'website', l.source "
+    "select l.company_number, l.company_name, l.registered_address->>'locality', "
+    "       l.sic_codes[1], l.registered_address->>'website', l.source, "
+    "       l.registered_address->>'formatted' "
     "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
     "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
     "order by l.company_name limit %s")
@@ -700,10 +725,21 @@ def usable_vertical(vertical: Optional[str]) -> Optional[str]:
     return vertical
 
 
-def trading_town(town: Optional[str], source: Optional[str]) -> Optional[str]:
+def trading_town(town: Optional[str], source: Optional[str],
+                 formatted: Optional[str] = None) -> Optional[str]:
     """The locality only when it is a trading address (a Places listing), never a
-    registered office — so no draft asserts an accountant's town as where they operate."""
-    return town if source in _TRADING_LOCALITY_SOURCES else None
+    registered office — so no draft asserts an accountant's town as where they operate.
+
+    Older Places rows kept the town only inside the formatted address string, so it is
+    parsed back out when the structured field is absent; without that the lead has no
+    admissible location and its draft can name no town at all.
+    """
+    if source not in _TRADING_LOCALITY_SOURCES:
+        return None
+    if town:
+        return town
+    from . import places          # local: places imports normalise_domain from here
+    return places.locality_of(formatted)
 
 
 def factual_signal(name: str, vertical: Optional[str], town: Optional[str]) -> str:

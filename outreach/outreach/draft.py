@@ -17,7 +17,7 @@ import re
 import statistics
 from pathlib import Path
 
-from . import audit, config, db
+from . import audit, config, db, facts
 from .llm import LLMUnavailable, draft_provider
 
 PLAYBOOK_PATH = config.PROJECT_ROOT / "prompts" / "draft_email.md"
@@ -156,26 +156,75 @@ def _grounding_tokens(*sources: str | None) -> set[str]:
     return out
 
 
-def check_grounding(text: str, *, contact_name: str | None,
-                    company_name: str | None) -> list[str]:
-    """HARD anti-hallucination gate: the draft may not name a PERSON it was not given.
+# A place claim: a preposition followed by a proper noun ("in Macclesfield", "across
+# Greater Manchester"). This is where a location assertion actually lands in a sentence,
+# which makes it checkable without a gazetteer or a NER model.
+_PROPER_NOUN = r"[A-Z][a-z’']+(?:-[A-Z][a-z’']+)*"      # Hull, Westbury-On-Severn
+_PLACE_CLAIM_RE = re.compile(
+    r"\b(?:in|across|around|near|throughout|serving|covering)\s+"
+    rf"({_PROPER_NOUN}(?:\s+{_PROPER_NOUN}){{0,2}})")   # + Greater Manchester
 
-    The playbook already forbids inventing a name, yet the model still opens "Hi John,"
-    on a lead with no contact on file — an instruction an LLM will occasionally ignore,
-    so it cannot be the only line of defence. This rejects, deterministically, any
-    greeting that addresses a forename which is neither the verified contact's nor a
-    word of the business's own name. A fabricated "Dear <stranger>," is the single most
-    damaging tell in cold outreach: it is a lie the recipient spots instantly.
+# Geographies that assert nothing specific about this lead, plus the words a capitalised
+# run can legitimately start with mid-sentence.
+_GENERIC_PLACES = frozenset({
+    "the uk", "uk", "the united kingdom", "united kingdom", "britain", "great britain",
+    "england", "scotland", "wales", "northern ireland", "the country", "the county",
+    "the region", "the area", "your area", "the industry", "the trade",
+})
+
+# An unverifiable number about the recipient: a review score, a star rating, a count of
+# customers. The one that reached production was "Your 9.9 rating on Checkatrade".
+_STAT_CLAIM_RE = re.compile(
+    r"\b\d[\d,.]*\s*(?:\+|%)?\s*"
+    r"(?:[a-z]+[- ])?"                      # "500 five-star reviews", "4.9 average rating"
+    r"(?:star|stars|rating|ratings|review|reviews|out of|/\s*5|/\s*10|years|customers|"
+    r"clients|jobs|installs|projects)\b", re.I)
+
+
+def check_grounding(text: str, *, contact_name: str | None,
+                    company_name: str | None,
+                    lead_facts: dict | None = None) -> list[str]:
+    """HARD anti-hallucination gate: a draft may only name things we resolved.
+
+    The playbook already forbids inventing a name or a place, yet the model still opened
+    "Hi John," on a lead with no contact on file and placed businesses in towns nobody
+    had verified — an instruction an LLM will occasionally ignore, so it cannot be the
+    only line of defence. Three deterministic checks, each pinned to a real production
+    failure:
+
+      * a greeting naming a person who is neither the verified contact nor the business
+      * a place claim naming somewhere that is not the resolved `location` constant
+      * a statistic about the recipient (a rating, a review count) — always unverifiable
+
+    A fabricated specific is worse than a general opener: it is both a lie and instantly
+    detectable by the one person who would know.
     """
+    allowed = (facts.allowed_tokens(lead_facts) if lead_facts
+               else _grounding_tokens(first_name(contact_name), company_name))
     v: list[str] = []
+
     greeted = _GREET_NAME_RE.match(text.lstrip())
     if greeted:
         token = greeted.group(1).lower()
-        allowed = _grounding_tokens(first_name(contact_name), company_name)
+        known = first_name(facts.value(lead_facts, "contact_name") or contact_name)
         if token not in allowed and token not in _STOPWORD_GREETS:
-            who = "an invented name" if not contact_name else \
-                f"{token!r}, not the contact ({first_name(contact_name)!r})"
+            who = "an invented name" if not known else f"{token!r}, not the contact ({known!r})"
             v.append(f"greeting names {who}")
+
+    body = GREETING_RE.sub("", text.lstrip(), count=1)   # the greeting is checked above
+    for match in _PLACE_CLAIM_RE.finditer(body):
+        phrase = " ".join(match.group(1).split())
+        if phrase.lower() in _GENERIC_PLACES:
+            continue
+        # every word of the claimed place must be a resolved constant; "Greater
+        # Manchester" passes only if the location constant actually says so
+        if all(w in allowed for w in re.split(r"[^a-z0-9]+", phrase.lower()) if w):
+            continue
+        v.append(f"names a place we did not verify: {phrase!r}")
+
+    stat = _STAT_CLAIM_RE.search(body)
+    if stat:
+        v.append(f"unverifiable statistic about the recipient: {stat.group(0).strip()!r}")
     return v
 
 
@@ -373,16 +422,24 @@ def provisional_responder(prompt: str) -> str:
 # ---- the mechanism ----
 def draft_one(company_number: str, company_name: str, signal: str, *,
               provider, cur, playbook: str | None = None,
-              contact_name: str | None = None) -> dict:
+              contact_name: str | None = None,
+              lead_facts: dict | None = None) -> dict:
     playbook = playbook or load_playbook()
+    # Resolved constants are the drafter's ONLY vocabulary of named things. Falling back
+    # to a block built from the arguments keeps every call path (tests, the manual
+    # console re-draft, the batch) on the same contract.
+    block = lead_facts if lead_facts is not None else facts.build(
+        company_name=company_name, contact_name=contact_name,
+        contact_name_source="enrichment" if contact_name else None)
+    greet = first_name(facts.value(block, "contact_name") or contact_name)
+
     # per-lead variables LAST: everything above is a byte-identical prefix across
     # leads, which is what a prefix cache needs.
     prompt = (f"{playbook}\n\n{draft_angle(company_number)}"
-              f"COMPANY: {company_name}\nSIGNAL: {signal or ''}\n")
-    greet = first_name(contact_name)
+              f"{facts.as_prompt_block(block)}\n"
+              f"SIGNAL (context only — never a source of names or places): {signal or ''}\n")
     if greet:
-        prompt += (f"CONTACT NAME: {greet}\n"
-                   f'Open with "Dear {greet}," on its own line. Use this first name '
+        prompt += (f'Open with "Dear {greet}," on its own line. Use this first name '
                    "only — no surname, no title — and do not mention where you found "
                    "their name.\n")
 
@@ -406,7 +463,8 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     # (craft) share one corrective retry; only the hard ones can discard the lead.
     hard = (check_envelope(body)
             + [f"subject: {s}" for s in check_subject(subject)]
-            + check_grounding(body, contact_name=contact_name, company_name=company_name))
+            + check_grounding(body, contact_name=contact_name, company_name=company_name,
+                              lead_facts=block))
     soft = check_style(body)
     if hard or soft:
         try:
@@ -420,7 +478,8 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
         except DraftFormatError as e:
             raise EnvelopeViolation(company_number, [f"unparseable retry: {e}"]) from e
         rv = (check_envelope(r_body) + [f"subject: {s}" for s in check_subject(r_subject)]
-              + check_grounding(r_body, contact_name=contact_name, company_name=company_name))
+              + check_grounding(r_body, contact_name=contact_name,
+                                company_name=company_name, lead_facts=block))
         if rv:
             raise EnvelopeViolation(company_number, rv)
         subject, body, soft = r_subject, r_body, check_style(r_body)
@@ -434,7 +493,9 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     cur.execute(
         "update outreach.leads set state='drafted', updated_at=now() "
         "where company_number=%s and state='enriched'", (company_number,))
-    note = f"draft {draft_id} ({PROMPT_VERSION}); envelope ok"
+    # the constants (and where each came from) are part of the record: if a draft is ever
+    # challenged, this is what it was allowed to assert and why.
+    note = f"draft {draft_id} ({PROMPT_VERSION}); envelope ok; facts {facts.summarise(block)}"
     if soft:
         note += f"; style noted: {soft}"
     audit.record(company_number, "drafted", source="draft",
@@ -458,19 +519,27 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     results: list[dict] = []
     try:
         cur.execute(
-            "select l.company_number, l.company_name, e.signal, e.contact_name "
+            # facts is not null == the constants have been RESOLVED. A lead enriched
+            # before that step existed is not draftable on free text alone — it waits for
+            # re-enrichment rather than being written about from a signal paragraph.
+            "select l.company_number, l.company_name, e.signal, e.contact_name, e.facts "
             "from outreach.leads l "
             "join outreach.enrichment e on e.company_number=l.company_number "
-            "where l.state='enriched' order by l.updated_at "
+            "where l.state='enriched' and e.facts is not null order by l.updated_at "
             + ("limit %s" if limit else ""), ((limit,) if limit else ())
         )
-        for cn, name, sig, contact_name in cur.fetchall():
+        for cn, name, sig, contact_name, raw_facts in cur.fetchall():
             # Per-lead savepoint: one lead's failure must never discard the whole
             # batch (a single overlong draft used to roll back every good one).
             cur.execute("savepoint draft_lead")
             try:
+                block = facts.loads(raw_facts)
+                if not facts.is_draftable(block):
+                    cur.execute("release savepoint draft_lead")
+                    continue          # constants incomplete: enrichment's job, not ours
                 results.append(draft_one(cn, name, sig, provider=provider, cur=cur,
-                                         playbook=playbook, contact_name=contact_name))
+                                         playbook=playbook, contact_name=contact_name,
+                                         lead_facts=block))
                 cur.execute("release savepoint draft_lead")
             except EnvelopeViolation as e:
                 # Unfixable after one retry — discard this lead (bounded: it will

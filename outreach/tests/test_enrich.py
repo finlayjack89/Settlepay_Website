@@ -365,3 +365,25 @@ def test_factual_signal_omits_what_it_cannot_stand_behind():
         "24hr Electrical Services Ltd", enrich.usable_vertical("Electricians"),
         enrich.trading_town("Hull", "places"),
     ) == "24hr Electrical Services Ltd — Electricians in Hull"
+
+
+@pytest.mark.parametrize("address,town", [
+    ("21 Cavendish St, Harrogate HG1 4NT, UK", "Harrogate"),
+    ("5 Bojea Industrial Estate, St Austell PL25 5RJ, UK", "St Austell"),
+    ("Unit 4, Westbury-On-Severn GL14 1PA, United Kingdom", "Westbury-On-Severn"),
+    ("Some Street, London, UK", "London"),
+    ("HG1 4NT, UK", None),          # nothing but a postcode
+    ("", None), (None, None),
+])
+def test_places_locality_is_parsed_out_of_the_formatted_address(address, town):
+    """Places kept the town ONLY inside the formatted string, so leads had no admissible
+    locality and their drafts could name no town at all."""
+    from outreach import places
+    assert places.locality_of(address) == town
+
+
+def test_a_parsed_locality_is_still_gated_on_a_trading_source():
+    """Parsing the town does not make it assertable — provenance still decides."""
+    formatted = "21 Cavendish St, Harrogate HG1 4NT, UK"
+    assert enrich.trading_town(None, "places", formatted) == "Harrogate"
+    assert enrich.trading_town(None, "companies_house_advanced_search", formatted) is None

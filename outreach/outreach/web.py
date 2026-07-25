@@ -1261,6 +1261,39 @@ def _tags(items) -> str:
             "</div>") if items else '<span class="muted">—</span>'
 
 
+def _constants_panel(raw_facts) -> str:
+    """The drafting constants — the ONLY company, person and place the email may name.
+
+    Shown beside the draft because an UNKNOWN here is the explanation for what the draft
+    does not say: a lead with no verified town gets an email that names no town, by
+    design rather than by omission.
+    """
+    from . import facts as facts_mod
+    if raw_facts is None:
+        return ('<div class="panel"><h2>Drafting constants</h2>'
+                '<div class="empty">Not resolved yet — this lead is not draftable until '
+                'enrichment establishes them.</div></div>')
+    block = facts_mod.loads(raw_facts)
+    rows = ""
+    for name in facts_mod.FIELDS:
+        fact = block[name]
+        label = html.escape(name.replace("_", " "))
+        if fact.value:
+            rows += (f'<tr><td>{label}</td><td><b>{html.escape(fact.value)}</b></td>'
+                     f'<td><span class="badge b-success">verified</span></td>'
+                     f'<td class="muted">{html.escape(fact.source or "—")}</td></tr>')
+        else:
+            rows += (f'<tr><td>{label}</td><td class="muted">unknown</td>'
+                     f'<td><span class="badge b-muted">not stated</span></td>'
+                     f'<td class="muted">—</td></tr>')
+    gate = ('<span class="badge b-success">draftable</span>' if facts_mod.is_draftable(block)
+            else '<span class="badge b-warning">not draftable</span>')
+    return f"""<div class="panel"><h2>Drafting constants {gate}</h2>
+<div class="hint">The only company, person or place the email may name. Anything else is
+rejected before the draft is stored.</div>
+<table><tr><th>Field</th><th>Value</th><th></th><th>Source</th></tr>{rows}</table></div>"""
+
+
 def _profile_panel(request: Request, profile) -> str:
     """The CRM profile, rendered from the stored facts. Nothing here is stored as
     HTML — `profiles.facts` is jsonb, so the layout can change without a re-scrape and
@@ -1311,7 +1344,7 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
             return HTMLResponse(_shell("/outreach/leads", "Not found", "", '<div class="panel"><div class="empty">Lead not found.</div></div>'), status_code=404)
         cur.execute(
             "select website, contact_email, email_verified, email_verify_result, signal, "
-            "scraped, contact_tier, contact_name "
+            "scraped, contact_tier, contact_name, facts "
             "from outreach.enrichment where company_number=%s", (company_number,))
         enr = cur.fetchone()
         cur.execute("select name, role, appointed_on from outreach.officers "
@@ -1338,7 +1371,7 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
       <dt>Location</dt><dd>{html.escape(locality or '—')}</dd></dl>"""
 
     if enr:
-        website, email, verified, vres, signal, scraped, tier, contact_name = enr
+        website, email, verified, vres, signal, scraped, tier, contact_name, raw_facts = enr
         site = f'<a href="{html.escape(website)}" target="_blank">{html.escape(website)}</a>' if website else '—'
         cands = ", ".join((scraped or {}).get("candidates", [])) if scraped else ""
         src = (scraped or {}).get("source") if scraped else None
@@ -1358,6 +1391,10 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
           <dt>Signal</dt><dd>{html.escape(signal or '—')}</dd></dl>"""
     else:
         enr_html = '<div class="empty">Not enriched.</div>'
+
+    # Drafting constants — what the email is ALLOWED to name, and where each came from.
+    # Worth showing next to the draft: an unknown here is why a draft names no town.
+    constants_html = _constants_panel(raw_facts if enr else None)
 
     if officers:
         orows = "".join(
@@ -1395,6 +1432,7 @@ def lead_detail(request: Request, company_number: str, known: str = ""):
   <div class="panel"><h2>{html.escape(name)}</h2><div class="hint">{html.escape(cn)}</div>{facts}</div>
   <div class="panel"><h2>Enrichment</h2><div class="hint">Discovery → scrape → verify</div>{enr_html}</div>
 </div>
+{constants_html}
 {_profile_panel(request, profile)}
 <div class="panel"><h2>Decision-makers</h2>{officers_html}</div>
 <div class="panel"><h2>Drafts</h2>{draft_html}</div>
