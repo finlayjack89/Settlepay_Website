@@ -25,8 +25,8 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from . import config, db, emailfmt, enquiries, graduation, jobs, monitor, outbox, research
-from . import review, stats, webauth
+from . import config, db, draft, emailfmt, enquiries, graduation, jobs, monitor, outbox
+from . import research, review, stats, webauth
 # aliased: this module defines a `schedule()` route that would shadow the import
 from . import schedule as send_queue
 from . import tasks as _tasks  # noqa: F401 — importing populates jobs.REGISTRY
@@ -654,24 +654,78 @@ def _badge_event(ev: str) -> str:
 # --------------------------------------------------------------------------- #
 #  Approval queue
 # --------------------------------------------------------------------------- #
+def _ago(when) -> str:
+    """'3m ago' / '2h ago' / '4d ago'. Relative beats absolute for scanning a queue —
+    the question being asked is 'is this one of the new ones', not 'what date is it'."""
+    if not when:
+        return "—"
+    delta = datetime.now(timezone.utc) - when
+    mins = int(delta.total_seconds() // 60)
+    if mins < 1:
+        return "just now"
+    if mins < 60:
+        return f"{mins}m ago"
+    if mins < 60 * 24:
+        return f"{mins // 60}h ago"
+    return f"{mins // (60 * 24)}d ago"
+
+
 @router.get("/outreach/queue", response_class=HTMLResponse)
-def queue():
+def queue(sort: str = "newest", version: str = "all"):
+    from . import facts as facts_mod
+    current = draft.PROMPT_VERSION
     with db.cursor(commit=False) as cur:
-        rows = review.list_pending(cur)
+        rows = review.list_pending_detail(cur, sort=sort, version=version,
+                                          current_version=current)
+        counts = review.queue_counts(cur, current_version=current)
         upcoming = send_queue.queue(cur, days=7)
-        sigs = {}
-        if rows:
-            cns = tuple(r[1] for r in rows)
-            cur.execute("select company_number, signal from outreach.enrichment "
-                        "where company_number = any(%s)", (list(cns),))
-            sigs = dict(cur.fetchall())
-    cards = "".join(
-        f'<div class="qcard"><div class="who"><b>{html.escape(name)}</b> '
-        f'<span class="m">({html.escape(cn)})</span><br>'
-        f'<span class="m">{html.escape((sigs.get(cn) or "no signal on file")[:80])}</span></div>'
-        f'<a class="btn btn-primary" href="/outreach/draft/{did}">Review &rarr;</a></div>'
-        for did, cn, name, _body in rows
-    ) or '<div class="panel"><div class="empty">Nothing awaiting approval. Drafts will appear here once leads are enriched and drafted.</div></div>'
+
+    def _tab(key, label, n):
+        active = " active" if version == key else ""
+        return (f'<a class="chip{active}" href="/outreach/queue?version={key}&sort={sort}">'
+                f'{label}<b>{n}</b></a>')
+
+    tabs = (_tab("all", "All", counts["total"])
+            + _tab("current", "Latest draft", counts["current"])
+            + _tab("older", "Earlier playbook", counts["older"]))
+    sorts = "".join(
+        f'<a class="chip{" active" if sort == k else ""}" '
+        f'href="/outreach/queue?version={version}&sort={k}">{lbl}</a>'
+        for k, lbl in (("newest", "Newest first"), ("oldest", "Oldest first"),
+                       ("company", "A–Z")))
+
+    cards = ""
+    for r in rows:
+        block = facts_mod.loads(r["facts"])
+        is_current = r["prompt_version"] == current
+        stamp = r["created_at"]
+        badge = ('<span class="badge b-success">latest</span>' if is_current
+                 else f'<span class="badge b-muted">{html.escape(r["prompt_version"] or "unversioned")}</span>')
+        # the constants at a glance: what this draft was ALLOWED to name
+        pills = ""
+        for field, icon in (("location", "in"), ("contact_name", "to"),
+                            ("established", "est")):
+            val = facts_mod.value(block, field)
+            if val:
+                pills += (f'<span class="badge b-muted" style="margin-left:.35rem">'
+                          f'{icon} {html.escape(str(val)[:22])}</span>')
+        tier = r["contact_tier"]
+        tier_badge = ('<span class="badge b-success">named</span>' if tier == "named"
+                      else '<span class="badge b-muted">role</span>' if tier else "")
+        subject = html.escape(r["subject"] or "(no subject)")
+        preview = html.escape(" ".join((r["body"] or "").split())[:120])
+        cards += (
+            f'<div class="qcard">'
+            f'<div class="who" style="flex:1">'
+            f'<b>{html.escape(r["company_name"])}</b> {badge} {tier_badge}{pills}<br>'
+            f'<span class="m" style="color:var(--ink)">{subject}</span><br>'
+            f'<span class="m">{preview}…</span><br>'
+            f'<span class="m" title="{stamp:%Y-%m-%d %H:%M} UTC">drafted {_ago(stamp)}'
+            f' · {html.escape(r["contact_email"] or "no contact")}</span></div>'
+            f'<a class="btn btn-primary" href="/outreach/draft/{r["id"]}">Review &rarr;</a></div>')
+    if not cards:
+        cards = ('<div class="panel"><div class="empty">Nothing here. '
+                 'Try a different filter, or drafts appear once leads are enriched.</div></div>')
     if upcoming:
         gated = "" if config.send_enabled() else " <b>dry-run</b> (G-SEND not set)"
         sched_rows = "".join(
@@ -686,9 +740,31 @@ def queue():
                  f'<th>Window</th></tr></thead><tbody>{sched_rows}</tbody></table></div>')
     else:
         sched = ""
-    head = f'<div class="panel"><h2>{len(rows)} draft{"" if len(rows)==1 else "s"} awaiting your decision</h2>' \
-           f'<div class="hint">Approving queues a draft for a specific minute in the send window — sending stays gated behind G-SEND.</div></div>'
-    return _shell("/outreach/queue", "Approval queue", "The human gate before any send", head + sched + cards)
+    span = ""
+    if counts["newest"]:
+        span = (f' <span class="m">· newest {_ago(counts["newest"])}'
+                f', oldest {_ago(counts["oldest"])}</span>')
+    stale_note = ""
+    if counts["older"] and version != "older":
+        stale_note = (f'<div class="hint" style="margin-top:.6rem">'
+                      f'{counts["older"]} draft{"" if counts["older"] == 1 else "s"} still on an '
+                      f'earlier playbook. Run <b>Re-draft stale queue</b> from Tasks to rewrite '
+                      f'them with the current constants and gates.</div>')
+    head = (f'<div class="panel">'
+            f'<h2>{counts["total"]} draft{"" if counts["total"] == 1 else "s"} awaiting your '
+            f'decision{span}</h2>'
+            f'<div class="hint">Approving queues a draft for a specific minute in the send '
+            f'window — sending stays gated behind G-SEND. <b>latest</b> marks drafts written '
+            f'by the current playbook ({html.escape(current)}).</div>'
+            f'<div class="chips" style="margin-top:.9rem">{tabs}</div>'
+            f'<div class="chips" style="margin-top:.5rem">{sorts}</div>'
+            f'{stale_note}</div>')
+    showing = ""
+    if len(rows) != counts["total"]:
+        showing = (f'<p class="muted" style="font-size:.8rem;margin:.2rem 0 .8rem">'
+                   f'Showing {len(rows)} of {counts["total"]}.</p>')
+    return _shell("/outreach/queue", "Approval queue", "The human gate before any send",
+                  head + sched + showing + cards)
 
 
 @router.get("/outreach/draft/{draft_id}", response_class=HTMLResponse)

@@ -39,6 +39,14 @@ SKIP_DOMAINS = (
     "linkedin.com", "instagram.com", "twitter.com", "x.com", "gov.uk",
     "companieshouse", "company-information.service.gov.uk", "find-and-update",
     "endole.co.uk", "checkcompany", "opencorporates.com", "192.com",
+    # Trade directories, accreditation schemes and booking platforms. Their contact
+    # pages are scraped as if they were the prospect's own: three roofers/electricians
+    # in the live queue were addressed to info@checkatrade.com, one salon to
+    # hello@fresha.com and one electrician to info@trustmark.org.uk.
+    "checkatrade.com", "trustmark.org.uk", "fresha.com", "mybuilder.com",
+    "ratedpeople.com", "trustatrader.com", "bark.com", "which.co.uk",
+    "fcsa.org.uk", "treatwell.co.uk", "booksy.com", "thebestof.co.uk",
+    "freeindex.co.uk", "cylex-uk.co.uk", "scoot.co.uk", "hotfrog.co.uk",
     # property / business directories + ombudsman + data aggregators (not own sites)
     "tpos.co.uk", "allagents.co.uk", "getagent.co.uk", "netanagent.co.uk",
     "home.co.uk", "cylex", "centralindex", "opendi", "estateagentdb",
@@ -219,6 +227,27 @@ def firecrawl_scrape_emails(url: str, *, api_key: Optional[str] = None, client=N
             client.close()
 
 
+def recipient_mismatch(company_name: str, email: Optional[str]) -> bool:
+    """True when this address demonstrably belongs to somebody else.
+
+    The last line of defence before a draft is written. A scrape can pick up a directory
+    or trade-body address from a page (Checkatrade, TrustMark, Fresha) and it will look
+    like a perfectly ordinary contact — it verifies, it is on a real domain, it is simply
+    not the prospect. Only an address whose domain contradicts the company name is
+    rejected; an unjudgeable name (all generic words) passes, because refusing what we
+    cannot assess would discard most of the list.
+    """
+    if not email or "@" not in email:
+        return False
+    domain = email.rpartition("@")[2].lower()
+    # A directory or booking platform is never the prospect, whatever its name looks
+    # like next to theirs. Deterministic, so it carries the cases the name heuristic
+    # cannot judge — an initialism like "CGH Electrical" has nothing to match on.
+    if any(d in domain for d in SKIP_DOMAINS):
+        return True
+    return name_matches_domain(company_name, domain) is False
+
+
 def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None) -> Optional[str]:
     """Pick the best cold-B2B contact: a generic mailbox (info@/contact@…) on the
     company's OWN domain. Free-mail / third-party addresses are rejected outright
@@ -332,6 +361,79 @@ _VAT_RE = re.compile(r"VAT\s*(?:registration\s*)?(?:no|number|reg)?\.?[^0-9A-Z]{
 _ESTABLISHED_RE = re.compile(
     r"(?:est(?:ablished|\.)?|since|trading\s+since|founded(?:\s+in)?)\s*:?\s*(19\d{2}|20[0-2]\d)",
     re.I)
+
+
+# Words that identify nobody — every business in a sector shares them, so they can never
+# be what ties a domain to a company.
+_GENERIC_NAME_WORDS = frozenset({
+    "ltd", "limited", "llp", "plc", "the", "and", "for", "with", "company", "companies",
+    "group", "holdings", "services", "service", "solutions", "trading", "trade", "uk",
+    "gb", "england", "british", "national", "international", "online", "direct", "co",
+    "electrical", "electric", "electricians", "electrician", "plumbing", "plumbers",
+    "heating", "roofing", "builders", "building", "construction", "contractors",
+    "contracting", "installations", "maintenance", "specialists", "specialist",
+    "auction", "auctions", "auctioneers", "auctioneer", "valuers", "saleroom",
+    "accountants", "accounting", "accountancy", "dental", "clinic", "estates", "estate",
+    "properties", "property", "consultancy", "consultants", "management", "centre",
+    "center", "systems", "supplies", "engineering", "engineers", "fine", "art",
+})
+
+
+def name_matches_domain(business_name: str, url_or_domain: str) -> Optional[bool]:
+    """Does this domain plausibly belong to this business? None = cannot tell.
+
+    A distinctive word from the name must survive in the domain. Without this the
+    resolver's best guess is adopted verbatim — and then the site is scraped for a
+    contact, its postcode becomes the lead's location, and its text becomes the signal.
+    One wrong domain therefore poisons the recipient, the place and the pitch at once.
+
+    Observed in the live approval queue before this existed: three roofers/electricians
+    addressed to info@checkatrade.com, a Cardiff solicitor to a US title insurer, a
+    dental lab to Heartland (a payments company), an auction house in Fife given a
+    Surrey address, and a Leeds estate agent placed in Blackpool.
+    """
+    # The first label only. Stripping punctuation from the WHOLE domain glued the TLD on
+    # ("candjelectricalservices.co.uk" -> "...servicescouk"), which broke every
+    # whole-name comparison against a real company's own site.
+    stem = re.sub(r"[^a-z0-9]", "", (normalise_domain(url_or_domain) or "").split(".")[0])
+    if not stem:
+        return None
+    raw_tokens = [w for w in re.split(r"[^a-z0-9]+", (business_name or "").lower()) if w]
+    # "C.C Electrical" and "A F Brock" split into single letters that match nothing on
+    # their own. Read them the way a person does — as one initialism — so cc-electrical
+    # and afbrock are recognised as those companies' own domains.
+    tokens: list[str] = []
+    for tok in raw_tokens:
+        if len(tok) == 1 and tokens and len(tokens[-1]) <= 2 and tokens[-1].isalpha():
+            tokens[-1] += tok
+        else:
+            tokens.append(tok)
+    # 2 chars, not 4: for a great many small firms the identifying part IS a short
+    # initialism — CC Electrical -> cc-electrical, AKS Electrical (Southern) ->
+    # akselectrical, HG Gas -> hggls. Requiring four characters rejected their own
+    # websites, because the only long words left ("Southern", "Landlord") are the ones
+    # a domain drops.
+    distinctive = [w for w in tokens if len(w) >= 2 and w not in _GENERIC_NAME_WORDS]
+    # ONE distinctive token is enough. A name has several and a domain keeps only some,
+    # so requiring all of them would reject almost every genuine site.
+    if any(w in stem for w in distinctive):
+        return True
+    # The domain may simply BE the name run together, including a spelled-out ampersand:
+    # "C & J Electrical Services" -> candjelectricalservices.co.uk. Compare the compacted
+    # forms both ways so the domain need not be a perfect copy.
+    low = (business_name or "").lower()
+    for compact in {re.sub(r"[^a-z0-9]", "", low),
+                    re.sub(r"[^a-z0-9]", "", low.replace("&", " and "))}:
+        if compact and (stem in compact or compact.startswith(stem)):
+            return True
+    # Firms also trade under their initials: Rotherham Taylor -> rtaccountants. Treat a
+    # matching acronym as unjudgeable rather than a mismatch.
+    initials = "".join(t[0] for t in distinctive)
+    if len(initials) >= 2 and initials in stem:
+        return None
+    if not distinctive:
+        return None                     # nothing identifying to judge against
+    return False
 
 
 def _unescape(value) -> Optional[str]:
@@ -620,6 +722,12 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
     """The FAST, DB-only half: write enrichment + advance/discard the lead. Holds
     the connection for milliseconds, never across network I/O."""
     email, verified, result = g["email"], g["verified"], g["result"]
+    # An address on somebody else's domain is not a contact for THIS lead, however well
+    # it verifies. Dropped before the tier is computed, so the lead is never counted as
+    # contactable on the strength of a directory's mailbox.
+    if email and g.get("company_name") and recipient_mismatch(g["company_name"], email):
+        g.setdefault("notes", []).append(f"rejected {email}: belongs to another company")
+        email, verified, result = None, False, "recipient_mismatch"
     tier = contact_tier(result) if email else None   # 'verified' | 'risky' | None
     contactable = tier is not None
     # ICP-fit gate: a DEFINITE negative verdict (not fit, or already takes card
@@ -856,6 +964,12 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                     website = resolver.resolve(company_name=name, address=town or "", hint=hint)
                 except Exception:
                     website = None
+            # A search result is a GUESS. Adopting the wrong company's site poisons the
+            # recipient (its contact page is scraped for an address), the location (its
+            # postcode becomes theirs) and the pitch (its text becomes the signal) in one
+            # go — which is how drafts ended up addressed to info@checkatrade.com.
+            if website and name_matches_domain(name, website) is False:
+                website = None
 
             # WHERE THEY ARE, best source first: what they publish about themselves, then
             # a trading listing, then a registered office proven not to be an agent's.
@@ -897,6 +1011,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                 established=identity.get("established"),
                 established_source="own_site" if identity.get("established") else None)
             g["identity"] = identity        # postcode/company number/VAT for the record
+            g["company_name"] = name        # lets _persist reject another company's address
             gathered.append((cn, website, signal, g))
     finally:
         http.close()

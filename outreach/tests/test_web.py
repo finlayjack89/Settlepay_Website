@@ -316,3 +316,47 @@ def test_constants_panel_shows_values_sources_and_unknowns():
 def test_constants_panel_explains_an_unresolved_lead():
     from outreach import web
     assert "not draftable" in web._constants_panel(None)
+
+
+# --------------------------------------------------------------------------- #
+#  Approval queue — when it was drafted, under which playbook, filterable
+# --------------------------------------------------------------------------- #
+def test_queue_marks_the_latest_playbook_and_shows_when_drafted():
+    r = client.get("/outreach/queue")
+    assert r.status_code == 200
+    assert "drafted " in r.text                 # a relative timestamp on every card
+    assert ">latest<" in r.text or "Latest draft" in r.text
+
+
+def test_queue_offers_the_version_split_and_sorts():
+    r = client.get("/outreach/queue")
+    assert "Latest draft" in r.text and "Earlier playbook" in r.text
+    assert "Newest first" in r.text and "Oldest first" in r.text
+
+
+@pytest.mark.parametrize("qs", ["", "?version=current", "?version=older",
+                                "?sort=oldest", "?sort=company", "?sort=nonsense",
+                                "?version=nonsense"])
+def test_queue_renders_for_every_filter_including_junk(qs):
+    """A hand-typed query string must not 500 — unknown values fall back."""
+    assert client.get("/outreach/queue" + qs).status_code == 200
+
+
+def test_queue_version_filter_actually_narrows():
+    from outreach import draft
+    all_page = client.get("/outreach/queue?version=all").text
+    current = client.get("/outreach/queue?version=current").text
+    assert len(current) < len(all_page)
+    # every card on the 'current' view is on the current playbook, so no stale badge
+    assert draft.PROMPT_VERSION in current
+
+
+def test_ago_renders_each_bucket():
+    from datetime import datetime, timedelta, timezone
+    from outreach import web
+    now = datetime.now(timezone.utc)
+    assert web._ago(None) == "—"
+    assert web._ago(now - timedelta(seconds=10)) == "just now"
+    assert web._ago(now - timedelta(minutes=5)) == "5m ago"
+    assert web._ago(now - timedelta(hours=3)) == "3h ago"
+    assert web._ago(now - timedelta(days=2)) == "2d ago"
