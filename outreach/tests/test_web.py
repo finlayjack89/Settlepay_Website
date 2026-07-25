@@ -360,3 +360,32 @@ def test_ago_renders_each_bucket():
     assert web._ago(now - timedelta(minutes=5)) == "5m ago"
     assert web._ago(now - timedelta(hours=3)) == "3h ago"
     assert web._ago(now - timedelta(days=2)) == "2d ago"
+
+
+def test_bool_param_can_be_switched_off_from_the_console():
+    """An UNCHECKED checkbox is absent from the POST body, and coerce_params reads an
+    absent value as "use the default" — so a bool defaulting True could never be turned
+    off. That made a live (non-dry-run) tick unlaunchable from the console, which in
+    turn made every stage-level verification impossible without a redeploy.
+
+    The hidden "0" companion field fixes it: form.items() keeps the later value.
+    """
+    from starlette.datastructures import FormData
+
+    from outreach import jobs, web
+
+    spec = jobs.REGISTRY["tick"]
+    param = next(p for p in spec.params if p.name == "dry_run")
+    assert param.default is True
+
+    rendered = web._param_input(param)
+    assert '<input type="hidden" name="dry_run" value="0">' in rendered
+    assert 'type="checkbox" name="dry_run" value="1" checked' in rendered
+
+    def launched(pairs):
+        form = FormData(pairs)
+        raw = {k: str(v) for k, v in form.items() if k not in ("kind", "csrf")}
+        return jobs.coerce_params(spec, raw)
+
+    assert launched([("dry_run", "0")]) == {"dry_run": False}                  # unticked
+    assert launched([("dry_run", "0"), ("dry_run", "1")]) == {"dry_run": True}  # ticked

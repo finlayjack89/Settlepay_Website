@@ -100,6 +100,14 @@ def test_enqueue_and_dedupe(db_rollback):
     assert cur.fetchone() == ("test_jobs_ok", "queued", {"n": 2}, "unit-test")
 
 
+# These five COMMIT real rows to outreach.jobs rather than rolling back, so against the
+# shared database they are executed by whichever worker claims them first — and the
+# deployed Cloud Run instance polls that same queue every 2s. Proof: a failing run's
+# stored traceback reads `File "/app/outreach/jobs.py"`, a path that exists only inside
+# the container. The live service was claiming the suite's jobs and failing them with
+# "unknown task kind", because test-only tasks aren't registered in its image.
+# Not a logic bug — a shared-queue race that only an isolated database can remove.
+@pytest.mark.needs_isolated_db
 def test_run_job_inline_success():
     row = jobs.run_job_inline("test_jobs_ok", {"n": "3", "label": "abc"})
     assert row["status"] == "succeeded"
@@ -110,6 +118,7 @@ def test_run_job_inline_success():
     assert row["started_at"] is not None and row["finished_at"] is not None
 
 
+@pytest.mark.needs_isolated_db
 def test_run_job_inline_failure():
     row = jobs.run_job_inline("test_jobs_boom")
     assert row["status"] == "failed"
@@ -117,6 +126,7 @@ def test_run_job_inline_failure():
     assert row["result"] is None
 
 
+@pytest.mark.needs_isolated_db
 def test_cancel_queued_job_and_runner_skips_it():
     job_id = jobs.enqueue("test_jobs_ok", {"n": 1})
     assert jobs.cancel(job_id) is True
@@ -128,6 +138,7 @@ def test_cancel_queued_job_and_runner_skips_it():
     assert row["status"] == "cancelled" and row["finished_at"] is not None
 
 
+@pytest.mark.needs_isolated_db
 def test_mid_run_cancel_leaves_cancelled():
     row = jobs.run_job_inline("test_jobs_selfcancel")
     assert row["status"] == "cancelled"
@@ -146,6 +157,7 @@ def test_recover_stale_flips_running_row(db_rollback):
     assert cur.fetchone() == ("failed", "instance restarted")
 
 
+@pytest.mark.needs_isolated_db
 def test_log_cap_keeps_newest_200():
     row = jobs.run_job_inline("test_jobs_chatty")
     assert row["status"] == "succeeded"

@@ -128,6 +128,19 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
                     pass
             summary["steps"][name] = {"error": f"{type(e).__name__}: {e}"[:300]}
 
+    def _read(fn):
+        """Evaluate a read-only gate query, on the caller's cursor when there is one
+        and otherwise on a short-lived own connection.
+
+        These gates used to be written `x = f(cur) if cur is not None else None`, and
+        the SCHEDULED TICK — the only caller that matters — passes no cursor. So in
+        production the reservoir, the GCP-credit floor and the review-backlog cap all
+        evaluated to None and every `if pool and …` guard fell through: unbounded
+        Places spend, unbounded enrichment, unbounded drafting. Every test passed a
+        cursor, so the suite only ever exercised the branch production never took.
+        """
+        return fn(cur) if cur is not None else _own(fn)
+
     if want("inbound"):
         if config.INBOUND_SOURCE == "inline":
             summary["steps"]["inbound"] = {"skipped": "inline source (no live mailbox)"}
@@ -147,12 +160,12 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
     # Demand-pull reservoir: discover/enrich run only to refill the ready pool
     # toward READY_POOL_TARGET, then idle (£0) when it's full — this is what
     # amortises the expensive stages. Deficit is computed once per tick.
-    pool = stats.reservoir_status(cur, config.READY_POOL_TARGET) if cur is not None else None
+    pool = _read(lambda c: stats.reservoir_status(c, config.READY_POOL_TARGET))
 
     if want("discover_places"):  # Google Places (GCP credit) — credit-gated, NOT enriched-pool-gated
         # Discovery is cheap on credit and should build a big classified reservoir, so it
         # is gated by the CREDIT budget + a backlog cap, not the (cash-bound) enriched pool.
-        credit = stats.credit_status(cur) if cur is not None else None
+        credit = _read(stats.credit_status)
         if credit and credit["remaining"] <= config.CREDIT_FLOOR_GBP:
             summary["steps"]["discover_places"] = {"skipped": "credit budget floor reached", **credit}
         elif pool and pool["backlog"] >= config.CLASSIFIED_BACKLOG_MAX:
@@ -192,7 +205,7 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
                lambda: decisionmakers.run(cur=cur, limit=config.DM_PER_TICK), paid=True)
 
     if want("draft"):
-        backlog = stats.review_backlog(cur) if cur is not None else 0
+        backlog = _read(stats.review_backlog)
         if backlog >= config.DRAFT_BACKLOG_MAX:
             # the human gate is the bottleneck; drafting past it just spends credit
             summary["steps"]["draft"] = {"skipped": "review backlog full",

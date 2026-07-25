@@ -92,6 +92,37 @@ def _walk_parts(payload: dict):
         yield from _walk_parts(p)
 
 
+def _subtree_text(part: dict) -> str:
+    """Decoded payload text of `part` AND its descendants.
+
+    Gmail does NOT put a DSN's machine-readable section on the
+    message/delivery-status part itself — it nests it in a text/plain CHILD:
+
+        multipart/report
+          multipart/related → multipart/alternative → text/plain + text/html
+          message/delivery-status          (body.data: absent)
+            text/plain                     (body.data: "Final-Recipient: …")
+          text/rfc822-headers
+
+    Reading only the part's own body therefore finds no recipient at all. The first
+    real bounce this pipeline received was still suppressed correctly, but only
+    because Gmail happens to ALSO set X-Failed-Recipients — a fallback no other MTA
+    is obliged to provide.
+    """
+    return "\n".join(_b64url(d) for p in _walk_parts(part)
+                     if (d := (p.get("body") or {}).get("data")))
+
+
+def _body_parts(part: dict):
+    """Walk for displayable text, skipping any message/delivery-status subtree so a
+    DSN's status section can never be mistaken for the sender's reply body."""
+    if (part.get("mimeType") or "").lower() == "message/delivery-status":
+        return
+    yield part
+    for p in part.get("parts") or []:
+        yield from _body_parts(p)
+
+
 _DSN_RECIPIENT_RE = re.compile(r"(?:Final|Original)-Recipient:.*?;\s*<?([^\s<>]+@[^\s<>]+)", re.I)
 
 
@@ -108,15 +139,17 @@ def _parse_gmail_message(m: dict) -> dict:
     body, html, original = "", "", None
     is_ndr = "report" in (payload.get("mimeType") or "").lower()
     for part in _walk_parts(payload):
+        if (part.get("mimeType") or "").lower() != "message/delivery-status":
+            continue
+        is_ndr = True
+        if original is None:
+            dm = _DSN_RECIPIENT_RE.search(_subtree_text(part))
+            if dm:
+                original = dm.group(1).strip()
+    for part in _body_parts(payload):
         mt = (part.get("mimeType") or "").lower()
         data = (part.get("body") or {}).get("data")
-        if mt == "message/delivery-status":
-            is_ndr = True
-            if data:
-                dm = _DSN_RECIPIENT_RE.search(_b64url(data))
-                if dm:
-                    original = dm.group(1).strip()
-        elif mt == "text/plain" and data and not body:
+        if mt == "text/plain" and data and not body:
             body = _b64url(data)
         elif mt == "text/html" and data and not html:
             html = _b64url(data)
