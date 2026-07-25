@@ -163,6 +163,11 @@ ENRICH_GUESS_GENERICS = _bool("ENRICH_GUESS_GENERICS", False)
 # nothing, we resolved the wrong company's site) rather than when it reached a verdict.
 # The retry is the point; the cooldown stops it spinning, and states.PARK_MAX bounds it.
 PARK_RETRY_HOURS = _int("PARK_RETRY_HOURS", 24)
+# How long before refresh_facts will look at the same lead again. Some businesses are
+# genuinely unplaceable from the sources we have; without a cooldown they match the
+# "constants still missing" predicate for ever and the refresh queue spins on them
+# instead of draining.
+FACTS_REFRESH_DAYS = _int("FACTS_REFRESH_DAYS", 30)
 # Where the art. 14 privacy notice lives — linked in every named-individual send so the
 # person can see what we hold and how to object. The notice ITSELF must state that we
 # source details from Companies House / public records (operator content task).

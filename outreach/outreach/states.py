@@ -55,7 +55,12 @@ ALLOWED: dict[LeadState, set[LeadState]] = {
     LeadState.DISCOVERED: {LeadState.ENRICHED, LeadState.DISCARDED, LeadState.PARKED},
     LeadState.ENRICHED: {LeadState.DRAFTED, LeadState.DISCARDED, LeadState.PARKED},
     LeadState.PARKED: {LeadState.DISCOVERED, LeadState.ENRICHED, LeadState.DISCARDED},
-    LeadState.DRAFTED: {LeadState.APPROVED, LeadState.REJECTED, LeadState.DISCARDED},
+    # DRAFTED -> PARKED is for the case where the draft is fine but the DATA under it
+    # turned out to be wrong — most often a contact that belongs to another company.
+    # The lead has to go back for re-enrichment, and its draft must be superseded in the
+    # same breath so no orphan sits in the approval queue.
+    LeadState.DRAFTED: {LeadState.APPROVED, LeadState.REJECTED, LeadState.DISCARDED,
+                        LeadState.PARKED},
     LeadState.AWAITING_APPROVAL: {LeadState.APPROVED, LeadState.REJECTED},
     LeadState.APPROVED: {LeadState.SENDING, LeadState.REJECTED},
     LeadState.SENDING: {LeadState.SENT, LeadState.BOUNCED},
@@ -108,7 +113,10 @@ def park_lead(cur, company_number: str, reason: str) -> str:
         "  state = case when park_count + 1 >= %s then 'discarded'::outreach.lead_state "
         "               else 'parked'::outreach.lead_state end, "
         "  parked_reason = %s, parked_at = now(), updated_at = now() "
-        "where company_number = %s and state in ('discovered','enriched','parked') "
+        # 'drafted' is included for the wrong-contact case; callers that park a drafted
+        # lead must supersede its draft too. Anything past approval is deliberately out
+        # of reach — a lead already sent, suppressed or bounced is never re-worked here.
+        "where company_number = %s and state in ('discovered','enriched','parked','drafted') "
         "returning state::text",
         (PARK_MAX, reason[:500], company_number))
     row = cur.fetchone()

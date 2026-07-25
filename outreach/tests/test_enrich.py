@@ -631,3 +631,37 @@ def test_refresh_facts_preserves_constants_it_cannot_rederive(db_rollback, monke
     assert facts.value(after, "payment_method") == "bank transfer"
     assert after["payment_method"].source == "site_quote"
     assert facts.value(after, "vertical")            # not blanked by a null SIC
+
+
+def test_refresh_facts_does_not_spin_on_an_unplaceable_lead(db_rollback, monkeypatch):
+    """The starvation bug in its second form. Once the queue drains below one batch, a
+    lead we genuinely cannot place still matches "constants missing" for ever, so every
+    subsequent run re-fetched the same handful of websites. Observed live: eight
+    consecutive batches, all 21 identical rows."""
+    from outreach import config, enrich, facts, geo
+    cur = db_rollback.cursor()
+    cn = f"UNPLACEABLE_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,%s,'ltd','corporate','enriched')", (cn, cn))
+    cur.execute("insert into outreach.enrichment (company_number, contact_email, "
+                "email_verified, signal, facts) values (%s,'info@x.co',true,'sig',%s::jsonb)",
+                (cn, facts.dumps(facts.build(company_name="Nowhere Ltd"))))
+
+    monkeypatch.setattr(geo, "resolve_location",
+                        lambda **kw: {"town": None, "region": None, "source": None})
+    monkeypatch.setattr(enrich, "site_identity", lambda *a, **k: {})
+    scoped = enrich._REFRESH_SQL.replace(
+        "where l.state in ('enriched','drafted','parked')",
+        f"where l.company_number = '{cn}' and l.state in ('enriched','drafted','parked')")
+    monkeypatch.setattr(enrich, "_REFRESH_SQL", scoped)
+
+    assert enrich.refresh_facts(limit=5, cur=cur)["refreshed"] == 1
+    # still unplaceable, so it still matches the shape predicate — but the cooldown
+    # keeps it out of the queue rather than letting it spin
+    cur.execute(scoped, (config.FACTS_REFRESH_DAYS, 5))
+    assert cur.fetchall() == []
+    assert enrich.refresh_facts(limit=5, cur=cur)["refreshed"] == 0
+
+    cur.execute("update outreach.enrichment set facts_refreshed_at = now() - interval '60 days' "
+                "where company_number=%s", (cn,))
+    assert enrich.refresh_facts(limit=5, cur=cur)["refreshed"] == 1   # eligible again

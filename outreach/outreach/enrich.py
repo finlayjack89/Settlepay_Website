@@ -893,10 +893,14 @@ _REFRESH_SQL = (
     "  and (e.facts is null "
     "       or e.facts->'location'->>'value' is null "
     "       or e.facts->'region' is null) "
-    # Ordering, not just filtering, is what stops the starvation. `l.updated_at` never
-    # moved — this function writes only to `enrichment` — and the shape predicates stay
-    # true for any lead that is genuinely unplaceable, so refresh_facts re-did identical
-    # work on the SAME 25 rows on every single run and rows 26+ were unreachable.
+    # A lead we have already tried and could not place waits before we try again.
+    # Without this the tail of genuinely unplaceable leads matches the shape predicate
+    # for ever and is re-fetched on every run — which is the starvation bug in its
+    # second form: the first 25 rows were the same every time because `l.updated_at`
+    # never moved (this function writes only to `enrichment`), and once the queue drains
+    # to fewer than a batch the survivors simply spin.
+    "  and (e.facts_refreshed_at is null "
+    "       or e.facts_refreshed_at < now() - make_interval(days => %s)) "
     "order by e.facts_refreshed_at nulls first, l.updated_at limit %s")
 
 
@@ -919,7 +923,7 @@ def refresh_facts(*, limit: int = 25, cur=None) -> dict:
         if config.COMPANIES_HOUSE_API_KEY else None
     updated = placed = unchanged = 0
     try:
-        cur.execute(_REFRESH_SQL, (limit,))
+        cur.execute(_REFRESH_SQL, (config.FACTS_REFRESH_DAYS, limit))
         rows = cur.fetchall()
         for (cn, name, town, sic, website, source, formatted, postcode,
              primary_type, raw_facts) in rows:

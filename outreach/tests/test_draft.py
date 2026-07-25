@@ -306,8 +306,16 @@ def test_a_lead_without_resolved_facts_is_not_drafted(db_rollback):
                 (cn,))
 
     class _MustNotRun:
-        def complete(self, *a, **k):
-            raise AssertionError("drafted a lead whose constants were never resolved")
+        """Fires only for THIS lead: the backlog is shared, so other rows legitimately
+        get drafted in the same batch and are not what this test is about."""
+
+        def complete(self, prompt, **k):
+            if "Nofacts Ltd" in prompt:
+                raise AssertionError("drafted a lead whose constants were never resolved")
+            return type("R", (), {"text": _payload(
+                "a subject", "Hi there, a note from SettlePay. Payments are handled by "
+                "FCA-regulated partners. Reply unsubscribe to opt out. "
+                "Kind regards, Finlay Salisbury SettlePay")})()
 
     draft.run(provider=_MustNotRun(), cur=cur, limit=50)
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
@@ -425,7 +433,10 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
 
     class _P:
         def complete(self, prompt, **k):
-            seen["prompt"] = prompt
+            # capture only THIS lead's prompt — the backlog is shared, so the batch may
+            # legitimately contain other rows before it
+            if "Acme Ltd" in prompt:
+                seen["prompt"] = prompt
             import json as _j
             return type("R", (), {"text": _j.dumps({
                 "subject": "payments at acme",
@@ -433,7 +444,7 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
                          "FCA-regulated partners. Reply unsubscribe to opt out.\n\n"
                          "Kind regards,\nFinlay Salisbury\nSettlePay")})})()
 
-    draft.run(provider=_P(), cur=cur, limit=1)
+    draft.run(provider=_P(), cur=cur, limit=50)
     # the name reaches the model as a resolved CONSTANT plus the greeting instruction
     assert 'Dear John,' in seen["prompt"]
     assert "contact_name: SMITH, John" in seen["prompt"]
