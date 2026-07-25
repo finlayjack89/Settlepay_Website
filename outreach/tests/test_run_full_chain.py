@@ -42,6 +42,81 @@ def _stub_stages(monkeypatch, order):
     monkeypatch.setattr(run_mod.decisionmakers, "run", rec("decision_makers", ret={}))
 
 
+def test_production_path_consults_every_cost_gate(monkeypatch):
+    """The scheduled tick calls run() with NO cursor — that is the only path that runs
+    in production. The reservoir, GCP-credit-floor and review-backlog gates used to be
+    written `f(cur) if cur is not None else None`, so on that path they all evaluated
+    to None/0 and every `if pool and …` guard fell straight through: Places, enrichment
+    and drafting ran unthrottled. Every other test in this file passes a cursor, so the
+    suite only ever exercised the branch production never takes.
+
+    This asserts each gate is actually consulted when cur is None.
+    """
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
+
+    # the cur=None path opens short-lived own connections; keep this test off the DB
+    sentinel = object()
+    monkeypatch.setattr(run_mod, "_own", lambda fn: fn(sentinel))
+    monkeypatch.setattr(run_mod.send_mod, "_kill_switch_on", lambda cur: False)
+    monkeypatch.setattr(run_mod, "_advance_sends", lambda c, **k: [])
+    monkeypatch.setattr(run_mod.firewall, "run", lambda **k: {"stub": "classify"})
+    monkeypatch.setattr(run_mod.spend, "ensure_under_cap", lambda **k: None)
+
+    seen: list[str] = []
+
+    def _gate(name, value):
+        def _f(*a, **k):
+            seen.append(name)
+            return value
+        return _f
+
+    monkeypatch.setattr(run_mod.stats, "reservoir_status",
+                        _gate("reservoir", {"ready": 0, "backlog": 0,
+                                            "deficit": 50, "target": 50}))
+    monkeypatch.setattr(run_mod.stats, "credit_status",
+                        _gate("credit", {"spent": 0.0, "budget": 237.0,
+                                         "remaining": 237.0, "pct": 0.0,
+                                         "days_left": 90}))
+    monkeypatch.setattr(run_mod.stats, "review_backlog", _gate("backlog", 0))
+
+    run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=None)
+
+    assert "reservoir" in seen, "reservoir gate skipped on the production path"
+    assert "credit" in seen, "GCP credit floor skipped on the production path"
+    assert "backlog" in seen, "review-backlog cap skipped on the production path"
+
+
+def test_production_path_honours_the_credit_floor(monkeypatch):
+    """A gate that is merely *called* is not enough — it must still be able to stop a
+    stage when cur is None."""
+    order = []
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
+    sentinel = object()
+    monkeypatch.setattr(run_mod, "_own", lambda fn: fn(sentinel))
+    monkeypatch.setattr(run_mod.send_mod, "_kill_switch_on", lambda cur: False)
+    monkeypatch.setattr(run_mod, "_advance_sends", lambda c, **k: [])
+    monkeypatch.setattr(run_mod.firewall, "run", lambda **k: {"stub": "classify"})
+    monkeypatch.setattr(run_mod.spend, "ensure_under_cap", lambda **k: None)
+    monkeypatch.setattr(run_mod.stats, "reservoir_status",
+                        lambda *a, **k: {"ready": 0, "backlog": 0, "deficit": 50,
+                                         "target": 50})
+    monkeypatch.setattr(run_mod.stats, "review_backlog", lambda *a, **k: 0)
+    # credit exhausted -> discover_places must not run
+    monkeypatch.setattr(run_mod.stats, "credit_status",
+                        lambda *a, **k: {"spent": 237.0, "budget": 237.0,
+                                         "remaining": 0.0, "pct": 100.0,
+                                         "days_left": 0})
+
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=None)
+    assert res["steps"]["discover_places"]["skipped"] == "credit budget floor reached"
+    assert "discover_places" not in order
+
+
 def test_bare_tick_excludes_autonomous_stages(db_rollback, monkeypatch):
     order = []
     _stub_stages(monkeypatch, order)

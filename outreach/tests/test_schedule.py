@@ -48,9 +48,16 @@ def test_slot_time_is_deterministic_per_draft():
     assert schedule._slot_time(MON, 3, 20, did) == schedule._slot_time(MON, 3, 20, did)
 
 
+@pytest.mark.needs_isolated_db
 def test_warmup_counts_sending_days_not_calendar_days(db_rollback):
     """A weekend must not advance the ramp. Calendar counting turned Friday's cap
-    into Monday's cap+2 — a volume jump after two days of silence."""
+    into Monday's cap+2 — a volume jump after two days of silence.
+
+    Needs an isolated DB: `warmup_day_for` counts distinct sending days across ALL
+    approved drafts and sends, not just this test's, so live rows shift the answer.
+    (Drafts carry no inbox column, which is also why the count cannot be scoped to
+    the test's own inbox — a real limitation the moment a second mailbox exists.)
+    """
     cur = db_rollback.cursor()
     inbox = f"warm-{uuid.uuid4().hex[:6]}@x.uk"
     ids = _approved(cur, 3)
@@ -62,7 +69,10 @@ def test_warmup_counts_sending_days_not_calendar_days(db_rollback):
     assert schedule.warmup_day_for(datetime.date(2026, 7, 27), cur=cur, inbox=inbox) == 4
 
 
+@pytest.mark.needs_isolated_db
 def test_approval_queue_respects_daily_capacity_and_rolls_over(db_rollback, monkeypatch):
+    """Needs an isolated DB: day capacity counts every draft scheduled on that date,
+    so live rows consume slots this test expects to be free."""
     cur = db_rollback.cursor()
     monkeypatch.setattr(schedule.config, "PER_INBOX_DAILY_CAP", 50)
     inbox = f"q-{uuid.uuid4().hex[:6]}@x.uk"

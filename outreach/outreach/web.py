@@ -1862,7 +1862,13 @@ def _job_badge(status: str) -> str:
 def _param_input(p) -> str:
     if p.kind == "bool":
         checked = " checked" if p.default else ""
+        # The hidden "0" is load-bearing. An UNCHECKED checkbox is simply absent from
+        # the POST body, and coerce_params reads an absent value as "use the default"
+        # — so a bool defaulting True could never be turned OFF from the console, which
+        # made a live (non-dry-run) tick unlaunchable. Submitting both means the later
+        # value wins in form.items(): ticked -> "1", unticked -> "0".
         return (f'<label class="fld" style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0">'
+                f'<input type="hidden" name="{p.name}" value="0">'
                 f'<input type="checkbox" name="{p.name}" value="1"{checked} style="min-width:0"> {html.escape(p.label)}</label>')
     itype = "number" if p.kind == "int" else "text"
     dflt = "" if p.default is None else html.escape(str(p.default))

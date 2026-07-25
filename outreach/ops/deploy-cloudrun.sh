@@ -47,18 +47,36 @@ SECRETS=(DATABASE_URL COMPANIES_HOUSE_API_KEY MILLIONVERIFIER_API_KEY
 # Scheduler tick 401 and stops the pipeline dead with nothing in the deploy output
 # saying so. Merging means a deploy can no longer un-configure a running service.
 # To REMOVE a var, do it explicitly: gcloud run services update --remove-env-vars NAME
+#
+# The merge alone was NOT enough. A var written as `NAME=${NAME:-default}` is always
+# present in the merge, so an unset shell variable still OVERWRITES the running
+# service with the default — which is how a deploy silently put INBOUND_SOURCE back
+# to `inline` after it had been turned on, muting bounce/opt-out ingestion with
+# nothing in the output saying so. The merge only protects vars the deploy DOESN'T
+# mention. Hence the split below.
+
+# 1. BUILD-TIME config — tracks the code, so the deploy legitimately owns it and
+#    re-asserting it on every deploy is correct.
 ENV_VARS="BASE_PATH=$BASE_PATH,DB_SCHEMA=outreach,ENQUIRY_SOURCE_TABLE=leads"
 # Gemini promoted after the drafting bench (gemini-3-flash-preview won 4-2 + 3x cheaper).
 # Draws the GCP credit; signal/ICP use gemini-3.1-flash-lite, drafting gemini-3-flash-preview.
 ENV_VARS+=",LLM_PROVIDER=gemini,WEBSITE_RESOLVER=firecrawl"
-# Every value below is env-overridable, and unset ones are simply left alone by the
-# merge rather than being blanked.
-ENV_VARS+=",GEMINI_PROJECT=$PROJECT,PIPELINE_AUTONOMOUS=${PIPELINE_AUTONOMOUS:-0}"
-ENV_VARS+=",PLACES_PER_TICK=${PLACES_PER_TICK:-16}"
-ENV_VARS+=",INBOUND_SOURCE=${INBOUND_SOURCE:-inline}"
-ENV_VARS+=",CREDIT_START_DATE=${CREDIT_START_DATE:-}"   # YYYY-MM-DD → 90-day credit countdown
-ENV_VARS+=",GMAIL_SENDER=${GMAIL_SENDER:-finlay@settlepaygroup.uk}"
-[ -n "${OPERATOR_EMAIL:-}" ] && ENV_VARS+=",OPERATOR_EMAIL=$OPERATOR_EMAIL"
+ENV_VARS+=",GEMINI_PROJECT=$PROJECT"
+
+# 2. OPERATIONAL STATE — a human owns these, and a code deploy must never move them.
+#    Emitted ONLY when explicitly set for this invocation; otherwise omitted, so the
+#    merge leaves whatever the operator last set on the service untouched. Each has a
+#    safe default in config.py, so an omitted var is never an undefined one.
+#    To change one:  PIPELINE_AUTONOMOUS=1 ops/deploy-cloudrun.sh deploy
+#              or:   gcloud run services update ... --update-env-vars NAME=value
+#    (`if`, not `[ … ] && …`: under `set -e` a false test as the last statement in the
+#    loop body would abort the deploy on the first unset var.)
+for v in PIPELINE_AUTONOMOUS PLACES_PER_TICK INBOUND_SOURCE CREDIT_START_DATE \
+         GMAIL_SENDER OPERATOR_EMAIL; do
+  if [ -n "${!v:-}" ]; then ENV_VARS+=",$v=${!v}"; fi
+done
+# G_SEND is deliberately absent from that list and from this script: live sending is
+# cleared by a human on the service, never by a deploy.
 
 cmd="${1:-}"
 

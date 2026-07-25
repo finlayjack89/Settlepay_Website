@@ -39,11 +39,64 @@ def test_parse_plain_reply():
     assert inbound.classify(m) == "reply"
 
 
+def _real_gmail_dsn(mid="m3", failed="info@bpelectrical.co", failed_header=True):
+    """The structure Gmail ACTUALLY sends, captured from the first live bounce this
+    pipeline received (2026-07-24). The machine-readable section is a text/plain CHILD
+    of message/delivery-status, not the part's own body — the simplified fixture above
+    is not representative, and reading only the part's body finds no recipient."""
+    status = (f"Final-Recipient: rfc822; {failed}\nAction: failed\nStatus: 5.1.1\n"
+              "Diagnostic-Code: smtp; The email account that you tried to reach does "
+              "not exist.\n")
+    headers = [{"name": "From",
+                "value": "Mail Delivery Subsystem <mailer-daemon@googlemail.com>"},
+               {"name": "Subject", "value": "Delivery Status Notification (Failure)"}]
+    if failed_header:
+        headers.append({"name": "X-Failed-Recipients", "value": failed})
+    return {"id": mid, "threadId": "t3", "payload": {
+        "mimeType": "multipart/report", "headers": headers,
+        "parts": [
+            {"mimeType": "multipart/related", "parts": [
+                {"mimeType": "multipart/alternative", "parts": [
+                    {"mimeType": "text/plain",
+                     "body": {"data": _b64("Address not found. Your message wasn't "
+                                           "delivered.")}},
+                    {"mimeType": "text/html",
+                     "body": {"data": _b64("<p>Address not found.</p>")}},
+                ]},
+                {"mimeType": "image/png", "body": {}},
+            ]},
+            # no body.data of its own — the payload hangs off the child below
+            {"mimeType": "message/delivery-status", "body": {},
+             "parts": [{"mimeType": "text/plain", "body": {"data": _b64(status)}}]},
+            {"mimeType": "text/rfc822-headers",
+             "body": {"data": _b64("To: info@bpelectrical.co\n")}},
+        ],
+    }}
+
+
 def test_parse_dsn_extracts_original_recipient():
     m = inbound._parse_gmail_message(_dsn_msg())
     assert m["is_ndr"] is True
     assert m["original_recipient"] == "info@dead-domain.co.uk"
     assert inbound.classify(m) == "bounce"
+
+
+def test_parse_real_gmail_dsn_reads_nested_delivery_status():
+    """Regression: Gmail nests the DSN status section one level deeper than the
+    simplified fixture. Without X-Failed-Recipients to fall back on, the old parser
+    returned original_recipient=None and the wrong address would have been suppressed
+    (the daemon's, via ingest_one's `from_email` fallback) — or none at all."""
+    m = inbound._parse_gmail_message(_real_gmail_dsn(failed_header=False))
+    assert m["is_ndr"] is True
+    assert m["original_recipient"] == "info@bpelectrical.co"
+    assert inbound.classify(m) == "bounce"
+
+
+def test_real_gmail_dsn_body_is_the_notice_not_the_status_section():
+    """The DSN's text/plain child must never be mistaken for a reply body."""
+    m = inbound._parse_gmail_message(_real_gmail_dsn())
+    assert "Address not found" in m["body"]
+    assert "Final-Recipient" not in m["body"]
 
 
 def test_html_fallback_body():
