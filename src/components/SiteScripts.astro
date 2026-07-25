@@ -168,6 +168,36 @@
     // inverted trigger (show once it's gone), preserving the old behaviour.
     const usesFallback = triggers.length === 0;
     const watched = [...triggers, ...suppressors, ...(header ? [header] : [])];
+    // The skirt paints the band below the layout viewport that Safari leaves to
+    // the scrolling document (see StickyCta.astro). It has to BE document
+    // content to paint there, so it is absolutely positioned and follows the
+    // viewport bottom. Clamped to the document's natural height, measured with
+    // the skirt out of flow — otherwise each move would extend the scroll area
+    // and the page would grow as you scroll.
+    const skirt = document.querySelector<HTMLElement>('[data-sticky-skirt]');
+    const SKIRT_OVERLAP = 24;
+    let naturalHeight = 0;
+    let skirtQueued = false;
+    const measureNatural = () => {
+      if (!skirt) return;
+      const prev = skirt.style.display;
+      skirt.style.display = 'none';
+      naturalHeight = document.documentElement.scrollHeight;
+      skirt.style.display = prev;
+    };
+    const placeSkirt = () => {
+      skirtQueued = false;
+      if (!skirt || !skirt.classList.contains('is-visible')) return;
+      const wanted = window.scrollY + window.innerHeight - SKIRT_OVERLAP;
+      const limit = naturalHeight - skirt.offsetHeight;
+      skirt.style.top = `${Math.max(0, Math.min(wanted, limit))}px`;
+    };
+    const queueSkirt = () => {
+      if (skirtQueued) return;
+      skirtQueued = true;
+      requestAnimationFrame(placeSkirt);
+    };
+
     if (watched.length) {
       const intersecting = new Map<Element, boolean>();
       watched.forEach((el) => intersecting.set(el, false));
@@ -176,13 +206,24 @@
         const active = usesFallback
           ? (header ? !intersecting.get(header) : false)
           : triggers.some((el) => intersecting.get(el));
-        stickyCta.classList.toggle('is-visible', active && !suppressed);
+        const show = active && !suppressed;
+        stickyCta.classList.toggle('is-visible', show);
+        if (skirt) {
+          skirt.classList.toggle('is-visible', show);
+          if (show) placeSkirt();
+        }
       };
       const stickyIo = new IntersectionObserver((entries) => {
         entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
         syncSticky();
       }, { threshold: 0 });
       watched.forEach((el) => stickyIo.observe(el));
+      if (skirt) {
+        measureNatural();
+        window.addEventListener('scroll', queueSkirt, { passive: true });
+        window.addEventListener('resize', () => { measureNatural(); placeSkirt(); });
+        window.visualViewport?.addEventListener('resize', queueSkirt);
+      }
       syncSticky();
     }
   }

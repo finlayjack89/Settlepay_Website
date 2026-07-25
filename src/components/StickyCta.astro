@@ -26,17 +26,10 @@ import Button from './Button.astro';
     <p class="sticky-cta__note">Free and no obligation — a reply within one working day.</p>
   </div>
 </div>
+<div class="sticky-cta-skirt" data-sticky-skirt aria-hidden="true"></div>
 
 <style>
   .sticky-cta {
-    /* Do NOT try to overscan this panel past `bottom: 0` to chase the strip
-       behind Safari's floating toolbar. That strip is outside the layout
-       viewport and every fixed layer is clipped to it — measured four ways on
-       an iPhone 17 Pro Max / iOS 26 (a separate overscan element, a ::after,
-       a negative `bottom` on this box, and `theme-color`: all no-ops). What
-       shows there is the scrolling document, which only the body background can
-       replace, and only while the document is scroll-locked — which is exactly
-       why the modal veil fix works and this cannot. */
     position: fixed;
     left: 0;
     right: 0;
@@ -59,9 +52,38 @@ import Button from './Button.astro';
       visibility 0s linear 420ms;
   }
 
+  /* The skirt — what makes the panel reach the bottom of the screen on iOS.
+     Safari anchors `bottom: 0` to the layout viewport and then keeps painting
+     the scrolling document in the ~35px band below it, behind the floating
+     toolbar; that band is the "gap under the bar". Every position:fixed layer
+     is hard-clipped at the anchor, so the panel itself can never cover it —
+     measured against a same-frame control on an iPhone 17 Pro Max / iOS 26,
+     a fixed box stops at layout 795.7 while an absolutely positioned one
+     paints on to 831.3. The skirt is therefore document content (absolute,
+     scroll-synced in SiteScripts), which is exactly how an ordinary in-flow
+     section reaches the bottom edge.
+
+     It deliberately overlaps the panel by SKIRT_OVERLAP so a frame of scroll
+     lag can never open a seam; the panel's higher z-index keeps the overlap
+     invisible. */
+  .sticky-cta-skirt {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 160px;
+    z-index: 89; /* directly beneath the panel */
+    display: none;
+    visibility: hidden;
+    background: var(--color-pure-white);
+    pointer-events: none;
+  }
+
   @media (max-width: 768px) {
     .sticky-cta { display: block; }
+    .sticky-cta-skirt { display: block; }
   }
+
+  .sticky-cta-skirt.is-visible { visibility: visible; }
 
   .sticky-cta.is-visible {
     transform: translateY(0);
