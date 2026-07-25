@@ -665,3 +665,80 @@ def test_refresh_facts_does_not_spin_on_an_unplaceable_lead(db_rollback, monkeyp
     cur.execute("update outreach.enrichment set facts_refreshed_at = now() - interval '60 days' "
                 "where company_number=%s", (cn,))
     assert enrich.refresh_facts(limit=5, cur=cur)["refreshed"] == 1   # eligible again
+
+
+# --------------------------------------------------------------------------- #
+#  yield: the address was found and thrown away
+# --------------------------------------------------------------------------- #
+def test_accepts_the_same_business_on_a_sibling_domain():
+    """The single biggest source of lost yield. Of 267 leads discarded as "no email",
+    107 had candidates and every one was rejected — most of them the business's own
+    address on a different TLD."""
+    assert enrich.pick_contact_email(
+        ["info@comfortelectrical.co.uk"], prefer_domain="comfortelectrical.com",
+        company_name="Comfort Electrical ltd") == "info@comfortelectrical.co.uk"
+    # and when the resolved "website" was a booking platform, the real domain was the
+    # one being rejected as off-domain
+    assert enrich.pick_contact_email(
+        ["info@thestationmg.co.uk"], prefer_domain="thestationmg.setmore.com",
+        company_name="THE STATION BARBERS COLCHESTER LTD") == "info@thestationmg.co.uk"
+
+
+def test_still_refuses_another_company_on_a_different_domain():
+    """The relaxation must not become a way for a directory or a stranger's mailbox
+    back in."""
+    assert enrich.pick_contact_email(
+        ["info@checkatrade.com"], prefer_domain="dchelectrical.co.uk",
+        company_name="DCH Electrical") is None
+    assert enrich.pick_contact_email(
+        ["enquiries@ellipseaccountants.co.uk"], prefer_domain="harmanhunter.co.uk",
+        company_name="HARMAN & HUNTER ACCOUNTANTS") is None
+
+
+def test_accepts_freemail_only_when_it_carries_the_business_name():
+    """A blanket freemail ban was a side effect, not a decision: plenty of small UK Ltds
+    publish a gmail/msn address as their business contact. The local part is what
+    separates the business's own mailbox from a person's."""
+    assert enrich.pick_contact_email(
+        ["363electrical@gmail.com"], prefer_domain="363electrical.co.uk",
+        company_name="363 Electrical LTD") == "363electrical@gmail.com"
+    assert enrich.pick_contact_email(
+        ["aandbelectricalservices@msn.com"], prefer_domain="abelectricalbasildon.co.uk",
+        company_name="A & B Electrical Services") == "aandbelectricalservices@msn.com"
+    # a personal address that happened to be on the page is still refused
+    assert enrich.pick_contact_email(
+        ["dedaergis7@gmail.com"], prefer_domain="ee-s.co.uk",
+        company_name="EES Electrical Engineering Solutions") is None
+    # ...and so is a font author's, which is where this rule came from
+    assert enrich.pick_contact_email(
+        ["impallari@gmail.com"], prefer_domain="ellipse.co.uk",
+        company_name="Ellipse Accountants") is None
+
+
+def test_own_domain_still_wins_over_a_sibling_or_freemail():
+    got = enrich.pick_contact_email(
+        ["acmeplumbing@gmail.com", "info@acmeplumbing.com", "info@acmeplumbing.co.uk"],
+        prefer_domain="acmeplumbing.co.uk", company_name="Acme Plumbing Ltd")
+    assert got == "info@acmeplumbing.co.uk"
+
+
+def test_mx_pregate_fails_open():
+    """"We could not ask DNS" must never read as "this domain is dead" — the same
+    mistake the verifier chain made with no_verifier. One wasted credit beats a
+    silently skipped lead."""
+    from outreach import dns_auth
+
+    class _Broken:
+        def get(self, *a, **k):
+            raise httpx.ConnectError("dns down")
+
+    dns_auth._MX_CACHE.clear()
+    assert dns_auth.has_mx("acme.co.uk", client=_Broken()) is True
+
+    class _NxDomain:
+        def get(self, *a, **k):
+            return type("R", (), {"raise_for_status": lambda s: None,
+                                  "json": lambda s: {"Status": 3}})()
+
+    dns_auth._MX_CACHE.clear()
+    assert dns_auth.has_mx("no-such-domain-xyz.co.uk", client=_NxDomain()) is False

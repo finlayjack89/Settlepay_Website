@@ -600,13 +600,18 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
             # contact and constants are already good, it was our writing that failed, so
             # re-verifying them would spend credits to re-learn what we know. Leads
             # parked by enrichment carry a different reason and are not picked up here.
+            # A catch-all ('risky') contact is refused at send unless RISKY_SEND_ENABLED,
+            # so drafting one spends LLM credit and a slot of human review on an email
+            # that cannot go out. It stays enriched and waits for that decision instead.
             "where e.facts is not null "
+            "  and (%s or e.contact_tier is distinct from 'risky') "
             "  and (l.state='enriched' "
             "       or (l.state='parked' and l.parked_reason like 'draft %%' "
             "           and l.parked_at < now() - make_interval(hours => %s))) "
             "order by l.updated_at "
             + ("limit %s" if limit else ""),
-            ((config.PARK_RETRY_HOURS, limit) if limit else (config.PARK_RETRY_HOURS,))
+            ((config.RISKY_SEND_ENABLED, config.PARK_RETRY_HOURS, limit) if limit
+             else (config.RISKY_SEND_ENABLED, config.PARK_RETRY_HOURS))
         )
         for cn, name, sig, contact_name, raw_facts in cur.fetchall():
             # Per-lead savepoint: one lead's failure must never discard the whole

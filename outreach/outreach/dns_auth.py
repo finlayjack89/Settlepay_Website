@@ -44,6 +44,44 @@ def check_domain(domain: str, *, dkim_selector: str = "google", client=None) -> 
             "ready": spf and dkim and dmarc}
 
 
+_MX_CACHE: dict[str, bool] = {}
+
+
+def has_mx(domain: str, *, client=None) -> bool:
+    """Can this domain receive mail at all?
+
+    The pre-gate that makes generic guessing affordable: a domain with no mail exchanger
+    cannot accept `info@anything`, so probing it spends a verifier credit to learn
+    nothing. DNS costs nothing; verifier credits do.
+
+    FAILS OPEN. A DoH outage or a malformed answer returns True, because "we could not
+    ask" must never be read as "this domain is dead" — the same mistake the verifier
+    chain made with `no_verifier`. Failing open wastes one credit; failing closed
+    silently skips a real lead.
+    """
+    domain = (domain or "").strip().lower().lstrip("@")
+    if not domain:
+        return False
+    if domain in _MX_CACHE:
+        return _MX_CACHE[domain]
+    owns = client is None
+    client = client or httpx.Client(timeout=10)
+    try:
+        r = client.get(DOH_ENDPOINT, params={"name": domain, "type": "MX"})
+        r.raise_for_status()
+        data = r.json() or {}
+        # NXDOMAIN (3) is a real answer: the domain does not exist.
+        result = (False if data.get("Status") == 3
+                  else any(a.get("type") == 15 for a in data.get("Answer", []) or []))
+    except (httpx.HTTPError, ValueError):
+        return True                       # could not ask -> do not penalise the lead
+    finally:
+        if owns:
+            client.close()
+    _MX_CACHE[domain] = result
+    return result
+
+
 def domain_of(sender: Optional[str]) -> Optional[str]:
     if not sender:
         return None

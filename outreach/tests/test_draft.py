@@ -487,3 +487,40 @@ def test_a_lead_parked_by_drafting_retries_drafting_not_enrichment(db_rollback):
     draft.run(provider=_ScriptedProvider({"Park Co Ltd": compliant}), cur=cur)
     cur.execute("select state::text, parked_at from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone() == ("drafted", None)
+
+
+def test_a_catch_all_contact_is_not_drafted_until_we_decide_to_send_to_it(db_rollback,
+                                                                          monkeypatch):
+    """'risky' leads were enriched, drafted (paid), human-reviewed, approved, scheduled —
+    and then permanently refused at send.py because RISKY_SEND_ENABLED is off. Full cost,
+    zero possibility of delivery."""
+    import uuid
+
+    from outreach import config, draft
+
+    cur = db_rollback.cursor()
+    cn = f"RISKY_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,'Risky Co Ltd','ltd','corporate','enriched')",
+                (cn,))
+    cur.execute("insert into outreach.enrichment (company_number, website, contact_email, "
+                "contact_tier, email_verified, signal, facts) "
+                "values (%s,'https://x.co','info@x.co','risky',true,'sig',%s::jsonb)",
+                (cn, facts.dumps(facts.build(company_name="Risky Co Ltd"))))
+
+    compliant = _payload("payments at risky co",
+                         "Hi Risky Co, a note from SettlePay. Payments are handled by "
+                         "FCA-regulated partners. Reply unsubscribe to opt out. "
+                         "Kind regards, Finlay Salisbury SettlePay")
+    monkeypatch.setattr(config, "RISKY_SEND_ENABLED", False)
+    draft.run(provider=_ScriptedProvider({"Risky Co Ltd": compliant}), cur=cur)
+    cur.execute("select count(*) from outreach.drafts where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == 0
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "enriched"      # waiting on the decision, not discarded
+
+    # ...and it is drafted the moment that decision is made
+    monkeypatch.setattr(config, "RISKY_SEND_ENABLED", True)
+    draft.run(provider=_ScriptedProvider({"Risky Co Ltd": compliant}), cur=cur)
+    cur.execute("select count(*) from outreach.drafts where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == 1
