@@ -31,12 +31,22 @@ from .draft import PROMPT_VERSION
 AUTO_REVIEWER = "auto:graduation"
 EVIDENCE_MAX_CHARS = 400
 
-_METRICS_SQL = """
+# The vertical a lead is graded under: Companies House SIC first, then the Places
+# listing's own category.
+#
+# Keying on sic_codes[1] alone made graduation structurally DEAD. sic_codes is null for
+# all 14,870 Places leads — 99.2% of the corpus — so the only route to lights-out
+# operation could never see almost any of it. The listing's `primary_type` was sitting
+# in registered_address the whole time; the same gap left `vertical` resolved on 18 of
+# 460 enrichment rows.
+_VERTICAL = "coalesce(l.sic_codes[1], l.registered_address->>'primary_type')"
+
+_METRICS_SQL = f"""
 with vertical_drafts as (
-  select l.sic_codes[1] as vertical, d.status, d.decided_by, d.body_original, d.body_final
+  select {_VERTICAL} as vertical, d.status, d.decided_by, d.body_original, d.body_final
   from outreach.drafts d
   join outreach.leads l on l.company_number = d.company_number
-  where d.prompt_version = %s and l.sic_codes[1] is not null
+  where d.prompt_version = %s and {_VERTICAL} is not null
 ),
 reviewed as (
   select vertical,
@@ -47,17 +57,17 @@ reviewed as (
   from vertical_drafts group by vertical
 ),
 live as (
-  select l.sic_codes[1] as vertical, count(*) as live_sends
+  select {_VERTICAL} as vertical, count(*) as live_sends
   from outreach.sends s join outreach.leads l on l.company_number = s.company_number
-  where s.mode = 'live' and l.sic_codes[1] is not null
+  where s.mode = 'live' and {_VERTICAL} is not null
   group by 1
 ),
 signals as (
-  select l.sic_codes[1] as vertical,
+  select {_VERTICAL} as vertical,
          count(*) filter (where r.kind = 'bounce') as bounces,
          count(*) filter (where r.kind = 'complaint') as complaints
   from outreach.replies r join outreach.leads l on l.company_number = r.company_number
-  where l.sic_codes[1] is not null
+  where {_VERTICAL} is not null
   group by 1
 )
 select r.vertical, r.reviewed, r.approved, r.approved_unedited,
@@ -139,10 +149,10 @@ def run(*, cur=None, limit=None) -> list[dict]:
         metrics = {m["vertical"]: m for m in vertical_metrics(cur) if _meets(m, thresholds)}
         if metrics:
             sql = (
-                "select d.id, d.company_number, l.sic_codes[1] "
+                f"select d.id, d.company_number, {_VERTICAL} "
                 "from outreach.drafts d join outreach.leads l on l.company_number = d.company_number "
                 "where d.status = 'awaiting_approval' and d.touch = 1 "
-                "and d.prompt_version = %s and l.sic_codes[1] = any(%s) "
+                f"and d.prompt_version = %s and {_VERTICAL} = any(%s) "
                 "and l.state in ('drafted','awaiting_approval') "
                 "order by d.created_at"
             )

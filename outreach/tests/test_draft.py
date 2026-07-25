@@ -429,6 +429,11 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
                 (cn, facts.dumps(facts.build(
                     company_name="Acme Ltd", contact_name="SMITH, John",
                     contact_name_source="ch_officer_verified_email"))))
+    # The backlog is shared and ordered by updated_at ascending, so backdating this lead
+    # puts it first deterministically — rather than raising the limit until the batch
+    # happens to reach it, which would draft every other enriched lead on the way.
+    cur.execute("update outreach.leads set updated_at = timestamptz '1971-01-01' "
+                "where company_number = %s", (cn,))
     seen = {}
 
     class _P:
@@ -444,7 +449,7 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
                          "FCA-regulated partners. Reply unsubscribe to opt out.\n\n"
                          "Kind regards,\nFinlay Salisbury\nSettlePay")})})()
 
-    draft.run(provider=_P(), cur=cur, limit=50)
+    draft.run(provider=_P(), cur=cur, limit=1)
     # the name reaches the model as a resolved CONSTANT plus the greeting instruction
     assert 'Dear John,' in seen["prompt"]
     assert "contact_name: SMITH, John" in seen["prompt"]

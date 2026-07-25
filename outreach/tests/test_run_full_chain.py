@@ -222,3 +222,66 @@ def test_draft_runs_and_is_limited_by_remaining_backlog_room(db_rollback, monkey
                         lambda **k: captured.update(k) or [])
     run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
     assert captured["limit"] == 3      # only room for 3 more before the cap
+
+
+def _minimal(monkeypatch, order):
+    """Stub everything the tick touches so only stage SELECTION is under test."""
+    _stub_stages(monkeypatch, order)
+    sentinel = object()
+    monkeypatch.setattr(run_mod, "_own", lambda fn: fn(sentinel))
+    monkeypatch.setattr(run_mod.send_mod, "_kill_switch_on", lambda cur: False)
+    monkeypatch.setattr(run_mod, "_advance_sends", lambda c, **k: [])
+    monkeypatch.setattr(run_mod.firewall, "run", lambda **k: {})
+    monkeypatch.setattr(run_mod.spend, "ensure_under_cap", lambda **k: None)
+    monkeypatch.setattr(run_mod.stats, "review_backlog", lambda *a, **k: 0)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
+
+
+def test_autonomy_is_a_ramp_not_a_switch(monkeypatch):
+    """PIPELINE_AUTONOMOUS turned all eight expensive stages on together — the one
+    change whose effects cannot be attributed, because if spend or volume moves you
+    cannot tell which stage moved it. The allowlist enables them one at a time."""
+    order: list = []
+    _minimal(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", False)
+    monkeypatch.setattr(run_mod.config, "AUTONOMOUS_STAGES_ENABLED", ("crossref",))
+
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=None)
+    assert "crossref" in res["steps"]
+    for off in ("discover", "enrich", "draft", "followup", "auto_approve"):
+        assert off not in res["steps"], off
+    # the non-autonomous stages always run
+    assert "classify" in res["steps"] and "monitor" in res["steps"]
+    assert res["autonomous"] == ["crossref"]
+
+
+def test_adding_a_stage_adds_exactly_that_stage(monkeypatch):
+    order: list = []
+    _minimal(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", False)
+    monkeypatch.setattr(run_mod.config, "AUTONOMOUS_STAGES_ENABLED", ("crossref", "enrich"))
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=None)
+    assert "crossref" in res["steps"] and "enrich" in res["steps"]
+    assert "draft" not in res["steps"] and "discover" not in res["steps"]
+
+
+def test_the_old_boolean_still_means_everything(monkeypatch):
+    """Nothing already deployed changes meaning."""
+    order: list = []
+    _minimal(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "AUTONOMOUS_STAGES_ENABLED", ())
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=None)
+    for s in ("discover", "enrich", "draft", "followup", "auto_approve"):
+        assert s in res["steps"], s
+    assert res["autonomous"] == "all"
+
+
+def test_nothing_enabled_runs_no_autonomous_stage(monkeypatch):
+    order: list = []
+    _minimal(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", False)
+    monkeypatch.setattr(run_mod.config, "AUTONOMOUS_STAGES_ENABLED", ())
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=None)
+    assert res["autonomous"] == "none"
+    assert not (set(run_mod.AUTONOMOUS_STAGES) & set(res["steps"]))
