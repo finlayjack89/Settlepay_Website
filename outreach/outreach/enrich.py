@@ -1192,7 +1192,11 @@ _BACKLOG_SQL = (
     # would spend verifier credits to re-learn what we already know.
     "         and l.parked_reason not like 'draft %%' "
     "         and l.parked_at < now() - make_interval(hours => %s)) ) "
-    "order by (l.state='discovered') desc, l.company_name limit %s")
+    # PARKED first, deliberately. A parked lead has already cost Places credit, a
+    # website resolve, a scrape and a Gemini call — only the contact is missing, so its
+    # MARGINAL cost is lower than a fresh lead's and it is closer to being sendable.
+    # Fresh-first would have left the 272 recovered leads queued behind 2,318 others.
+    "order by (l.state='parked') desc, l.parked_at nulls last, l.company_name limit %s")
 
 # Sources whose locality is the business's TRADING town (a Google/Places listing), not
 # a registered-office address. A Ltd's registered office is routinely its accountant or a

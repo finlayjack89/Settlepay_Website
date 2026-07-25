@@ -227,15 +227,15 @@ def _facts(**kw):
 
 def test_grounding_rejects_a_place_that_is_not_the_resolved_location():
     """The wrong-location failure: a town nobody verified, asserted as fact."""
-    body = ("Dear Acme Joinery,\n\nMost firms in Westbury-On-Severn still wait on "
-            "bank transfers. Kind regards, Finlay")
+    body = ("Dear Acme Joinery,\n\nMost firms in Westbury-On-Severn still wait weeks "
+            "to be paid. Kind regards, Finlay")
     v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
                               lead_facts=_facts())
     assert v and "Westbury-On-Severn" in v[0]
 
 
 def test_grounding_accepts_the_resolved_location():
-    body = ("Dear Acme Joinery,\n\nMost firms in Hull still wait on bank transfers. "
+    body = ("Dear Acme Joinery,\n\nMost firms in Hull still wait weeks to be paid. "
             "Kind regards, Finlay")
     assert draft.check_grounding(
         body, contact_name=None, company_name="Acme Joinery",
@@ -246,7 +246,7 @@ def test_grounding_accepts_the_resolved_location():
     "across the UK", "in England", "around the county", "in your area"])
 def test_grounding_allows_generic_geography(phrase):
     """These assert nothing specific about this lead, so they are not location claims."""
-    body = f"Dear Acme Joinery,\n\nTrades {phrase} wait on transfers. Kind regards, Finlay"
+    body = f"Dear Acme Joinery,\n\nTrades {phrase} wait weeks to be paid. Kind regards, Finlay"
     assert draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
                                  lead_facts=_facts()) == []
 
@@ -524,3 +524,85 @@ def test_a_catch_all_contact_is_not_drafted_until_we_decide_to_send_to_it(db_rol
     draft.run(provider=_ScriptedProvider({"Risky Co Ltd": compliant}), cur=cur)
     cur.execute("select count(*) from outreach.drafts where company_number=%s", (cn,))
     assert cur.fetchone()[0] == 1
+
+
+# --------------------------------------------------------------------------- #
+#  v2.9: stop asserting how they take money
+# --------------------------------------------------------------------------- #
+def test_grounding_rejects_an_unverified_payment_method():
+    """107 of 137 queued drafts stated how the recipient takes money, with
+    payment_method resolved on 0 of 460 leads. The playbook said the gap WAS bank
+    transfer; the facts block said UNKNOWN; nothing adjudicated."""
+    for claim in ("Most independent clinics still take bank transfer",
+                  "you rely on cheques at month end",
+                  "invoicing after the job means chasing it",
+                  "the sort code at the bottom of the invoice"):
+        body = f"Dear Acme Joinery,\n\n{claim}. Kind regards, Finlay"
+        v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                                  lead_facts=_facts())
+        assert any("take payment" in x for x in v), claim
+
+
+def test_grounding_allows_settlepays_own_offer_language():
+    """The check must not fire on what WE do — only on claims about the recipient."""
+    for ok in ("SettlePay gives you a branded card-payment page on your own domain",
+               "they keep their bank",
+               "it helps your cash flow",
+               "getting paid takes a fortnight and somebody has to chase it"):
+        body = f"Dear Acme Joinery,\n\n{ok}. Kind regards, Finlay"
+        v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                                  lead_facts=_facts())
+        assert not any("take payment" in x for x in v), ok
+
+
+def test_grounding_allows_a_verified_payment_method_and_only_that_one():
+    block = facts.build(company_name="Mews Auctions", payment_method="bank transfer",
+                        payment_method_source="site_quote")
+    ok = ("Dear Mews Auctions,\n\nSince you take payment by bank transfer after the "
+          "sale, month-end matching is somebody's afternoon. Kind regards, Finlay")
+    assert not any("take payment" in x for x in draft.check_grounding(
+        ok, contact_name=None, company_name="Mews Auctions", lead_facts=block))
+    wrong = "Dear Mews Auctions,\n\nYou take cheques. Kind regards, Finlay"
+    assert any("take payment" in x for x in draft.check_grounding(
+        wrong, contact_name=None, company_name="Mews Auctions", lead_facts=block))
+
+
+@pytest.mark.parametrize("phrase", [
+    "Invoices land in Xero automatically",
+    "an evening in January reconciling the bank",
+    "You get paid in Sterling",
+    "Most of your work happens in Victorian terraces",
+])
+def test_grounding_no_longer_calls_a_product_or_a_month_a_place(phrase):
+    """A bare "in" proves nothing about what follows. Treating every capitalised word
+    after it as a place claim made this gate reject software, months, currencies and
+    adjectives — and an unfixable violation used to DISCARD the lead."""
+    body = f"Dear Acme Joinery,\n\n{phrase}. Kind regards, Finlay"
+    v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                              lead_facts=_facts())
+    assert not any("place" in x for x in v), phrase
+
+
+@pytest.mark.parametrize("phrase,place", [
+    ("Trades in Blackpool wait weeks", "Blackpool"),
+    ("firms across Yorkshire wait weeks", "Yorkshire"),
+    ("You are based in Westbury-On-Severn", "Westbury-On-Severn"),
+])
+def test_grounding_still_catches_a_real_unverified_place(phrase, place):
+    body = f"Dear Acme Joinery,\n\n{phrase}. Kind regards, Finlay"
+    v = draft.check_grounding(body, contact_name=None, company_name="Acme Joinery",
+                              lead_facts=_facts())
+    assert any(place in x for x in v)
+
+
+def test_similarity_report_measures_what_nothing_measured():
+    same = ("getting paid takes a fortnight and somebody has to chase it every time "
+            "the invoice goes out")
+    other = ("saw you cover emergency call-outs across the county the admin afterwards "
+             "is usually the slow part")
+    assert draft.similarity_report([same, same])["max"] == 1.0
+    assert draft.similarity_report([same, other])["max"] == 0.0
+    assert draft.similarity_report([same])["pairs"] == 0          # nothing to compare
+    r = draft.similarity_report([same, same, other])
+    assert r["pairs"] == 3 and r["over_threshold"] == 1
+    assert r["worst"][0]["score"] == 1.0
