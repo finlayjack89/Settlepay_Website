@@ -81,10 +81,10 @@
      LAST. On-dark stage internals (hero layers 6px, flow nodes 8px) stay local. */
   --blur-glass-veil: 4px;   /* modal overlay — soften, don't frost */
   --blur-glass-chip: 14px;  /* StatusChip pills over imagery/dark stages */
-  --blur-glass-bar:  16px;  /* StickyCta mobile action bar (saturate-soft) */
+  --blur-glass-bar:  16px;  /* frosted action-bar / larger-sheet tier (reserved) */
   --blur-glass-nav:  18px;  /* the floating-island nav pill */
   --glass-saturate:      1.8; /* default frost saturation (nav, chips) */
-  --glass-saturate-soft: 1.4; /* larger sheets (StickyCta) */
+  --glass-saturate-soft: 1.4; /* larger sheets (reserved) */
 
   /* Animation — curve/duration split; the bundled --ease-* compositions are the
      everyday shorthand. Curves alone for keyframes/bespoke durations. */
@@ -1998,11 +1998,13 @@ html.reveal-ready .section--dark .integration__step.is-current {
     height: 36px;
   }
 
-  /* 36px logo → 44px vertical hit area; .navbar__logo is position:relative. */
+  /* 36px logo → 48px hit area; .navbar__logo is position:relative. The inset
+     is -6px, not -4px: measured tap height with -4px came out at 43px, a pixel
+     under the floor, because the anchor's line box is fractionally under 36px. */
   .navbar__logo::after {
     content: '';
     position: absolute;
-    inset: -4px 0;
+    inset: -6px -4px;
   }
 
   /* Real tall link rows on touch — drop the desktop negative-margin trick. */
@@ -2014,6 +2016,10 @@ html.reveal-ready .section--dark .integration__step.is-current {
 
   /* Mobile type floor (13px); exemptions listed in Docs/DESIGN-SYSTEM.md. */
   .footer__bottom p { font-size: 0.8125rem; }
+  /* The ROI figures are the argument on this page — their labels and the
+     methodology note are reading copy, not chrome. */
+  .calculator__result-label { font-size: 0.8125rem; }
+  .calculator__disclaimer { font-size: 0.8125rem; }
 
   .top-bar .container {
     justify-content: center;

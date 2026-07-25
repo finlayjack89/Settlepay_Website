@@ -150,35 +150,114 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Mobile sticky booking bar — slides in after the hero, hides whenever the
-  // final CTA band or footer is on screen so it never doubles up. Homepage only
-  // (the bar is only rendered there). Per-element Map because the IO callback
-  // reports only the entries whose intersection actually changed.
+  // Mobile enquiry panel — one appearance, not a per-section blink.
+  //
+  // It rises once the hero has scrolled away and then STAYS, standing aside only
+  // where a competing call to action is on screen (the final CTA band, the
+  // footer) so it never doubles up. The earlier rule showed it only over
+  // "value-demonstrating" sections, which flipped it four times in a single
+  // pass down the homepage — a ~5,700px hole in the middle where it vanished
+  // and came back. Intermittent chrome reads as a bug, not as a decision.
+  //
+  // The suppressors use a -25% bottom rootMargin so the handover happens when
+  // the competing CTA is genuinely in view, not the instant its first pixel
+  // crosses the fold.
+  // Per-element Map because the IO callback only reports entries that changed.
   // ---------------------------------------------------------------------------
   const stickyCta = document.querySelector('[data-sticky-cta]');
   if (stickyCta) {
-    // On interior pages the page-header stands in for the hero: the bar slides
-    // in once the header scrolls away, never on first paint.
-    const hero = document.getElementById('hero') || document.querySelector('.page-header');
-    // Suppressors: don't cover the real CTA / footer. (Add a cookie-banner
-    // selector here if consent UI is ever added.)
-    const suppressors = ['.cta-section', '.footer']
-      .map((s) => document.querySelector(s))
-      .filter((el): el is Element => el !== null);
-    const watched = [hero, ...suppressors].filter((el): el is Element => el !== null);
-    const intersecting = new Map<Element, boolean>();
-    watched.forEach((el) => intersecting.set(el, true));
-    const syncSticky = () => {
-      const heroGone = hero ? !intersecting.get(hero) : true;
-      const suppressed = suppressors.some((el) => intersecting.get(el));
-      stickyCta.classList.toggle('is-visible', heroGone && !suppressed);
+    const pick = (sels: string[]) =>
+      sels.flatMap((s) => Array.from(document.querySelectorAll(s)));
+    const suppressors = pick(['#enquire', '.footer']);
+    const header = document.getElementById('hero') || document.querySelector('.page-header');
+    const watched = [...suppressors, ...(header ? [header] : [])];
+    // The skirt paints the band below the layout viewport that Safari leaves to
+    // the scrolling document (see StickyCta.astro). It has to BE document
+    // content to paint there, so it is absolutely positioned and follows the
+    // viewport bottom. Clamped to the document's natural height, measured with
+    // the skirt out of flow — otherwise each move would extend the scroll area
+    // and the page would grow as you scroll.
+    const skirt = document.querySelector<HTMLElement>('[data-sticky-skirt]');
+    // How far the skirt tucks up behind the panel. This is the whole tolerance
+    // for scroll lag: the skirt is repositioned on the main thread while the
+    // panel is composited by the browser, so during a fast flick the skirt can
+    // sit a frame behind. Anything less than the lag shows as a hairline of page
+    // content at the panel's bottom edge. Bounded above by the panel's rounded
+    // corners — tuck up past those and the white skirt shows through the
+    // corner notches.
+    let skirtOverlap = 24;
+    let naturalHeight = 0;
+    let skirtHeight = 0;
+    let skirtQueued = false;
+    const measureNatural = () => {
+      if (!skirt) return;
+      const prev = skirt.style.display;
+      skirt.style.display = 'none';
+      naturalHeight = document.documentElement.scrollHeight;
+      skirt.style.display = prev;
+      skirtHeight = skirt.offsetHeight;
+      const panelHeight = stickyCta.getBoundingClientRect().height;
+      const radius = parseFloat(
+        getComputedStyle(stickyCta).borderTopLeftRadius || '24'
+      ) || 24;
+      skirtOverlap = Math.max(24, Math.min(72, panelHeight - radius - 16));
+      // Both layers slide exactly the same distance, derived from the panel so a
+      // taller panel (wrapped note at 360px) still clears the screen. Set on both
+      // elements: they are siblings, so neither inherits from the other.
+      const slide = `${panelHeight + 60}px`;
+      (stickyCta as HTMLElement).style.setProperty('--sticky-slide', slide);
+      skirt.style.setProperty('--sticky-slide', slide);
     };
-    const stickyIo = new IntersectionObserver((entries) => {
-      entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+    // No is-visible guard: the skirt must keep tracking the viewport through the
+    // slide-out too, or scrolling mid-animation freezes it while the panel moves.
+    const placeSkirt = () => {
+      skirtQueued = false;
+      if (!skirt) return;
+      const wanted = window.scrollY + window.innerHeight - skirtOverlap;
+      const limit = naturalHeight - skirtHeight;
+      skirt.style.top = `${Math.max(0, Math.min(wanted, limit))}px`;
+    };
+    const queueSkirt = () => {
+      if (skirtQueued) return;
+      skirtQueued = true;
+      requestAnimationFrame(placeSkirt);
+    };
+
+    if (watched.length) {
+      const intersecting = new Map<Element, boolean>();
+      watched.forEach((el) => intersecting.set(el, false));
+      const syncSticky = () => {
+        const suppressed = suppressors.some((el) => intersecting.get(el));
+        const past = header ? !intersecting.get(header) : true;
+        const show = past && !suppressed;
+        stickyCta.classList.toggle('is-visible', show);
+        if (skirt) {
+          skirt.classList.toggle('is-visible', show);
+          if (show) placeSkirt();
+        }
+      };
+      // Two observers: the header decides "have we started", the suppressors
+      // decide "is something better already on screen", and only the latter
+      // wants the late-handover margin.
+      const headerIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+        syncSticky();
+      }, { threshold: 0 });
+      const suppressIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+        syncSticky();
+      }, { threshold: 0, rootMargin: '0px 0px -25% 0px' });
+      if (header) headerIo.observe(header);
+      suppressors.forEach((el) => suppressIo.observe(el));
+      if (skirt) {
+        measureNatural();
+        placeSkirt();
+        window.addEventListener('scroll', queueSkirt, { passive: true });
+        window.addEventListener('resize', () => { measureNatural(); placeSkirt(); });
+        window.visualViewport?.addEventListener('resize', queueSkirt);
+      }
       syncSticky();
-    }, { threshold: 0 });
-    watched.forEach((el) => stickyIo.observe(el));
-    syncSticky();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -932,7 +1011,7 @@
         const source =
           (b as HTMLElement).dataset.enquireSource ||
           b.closest('section[id]')?.id ||
-          (b.closest('nav') ? 'nav' : b.closest('.sticky-cta') ? 'sticky-cta' : 'page');
+          (b.closest('nav') ? 'nav' : 'page');
         track('enquiry_open', { source });
         // Preview-aware prefill: a generated preview is the hottest intent
         // signal on the site — carry it into the conversation.

@@ -259,6 +259,21 @@ const defaultHex = swatches[0].hex;
       order: 2;
     }
   }
+
+  /* Touch targets: the swatch is a 40px disc and the segment button a 38px
+     pill — both under the 44px floor when tapped. Grown invisibly so the
+     swatch row keeps its measured spacing and the discs stay 40px. */
+  @media (max-width: 768px) {
+    .bs__swatch,
+    .bs__seg-btn { position: relative; }
+
+    .bs__swatch::after,
+    .bs__seg-btn::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .bs__swatch,
     .bs__share {

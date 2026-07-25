@@ -187,13 +187,19 @@
 .calculator__range:focus-visible::-moz-range-track { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25); }
 
 /* ---- Enquire modal ---- */
-/* While the modal is open, the ROOT CANVAS is the only layer iOS paints in
-   the strips behind the status bar and toolbar — every fixed layer (the
-   scrim included) is clipped to the layout viewport, and the body scroll
-   lock blanks the document layer out there. Recolour the canvas to the veil
-   tone so those strips join the veil instead of flashing the page's white.
-   Matches the JS theme-color swap in SiteScripts. */
-html.sp-modal-open { background: #7B7F8A; }
+/* Full-bleed veil coverage, verified on a real iPhone (iOS 26 Simulator):
+   every position:fixed layer — the scrim included — is hard-clipped to the
+   layout viewport, so none can paint the strips behind the status bar and the
+   floating toolbar. The layer iOS DOES extend edge-to-edge into those strips
+   is the BODY background. So while the modal is open we recolour the body (not
+   just html — body's opaque `--color-pure-white` was painting over the html
+   canvas, which is why the earlier html-only rule still showed white strips).
+   The tone #7B7F8A is exactly rgba(15,23,42,0.55) (the scrim) composited over
+   white, so the flat strips match the blurred viewport centre seamlessly. The
+   JS theme-color swap in SiteScripts covers the same zones for top-URL-bar
+   layouts. */
+html.sp-modal-open,
+html.sp-modal-open body { background-color: #7B7F8A; }
 .sp-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
   display: flex; align-items: center; justify-content: center;
@@ -1900,7 +1906,12 @@ html.sp-modal-open { background: #7B7F8A; }
   html.reveal-ready .market-shift__stage {
     position: sticky;
     top: 0;
+    /* dvh so the pinned stage is the height actually visible on iOS. With 100vh
+       alone it is sized to the toolbar-collapsed viewport, so while the toolbar
+       is expanded the vertically centred content sits low and its last line can
+       fall behind the toolbar. Identical to 100vh on desktop. */
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2860,4 +2871,21 @@ body { counter-reset: srcnote; }
   .trust-strip__caption { font-size: 0.8125rem; }
   .hero__eyebrow { font-size: 0.8125rem; }
   .sources__list li { font-size: 0.8125rem; }
+  /* Both reading copy, both were sitting at 0.8rem (12.8px) — a client link
+     and a section eyebrow, neither covered by the chip/mockup exemptions. */
+  .trust-strip__live { font-size: 0.8125rem; }
+  .card-moment__eyebrow { font-size: 0.8125rem; }
+  /* Form help text and the consent line (which carries the Privacy Policy
+     link) sit on the conversion path — they have to be legible. */
+  .sp-field__hint { font-size: 0.8125rem; }
+  .market-shift__source { font-size: 0.8125rem; }
+  .market-shift__fact span { font-size: 0.8125rem; }
+
+  /* Floated field label: 0.68rem (10.9px) is the smallest text anywhere on the
+     conversion path, and it is the only thing naming a filled field — for a
+     45-65+ audience that has to be legible. The extra top padding buys the
+     taller label its room so it never collides with the value below. */
+  .sp-field input:focus + label,
+  .sp-field input:not(:placeholder-shown) + label { font-size: 0.8125rem; }
+  .sp-field input { padding-top: 1.5rem; }
 }
