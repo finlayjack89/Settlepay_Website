@@ -371,12 +371,13 @@ html.sp-modal-open body { background-color: #7B7F8A; }
   .sp-modal__sub { font-size: 0.875rem; }
   .sp-modal__form { gap: 0.6rem; }
   .sp-field--area textarea { height: 4.5rem; min-height: 4.5rem; }
-  /* Consent first, reassurance second. The consent line is the one thing that
-     must be read before the button is pressed, and at order 2 it sat entirely
-     below the scroll fold on every phone; the reassurance list is the safer
-     thing to let scroll. */
-  .sp-modal__submit + .sp-field__hint { order: 1; }
-  .sp-modal__assure { order: 2; }
+  /* The reassurance list is the only thing here allowed to scroll. The consent
+     line needs no order override any more — it sits inside the sticky submit
+     block and pins with the button. The old
+     `.sp-modal__submit + .sp-field__hint` rule had to go with it: now that the
+     consent line has moved inside, that selector would match the hidden
+     validation note instead and quietly reorder it. */
+  .sp-modal__assure { order: 1; }
 }
 
 /* =========================================================================

@@ -74,12 +74,17 @@ import Button from './Button.astro';
           <li><Icon name="check" sw={2.5} />A reply within one working day</li>
           <li><Icon name="check" sw={2.5} />Payments are processed by FCA-regulated partners</li>
         </ul>
+        <!-- The consent line lives INSIDE the sticky block, so it pins with the
+             button instead of scrolling away from it. As a sibling it sat below
+             the fold on every phone and on desktop at 900-1080px viewport
+             heights — i.e. most laptops — which is the wrong place for the one
+             line that must be read before submitting. -->
         <div class="sp-modal__submit">
           <Button type="submit" icon="arrow" data-submit-btn>Send My Enquiry</Button>
+          <p class="sp-field__hint sp-modal__consent">
+            By submitting, you agree to our <a href="/privacy/">Privacy Policy</a>.
+          </p>
         </div>
-        <p class="sp-field__hint">
-          By submitting, you agree to our <a href="/privacy/">Privacy Policy</a>.
-        </p>
         <p class="sp-field__hint" data-form-note hidden aria-live="polite"></p>
         <p class="sp-field__hint" data-form-error hidden role="alert" aria-live="assertive" style="color:var(--color-error)"></p>
       </form>
@@ -138,6 +143,10 @@ import Button from './Button.astro';
     bottom: 0;
     z-index: 2;
     background: var(--color-pure-white);
+  }
+  /* Tucked under the button rather than spaced off it — they read as one block. */
+  .sp-modal__consent {
+    margin: 0.5rem 0 0;
   }
   /* Top fade so content scrolls under cleanly. While unpinned the strip
      sits entirely inside the empty gap above the button — invisible. */
