@@ -138,12 +138,17 @@ def test_firecrawl_fallback_skipped_without_key(db_rollback, monkeypatch):
     monkeypatch.setattr(enrich, "firecrawl_scrape_emails",
                         lambda url, **kw: calls.append(url) or ["x@y.com"])
     res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"), guess_generics=False)
-    assert res["email"] is None and not calls           # fallback never called -> discarded
+    assert res["email"] is None and not calls           # fallback never called
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
-    assert cur.fetchone()[0] == "discarded"
+    assert cur.fetchone()[0] == "parked"
 
 
-def test_enrich_one_no_email_is_discarded(db_rollback, monkeypatch):
+def test_enrich_one_no_email_is_parked_not_discarded(db_rollback, monkeypatch):
+    """'no_email' says OUR SEARCH found nothing — scrape_emails cannot tell "no address
+    published" apart from a wrong website, a JS-rendered contact page, or a site that was
+    briefly down. Discarding it destroyed 267 leads on the live database, each already
+    paid for in Places credit, a Firecrawl resolve and a Gemini call, and each then
+    hidden from the retry by the very row that recorded the failure."""
     cur = db_rollback.cursor()
     cn = f"ENR_NONE_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
@@ -152,8 +157,10 @@ def test_enrich_one_no_email_is_discarded(db_rollback, monkeypatch):
     res = enrich.enrich_one(cn, "https://acme.co.uk", "signal", cur=cur,
                             verifier=lambda e: (True, "ok"), guess_generics=False)
     assert res["email"] is None and res["verified"] is False
-    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
-    assert cur.fetchone()[0] == "discarded"
+    cur.execute("select state::text, park_count, parked_reason "
+                "from outreach.leads where company_number=%s", (cn,))
+    state, count, reason = cur.fetchone()
+    assert state == "parked" and count == 1 and "no_email" in reason
 
 
 # ---- guess-and-verify info@ (opt-in: it costs a verifier credit per prefix) ----
@@ -215,6 +222,9 @@ def test_catch_all_accepted_as_risky_tier(db_rollback, monkeypatch):
 
 
 def test_catch_all_discarded_when_disabled(db_rollback, monkeypatch):
+    """Still terminal, deliberately: the verifier ANSWERED, and retrying the same
+    address returns the same answer. Only a failure to obtain an address at all
+    ('no_email', 'recipient_mismatch') parks."""
     cur = db_rollback.cursor()
     cn = f"ENR_CAX_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
@@ -269,7 +279,7 @@ def test_a_deferred_lead_writes_no_enrichment_row_so_the_backlog_retries_it(db_r
 
     cur.execute("select count(*) from outreach.enrichment where company_number=%s", (cn,))
     assert cur.fetchone()[0] == 0
-    cur.execute(enrich._BACKLOG_SQL, (500,))
+    cur.execute(enrich._BACKLOG_SQL, (enrich.config.PARK_RETRY_HOURS, 500))
     assert cn in {r[0] for r in cur.fetchall()}
 
 
@@ -504,3 +514,120 @@ def test_a_mismatched_contact_never_makes_a_lead_contactable(db_rollback):
     assert out["email"] is None and out["result"] == "recipient_mismatch"
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
     assert cur.fetchone()[0] != "enriched"
+
+
+# --------------------------------------------------------------------------- #
+#  PARKED: our failures are recoverable, verdicts are not
+# --------------------------------------------------------------------------- #
+def test_a_parked_lead_comes_back_to_the_backlog_after_its_cooldown(db_rollback):
+    """The whole point of PARKED. The old backlog predicate was `not exists
+    (enrichment)`, so writing ANY row — including one whose only content was "we found
+    no email" — buried the lead permanently, and the only tool that ever recovered leads
+    was a hand-written SQL migration."""
+    from outreach import config, enrich
+    cur = db_rollback.cursor()
+    cn = f"PARK_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    g = {"email": None, "verified": False, "result": "no_email", "scrape_source": "httpx",
+         "candidates": [], "fit": None, "company_name": "Acme Ltd"}
+    enrich._persist(cn, "https://acme.co.uk", "sig", g, cur=cur)
+
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "parked"
+    # an enrichment row EXISTS (it holds the candidates a retry needs) and the lead is
+    # still findable — the two used to be mutually exclusive
+    cur.execute("select count(*) from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == 1
+
+    cur.execute(enrich._BACKLOG_SQL, (config.PARK_RETRY_HOURS, 5000))
+    assert cn not in {r[0] for r in cur.fetchall()}          # still cooling down
+
+    cur.execute("update outreach.leads set parked_at = now() - interval '48 hours' "
+                "where company_number=%s", (cn,))
+    cur.execute(enrich._BACKLOG_SQL, (config.PARK_RETRY_HOURS, 5000))
+    assert cn in {r[0] for r in cur.fetchall()}              # cooldown elapsed -> retried
+
+
+def test_parking_is_bounded_and_ends_in_a_real_discard(db_rollback):
+    """Parking must not become an infinite requeue: PARK_MAX attempts, then terminal."""
+    from outreach import states
+    cur = db_rollback.cursor()
+    cn = f"PARKMAX_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    seen = [states.park_lead(cur, cn, "enrich: no_email") for _ in range(states.PARK_MAX)]
+    assert seen[:-1] == ["parked"] * (states.PARK_MAX - 1)
+    assert seen[-1] == "discarded"
+    cur.execute("select state::text, park_count from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone() == ("discarded", states.PARK_MAX)
+
+
+def test_a_rescued_lead_rejoins_the_pipeline_and_its_park_marks_clear(db_rollback, monkeypatch):
+    from outreach import enrich
+    cur = db_rollback.cursor()
+    cn = f"RESCUE_{uuid.uuid4().hex[:8]}"
+    _seed_lead(cur, cn)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)
+    enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
+                      verifier=lambda e: (True, "ok"), guess_generics=False)
+    cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "parked"
+
+    # a later pass finds the address the first one missed
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
+                      verifier=lambda e: (True, "ok"), guess_generics=False)
+    cur.execute("select state::text, parked_reason, parked_at "
+                "from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone() == ("enriched", None, None)
+
+
+# --------------------------------------------------------------------------- #
+#  vertical: the Places listing already knew, and nobody read it
+# --------------------------------------------------------------------------- #
+def test_vertical_falls_back_to_the_places_listing_type():
+    """`vertical` resolved on 18 of 460 rows because it came only from
+    sic_label(sic_codes[1]) — and sic_codes is null for all 14,870 Places leads, while
+    the listing's own primary_type sat unread in registered_address."""
+    from outreach import enrich
+    assert enrich.vertical_from("Accountants", "electrician") == ("Accountants", "sic_label")
+    assert enrich.vertical_from(None, "electrician") == ("electrician", "places_listing")
+    assert enrich.vertical_from("Unknown", "dental_clinic") == ("dental clinic", "places_listing")
+    # a bare unmapped SIC code is not a descriptor, and neither is a generic Places type
+    assert enrich.vertical_from("47190", "establishment") == (None, None)
+    assert enrich.vertical_from(None, None) == (None, None)
+
+
+def test_refresh_facts_preserves_constants_it_cannot_rederive(db_rollback, monkeypatch):
+    """It used to rebuild the block from scratch, so running it over an auction-ingested
+    lead WIPED payment_method — a verbatim quote from the auctioneer's own site, and the
+    strongest hook in the corpus — while the docstring claimed it "touches nothing else"."""
+    from outreach import enrich, facts, geo
+    cur = db_rollback.cursor()
+    cn = f"REFRESH_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state, source, registered_address) "
+                "values (%s,%s,'ltd','corporate','enriched','saleroom',%s::jsonb)",
+                (cn, "Mews Auctions Ltd", '{"primary_type": "auction house"}'))
+    block = facts.build(company_name="Mews Auctions Ltd",
+                        payment_method="bank transfer", payment_method_source="site_quote",
+                        vertical="auctioneer", vertical_source="platform_listing")
+    cur.execute("insert into outreach.enrichment (company_number, website, contact_email, "
+                "email_verified, signal, facts) values (%s,null,'info@x.co',true,'sig',%s::jsonb)",
+                (cn, facts.dumps(block)))
+
+    monkeypatch.setattr(geo, "resolve_location", lambda **kw: {"town": None, "region": None,
+                                                               "source": None})
+    monkeypatch.setattr(enrich, "site_identity", lambda *a, **k: {})    # no network
+    # Scope the refresh to this one lead. The backlog is shared, so which other rows it
+    # would pick is not this test's business — and fetching their sites takes minutes.
+    monkeypatch.setattr(enrich, "_REFRESH_SQL", enrich._REFRESH_SQL.replace(
+        "where l.state in ('enriched','drafted','parked')",
+        f"where l.company_number = '{cn}' and l.state in ('enriched','drafted','parked')"))
+    enrich.refresh_facts(limit=5, cur=cur)
+
+    cur.execute("select facts from outreach.enrichment where company_number=%s", (cn,))
+    after = facts.loads(cur.fetchone()[0])
+    assert facts.value(after, "payment_method") == "bank transfer"
+    assert after["payment_method"].source == "site_quote"
+    assert facts.value(after, "vertical")            # not blanked by a null SIC

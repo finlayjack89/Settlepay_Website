@@ -17,7 +17,7 @@ import re
 import statistics
 from pathlib import Path
 
-from . import audit, config, db, facts
+from . import audit, config, db, facts, states
 from .llm import LLMUnavailable, draft_provider
 
 PLAYBOOK_PATH = config.PROJECT_ROOT / "prompts" / "draft_email.md"
@@ -491,8 +491,11 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     )
     draft_id = cur.fetchone()[0]
     cur.execute(
-        "update outreach.leads set state='drafted', updated_at=now() "
-        "where company_number=%s and state='enriched'", (company_number,))
+        # 'parked' included so a lead we previously failed to write for rejoins cleanly,
+        # and its park marks are cleared with it
+        "update outreach.leads set state='drafted', updated_at=now(), "
+        "  parked_reason=null, parked_at=null "
+        "where company_number=%s and state in ('enriched','parked')", (company_number,))
     # the constants (and where each came from) are part of the record: if a draft is ever
     # challenged, this is what it was allowed to assert and why.
     note = f"draft {draft_id} ({PROMPT_VERSION}); envelope ok; facts {facts.summarise(block)}"
@@ -593,8 +596,17 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
             "select l.company_number, l.company_name, e.signal, e.contact_name, e.facts "
             "from outreach.leads l "
             "join outreach.enrichment e on e.company_number=l.company_number "
-            "where l.state='enriched' and e.facts is not null order by l.updated_at "
-            + ("limit %s" if limit else ""), ((limit,) if limit else ())
+            # Leads parked BY DRAFTING come back here rather than to enrichment: their
+            # contact and constants are already good, it was our writing that failed, so
+            # re-verifying them would spend credits to re-learn what we know. Leads
+            # parked by enrichment carry a different reason and are not picked up here.
+            "where e.facts is not null "
+            "  and (l.state='enriched' "
+            "       or (l.state='parked' and l.parked_reason like 'draft %%' "
+            "           and l.parked_at < now() - make_interval(hours => %s))) "
+            "order by l.updated_at "
+            + ("limit %s" if limit else ""),
+            ((config.PARK_RETRY_HOURS, limit) if limit else (config.PARK_RETRY_HOURS,))
         )
         for cn, name, sig, contact_name, raw_facts in cur.fetchall():
             # Per-lead savepoint: one lead's failure must never discard the whole
@@ -610,15 +622,21 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
                                          lead_facts=block))
                 cur.execute("release savepoint draft_lead")
             except EnvelopeViolation as e:
-                # Unfixable after one retry — discard this lead (bounded: it will
-                # not be re-drafted every tick) and keep going.
+                # Unfixable after one retry — PARK, don't discard. This is our writing
+                # failing, not a verdict about the lead: three of the five real discards
+                # on this database were a subject line 51 characters long, and one more
+                # was a draft one word over the limit. `discarded` is terminal, so each
+                # of those destroyed an enriched, verified, ICP-fit lead we had already
+                # paid to find. Parking still stops the lead being re-drafted every tick
+                # (the backlog reads state='enriched') while leaving it recoverable once
+                # the playbook or the envelope check is fixed.
                 cur.execute("rollback to savepoint draft_lead")
-                cur.execute("update outreach.leads set state='discarded', "
-                            "updated_at=now() where company_number=%s "
-                            "and state='enriched'", (cn,))
-                audit.record(cn, "draft_discarded", source="draft",
-                             lawful_basis=audit.LEGITIMATE_INTERESTS,
-                             reason=f"envelope unfixable after retry: {e.violations}",
+                outcome = states.park_lead(cur, cn, f"draft envelope: {e.violations}")
+                audit.record(cn, "parked" if outcome == "parked" else "draft_discarded",
+                             source="draft", lawful_basis=audit.LEGITIMATE_INTERESTS,
+                             reason=(f"envelope unfixable after retry: {e.violations}"
+                                     + ("" if outcome == "parked"
+                                        else f" — discarded after {states.PARK_MAX} attempts")),
                              cur=cur)
             except LLMUnavailable as e:
                 # Brain down or spend cap hit — stop, but keep the good drafts.

@@ -75,3 +75,47 @@ def test_text_search_raises_without_key(monkeypatch):
     monkeypatch.setattr(places.config, "GOOGLE_MAPS_API_KEY", None)
     with pytest.raises(places.PlacesUnavailable):
         places.text_search("x")
+
+
+def test_one_failing_query_costs_one_query_not_the_whole_batch(db_rollback, monkeypatch):
+    """A raise used to escape discover_to_leads entirely: every insert made earlier in
+    the batch was rolled back AND discover_grid never reached its cursor write, so the
+    next tick replayed the same failing query. One malformed town or a quota blip wedged
+    discovery indefinitely while still looking alive."""
+    import uuid
+
+    from outreach import places
+
+    good = f"good-{uuid.uuid4().hex[:8]}"
+
+    def fake_search(q, *, max_results=20, cur=None):
+        if "bad" in q:
+            raise places.PlacesUnavailable("quota exceeded")
+        return [{"place_id": f"pid-{uuid.uuid4().hex[:10]}", "name": "Acme Electrical",
+                 "address": "1 High St, Otley LS21 1AA, UK", "postcode": "LS21 1AA",
+                 "website": "https://acme.co.uk", "primary_type": "electrician",
+                 "types": ["electrician"], "business_status": "OPERATIONAL"}]
+
+    monkeypatch.setattr(places, "text_search", fake_search)
+    res = places.discover_to_leads([f"{good}-1", "bad-query", f"{good}-2"],
+                                   cur=db_rollback.cursor())
+    assert res["inserted"] == 2                       # the two good queries survived
+    assert len(res["failed_queries"]) == 1            # and the failure is surfaced, not silent
+    assert "bad-query" in res["failed_queries"][0]
+
+
+def test_the_grid_cursor_advances_past_a_failing_query(db_rollback, monkeypatch):
+    from outreach import monitor, places, targeting
+
+    grid = [f"q{i}" for i in range(10)]
+    grid[1] = "bad-q1"
+    monkeypatch.setattr(targeting, "places_queries", lambda: grid)
+    monkeypatch.setattr(places, "text_search",
+                        lambda q, **k: (_ for _ in ()).throw(places.PlacesUnavailable("boom"))
+                        if "bad" in q else [])
+    cur = db_rollback.cursor()
+    monitor.set_flag("places_grid_cursor", "0", reason="test", cur=cur)
+
+    res = places.discover_grid(count=3, cur=cur)
+    assert res["grid_cursor"] == 3          # advanced by queries ATTEMPTED, not succeeded
+    assert monitor.get_flag("places_grid_cursor", cur=cur) == "3"

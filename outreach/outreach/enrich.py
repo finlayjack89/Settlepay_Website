@@ -14,7 +14,7 @@ from typing import Optional
 
 import httpx
 
-from . import audit, config, db, facts, geo, stats
+from . import audit, config, db, facts, geo, states, stats
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 GENERIC_PREFIXES = ("info", "contact", "enquiries", "enquiry", "hello", "sales", "admin", "office", "mail")
@@ -209,11 +209,19 @@ def firecrawl_scrape_emails(url: str, *, api_key: Optional[str] = None, client=N
                     headers={"Authorization": f"Bearer {api_key}"},
                     json={"url": base + p, "formats": ["markdown"], "onlyMainContent": False},
                 )
-            except httpx.HTTPError:
+            # ValueError alongside HTTPError: a 200 carrying HTML (a Firecrawl error
+            # page, a proxy interstitial) makes r.json() raise json.JSONDecodeError, a
+            # ValueError. Nothing up the stack caught it, so it escaped the whole enrich
+            # batch and threw away every lead already gathered in phase 2. verify.py has
+            # always caught both here; this did not.
+            except (httpx.HTTPError, ValueError):
                 continue
             if r.status_code != 200:
                 continue
-            data = (r.json() or {}).get("data", {}) or {}
+            try:
+                data = (r.json() or {}).get("data", {}) or {}
+            except ValueError:
+                continue
             text = f"{data.get('markdown') or ''} {data.get('metadata') or ''}"
             for m in EMAIL_RE.findall(text):
                 e = m.lower()
@@ -287,11 +295,25 @@ RISKY_RESULTS = ("catch_all",)  # deliverable but unconfirmable (M365/Workspace 
 VERIFIER_DOWN_AFTER = 3
 
 
+# The results that mean WE NEVER GOT AN ADDRESS TO VERIFY. These are failures of our own
+# search, not facts about the business, so the lead parks and a later pass retries it:
+#   no_email            — scrape_emails found nothing, and it cannot tell "no address
+#                         published" apart from a wrong website, a JS-rendered contact
+#                         page, or a site that was down for thirty seconds
+#   recipient_mismatch  — we resolved another company's site, so its mailbox was rightly
+#                         rejected; the lead itself is untouched by that
+# Everything else is a verdict the verifier actually returned (invalid, catch-all,
+# unknown, disposable). Retrying the same address returns the same answer, so those stay
+# terminal. Transient verifier states never reach here at all — they defer above,
+# writing no row.
+_SEARCH_FAILURES = frozenset({"no_email", "recipient_mismatch"})
+
+
 def contact_tier(result: str, *, accept_catch_all: Optional[bool] = None) -> Optional[str]:
     """Map a MillionVerifier result to a contact tier:
       'verified' = 'ok' (confirmed deliverable) — full-confidence contact
       'risky'    = catch-all (deliverable but unconfirmable), kept only if accepted
-      None       = invalid/unknown/no_email/error — not contactable, discard
+      None       = invalid/unknown/no_email/error — not contactable (discard or park)
     """
     if result == "ok":
         return "verified"
@@ -776,26 +798,44 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
          result, tier, signal, scraped, _facts_for(company_number, g, cur=cur)),
     )
     if acceptable:
+        # 'parked' is included so a lead rescued by a later pass can rejoin the pipeline
         cur.execute(
-            "update outreach.leads set state='enriched', updated_at=now() "
-            "where company_number=%s and state='discovered'", (company_number,))
+            "update outreach.leads set state='enriched', updated_at=now(), "
+            "  parked_reason=null, parked_at=null "
+            "where company_number=%s and state in ('discovered','parked')", (company_number,))
         label = "verified" if tier == "verified" else f"risky ({result})"
         audit.record(company_number, "enriched", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
                      reason=f"{label} {email} via {g['scrape_source']}", cur=cur)
-    else:
+    elif disqualified or result not in _SEARCH_FAILURES:
+        # A VERDICT — about the business (not ICP fit) or about the address (the verifier
+        # answered: invalid, catch-all we don't accept, unknown). Both are conclusions we
+        # actually reached, so discarding is right and terminal.
         cur.execute(
             "update outreach.leads set state='discarded', updated_at=now() "
-            "where company_number=%s and state in ('discovered','enriched')", (company_number,))
+            "where company_number=%s and state in ('discovered','enriched','parked')",
+            (company_number,))
         if disqualified:
             ctx = fit.get("payment_context")
             why = {"fixed_till_retail": "fixed-till retail (takes card in person)",
                    "online_ecommerce": "already takes card online"}.get(ctx, "not ICP fit")
             reason = f"{why} ({fit.get('size_band')}, conf {fit.get('confidence')})"
         else:
-            reason = f"unverifiable contact ({result})"
+            reason = f"unusable address ({result})"
         audit.record(company_number, "discarded", source="enrich",
                      lawful_basis=audit.LEGITIMATE_INTERESTS, reason=reason, cur=cur)
+    else:
+        # We never got an address to verify. Discarding these threw away leads already
+        # paid for in Places credit, a Firecrawl resolve, up to three Firecrawl scrapes
+        # and a Gemini call — 267 of them on this database, every one then hidden from
+        # the backlog by the very row that recorded the failure.
+        outcome = states.park_lead(cur, company_number, f"enrich: {result}")
+        audit.record(company_number, "parked" if outcome == "parked" else "discarded",
+                     source="enrich", lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     reason=(f"no contact resolved ({result}) — held for retry"
+                             if outcome == "parked" else
+                             f"no contact resolved ({result}) after {states.PARK_MAX} attempts"),
+                     cur=cur)
     return {"company_number": company_number, "email": email, "verified": verified,
             "result": result, "tier": tier, "icp_fit": fit.get("icp_fit"),
             "disqualified": disqualified, "deferred": False}
@@ -844,13 +884,20 @@ def run(items: list[dict], *, cur=None) -> list[dict]:
 _REFRESH_SQL = (
     "select l.company_number, l.company_name, l.registered_address->>'locality', "
     "       l.sic_codes[1], coalesce(e.website, l.registered_address->>'website'), l.source, "
-    "       l.registered_address->>'formatted', l.registered_address->>'postcode' "
+    "       l.registered_address->>'formatted', "
+    "       coalesce(l.registered_address->>'postcode', "
+    "                l.registered_address->>'postal_code'), "
+    "       l.registered_address->>'primary_type', e.facts "
     "from outreach.leads l join outreach.enrichment e using (company_number) "
-    "where l.state in ('enriched','drafted') "
+    "where l.state in ('enriched','drafted','parked') "
     "  and (e.facts is null "
     "       or e.facts->'location'->>'value' is null "
     "       or e.facts->'region' is null) "
-    "order by l.updated_at limit %s")
+    # Ordering, not just filtering, is what stops the starvation. `l.updated_at` never
+    # moved — this function writes only to `enrichment` — and the shape predicates stay
+    # true for any lead that is genuinely unplaceable, so refresh_facts re-did identical
+    # work on the SAME 25 rows on every single run and rows 26+ were unreachable.
+    "order by e.facts_refreshed_at nulls first, l.updated_at limit %s")
 
 
 def refresh_facts(*, limit: int = 25, cur=None) -> dict:
@@ -874,8 +921,13 @@ def refresh_facts(*, limit: int = 25, cur=None) -> dict:
     try:
         cur.execute(_REFRESH_SQL, (limit,))
         rows = cur.fetchall()
-        for cn, name, town, sic, website, source, formatted, postcode in rows:
-            hint = usable_vertical(stats.sic_label(sic))
+        for (cn, name, town, sic, website, source, formatted, postcode,
+             primary_type, raw_facts) in rows:
+            prev = facts.loads(raw_facts) if raw_facts else {}
+            hint, hint_source = vertical_from(stats.sic_label(sic), primary_type)
+            if not hint:                       # keep whatever a previous pass resolved
+                hint = facts.value(prev, "vertical")
+                hint_source = prev["vertical"].source if hint else None
             identity = site_identity(website, client=http) if website else {}
             place = geo.resolve_location(
                 site_postcode=identity.get("postcode"), site_town=identity.get("locality"),
@@ -887,6 +939,14 @@ def refresh_facts(*, limit: int = 25, cur=None) -> dict:
             cur.execute("select contact_name from outreach.enrichment where company_number=%s",
                         (cn,))
             row = cur.fetchone()
+            # Constants this function cannot re-derive are carried forward, not dropped.
+            # It used to rebuild the whole block from scratch, so running it over an
+            # auction-ingested lead WIPED payment_method — a verbatim quote from the
+            # auctioneer's own site, and the single strongest hook in the corpus — along
+            # with the platform's vertical. The docstring said it "touches nothing else".
+            prev_pay = prev.get("payment_method")
+            prev_est = facts.value(prev, "established")
+            established = identity.get("established") or prev_est
             block = facts.build(
                 company_name=name, company_name_source="companies_house",
                 contact_name=row[0] if row else None,
@@ -894,10 +954,14 @@ def refresh_facts(*, limit: int = 25, cur=None) -> dict:
                 location=place.get("town"), location_source=place.get("source"),
                 region=place.get("region"),
                 region_source="postcodes_io" if place.get("region") else None,
-                vertical=hint, vertical_source="sic_label" if hint else None,
-                established=identity.get("established"),
-                established_source="own_site" if identity.get("established") else None)
-            cur.execute("update outreach.enrichment set facts=%s::jsonb where company_number=%s",
+                vertical=hint, vertical_source=hint_source,
+                payment_method=facts.value(prev, "payment_method"),
+                payment_method_source=(prev_pay.source if prev_pay else None),
+                established=established,
+                established_source=("own_site" if identity.get("established")
+                                    else (prev.get("established").source if prev_est else None)))
+            cur.execute("update outreach.enrichment set facts=%s::jsonb, "
+                        "  facts_refreshed_at=now() where company_number=%s",
                         (facts.dumps(block), cn))
             updated += 1
             if place.get("town") or place.get("region"):
@@ -934,11 +998,11 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     if own:
         conn = db.connect(); c = conn.cursor()
         try:
-            c.execute(_BACKLOG_SQL, (limit,)); leads = c.fetchall()
+            c.execute(_BACKLOG_SQL, (config.PARK_RETRY_HOURS, limit)); leads = c.fetchall()
         finally:
             conn.close()
     else:
-        cur.execute(_BACKLOG_SQL, (limit,)); leads = cur.fetchall()
+        cur.execute(_BACKLOG_SQL, (config.PARK_RETRY_HOURS, limit)); leads = cur.fetchall()
 
     # phase 2 — slow networked work (resolve + scrape + verify), NO DB connection held
     http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
@@ -950,13 +1014,14 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     gathered: list[tuple] = []
     consecutive_verify_failures = 0
     try:
-        for cn, name, town, sic, known_website, source, formatted, postcode in leads:
+        for (cn, name, town, sic, known_website, source, formatted, postcode,
+             primary_type) in leads:
             # Circuit breaker. Verification is the LAST step, so a dead verifier means
             # every scrape before it was paid for and thrown away. Stop the batch
             # instead of grinding through the backlog achieving nothing.
             if consecutive_verify_failures >= VERIFIER_DOWN_AFTER:
                 break
-            hint = usable_vertical(stats.sic_label(sic))  # "Accountants", or None
+            hint, hint_source = vertical_from(stats.sic_label(sic), primary_type)
             if known_website:   # Places already gave us the site — don't pay to re-resolve
                 website = known_website
             else:
@@ -1007,7 +1072,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                 location=place.get("town"), location_source=place.get("source"),
                 region=place.get("region"),
                 region_source="postcodes_io" if place.get("region") else None,
-                vertical=hint, vertical_source="sic_label" if hint else None,
+                vertical=hint, vertical_source=hint_source,
                 established=identity.get("established"),
                 established_source="own_site" if identity.get("established") else None)
             g["identity"] = identity        # postcode/company number/VAT for the record
@@ -1032,13 +1097,35 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     return [_persist(cn, w, sig, g, cur=cur) for cn, w, sig, g in gathered]
 
 
+# Two cohorts: leads never touched, and PARKED leads whose cooldown has elapsed.
+#
+# The parked half is the point of the state. `not exists (enrichment)` on its own meant
+# that writing ANY row — including one that merely recorded "we found no email" — buried
+# the lead permanently, so the only tool that ever recovered leads was a hand-written SQL
+# migration (0010). Parked leads keep their enrichment row, which is what a retry needs:
+# it holds the scraped candidates and the resolved website.
+#
+# Postcode is read under BOTH keys: Places writes 'postcode', Companies House writes
+# 'postal_code' (as crossref.py and deepmatch.py have always known), so the single-key
+# read returned NULL for every CH lead and left them permanently unplaceable.
 _BACKLOG_SQL = (
     "select l.company_number, l.company_name, l.registered_address->>'locality', "
     "       l.sic_codes[1], l.registered_address->>'website', l.source, "
-    "       l.registered_address->>'formatted', l.registered_address->>'postcode' "
-    "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
-    "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
-    "order by l.company_name limit %s")
+    "       l.registered_address->>'formatted', "
+    "       coalesce(l.registered_address->>'postcode', "
+    "                l.registered_address->>'postal_code'), "
+    "       l.registered_address->>'primary_type' "
+    "from outreach.leads l where l.subscriber_class='corporate' "
+    "  and ( (l.state='discovered' "
+    "         and not exists (select 1 from outreach.enrichment e "
+    "                         where e.company_number=l.company_number)) "
+    "     or (l.state='parked' "
+    # leads parked BY DRAFTING already have a good contact and good constants — it was
+    # our writing that failed, so draft.run retries them directly. Re-enriching them
+    # would spend verifier credits to re-learn what we already know.
+    "         and l.parked_reason not like 'draft %%' "
+    "         and l.parked_at < now() - make_interval(hours => %s)) ) "
+    "order by (l.state='discovered') desc, l.company_name limit %s")
 
 # Sources whose locality is the business's TRADING town (a Google/Places listing), not
 # a registered-office address. A Ltd's registered office is routinely its accountant or a
@@ -1054,6 +1141,35 @@ def usable_vertical(vertical: Optional[str]) -> Optional[str]:
     if not vertical or vertical == "Unknown" or vertical.isdigit():
         return None
     return vertical
+
+
+# Places category values too generic to describe a business. "establishment" tells the
+# drafter nothing and reads worse than saying nothing at all.
+_GENERIC_PLACE_TYPES = frozenset({
+    "point of interest", "establishment", "store", "general contractor", "finance",
+    "health", "food", "business", "service", "local business",
+})
+
+
+def vertical_from(sic_label: Optional[str],
+                  primary_type: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """(vertical, source). SIC first — it is the registered activity — then the Places
+    listing's own primary_type.
+
+    The second half was missing, and it is why `vertical` resolved on 18 of 460
+    enrichment rows: the vertical came ONLY from `sic_label(sic_codes[1])`, and
+    sic_codes is null for all 14,870 Places leads. Meanwhile the listing's own
+    "electrician" / "accounting" sat unread in registered_address, and
+    `usable_vertical("Unknown")` quietly returned None. primary_type is a TRADING
+    descriptor, so it is admissible in the same way a Places locality is.
+    """
+    label = usable_vertical(sic_label)
+    if label:
+        return label, "sic_label"
+    t = (primary_type or "").strip().lower().replace("_", " ")
+    if t and t not in _GENERIC_PLACE_TYPES:
+        return usable_vertical(t), "places_listing"
+    return None, None
 
 
 def trading_town(town: Optional[str], source: Optional[str],

@@ -26,6 +26,7 @@ class LeadState(str, enum.Enum):
     REJECTED = "rejected"
     DISCARDED = "discarded"
     BOUNCED = "bounced"
+    PARKED = "parked"
 
 
 CONTACTABLE: frozenset[LeadState] = frozenset({
@@ -37,10 +38,23 @@ TERMINAL: frozenset[LeadState] = frozenset({
     LeadState.SUPPRESSED, LeadState.REJECTED, LeadState.DISCARDED, LeadState.BOUNCED,
 })
 
+# PARKED is in NEITHER set, and that is the point. Not CONTACTABLE, so nothing drafts
+# or sends a parked lead; not TERMINAL, so a repair pass can re-admit it. It exists
+# because `discarded` was being used for two things it should never mean: "our search
+# found no email" and "our own machinery failed" (an over-eager regex, an exhausted
+# verifier, a rate-limited API). Those are our failures, not verdicts about the lead,
+# and they were destroying leads we had already paid to find and enrich.
+#
+# `discarded` stays terminal. SUPPRESSED and BOUNCED must be irreversible, and the
+# CONTACTABLE/TERMINAL partition is what is_contactable() enforces — loosening it to
+# rescue one member would weaken the invariant that matters most.
+PARK_MAX = 3        # parks before a lead is genuinely discarded (retry stays bounded)
+
 # allowed forward transitions (the mechanism); suppression handled separately
 ALLOWED: dict[LeadState, set[LeadState]] = {
-    LeadState.DISCOVERED: {LeadState.ENRICHED, LeadState.DISCARDED},
-    LeadState.ENRICHED: {LeadState.DRAFTED, LeadState.DISCARDED},
+    LeadState.DISCOVERED: {LeadState.ENRICHED, LeadState.DISCARDED, LeadState.PARKED},
+    LeadState.ENRICHED: {LeadState.DRAFTED, LeadState.DISCARDED, LeadState.PARKED},
+    LeadState.PARKED: {LeadState.DISCOVERED, LeadState.ENRICHED, LeadState.DISCARDED},
     LeadState.DRAFTED: {LeadState.APPROVED, LeadState.REJECTED, LeadState.DISCARDED},
     LeadState.AWAITING_APPROVAL: {LeadState.APPROVED, LeadState.REJECTED},
     LeadState.APPROVED: {LeadState.SENDING, LeadState.REJECTED},
@@ -73,3 +87,29 @@ def transition(src: LeadState, dst: LeadState) -> LeadState:
 
 def is_contactable(state: LeadState) -> bool:
     return state in CONTACTABLE
+
+
+def park_lead(cur, company_number: str, reason: str) -> str:
+    """Park a lead so a later pass can retry it — or discard it once the retry budget is
+    spent. Returns the resulting state ('parked' or 'discarded'), or '' when the lead was
+    in a state we must not touch (already sent, suppressed, bounced…).
+
+    This is the write half of the rule the pipeline kept breaking: a stage's "I could not
+    do my job" path must never write something that removes the row from its own backlog
+    query. Parking stops the lead being worked AND leaves it findable; `discarded` did
+    the first and made the second impossible.
+
+    The counter and the new state move in ONE statement, so a crash between them cannot
+    strand a lead as parked-forever with a stale count.
+    """
+    cur.execute(
+        "update outreach.leads set "
+        "  park_count = park_count + 1, "
+        "  state = case when park_count + 1 >= %s then 'discarded'::outreach.lead_state "
+        "               else 'parked'::outreach.lead_state end, "
+        "  parked_reason = %s, parked_at = now(), updated_at = now() "
+        "where company_number = %s and state in ('discovered','enriched','parked') "
+        "returning state::text",
+        (PARK_MAX, reason[:500], company_number))
+    row = cur.fetchone()
+    return row[0] if row else ""

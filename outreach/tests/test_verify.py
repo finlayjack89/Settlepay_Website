@@ -141,3 +141,25 @@ def test_no_configured_verifier_defers():
         setattr(cfg, k, None)
     ok, result = verify.verify_email("a@b.co", client=_FakeClient())
     assert ok is False and result == "no_verifier"
+    # the name said "defers" but nothing asserted it: 'no_verifier' was not transient,
+    # so callers treated it as a verdict and discarded the lead
+    assert result in verify.TRANSIENT_RESULTS
+
+
+def test_every_lead_after_exhaustion_defers_not_just_the_first():
+    """The chain skips an already-exhausted provider BEFORE setting `tried`, so the
+    first call after everything ran dry returned 'verify_error' (transient, deferred)
+    and every call after it returned 'no_verifier' — which was NOT transient. Leads 2..N
+    of the batch were discarded with real, scraped, working addresses attached, and
+    migration 0010's repair could not find them because it only looks for
+    'error'/'verify_error'."""
+    c = _FakeClient(mv=_Resp({"result": "error", "error": "Insufficient credits"}),
+                    reoon=_Resp({"error": "limit reached"}),
+                    zb=_Resp({"error": "ran out of credits"}))
+    first = verify.verify_email("a@b.co", client=c)
+    second = verify.verify_email("c@d.co", client=c)
+    third = verify.verify_email("e@f.co", client=c)
+    assert second[1] == "no_verifier" and third[1] == "no_verifier"
+    for ok, result in (first, second, third):
+        assert ok is False
+        assert result in verify.TRANSIENT_RESULTS, result

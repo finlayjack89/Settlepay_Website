@@ -27,8 +27,20 @@ from . import config
 
 # results that are a real verdict about the address (stop the chain)
 VERDICTS = frozenset({"ok", "catch_all", "invalid", "unknown", "disposable"})
-# results that mean "no answer" — try the next provider, and if none answers, defer
-TRANSIENT_RESULTS = ("error", "verify_error")
+# results that mean "no answer" — try the next provider, and if none answers, defer.
+#
+# 'no_verifier' belongs here, and its absence was destroying leads. The chain skips an
+# already-exhausted provider BEFORE setting `tried`, so the FIRST lead after every
+# provider ran dry got 'verify_error' and deferred correctly — while every lead after it
+# got 'no_verifier', which was not transient. contact_tier() then returned None and the
+# lead was DISCARDED with a real, scraped, working email attached. Terminal, and
+# invisible to migration 0010's repair, which only looks for 'error'/'verify_error'.
+#
+# It also reset the enrich circuit breaker (`elif result not in TRANSIENT_RESULTS`), so
+# VERIFIER_DOWN_AFTER never tripped and the rest of the batch was ground through and lost.
+#
+# No verifier answering is not a verdict about an address. Neither is having none configured.
+TRANSIENT_RESULTS = ("error", "verify_error", "no_verifier")
 
 # providers that reported out-of-credits THIS PROCESS — skip them for the rest of the run
 # (mirrors the enrich circuit breaker: don't hammer a dead provider). Reset on restart.

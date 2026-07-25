@@ -158,6 +158,11 @@ DM_PER_TICK = _int("DM_PER_TICK", 10)
 # lead for the decision-maker path. Turn on when credits are plentiful and raw coverage
 # matters more than precision.
 ENRICH_GUESS_GENERICS = _bool("ENRICH_GUESS_GENERICS", False)
+# How long a PARKED lead waits before enrichment picks it up again. Parking is what the
+# pipeline does when its OWN machinery came up short (verifier dry, scrape returned
+# nothing, we resolved the wrong company's site) rather than when it reached a verdict.
+# The retry is the point; the cooldown stops it spinning, and states.PARK_MAX bounds it.
+PARK_RETRY_HOURS = _int("PARK_RETRY_HOURS", 24)
 # Where the art. 14 privacy notice lives — linked in every named-individual send so the
 # person can see what we hold and how to object. The notice ITSELF must state that we
 # source details from Companies House / public records (operator content task).
