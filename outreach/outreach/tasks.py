@@ -101,11 +101,33 @@ def decision_makers_task(ctx, limit=10):
     return decisionmakers.run(limit=limit)
 
 
+@task("refresh_facts", "Refresh drafting constants",
+      "Re-resolve each lead's verified constants (company, contact, location, region, "
+      "established) from their own website, a trading listing, and Companies House. "
+      "Touches nothing else — never re-verifies a contact, never discards a lead.",
+      params=(Param("limit", "How many", kind="int", default=25),))
+def refresh_facts_task(ctx, limit=25):
+    out = enrich_mod.refresh_facts(limit=limit)
+    ctx.log(f"{out['refreshed']} refreshed · {out['placed']} now placeable")
+    return out
+
+
 @task("draft", "Draft emails",
       "Draft playbook emails for enriched leads into the approval queue.",
       params=(Param("limit", "How many", kind="int", default=10),))
 def draft_task(ctx, limit=10):
     return {"drafted": draft.run(limit=limit)}
+
+
+@task("redraft", "Re-draft stale queue",
+      "Re-write approval-queue drafts written by an older playbook, using the current "
+      "constants and gates. Only awaiting-approval drafts; the old copy is superseded, "
+      "never deleted, and a replacement that fails its gates leaves the original in place.",
+      params=(Param("limit", "How many", kind="int", default=25),))
+def redraft_task(ctx, limit=25):
+    out = draft.redraft_stale(limit=limit)
+    ctx.log(f"{out['redrafted']} redrafted · {out['failed_kept_old']} kept older copy")
+    return out
 
 
 @task("followup", "Generate follow-ups",

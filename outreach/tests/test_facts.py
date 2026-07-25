@@ -127,7 +127,7 @@ def test_allowed_tokens_are_every_word_of_every_resolved_fact():
 
 def test_allowed_tokens_exclude_unknown_fields():
     block = facts.build(company_name="Acme Joinery", location="Hull",
-                        location_source="companies_house")   # inadmissible -> dropped
+                        location_source="companies_house")   # unchecked -> dropped
     assert "hull" not in facts.allowed_tokens(block)
 
 
@@ -137,3 +137,26 @@ def test_summarise_records_provenance_for_the_audit_trail():
     line = facts.summarise(block)
     assert "companies_house" in line and "places_listing" in line
     assert "contact_name=-" in line          # unknowns are visible in the record too
+
+
+def test_an_unchecked_registered_office_is_still_inadmissible():
+    """The shared-office check earns a distinct label. A bare 'companies_house' — an
+    address nobody verified — must stay rejected even though a CHECKED one is allowed,
+    so a careless caller cannot bypass geo.registered_office_shared()."""
+    unchecked = facts.build(company_name="Acme", location="Chester",
+                            location_source="companies_house")
+    assert unchecked["location"].value is None
+
+    checked = facts.build(company_name="Acme", location="Macclesfield",
+                          location_source="companies_house_confirmed")
+    assert checked["location"].value == "Macclesfield"
+
+
+def test_region_is_admissible_from_any_source():
+    """A broad geography stays true even when the precise town does not — an accountant
+    is nearly always in the same region as the client."""
+    block = facts.build(company_name="Acme", location="Chester",
+                        location_source="companies_house",      # dropped
+                        region="North West", region_source="postcodes_io")
+    assert block["location"].value is None
+    assert block["region"].value == "North West"

@@ -156,19 +156,21 @@ def test_enrich_one_no_email_is_discarded(db_rollback, monkeypatch):
     assert cur.fetchone()[0] == "discarded"
 
 
-# ---- guess-and-verify info@ (the cheap discovery path) ----
-def test_guess_verify_finds_generic_without_scraping(db_rollback, monkeypatch):
+# ---- guess-and-verify info@ (opt-in: it costs a verifier credit per prefix) ----
+def test_guess_verify_finds_generic_when_the_site_publishes_nothing(db_rollback, monkeypatch):
+    """Guessing is now a fallback behind ENRICH_GUESS_GENERICS rather than the opening
+    move: scraping is free, guessing spends a credit per prefix on an address nobody has
+    claimed exists."""
+    monkeypatch.setattr(enrich.config, "ENRICH_GUESS_GENERICS", True)
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)
     cur = db_rollback.cursor()
     cn = f"ENR_GUESS_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    called = []
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: called.append(url) or ["x@y.com"])
-    # only the guessed info@ on the site domain verifies
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
     res = enrich.enrich_one(
         cn, "https://acme.co.uk", "sig", cur=cur,
         verifier=lambda e: (e == "info@acme.co.uk", "ok" if e == "info@acme.co.uk" else "invalid"))
     assert res["email"] == "info@acme.co.uk" and res["verified"] is True
-    assert not called  # scrape skipped because the guess verified
     cur.execute("select scraped->>'source' from outreach.enrichment where company_number=%s", (cn,))
     assert cur.fetchone()[0] == "guess"
 
@@ -387,3 +389,45 @@ def test_a_parsed_locality_is_still_gated_on_a_trading_source():
     formatted = "21 Cavendish St, Harrogate HG1 4NT, UK"
     assert enrich.trading_town(None, "places", formatted) == "Harrogate"
     assert enrich.trading_town(None, "companies_house_advanced_search", formatted) is None
+
+
+# --------------------------------------------------------------------------- #
+#  Verifier-credit policy — credits belong to named contacts, not to info@ guesses
+# --------------------------------------------------------------------------- #
+def test_a_published_address_is_verified_but_generics_are_not_guessed(monkeypatch):
+    """Blind guessing burns one credit per prefix on addresses nobody claims exist.
+    Scraping first means the single credit we do spend is on an address the business
+    wrote down itself."""
+    monkeypatch.setattr(enrich.config, "ENRICH_GUESS_GENERICS", False)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda *a, **k: ["studio@acme.co.uk"])
+    calls = []
+
+    def _verifier(addr):
+        calls.append(addr)
+        return True, "ok"
+
+    out = enrich._gather("https://acme.co.uk", verifier=_verifier)
+    assert out["email"] == "studio@acme.co.uk" and out["scrape_source"] == "httpx"
+    assert calls == ["studio@acme.co.uk"]            # exactly one credit, on a real address
+
+
+def test_no_published_address_spends_no_verifier_credits(monkeypatch):
+    """The expensive old behaviour: four guesses, four credits, for a lead we end up
+    discarding anyway."""
+    monkeypatch.setattr(enrich.config, "ENRICH_GUESS_GENERICS", False)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda *a, **k: [])
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)
+    calls = []
+
+    out = enrich._gather("https://acme.co.uk",
+                         verifier=lambda a: (calls.append(a), (True, "ok"))[1])
+    assert out["email"] is None and out["result"] == "no_email"
+    assert calls == []
+
+
+def test_generic_guessing_can_be_switched_back_on(monkeypatch):
+    monkeypatch.setattr(enrich.config, "ENRICH_GUESS_GENERICS", True)
+    monkeypatch.setattr(enrich, "scrape_emails", lambda *a, **k: [])
+    monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)
+    out = enrich._gather("https://acme.co.uk", verifier=lambda a: (True, "ok"))
+    assert out["email"] == "info@acme.co.uk" and out["scrape_source"] == "guess"

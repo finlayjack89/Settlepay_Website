@@ -150,6 +150,14 @@ DM_ENABLED = _bool("DECISION_MAKER_ENABLED", False)
 DM_MAX_PATTERNS = _int("DM_MAX_PATTERNS", 4)          # email patterns tried per person
 DM_MAX_VERIFY_PER_LEAD = _int("DM_MAX_VERIFY_PER_LEAD", 6)  # hard MV-spend cap per lead
 DM_PER_TICK = _int("DM_PER_TICK", 10)
+
+# Verifier credits are finite and worth spending on a NAMED decision-maker, not on
+# guessing whether info@ exists. When off, enrichment verifies only addresses actually
+# PUBLISHED on the company's site (an address we already believe exists) and leaves
+# blind generic guessing alone — that reclaims up to len(GUESS_PREFIXES) credits per
+# lead for the decision-maker path. Turn on when credits are plentiful and raw coverage
+# matters more than precision.
+ENRICH_GUESS_GENERICS = _bool("ENRICH_GUESS_GENERICS", False)
 # Where the art. 14 privacy notice lives — linked in every named-individual send so the
 # person can see what we hold and how to object. The notice ITSELF must state that we
 # source details from Companies House / public records (operator content task).
