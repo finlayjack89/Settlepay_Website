@@ -1,35 +1,49 @@
 ---
 /**
- * PreviewTeaser — puts the preview tool on the front door. A slim navy panel
- * (echoing the CTA band's language) with a single-field GET form: the form
- * posts nothing anywhere — it just lands on /preview/?url=… where
- * PreviewStudio auto-generates. Works with JS disabled. The submit is
- * deliberately NOT blue: the page's one blue ask stays "Send an Enquiry".
+ * PreviewTeaser — the preview tool's front door. Navy panel: the "Your Page,
+ * Taking Shape" film (left) demonstrates what the tool produces, sitting beside
+ * the single-field GET form (right) that lands on /preview/?url=… (works with
+ * JS disabled). The film replaces the old body copy — it shows what that copy
+ * described — and sits alongside the form so the form keeps its place rather
+ * than being pushed down.
+ *
+ * Below 880px the film is hidden (it is not adaptive yet) and the written
+ * explanation takes its place, so small screens still get the message. The
+ * submit stays white, not blue: the page's one blue ask is "Send an Enquiry".
+ * The film is illustrative (fictional Stillwater Weddings); the caption
+ * discloses it.
  */
+import PreviewFilm from './PreviewFilm.astro';
 ---
 <section class="preview-teaser" aria-label="See your own page">
   <div class="container">
     <div class="preview-teaser__inner" data-reveal>
-      <div class="preview-teaser__copy">
+      <figure class="preview-teaser__film-wrap">
+        <PreviewFilm />
+        <figcaption class="preview-teaser__filmcap">
+          Illustrative example — a branded page built from a sample site.
+        </figcaption>
+      </figure>
+      <div class="preview-teaser__ask">
         <h2 class="preview-teaser__title">See Your Own Page Before You Decide</h2>
         <p class="preview-teaser__text">
           Paste your website address and our preview tool drafts a payment page in your
           branding — logo, colours and type read from your own site.
         </p>
+        <form class="preview-teaser__form" action="/preview/" method="get">
+          <label class="sr-only" for="pt-url">Your website address</label>
+          <input
+            id="pt-url"
+            name="url"
+            type="text"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="yourbusiness.co.uk"
+            required
+          />
+          <button type="submit" class="preview-teaser__btn">See Your Page</button>
+        </form>
       </div>
-      <form class="preview-teaser__form" action="/preview/" method="get">
-        <label class="sr-only" for="pt-url">Your website address</label>
-        <input
-          id="pt-url"
-          name="url"
-          type="text"
-          inputmode="url"
-          autocomplete="url"
-          placeholder="yourbusiness.co.uk"
-          required
-        />
-        <button type="submit" class="preview-teaser__btn">See Your Page</button>
-      </form>
     </div>
   </div>
 </section>
