@@ -279,7 +279,7 @@ def test_a_deferred_lead_writes_no_enrichment_row_so_the_backlog_retries_it(db_r
 
     cur.execute("select count(*) from outreach.enrichment where company_number=%s", (cn,))
     assert cur.fetchone()[0] == 0
-    cur.execute(enrich._BACKLOG_SQL, (enrich.config.PARK_RETRY_HOURS, 500))
+    cur.execute(enrich._BACKLOG_SQL, (enrich.config.PARK_RETRY_HOURS, 50000))
     assert cn in {r[0] for r in cur.fetchall()}
 
 

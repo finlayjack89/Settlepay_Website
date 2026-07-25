@@ -160,9 +160,18 @@ def _grounding_tokens(*sources: str | None) -> set[str]:
 # Greater Manchester"). This is where a location assertion actually lands in a sentence,
 # which makes it checkable without a gazetteer or a NER model.
 _PROPER_NOUN = r"[A-Z][a-z’']+(?:-[A-Z][a-z’']+)*"      # Hull, Westbury-On-Severn
+# Prepositions that unambiguously introduce a LOCATION. Bare "in" is deliberately not
+# here: it produced the false positives that made this gate destroy good leads — "in
+# Xero", "in January", "in Sterling", "in Victorian terraces" were all read as place
+# claims, each one a hard reject. Bare "in" is still caught, but only via the gazetteer
+# below, where the phrase is a town we can actually recognise.
 _PLACE_CLAIM_RE = re.compile(
-    r"\b(?:in|across|around|near|throughout|serving|covering)\s+"
+    r"\b(?:based\s+in|here\s+in|over\s+in|out\s+of|across|around|near|throughout|"
+    r"serving|covering)\s+"
     rf"({_PROPER_NOUN}(?:\s+{_PROPER_NOUN}){{0,2}})")   # + Greater Manchester
+# The softer trigger. "in Macclesfield" is a place claim; "in Xero" is not — and the
+# only reliable way to tell them apart without a NER model is to recognise the town.
+_SOFT_PLACE_RE = re.compile(rf"\bin\s+({_PROPER_NOUN}(?:\s+{_PROPER_NOUN}){{0,2}})")
 
 # Geographies that assert nothing specific about this lead, plus the words a capitalised
 # run can legitimately start with mid-sentence.
@@ -179,6 +188,49 @@ _STAT_CLAIM_RE = re.compile(
     r"(?:[a-z]+[- ])?"                      # "500 five-star reviews", "4.9 average rating"
     r"(?:star|stars|rating|ratings|review|reviews|out of|/\s*5|/\s*10|years|customers|"
     r"clients|jobs|installs|projects)\b", re.I)
+
+# How the RECIPIENT currently takes money. The playbook's whole "gap" paragraph invites
+# this claim, and 107 of 137 queued drafts made it — while `payment_method` was a
+# resolved fact on 0 of 460 enrichment rows. The facts block said
+# "payment_method: UNKNOWN — do not state one", the playbook said "the gap is bank
+# transfer / manual invoicing", and nothing deterministic adjudicated between them.
+#
+# Deliberately narrow: only nouns that name a payment MECHANISM. SettlePay's own offer
+# ("a branded card-payment page", "they keep their bank") must not trip it, so there is
+# no bare "card" or "bank" here — and "cash flow" is excluded explicitly.
+_PAYMENT_CLAIM_RE = re.compile(
+    r"\b(?:bank\s+transfers?|bacs|chaps|faster\s+payments?|sort\s*code|"
+    r"standing\s+order|direct\s+debit|cheques?|"
+    r"cash\b(?!\s*(?:flow|flow[- ]positive))|"
+    r"manual(?:ly)?\s+invoic\w*|invoic\w+\s+(?:after|by\s+hand)|"
+    r"card\s+machine|chip\s+and\s+pin|card\s+terminal|paper\s+invoice)\b", re.I)
+
+
+_UK_PLACE_SUFFIXES = ("shire", "ton", "ford", "field", "bury", "borough", "burgh",
+                      "mouth", "port", "bridge", "wich", "ham", "combe", "dale",
+                      "pool", "cester", "chester", "minster", "stead", "wood")
+
+
+def _looks_like_a_uk_place(phrase: str) -> bool:
+    """Is this phrase recognisably a UK place, rather than a product, a month or a
+    currency? Used only after a bare "in", where the preposition proves nothing.
+
+    Two signals: the town gazetteer this project already ships for Places discovery,
+    and the suffixes English place names are built from. Anything else is left alone —
+    a false NEGATIVE here costs a missed hallucination that the location constant would
+    usually have caught anyway, while a false POSITIVE used to cost the whole lead.
+    """
+    from . import targeting
+
+    lowered = phrase.lower()
+    towns = {t.lower() for t in targeting.PLACES_TOWNS}
+    if lowered in towns or any(w in towns for w in lowered.split()):
+        return True
+    # Any SEGMENT may carry the place-name suffix, not just the last word:
+    # "Westbury-On-Severn" is a place because of "Westbury", and checking only the tail
+    # ("severn") missed it. The length floor keeps short words like "Wood" from firing.
+    return any(len(part) > 5 and part.endswith(_UK_PLACE_SUFFIXES)
+               for part in re.split(r"[^a-z]+", lowered) if part)
 
 
 def check_grounding(text: str, *, contact_name: str | None,
@@ -212,19 +264,39 @@ def check_grounding(text: str, *, contact_name: str | None,
             v.append(f"greeting names {who}")
 
     body = GREETING_RE.sub("", text.lstrip(), count=1)   # the greeting is checked above
-    for match in _PLACE_CLAIM_RE.finditer(body):
+    seen_places: set[str] = set()
+    for match in list(_PLACE_CLAIM_RE.finditer(body)) + list(_SOFT_PLACE_RE.finditer(body)):
         phrase = " ".join(match.group(1).split())
-        if phrase.lower() in _GENERIC_PLACES:
+        if phrase.lower() in _GENERIC_PLACES or phrase in seen_places:
             continue
         # every word of the claimed place must be a resolved constant; "Greater
         # Manchester" passes only if the location constant actually says so
         if all(w in allowed for w in re.split(r"[^a-z0-9]+", phrase.lower()) if w):
             continue
+        # After a bare "in", flag only what we can RECOGNISE as a UK place. Treating
+        # every capitalised word as a place claim rejected "in Xero", "in January" and
+        # "in Sterling" — and an unfixable violation used to discard the lead outright.
+        if match.re is _SOFT_PLACE_RE and not _looks_like_a_uk_place(phrase):
+            continue
+        seen_places.add(phrase)
         v.append(f"names a place we did not verify: {phrase!r}")
 
     stat = _STAT_CLAIM_RE.search(body)
     if stat:
         v.append(f"unverifiable statistic about the recipient: {stat.group(0).strip()!r}")
+
+    # The missing fourth check. A draft may say how the recipient gets paid only when
+    # `payment_method` is a RESOLVED constant — which today means an auctioneer whose own
+    # site quotes it. Everywhere else it is an inference presented as an observation
+    # about their business, and it is the claim most likely to be flatly wrong to the one
+    # person who would know.
+    known_pay = facts.value(lead_facts, "payment_method") if lead_facts else None
+    pay = _PAYMENT_CLAIM_RE.search(body)
+    if pay and not (known_pay and pay.group(0).lower() in known_pay.lower()):
+        claim = pay.group(0).strip()
+        v.append(f"states how they take payment ({claim!r}) — "
+                 + (f"the verified method is {known_pay!r}" if known_pay
+                    else "payment_method is not a resolved fact for this lead"))
     return v
 
 
@@ -662,3 +734,55 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
 
 if __name__ == "__main__":
     print(run())
+
+
+# --------------------------------------------------------------------------- #
+#  copy similarity — the thing nothing measured
+# --------------------------------------------------------------------------- #
+def _shingles(text: str, n: int = 4) -> set[tuple[str, ...]]:
+    words = re.findall(r"[a-z0-9']+", (text or "").lower())
+    return {tuple(words[i:i + n]) for i in range(max(0, len(words) - n + 1))}
+
+
+def similarity_report(bodies: list[str], *, n: int = 4, threshold: float = 0.45) -> dict:
+    """Pairwise n-gram Jaccard across a set of drafts.
+
+    `draft_angle` rotates the INPUT and nothing ever checked the output, so the only
+    evidence copy was diverging was that it looked different. It was not always: the
+    v2.8 batch measured MORE homogeneous than the v2.4 batch it replaced (word-level
+    mean 0.460 vs 0.399), which nobody could have known.
+
+    Jaccard over 4-word shingles rather than difflib: SequenceMatcher's autojunk
+    silently deflates the ratio on strings this long, which is why two earlier readings
+    of the same corpus disagreed by a factor of three.
+
+    The mandated tail (sign-off, the FCA line, the opt-out sentence) is shared by every
+    compliant draft by construction, so `threshold` is about the PITCH, not the boiler-
+    plate. Report, don't reject — this is a signal for the operator and for tuning the
+    angle rotation, not another gate that can destroy a lead.
+    """
+    bodies = [b for b in bodies if b and b.strip()]
+    if len(bodies) < 2:
+        return {"pairs": 0, "mean": 0.0, "max": 0.0, "over_threshold": 0,
+                "threshold": threshold, "worst": []}
+    grams = [_shingles(b, n) for b in bodies]
+    scores: list[tuple[float, int, int]] = []
+    for i in range(len(grams)):
+        for j in range(i + 1, len(grams)):
+            union = grams[i] | grams[j]
+            if not union:
+                continue
+            scores.append((len(grams[i] & grams[j]) / len(union), i, j))
+    if not scores:
+        return {"pairs": 0, "mean": 0.0, "max": 0.0, "over_threshold": 0,
+                "threshold": threshold, "worst": []}
+    values = [s for s, _, _ in scores]
+    scores.sort(reverse=True)
+    return {
+        "pairs": len(scores),
+        "mean": round(sum(values) / len(values), 4),
+        "max": round(max(values), 4),
+        "over_threshold": sum(1 for v in values if v >= threshold),
+        "threshold": threshold,
+        "worst": [{"a": i, "b": j, "score": round(s, 4)} for s, i, j in scores[:5]],
+    }

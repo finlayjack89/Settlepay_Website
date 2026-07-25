@@ -1,4 +1,10 @@
-<!-- PLAYBOOK VERSION: v2.8 -->
+<!-- PLAYBOOK VERSION: v2.9 -->
+<!-- v2.9: stop asserting how they take money. The playbook told the model the gap WAS -->
+<!-- "bank transfer / manual invoicing" while the FACTS block told it "payment_method: -->
+<!-- UNKNOWN — do not state one", and nothing adjudicated: 107 of 137 queued drafts made -->
+<!-- the claim, with payment_method resolved on 0 of 460 leads. The opener examples now -->
+<!-- name the CONSEQUENCE (chasing, waiting, matching by hand) instead of the mechanism, -->
+<!-- and check_grounding gained a fourth deterministic check to enforce it. -->
 <!-- v2.8: richer constants. Location now resolves for nearly every lead via a ranked -->
 <!-- ladder (own site > trading listing > a registered office CHECKED not to be an -->
 <!-- accountant's), plus `region` as a safe broad fallback and `established` from their -->
@@ -25,7 +31,7 @@
 <!-- which targeting and the ICP-fit gate now disqualify. -->
 <!-- v1.1: branded name casing (never Companies House caps) + natural sign-off. -->
 
-# SettlePay cold-email drafting playbook — v2.4
+# SettlePay cold-email drafting playbook — v2.9
 
 Everything above this line is general craft guidance. Everything below is the
 SettlePay brief, and **where the two conflict, this playbook wins.** The conflicts
@@ -47,10 +53,13 @@ appointment- or job-based, invoice-driven. Mobile trades (electricians, plumbers
 builders, roofers), private clinics, auctioneers, surveyors, accountants and
 bookkeepers, commercial cleaners, removals and haulage.
 
-**They already take money somehow** — usually bank transfer, cash, or a manual
-invoice with sort-code-and-account-number at the bottom. The problem is not that
-they can't get paid; it's that getting paid is *slow and manual*: chasing, checking
-the bank, matching payments to invoices by hand.
+**They already take money somehow.** The problem is not that they can't get paid;
+it's that getting paid is *slow and manual*: chasing, waiting, matching payments to
+invoices by hand.
+
+That is background for YOU, so you understand the market. It is **not** something to
+tell the reader. How any particular business takes money is a fact you either have in
+FACTS or do not have at all — and 0 of the first 460 leads had it.
 
 **NOT fixed-till retail** — shops, cafés, salons, barbers. They already take card
 in person at a counter, so an online payment page is redundant to them. If the
@@ -90,12 +99,24 @@ An `OPENER:` directive is supplied per lead and **overrides your instinct** — 
 assigns the shape of the first sentence so that no two emails from this pipeline
 open alike. Follow it. These illustrate the range (use the logic, never the words):
 
-> Saw you cover emergency call-outs across the county — invoicing after the job
-> usually means chasing it for a fortnight.
-> Your surveys go out with an invoice attached, which is where the waiting starts.
-> Most independent clinics still take bank transfer, which means somebody
-> reconciles it by hand.
+> Saw you cover emergency call-outs across the county — the admin afterwards is
+> usually the slow part.
+> Surveys go out, and then the waiting starts.
 > Since the yard runs six-day weeks, month-end matching probably lands on a Sunday.
+> A practice your size does that reconciling around the appointments, not instead
+> of them.
+
+Notice what none of those does: **tell the reader how they currently take money.**
+You do not know that unless `payment_method` is a resolved constant in FACTS, and it
+almost never is. Write about the *consequence* — chasing, waiting, matching by hand at
+month end — which is true of any manual billing process. Asserting the mechanism is a
+guess about their business, and it is the guess most likely to be flatly wrong to the
+one person reading it.
+
+Only when `payment_method` IS resolved may you name it, in the words FACTS gives you:
+
+> Since you take payment by bank transfer after the sale, month-end matching is
+> somebody's afternoon.
 
 The observation must be real. If `SIGNAL` is thin or says no website was found,
 open on **trade only** — never invent a detail, a client, a job, or a
@@ -183,8 +204,12 @@ person to another, not as a filled-in template:
    registered suffix. A UK owner-manager reads a missing or clumsy greeting as
    brusque; this is not the place to be clever.
 1. **Opener** — observation → implication (above), starting on the next line.
-2. **The gap** — bank transfer / manual invoicing means chasing and hand-matching.
-   Observe; never assert a fact about them you weren't given.
+2. **The gap** — the COST of manual billing: chasing, waiting, matching payments to
+   invoices by hand. Name the consequence, not the mechanism. Say "getting paid takes
+   a fortnight and somebody has to chase it", not "you take bank transfer" — unless
+   `payment_method` is resolved in FACTS, in which case use exactly that value.
+   This is a hard gate, not a style note: a draft that states how they take money
+   without the fact behind it is rejected and rewritten.
 3. **The offer** — a branded card-payment page on their own domain, plus invoicing
    and automatic reconciliation, set up for them; they keep their bank.
 4. **Trust** — the money is handled by **FCA-regulated partners**; SettlePay never

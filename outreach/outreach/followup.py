@@ -16,7 +16,7 @@ from __future__ import annotations
 import datetime
 import json
 
-from . import audit, config, db, draft, sequence
+from . import audit, config, db, draft, facts, sequence
 from .firewall import check_suppression
 from .llm import LLMUnavailable, draft_provider
 
@@ -97,13 +97,30 @@ def eligible(cur, *, limit=None) -> list[tuple]:
 
 
 def followup_one(company_number: str, company_name: str, signal: str, parent_draft_id, *,
-                 provider, cur, playbook: str | None = None) -> dict:
+                 provider, cur, playbook: str | None = None,
+                 lead_facts: dict | None = None, contact_name: str | None = None) -> dict:
+    """Write touch 2, held to exactly the same grounding bar as touch 1.
+
+    It previously was not: the prompt was a bare `COMPANY:`/`SIGNAL:` pair with the raw
+    Companies House name, no FACTS block, no angle rotation, and check_envelope but NOT
+    check_grounding. So the one email in the sequence that goes to somebody who has
+    ALREADY heard from us was the one free to invent a name, a town or a statistic.
+    """
     playbook = playbook or draft.load_playbook()
+    if lead_facts is None:
+        cur.execute("select e.facts, e.contact_name from outreach.enrichment e "
+                    "where e.company_number = %s", (company_number,))
+        row = cur.fetchone()
+        if row:
+            lead_facts = facts.loads(row[0]) if row[0] else None
+            contact_name = contact_name or row[1]
+    block = (facts.as_prompt_block(lead_facts) if lead_facts
+             else f"company_name: {company_name}")
     prompt = (
         f"{playbook}\n\n"
         "TOUCH: 2 — write the FOLLOW-UP email described in the FOLLOW-UP section "
         "above (~60-80 words, admin-saved angle, same envelope).\n"
-        f"COMPANY: {company_name}\nSIGNAL: {signal or ''}\n"
+        f"{block}\nSIGNAL (context only, never quote): {signal or ''}\n"
     )
     r = provider.complete(prompt, purpose="followup", max_words=80,
                           schema=draft.DRAFT_SCHEMA)
@@ -113,8 +130,11 @@ def followup_one(company_number: str, company_name: str, signal: str, parent_dra
         # same reason as in draft_one: run() isolates EnvelopeViolation per lead
         raise draft.EnvelopeViolation(company_number, [f"unparseable draft: {e}"]) from e
 
-    violations = draft.check_envelope(body) + [
-        f"subject: {s}" for s in draft.check_subject(subject)]
+    violations = (draft.check_envelope(body)
+                  + [f"subject: {s}" for s in draft.check_subject(subject)]
+                  + draft.check_grounding(body, contact_name=contact_name,
+                                          company_name=company_name,
+                                          lead_facts=lead_facts))
     if violations:
         raise draft.EnvelopeViolation(company_number, violations)
 
