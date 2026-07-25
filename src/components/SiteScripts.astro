@@ -150,24 +150,27 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Mobile enquiry panel — CONTEXTUAL, not permanently pinned. It rises only
-  // while a value-demonstrating section is on screen (the moments where the ask
-  // has earned attention) and stands aside for the final CTA band and footer so
-  // it never doubles up. Pages without those trigger sections (the case study,
-  // About, FAQ) fall back to "the page header has scrolled away".
+  // Mobile enquiry panel — one appearance, not a per-section blink.
+  //
+  // It rises once the hero has scrolled away and then STAYS, standing aside only
+  // where a competing call to action is on screen (the final CTA band, the
+  // footer) so it never doubles up. The earlier rule showed it only over
+  // "value-demonstrating" sections, which flipped it four times in a single
+  // pass down the homepage — a ~5,700px hole in the middle where it vanished
+  // and came back. Intermittent chrome reads as a bug, not as a decision.
+  //
+  // The suppressors use a -25% bottom rootMargin so the handover happens when
+  // the competing CTA is genuinely in view, not the instant its first pixel
+  // crosses the fold.
   // Per-element Map because the IO callback only reports entries that changed.
   // ---------------------------------------------------------------------------
   const stickyCta = document.querySelector('[data-sticky-cta]');
   if (stickyCta) {
     const pick = (sels: string[]) =>
       sels.flatMap((s) => Array.from(document.querySelectorAll(s)));
-    const triggers = pick(['#work', '#compare', '.calculator']);
     const suppressors = pick(['#enquire', '.footer']);
     const header = document.getElementById('hero') || document.querySelector('.page-header');
-    // Fallback for pages with no trigger sections: treat the header as an
-    // inverted trigger (show once it's gone), preserving the old behaviour.
-    const usesFallback = triggers.length === 0;
-    const watched = [...triggers, ...suppressors, ...(header ? [header] : [])];
+    const watched = [...suppressors, ...(header ? [header] : [])];
     // The skirt paints the band below the layout viewport that Safari leaves to
     // the scrolling document (see StickyCta.astro). It has to BE document
     // content to paint there, so it is absolutely positioned and follows the
@@ -175,7 +178,14 @@
     // the skirt out of flow — otherwise each move would extend the scroll area
     // and the page would grow as you scroll.
     const skirt = document.querySelector<HTMLElement>('[data-sticky-skirt]');
-    const SKIRT_OVERLAP = 24;
+    // How far the skirt tucks up behind the panel. This is the whole tolerance
+    // for scroll lag: the skirt is repositioned on the main thread while the
+    // panel is composited by the browser, so during a fast flick the skirt can
+    // sit a frame behind. Anything less than the lag shows as a hairline of page
+    // content at the panel's bottom edge. Bounded above by the panel's rounded
+    // corners — tuck up past those and the white skirt shows through the
+    // corner notches.
+    let skirtOverlap = 24;
     let naturalHeight = 0;
     let skirtHeight = 0;
     let skirtQueued = false;
@@ -186,10 +196,15 @@
       naturalHeight = document.documentElement.scrollHeight;
       skirt.style.display = prev;
       skirtHeight = skirt.offsetHeight;
+      const panelHeight = stickyCta.getBoundingClientRect().height;
+      const radius = parseFloat(
+        getComputedStyle(stickyCta).borderTopLeftRadius || '24'
+      ) || 24;
+      skirtOverlap = Math.max(24, Math.min(72, panelHeight - radius - 16));
       // Both layers slide exactly the same distance, derived from the panel so a
       // taller panel (wrapped note at 360px) still clears the screen. Set on both
       // elements: they are siblings, so neither inherits from the other.
-      const slide = `${stickyCta.getBoundingClientRect().height + 60}px`;
+      const slide = `${panelHeight + 60}px`;
       (stickyCta as HTMLElement).style.setProperty('--sticky-slide', slide);
       skirt.style.setProperty('--sticky-slide', slide);
     };
@@ -198,7 +213,7 @@
     const placeSkirt = () => {
       skirtQueued = false;
       if (!skirt) return;
-      const wanted = window.scrollY + window.innerHeight - SKIRT_OVERLAP;
+      const wanted = window.scrollY + window.innerHeight - skirtOverlap;
       const limit = naturalHeight - skirtHeight;
       skirt.style.top = `${Math.max(0, Math.min(wanted, limit))}px`;
     };
@@ -213,21 +228,27 @@
       watched.forEach((el) => intersecting.set(el, false));
       const syncSticky = () => {
         const suppressed = suppressors.some((el) => intersecting.get(el));
-        const active = usesFallback
-          ? (header ? !intersecting.get(header) : false)
-          : triggers.some((el) => intersecting.get(el));
-        const show = active && !suppressed;
+        const past = header ? !intersecting.get(header) : true;
+        const show = past && !suppressed;
         stickyCta.classList.toggle('is-visible', show);
         if (skirt) {
           skirt.classList.toggle('is-visible', show);
           if (show) placeSkirt();
         }
       };
-      const stickyIo = new IntersectionObserver((entries) => {
+      // Two observers: the header decides "have we started", the suppressors
+      // decide "is something better already on screen", and only the latter
+      // wants the late-handover margin.
+      const headerIo = new IntersectionObserver((entries) => {
         entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
         syncSticky();
       }, { threshold: 0 });
-      watched.forEach((el) => stickyIo.observe(el));
+      const suppressIo = new IntersectionObserver((entries) => {
+        entries.forEach((e) => intersecting.set(e.target, e.isIntersecting));
+        syncSticky();
+      }, { threshold: 0, rootMargin: '0px 0px -25% 0px' });
+      if (header) headerIo.observe(header);
+      suppressors.forEach((el) => suppressIo.observe(el));
       if (skirt) {
         measureNatural();
         placeSkirt();

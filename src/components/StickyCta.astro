@@ -3,10 +3,10 @@
  * StickyCta — the mobile enquiry panel that rises from the bottom of the screen.
  *
  * Two deliberate properties, both asked for directly:
- * 1. CONTEXTUAL — it appears only while a value-demonstrating section is on
- *    screen (Our Work, the comparison matrix, the ROI calculator), and stands
- *    aside for the hero, the final CTA band and the footer. SiteScripts drives
- *    this with an IntersectionObserver.
+ * 1. ONE APPEARANCE — it rises once the hero is behind you and then stays,
+ *    standing aside only where a competing call to action is on screen (the
+ *    final CTA band, the footer). SiteScripts drives this; see the note there
+ *    on why per-section triggering was removed.
  * 2. COMPACT — one action plus one reassurance line, and nothing else. It fills
  *    the width and reaches the bottom of the layout viewport; it does not earn
  *    height by stacking copy.
@@ -74,9 +74,10 @@ import Button from './Button.astro';
      scroll-synced in SiteScripts), which is exactly how an ordinary in-flow
      section reaches the bottom edge.
 
-     It deliberately overlaps the panel by SKIRT_OVERLAP so a frame of scroll
-     lag can never open a seam; the panel's higher z-index keeps the overlap
-     invisible. */
+     It tucks up behind the panel (see skirtOverlap in SiteScripts) so a frame of
+     scroll lag can't open a hairline at the panel's bottom edge; the panel's
+     higher z-index keeps the overlap invisible. Tall enough that lag in the
+     other direction can't uncover the band either. */
   .sticky-cta-skirt {
     position: absolute;
     left: 0;
