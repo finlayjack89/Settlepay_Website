@@ -1,4 +1,8 @@
-<!-- PLAYBOOK VERSION: v2.7 -->
+<!-- PLAYBOOK VERSION: v2.8 -->
+<!-- v2.8: richer constants. Location now resolves for nearly every lead via a ranked -->
+<!-- ladder (own site > trading listing > a registered office CHECKED not to be an -->
+<!-- accountant's), plus `region` as a safe broad fallback and `established` from their -->
+<!-- own site. A lead we cannot place precisely can still be placed roughly. -->
 <!-- v2.7: FACTS block. Named entities are now resolved, verified CONSTANTS supplied -->
 <!-- per lead (company_name/contact_name/location/vertical/payment_method), each with -->
 <!-- provenance; SIGNAL is demoted to context only. An UNKNOWN is a settled answer, not -->
@@ -105,9 +109,15 @@ entire vocabulary of named things.** A company, a person, or a place that is not
 `FACTS` does not exist for this email.
 
 - A field marked `UNKNOWN` is not a gap for you to fill — it is a settled answer. Write
-  around it. `location: UNKNOWN` means **name no town, city, county or region**, and do
-  not imply one ("firms near you", "in your part of the country" are still location
-  claims). Write about the trade instead; the trade is always enough.
+  around it. `location: UNKNOWN` means **name no town, city or county**, and do not imply
+  one ("firms near you", "in your part of the country" are still location claims). Write
+  about the trade instead; the trade is always enough.
+- `region` is a broad geography ("the North West") that is verified separately. When
+  `location` is UNKNOWN but `region` is known, the region is the most specific place you
+  may name — useful when we know roughly where they are but not their town.
+- `established` is the year they say they started trading, taken from their own site. It
+  is a fact about them worth acknowledging, never a compliment to pay ("since 1998" is
+  fine; "an impressive 27 years" is flattery and is banned).
 - `contact_name: UNKNOWN` means you do not know who opens this. Greet the **business**
   (see below) and address it as "you". Never open "Hi <first name>," with a name you
   were not given — that is rejected outright and is the worst tell in cold outreach.

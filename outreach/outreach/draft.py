@@ -505,6 +505,74 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
             **({"style": soft} if soft else {})}
 
 
+def redraft_stale(*, limit: int = 25, cur=None, provider=None,
+                  keep_version: str | None = None) -> dict:
+    """Send drafts written by an older playbook back through the drafter.
+
+    Only ever touches drafts still AWAITING APPROVAL: an approved or sent draft is a
+    decision (or a record of one) and re-writing it would rewrite history. The old row is
+    superseded rather than deleted, so what was previously in the queue stays auditable.
+
+    Everything the current pipeline enforces — the constants, the grounding gate, the
+    envelope — applies on the way through, because this is the ordinary drafting path
+    with a different backlog query.
+    """
+    keep_version = keep_version or PROMPT_VERSION
+    own = cur is None
+    conn = None
+    if own:
+        conn = db.connect(); cur = conn.cursor()
+    playbook = load_playbook()
+    redrawn, skipped, failed = 0, 0, 0
+    try:
+        cur.execute(
+            "select d.id, d.company_number, l.company_name, e.signal, e.contact_name, e.facts "
+            "from outreach.drafts d "
+            "join outreach.leads l on l.company_number = d.company_number "
+            "join outreach.enrichment e on e.company_number = d.company_number "
+            "where d.status = 'awaiting_approval' and d.prompt_version is distinct from %s "
+            "  and e.facts is not null "
+            "order by d.created_at limit %s", (keep_version, limit))
+        for draft_id, cn, name, sig, contact_name, raw_facts in cur.fetchall():
+            cur.execute("savepoint redraft_lead")
+            try:
+                block = facts.loads(raw_facts)
+                if not facts.is_draftable(block):
+                    skipped += 1
+                    cur.execute("release savepoint redraft_lead")
+                    continue
+                # supersede first: the drafts table has no per-lead uniqueness, so the
+                # old row would otherwise sit in the queue alongside its replacement
+                cur.execute("update outreach.drafts set status='superseded' where id=%s",
+                            (draft_id,))
+                cur.execute("update outreach.leads set state='enriched' "
+                            "where company_number=%s and state='drafted'", (cn,))
+                draft_one(cn, name, sig, provider=provider or draft_provider(
+                    responder=provisional_responder), cur=cur, playbook=playbook,
+                    contact_name=contact_name, lead_facts=block)
+                redrawn += 1
+                cur.execute("release savepoint redraft_lead")
+            except EnvelopeViolation as e:
+                # the replacement failed its gates — leave the ORIGINAL in the queue
+                # rather than emptying it, and record why
+                cur.execute("rollback to savepoint redraft_lead")
+                cur.execute("release savepoint redraft_lead")
+                failed += 1
+                audit.record(cn, "redraft_failed", source="draft",
+                             lawful_basis=audit.LEGITIMATE_INTERESTS,
+                             reason=f"kept the older draft: {e.violations}"[:400], cur=cur)
+        if own:
+            conn.commit()
+    except Exception:
+        if own and conn:
+            conn.rollback()
+        raise
+    finally:
+        if own and conn:
+            conn.close()
+    return {"redrafted": redrawn, "skipped_unresolved": skipped, "failed_kept_old": failed}
+
+
 def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     if provider is None:
         # api when configured (real unattended drafts); otherwise the safe

@@ -7,13 +7,14 @@ can't verifiably reach is DISCARDED (never left contactable).
 """
 from __future__ import annotations
 import abc
+import html as _html
 import json
 import re
 from typing import Optional
 
 import httpx
 
-from . import audit, config, db, facts, stats
+from . import audit, config, db, facts, geo, stats
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 GENERIC_PREFIXES = ("info", "contact", "enquiries", "enquiry", "hello", "sales", "admin", "office", "mail")
@@ -318,6 +319,108 @@ def page_text(url: str, *, client: Optional[httpx.Client] = None) -> str:
             client.close()
 
 
+# A business's own site is the best statement of where it is and who it is — it is the
+# company describing itself, not a third party describing it. Three extractable things,
+# all deterministic (no LLM, no cost):
+_LDJSON_RE = re.compile(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', re.S | re.I)
+_COMPANY_NO_RE = re.compile(
+    r"(?:compan(?:y|ies)\s*(?:registration\s*)?(?:no|number|reg)\.?|"
+    r"registered\s+in\s+England[^.]{0,60}?no\.?|reg(?:istered)?\s*(?:co|company)\s*no)"
+    r"[^0-9A-Z]{0,12}((?:SC|NI|OC|SO|NC|R)?\d{6,8})", re.I)
+_VAT_RE = re.compile(r"VAT\s*(?:registration\s*)?(?:no|number|reg)?\.?[^0-9A-Z]{0,10}"
+                     r"((?:GB\s*)?\d[\d\s]{7,13})", re.I)
+_ESTABLISHED_RE = re.compile(
+    r"(?:est(?:ablished|\.)?|since|trading\s+since|founded(?:\s+in)?)\s*:?\s*(19\d{2}|20[0-2]\d)",
+    re.I)
+
+
+def _unescape(value) -> Optional[str]:
+    """Decode entities and collapse whitespace. JSON-LD on real sites is routinely
+    hex-encoded ('SK11&#x20;9DU'), which breaks every postcode comparison downstream."""
+    if not value or not isinstance(value, str):
+        return None
+    return " ".join(_html.unescape(value).split()) or None
+
+
+def _ld_blocks(html_text: str) -> list[dict]:
+    out: list[dict] = []
+    for block in _LDJSON_RE.findall(html_text or ""):
+        try:
+            data = json.loads(block.strip())
+        except ValueError:
+            continue
+        items = data if isinstance(data, list) else [data]
+        for item in items:
+            if isinstance(item, dict):
+                out.append(item)
+                graph = item.get("@graph")
+                if isinstance(graph, list):
+                    out.extend(g for g in graph if isinstance(g, dict))
+    return out
+
+
+def site_identity(website: Optional[str], *, client: Optional[httpx.Client] = None,
+                  paths: tuple = ("", "/contact", "/contact-us", "/about")) -> dict:
+    """What the business says about itself on its own pages.
+
+    Returns {postcode, locality, company_number, vat_number, established, source_url}.
+    Everything is best-effort and independently optional — a site that publishes only a
+    postcode still moves the location out of "unknown".
+
+    The company number is the prize when it appears: it is a DETERMINISTIC Companies
+    House match, no name similarity or co-location heuristics involved. It only turns up
+    on a minority of small-business sites (roughly 1 in 6 when sampled), which is exactly
+    why it is worth taking for free whenever it does.
+    """
+    found: dict = {"postcode": None, "locality": None, "company_number": None,
+                   "vat_number": None, "established": None, "source_url": None}
+    if not website:
+        return found
+    owns = client is None
+    client = client or httpx.Client(timeout=15, follow_redirects=True,
+                                    headers={"User-Agent": USER_AGENT})
+    base = website.rstrip("/")
+    try:
+        for path in paths:
+            try:
+                r = client.get(base + path)
+            except httpx.HTTPError:
+                continue
+            if r.status_code != 200:
+                continue
+            html_text = r.text
+            # 1. schema.org — the structured, unambiguous form when a site publishes it
+            for item in _ld_blocks(html_text):
+                addr = item.get("address")
+                if isinstance(addr, list):
+                    addr = addr[0] if addr else None
+                if isinstance(addr, dict):
+                    # JSON-LD values are routinely hex-entity-encoded ("SK11&#x20;9DU"),
+                    # which silently breaks every postcode comparison downstream
+                    found["postcode"] = found["postcode"] or _unescape(addr.get("postalCode"))
+                    found["locality"] = found["locality"] or _unescape(addr.get("addressLocality"))
+            text = " ".join(_TAG_RE.sub(" ", html_text).split())
+            # 2. the footer: postcode, company number, VAT, "established 1998"
+            if not found["postcode"]:
+                from . import geo
+                found["postcode"] = geo.normalise_postcode(text)
+            for key, pattern in (("company_number", _COMPANY_NO_RE), ("vat_number", _VAT_RE),
+                                 ("established", _ESTABLISHED_RE)):
+                if not found[key]:
+                    m = pattern.search(text)
+                    if m:
+                        found[key] = " ".join(m.group(1).split())
+            if not found["source_url"] and any(
+                    found[k] for k in ("postcode", "company_number", "established")):
+                found["source_url"] = base + path
+            if found["postcode"] and found["company_number"]:
+                break                        # nothing better to find; stop fetching
+        return found
+    finally:
+        if owns:
+            client.close()
+
+
 def llm_signal(company_name: str, vertical: Optional[str], town: Optional[str],
                text: str, *, provider=None) -> Optional[str]:
     """LLM-written payment-behaviour signal from scraped page text — the
@@ -461,32 +564,38 @@ def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = Non
     email = None
     verified, result = False, "no_email"
 
-    # 1. cheap path: guess a generic mailbox on the company's OWN domain and verify
-    #    it directly. Recovers contact-form-only sites and avoids a paid scrape when
-    #    info@ is deliverable. Stops at the first verified address.
-    if guess_generics and domain:
+    # 1. SCRAPE FIRST — a published address is one the business wrote down itself, so a
+    #    verifier credit spent on it is spent on an address we already believe exists.
+    #    httpx costs nothing; only the Firecrawl fallback costs anything, and neither
+    #    costs a VERIFIER credit. This deliberately runs before any guessing.
+    httpx_emails = scrape_emails(website, client=http_client) if website else []
+    candidates = list(httpx_emails)
+    email = pick_contact_email(httpx_emails, prefer_domain=domain)
+    if email:
+        scrape_source = "httpx"
+    elif website and config.FIRECRAWL_API_KEY:   # renders JS where free httpx found none
+        fc_emails = firecrawl_scrape_emails(website)
+        candidates = fc_emails
+        email = pick_contact_email(fc_emails, prefer_domain=domain)
+        if email:
+            scrape_source = "firecrawl"
+
+    # 2. Blind generic guessing (info@, hello@, …) burns up to len(GUESS_PREFIXES)
+    #    verifier credits PER LEAD on addresses nobody has claimed exist, and buys at
+    #    best a role mailbox — the weakest contact tier we send to. Off by default: the
+    #    credit budget belongs to named decision-makers. Set ENRICH_GUESS_GENERICS=1 to
+    #    re-enable when credits are plentiful and coverage matters more than precision.
+    if not email and guess_generics and domain and config.ENRICH_GUESS_GENERICS:
         for prefix in GUESS_PREFIXES:
             guess = f"{prefix}@{domain}"
             ok, res = verifier(guess)
             if ok:
-                email, verified, result, scrape_source, candidates = guess, True, res, "guess", [guess]
+                email, verified, result = guess, True, res
+                scrape_source, candidates = "guess", [guess]
                 break
 
-    # 2. fall back to scraping the site for a published address
-    if not email:
-        httpx_emails = scrape_emails(website, client=http_client) if website else []
-        candidates = list(httpx_emails)
-        email = pick_contact_email(httpx_emails, prefer_domain=domain)
-        if email:
-            scrape_source = "httpx"
-        # Firecrawl renders JS / extracts where free httpx found nothing
-        elif website and config.FIRECRAWL_API_KEY:
-            fc_emails = firecrawl_scrape_emails(website)
-            candidates = fc_emails
-            email = pick_contact_email(fc_emails, prefer_domain=domain)
-            if email:
-                scrape_source = "firecrawl"
-        verified, result = verifier(email) if email else (False, "no_email")
+    if email and not verified:
+        verified, result = verifier(email)
 
     return {"email": email, "verified": verified, "result": result,
             "scrape_source": scrape_source, "candidates": candidates}
@@ -620,12 +729,96 @@ def run(items: list[dict], *, cur=None) -> list[dict]:
             conn.close()
 
 
+# Re-enrichment: leads that ALREADY have an enrichment row but were worked before the
+# constants existed (or whose block is missing a location we can now resolve). Picking
+# them by facts state rather than by date means the query stays correct as the block
+# gains fields — a lead is stale when its constants are, not when it is old.
+_REFRESH_SQL = (
+    "select l.company_number, l.company_name, l.registered_address->>'locality', "
+    "       l.sic_codes[1], coalesce(e.website, l.registered_address->>'website'), l.source, "
+    "       l.registered_address->>'formatted', l.registered_address->>'postcode' "
+    "from outreach.leads l join outreach.enrichment e using (company_number) "
+    "where l.state in ('enriched','drafted') "
+    "  and (e.facts is null "
+    "       or e.facts->'location'->>'value' is null "
+    "       or e.facts->'region' is null) "
+    "order by l.updated_at limit %s")
+
+
+def refresh_facts(*, limit: int = 25, cur=None) -> dict:
+    """Recompute the drafting CONSTANTS for leads already enriched, and nothing else.
+
+    Deliberately NOT `discover_and_run` over the same rows. That path re-gathers and
+    re-verifies a contact, and its unverifiable branch DISCARDS the lead — so re-running
+    it over a healthy backlog during a verifier outage (all three providers are currently
+    dry) would delete good, already-contacted leads. Nothing here touches contact_email,
+    contact_tier or lead state; the worst case is a lead whose constants are unchanged.
+    """
+    own = cur is None
+    conn = None
+    if own:
+        conn = db.connect(); cur = conn.cursor()
+    http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
+    from .companies_house import CompaniesHouseClient
+    ch = CompaniesHouseClient(max_requests=max(30, limit * 2)) \
+        if config.COMPANIES_HOUSE_API_KEY else None
+    updated = placed = unchanged = 0
+    try:
+        cur.execute(_REFRESH_SQL, (limit,))
+        rows = cur.fetchall()
+        for cn, name, town, sic, website, source, formatted, postcode in rows:
+            hint = usable_vertical(stats.sic_label(sic))
+            identity = site_identity(website, client=http) if website else {}
+            place = geo.resolve_location(
+                site_postcode=identity.get("postcode"), site_town=identity.get("locality"),
+                listing_town=trading_town(town, source, formatted),
+                listing_postcode=postcode,
+                registered_town=town if source not in _TRADING_LOCALITY_SOURCES else None,
+                registered_postcode=postcode if source not in _TRADING_LOCALITY_SOURCES else None,
+                ch=ch, client=http)
+            cur.execute("select contact_name from outreach.enrichment where company_number=%s",
+                        (cn,))
+            row = cur.fetchone()
+            block = facts.build(
+                company_name=name, company_name_source="companies_house",
+                contact_name=row[0] if row else None,
+                contact_name_source="ch_officer_verified_email" if (row and row[0]) else None,
+                location=place.get("town"), location_source=place.get("source"),
+                region=place.get("region"),
+                region_source="postcodes_io" if place.get("region") else None,
+                vertical=hint, vertical_source="sic_label" if hint else None,
+                established=identity.get("established"),
+                established_source="own_site" if identity.get("established") else None)
+            cur.execute("update outreach.enrichment set facts=%s::jsonb where company_number=%s",
+                        (facts.dumps(block), cn))
+            updated += 1
+            if place.get("town") or place.get("region"):
+                placed += 1
+            else:
+                unchanged += 1
+            audit.record(cn, "facts_refreshed", source="enrich",
+                         lawful_basis=audit.LEGITIMATE_INTERESTS,
+                         reason=facts.summarise(block)[:400], cur=cur)
+        if own:
+            conn.commit()
+    except Exception:
+        if own and conn:
+            conn.rollback()
+        raise
+    finally:
+        http.close()
+        if ch is not None:
+            ch.close()
+        if own and conn:
+            conn.close()
+    return {"refreshed": updated, "placed": placed, "unplaceable": unchanged}
+
+
 def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
     """Automated discovery + enrich for up to `limit` not-yet-enriched corporate
     discovered leads: resolve each website via the configured resolver
     (firecrawl/brave/inline), then scrape + verify a contact (httpx -> Firecrawl
-    fallback) and enrich or discard. Signal is a factual placeholder for now
-    (a real LLM signal arrives with the api provider — deferred)."""
+    fallback) and enrich or discard."""
     resolver = resolver or get_website_resolver()
     own = cur is None
 
@@ -641,17 +834,21 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
 
     # phase 2 — slow networked work (resolve + scrape + verify), NO DB connection held
     http = httpx.Client(timeout=15, follow_redirects=True, headers={"User-Agent": USER_AGENT})
+    # one Companies House client for the batch: used only to ask whether a registered
+    # office is a shared agent address, which is one cheap search per distinct postcode
+    from .companies_house import CompaniesHouseClient
+    ch = CompaniesHouseClient(max_requests=max(30, len(leads) * 2)) \
+        if config.COMPANIES_HOUSE_API_KEY else None
     gathered: list[tuple] = []
     consecutive_verify_failures = 0
     try:
-        for cn, name, town, sic, known_website, source, formatted in leads:
+        for cn, name, town, sic, known_website, source, formatted, postcode in leads:
             # Circuit breaker. Verification is the LAST step, so a dead verifier means
             # every scrape before it was paid for and thrown away. Stop the batch
             # instead of grinding through the backlog achieving nothing.
             if consecutive_verify_failures >= VERIFIER_DOWN_AFTER:
                 break
             hint = usable_vertical(stats.sic_label(sic))  # "Accountants", or None
-            town_claim = trading_town(town, source, formatted)   # a trading town, or None
             if known_website:   # Places already gave us the site — don't pay to re-resolve
                 website = known_website
             else:
@@ -659,7 +856,19 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                     website = resolver.resolve(company_name=name, address=town or "", hint=hint)
                 except Exception:
                     website = None
-            signal = factual_signal(name, hint, town_claim)
+
+            # WHERE THEY ARE, best source first: what they publish about themselves, then
+            # a trading listing, then a registered office proven not to be an agent's.
+            # Every UK business has an address somewhere in that ladder.
+            identity = site_identity(website, client=http) if website else {}
+            place = geo.resolve_location(
+                site_postcode=identity.get("postcode"), site_town=identity.get("locality"),
+                listing_town=trading_town(town, source, formatted),
+                listing_postcode=postcode,
+                registered_town=town if source not in _TRADING_LOCALITY_SOURCES else None,
+                registered_postcode=postcode if source not in _TRADING_LOCALITY_SOURCES else None,
+                ch=ch, client=http)
+            signal = factual_signal(name, hint, place.get("town"))
             g = _gather(website, http_client=http)
             if g["email"] and g["result"] in TRANSIENT_RESULTS:
                 consecutive_verify_failures += 1
@@ -668,7 +877,8 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
             g["signal_source"] = "factual"
             g["fit"] = None   # unknown → admitted flagged for review (fail-open)
             if website:  # structured ICP-fit gate + signal in one Gemini call
-                fit = signal_and_fit(name, hint, town_claim, page_text(website, client=http))
+                fit = signal_and_fit(name, hint, place.get("town"),
+                                     page_text(website, client=http))
                 g["fit"] = fit
                 if fit["available"]:
                     g["signal_source"] = "llm"
@@ -680,12 +890,18 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
             # fact — the auction path sets it from the auctioneer's own quoted sentence.
             g["facts"] = facts.build(
                 company_name=name, company_name_source="companies_house",
-                location=town_claim,
-                location_source="places_listing" if town_claim else None,
-                vertical=hint, vertical_source="sic_label" if hint else None)
+                location=place.get("town"), location_source=place.get("source"),
+                region=place.get("region"),
+                region_source="postcodes_io" if place.get("region") else None,
+                vertical=hint, vertical_source="sic_label" if hint else None,
+                established=identity.get("established"),
+                established_source="own_site" if identity.get("established") else None)
+            g["identity"] = identity        # postcode/company number/VAT for the record
             gathered.append((cn, website, signal, g))
     finally:
         http.close()
+        if ch is not None:
+            ch.close()
 
     # phase 3 — fast DB writes (connection open only for the persists)
     if own:
@@ -704,7 +920,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
 _BACKLOG_SQL = (
     "select l.company_number, l.company_name, l.registered_address->>'locality', "
     "       l.sic_codes[1], l.registered_address->>'website', l.source, "
-    "       l.registered_address->>'formatted' "
+    "       l.registered_address->>'formatted', l.registered_address->>'postcode' "
     "from outreach.leads l where l.subscriber_class='corporate' and l.state='discovered' "
     "and not exists (select 1 from outreach.enrichment e where e.company_number=l.company_number) "
     "order by l.company_name limit %s")

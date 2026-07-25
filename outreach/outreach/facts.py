@@ -43,7 +43,8 @@ from typing import Any, Iterable, Optional
 # The fields a draft may name. Adding one here makes it available to the playbook AND
 # admissible to the grounding check — those must never drift apart, which is why there is
 # a single list rather than a set per call site.
-FIELDS = ("company_name", "contact_name", "location", "vertical", "payment_method")
+FIELDS = ("company_name", "contact_name", "location", "region", "vertical",
+          "payment_method", "established")
 
 # Without this the lead is not draftable at all: you cannot write to a business you cannot
 # name. Everything else is optional-but-declared.
@@ -52,7 +53,14 @@ REQUIRED = ("company_name",)
 # Sources whose locality is where the business TRADES. A Companies House registered office
 # is routinely a formation agent or the company's accountant, so it is deliberately absent:
 # it is data we hold but may not assert. (See enrich._TRADING_LOCALITY_SOURCES.)
-TRADING_LOCATION_SOURCES = frozenset({"places_listing", "own_site", "platform_listing"})
+TRADING_LOCATION_SOURCES = frozenset({
+    "places_listing", "own_site", "platform_listing",
+    # A registered office is admissible ONLY once geo.registered_office_shared() has
+    # confirmed it is the company's own premises rather than an accountant's. That check
+    # earns a distinct label, so a bare "companies_house" — an address nobody checked —
+    # is still rejected here. Belt and braces: the ladder decides, this enforces.
+    "companies_house_confirmed",
+})
 
 
 @dataclass(frozen=True)
@@ -93,14 +101,22 @@ def _clean(value: Optional[str]) -> Optional[str]:
 def build(*, company_name: Optional[str], company_name_source: str = "companies_house",
           contact_name: Optional[str] = None, contact_name_source: Optional[str] = None,
           location: Optional[str] = None, location_source: Optional[str] = None,
+          region: Optional[str] = None, region_source: Optional[str] = None,
           vertical: Optional[str] = None, vertical_source: Optional[str] = None,
           payment_method: Optional[str] = None,
-          payment_method_source: Optional[str] = None) -> dict[str, Fact]:
+          payment_method_source: Optional[str] = None,
+          established: Optional[str] = None,
+          established_source: Optional[str] = None) -> dict[str, Fact]:
     """Assemble a facts block, applying admissibility rules as it goes.
 
     A location from a non-trading source is DROPPED to unknown rather than carried with
     verified=False, because a value that exists is a value a prompt can leak. The only safe
     representation of an inadmissible fact is its absence.
+
+    `region` is deliberately NOT subject to that rule. A broad geography ("the North
+    West") stays true even when the precise town does not — an accountant is almost
+    always in the same region as the client — so a lead whose town we cannot claim can
+    still be placed, which beats saying nothing at all.
     """
     loc = _clean(location)
     if loc and location_source not in TRADING_LOCATION_SOURCES:
@@ -114,8 +130,10 @@ def build(*, company_name: Optional[str], company_name_source: str = "companies_
         "company_name": fact(company_name, company_name_source),
         "contact_name": fact(contact_name, contact_name_source),
         "location": fact(loc, location_source),
+        "region": fact(region, region_source),
         "vertical": fact(vertical, vertical_source),
         "payment_method": fact(payment_method, payment_method_source),
+        "established": fact(established, established_source),
     }
 
 
