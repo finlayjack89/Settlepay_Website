@@ -166,6 +166,11 @@ import Button from './Button.astro';
     font-size: 0.8rem;
     color: var(--color-text-muted);
   }
+  /* Mobile type floor — these three lines are what answers "is this safe to
+     send?" right at the submit button, so they are reading copy. */
+  @media (max-width: 768px) {
+    .sp-modal__assure li { font-size: 0.8125rem; }
+  }
   .sp-modal__assure li :global(svg) {
     width: 13px;
     height: 13px;

@@ -1032,4 +1032,20 @@ button.sp-cal__cell--selected:hover {
    kit-extras.css, so an override there could not win this selector. */
 @media (max-width: 768px) {
   .faq-objection__go { font-size: 0.8125rem; }
+
+  /* Touch targets: inline text controls whose line box is well under the 44px
+     floor — measured 21px (breadcrumbs, copy-link) and 26px (inline enquire).
+     Grown with a pseudo overlay rather than padding so the surrounding prose
+     keeps its exact line rhythm and nothing reflows. */
+  .breadcrumbs a,
+  .faq-item__link,
+  .faq-inline-enquire { position: relative; }
+
+  .breadcrumbs a::after,
+  .faq-item__link::after,
+  .faq-inline-enquire::after {
+    content: '';
+    position: absolute;
+    inset: -12px -6px;
+  }
 }

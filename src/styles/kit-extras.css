@@ -1906,7 +1906,12 @@ html.sp-modal-open body { background-color: #7B7F8A; }
   html.reveal-ready .market-shift__stage {
     position: sticky;
     top: 0;
+    /* dvh so the pinned stage is the height actually visible on iOS. With 100vh
+       alone it is sized to the toolbar-collapsed viewport, so while the toolbar
+       is expanded the vertically centred content sits low and its last line can
+       fall behind the toolbar. Identical to 100vh on desktop. */
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2866,4 +2871,21 @@ body { counter-reset: srcnote; }
   .trust-strip__caption { font-size: 0.8125rem; }
   .hero__eyebrow { font-size: 0.8125rem; }
   .sources__list li { font-size: 0.8125rem; }
+  /* Both reading copy, both were sitting at 0.8rem (12.8px) — a client link
+     and a section eyebrow, neither covered by the chip/mockup exemptions. */
+  .trust-strip__live { font-size: 0.8125rem; }
+  .card-moment__eyebrow { font-size: 0.8125rem; }
+  /* Form help text and the consent line (which carries the Privacy Policy
+     link) sit on the conversion path — they have to be legible. */
+  .sp-field__hint { font-size: 0.8125rem; }
+  .market-shift__source { font-size: 0.8125rem; }
+  .market-shift__fact span { font-size: 0.8125rem; }
+
+  /* Floated field label: 0.68rem (10.9px) is the smallest text anywhere on the
+     conversion path, and it is the only thing naming a filled field — for a
+     45-65+ audience that has to be legible. The extra top padding buys the
+     taller label its room so it never collides with the value below. */
+  .sp-field input:focus + label,
+  .sp-field input:not(:placeholder-shown) + label { font-size: 0.8125rem; }
+  .sp-field input { padding-top: 1.5rem; }
 }

@@ -130,8 +130,16 @@ convention or illustrative-mockup internals, never reading copy):
 - `.section-badge` — 12px uppercase chip.
 - `.status-chip` — 11.5px at mobile widths (hero-stage evidence chips).
 - `.footer__col-title` — 11.5px uppercase column label.
-- Mockup-internal text (checkout floating labels, paysheet lines, trust-strip payment marks) —
-  part of an illustrative graphic, not content.
+- `.pf-chip`, `.use-case__tag`, `.pf-card__vertical`, `.pf-card__pattern`, `.speed__day`,
+  `.integration__mode-tag`, `.sources__title` — card and timeline chips/labels, same convention
+  as `.section-badge`: a label on a card, not a line anyone reads.
+- Mockup-internal text (checkout floating labels, paysheet lines, trust-strip payment marks, and
+  everything in the `bct__`, `mok__`, `dashx__`, `onb__`, `rec__`, `flow-scene__` and
+  `dashboard-mockup__` families) — part of an illustrative graphic, not content.
+
+Everything else that reported under 13px in the July 2026 sweep WAS raised: the ROI result labels
+and disclaimer, the enquiry-modal field hints and assurance list, the market-shift source note,
+the Lockdales "live with" link and the card-moment eyebrow.
 
 ---
 
