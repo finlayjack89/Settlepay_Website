@@ -1,0 +1,943 @@
+---
+/**
+ * PreviewFilm — "Your Page, Taking Shape": a silent 15s loop showing an
+ * ordinary site being read, its brand lifted, and a branded payment page
+ * assembling itself and taking a payment.
+ *
+ * Ported from the Claude Design composition (project "Your page, taking
+ * shape", file `Your Page Taking Shape.dc.html` / `film.jsx`) to a
+ * dependency-free DOM island — no React, no design-tool runtime.
+ *
+ * Structure: 80 BPM, five 3s bars. All motion is a pure function of
+ * (bar, beat) where beat = sceneProgress × 4, exactly as the original.
+ *
+ * Island contract (mirrors DESIGN-SYSTEM §9, adapted for a DOM film):
+ *   - The markup below IS the finished render — it ships in the bar-5 "paid"
+ *     rest frame. No-JS and prefers-reduced-motion visitors see a complete
+ *     picture, never a placeholder or a loading state.
+ *   - One rAF, gated by IntersectionObserver; paused when off-screen or when
+ *     the tab is hidden. Under reduced motion the loop never starts.
+ *   - `data-film-state` = "static" | "live" on the root (testable).
+ *
+ * The business shown is fictional (Stillwater Weddings) — the hosting section
+ * carries the "Illustrative example" disclosure.
+ */
+---
+<!-- Playfair Display carries Stillwater's serif identity inside the film. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;1,500&display=swap"
+/>
+
+<div
+  class="preview-film"
+  data-film-state="static"
+  data-preview-film
+  role="img"
+  aria-label="A sample business website is read, its logo, colours and type are lifted from it, and a branded payment page is built and takes a payment."
+>
+  <div class="pf-stage" data-pf-stage>
+    <!-- ── The ordinary Stillwater site ───────────────────────────── -->
+    <div
+      class="pf-site"
+      data-pf-site
+      style="transform:translate(104px,64px) scale(0.82);filter:brightness(0.8) saturate(0.9)"
+    >
+      <div class="pf-chrome">
+        <div class="pf-dots"><span></span><span></span><span></span></div>
+        <div class="pf-url" data-pf-url style="background:#FFFFFF">
+          <svg class="pf-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+          <span>stillwaterweddings.co.uk</span>
+        </div>
+      </div>
+      <div class="pf-site__body">
+        <div class="pf-site__mark">
+          <svg class="pf-mark" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="15.5" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 23.5c3.8-2.4 7.7-2.4 11.5 0s7.7 2.4 11.5 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11.5 28c2.8-1.8 5.7-1.8 8.5 0s5.7 1.8 8.5 0" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+        </div>
+        <p class="pf-site__name">Stillwater</p>
+        <p class="pf-site__sub">Wedding Photography</p>
+        <div class="pf-site__nav">
+          <span class="is-on">Home</span><span>Galleries</span><span>Pricing</span><span>Contact</span>
+        </div>
+        <div class="pf-site__hero">
+          <img src="/wedding_photo.jpeg" alt="" loading="lazy" decoding="async" width="1200" height="669" />
+        </div>
+        <p class="pf-site__tag">Quiet, natural wedding photography — Suffolk &amp; the east coast</p>
+        <p class="pf-site__contact">01728 452 917 &nbsp;·&nbsp; hello@stillwaterweddings.co.uk</p>
+        <p class="pf-site__foot">Est. 2014 · Suffolk</p>
+      </div>
+    </div>
+
+    <!-- ── Bar 2: the reading light ───────────────────────────────── -->
+    <div class="pf-light" data-pf-light style="opacity:0"></div>
+
+    <!-- ── Bar 2/3: the specimen tray ─────────────────────────────── -->
+    <div class="pf-tray" data-pf-tray style="opacity:0">
+      <div class="pf-slot" style="top:24px"><i></i><span>Logo</span></div>
+      <div class="pf-slot" style="top:108px"><i></i><span>Colours</span></div>
+      <div class="pf-slot" style="top:192px"><i></i><span>Type</span></div>
+    </div>
+
+    <!-- ── The payment page ───────────────────────────────────────── -->
+    <div class="pf-pay" data-pf-pay style="transform:translate(562px,61px) scale(1);opacity:1">
+      <div class="pf-chrome pf-chrome--pay">
+        <div class="pf-dots"><span></span><span></span><span></span></div>
+        <div class="pf-url pf-url--pay">
+          <svg class="pf-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+          <span>pay.stillwaterweddings.co.uk/booking/SW-1183</span>
+        </div>
+      </div>
+
+      <div class="pf-mast" data-pf-mast style="background:#26231F">
+        <div class="pf-mast__ph" data-pf-mast-ph style="opacity:0">
+          <span class="pf-mast__ph-dot"></span><span class="pf-mast__ph-bar"></span>
+        </div>
+        <div class="pf-mast__brand" data-pf-mast-brand style="opacity:1;transform:scale(1)">
+          <div class="pf-mast__mark">
+            <svg class="pf-mark" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="15.5" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 23.5c3.8-2.4 7.7-2.4 11.5 0s7.7 2.4 11.5 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11.5 28c2.8-1.8 5.7-1.8 8.5 0s5.7 1.8 8.5 0" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          </div>
+          <p class="pf-mast__name">Stillwater</p>
+          <p class="pf-mast__sub">Wedding Photography</p>
+        </div>
+      </div>
+
+      <div class="pf-body" data-pf-body style="background:#FAF7F1;color:#26231F">
+        <!-- form face -->
+        <div class="pf-form" data-pf-form style="opacity:0">
+          <div class="pf-ref">
+            <span class="pf-ref__bar" data-pf-refbar style="opacity:0"></span>
+            <span class="pf-ref__text" data-pf-reftext style="opacity:1;color:#7D5F2C">Booking Confirmation — SW-1183</span>
+          </div>
+
+          <div class="pf-titlerow" data-pf-titlerow style="height:54px">
+            <span class="pf-title pf-title--sans" data-pf-title-sans style="opacity:0">Payment details</span>
+            <span class="pf-title pf-title--serif" data-pf-title-serif style="opacity:0">Payment details</span>
+            <div class="pf-due" data-pf-details style="opacity:1">
+              <div>
+                <p class="pf-due__label">Balance due</p>
+                <p class="pf-due__meta">Grace &amp; Tom · Saturday 3 October 2026</p>
+              </div>
+              <p class="pf-due__amount">£1,240.00</p>
+            </div>
+          </div>
+
+          <div class="pf-cardrow">
+            <span class="pf-cardrow__label">Pay by Card</span>
+            <span class="pf-cardrow__rule"></span>
+            <span class="pf-cardrow__marks" data-pf-marks style="opacity:1">
+              <img src="/assets/payment/Visa.svg" alt="Visa" />
+              <img src="/assets/payment/Mastercard.svg" alt="Mastercard" />
+              <img src="/assets/payment/Amex.svg" alt="Amex" />
+            </span>
+          </div>
+
+          <div class="pf-fields">
+            <div class="pf-field">
+              <p class="pf-field__label" data-pf-flabel style="color:#7D5F2C">Card Number</p>
+              <div class="pf-field__box" data-pf-fbox style="background:#FFFDF9">
+                <span class="pf-field__ph" data-pf-fph style="opacity:0">1234 1234 1234 1234</span>
+                <span class="pf-field__val" data-pf-fval style="opacity:1;color:#26231F">•••• •••• •••• 4242</span>
+              </div>
+            </div>
+            <div class="pf-fields__pair">
+              <div class="pf-field">
+                <p class="pf-field__label" data-pf-flabel style="color:#7D5F2C">Expiry Date</p>
+                <div class="pf-field__box" data-pf-fbox style="background:#FFFDF9">
+                  <span class="pf-field__ph" data-pf-fph style="opacity:0">MM / YY</span>
+                  <span class="pf-field__val" data-pf-fval style="opacity:1;color:#26231F">08 / 28</span>
+                </div>
+              </div>
+              <div class="pf-field">
+                <p class="pf-field__label" data-pf-flabel style="color:#7D5F2C">Security Code</p>
+                <div class="pf-field__box" data-pf-fbox style="background:#FFFDF9">
+                  <span class="pf-field__ph" data-pf-fph style="opacity:0">CVC</span>
+                  <span class="pf-field__val" data-pf-fval style="opacity:1;color:#26231F">•••</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pf-btn" data-pf-btn style="background:#C8A36A;color:#26231F;transform:translateY(0) scale(1);box-shadow:0 6px 14px rgba(38,35,31,0.18)">
+            <span class="pf-btn__face" data-pf-btn-pay style="opacity:0">Pay</span>
+            <span class="pf-btn__face" data-pf-btn-amount style="opacity:1">Pay £1,240.00</span>
+            <span class="pf-btn__face pf-btn__face--proc" data-pf-btn-proc style="opacity:0">
+              <span class="pf-spin" data-pf-spin style="transform:rotate(45deg)"></span>Processing…
+            </span>
+          </div>
+
+          <p class="pf-fca" data-pf-fca style="color:#6B655C">
+            <svg class="pf-lock pf-lock--sm" data-pf-fca-lock style="color:#7D5F2C" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+            <span>Payments secured and processed by an FCA-regulated processor</span>
+          </p>
+        </div>
+
+        <!-- success face -->
+        <div class="pf-done" data-pf-success style="opacity:1">
+          <span class="pf-done__tick" data-pf-tickwrap style="transform:scale(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.75l6 6 9-13.5" stroke-dasharray="30" stroke-dashoffset="0" data-pf-tickpath/></svg>
+          </span>
+          <h3 class="pf-done__title">Payment Received</h3>
+          <p class="pf-done__text">Thank you, Grace &amp; Tom — your balance is settled.</p>
+          <div class="pf-receipt">
+            <div class="pf-receipt__row"><span>Balance paid</span><span class="pf-receipt__v">£1,240.00</span></div>
+            <div class="pf-receipt__row"><span>Booking reference</span><span class="pf-receipt__v">SW-1183</span></div>
+          </div>
+          <p class="pf-done__note">A receipt has been emailed to you.</p>
+          <p class="pf-fca pf-fca--done">
+            <svg class="pf-lock pf-lock--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+            <span>Payments secured and processed by an FCA-regulated processor</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Flying specimens (bars 2–3) and bar-5 ghosts ───────────── -->
+    <div class="pf-spec pf-spec--tile" data-pf-spec="logo" style="opacity:0">
+      <svg class="pf-mark pf-mark--spec" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="15.5" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 23.5c3.8-2.4 7.7-2.4 11.5 0s7.7 2.4 11.5 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11.5 28c2.8-1.8 5.7-1.8 8.5 0s5.7 1.8 8.5 0" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+    </div>
+    <div class="pf-spec pf-spec--sw pf-spec--s0" data-pf-spec="s0" style="opacity:0"></div>
+    <div class="pf-spec pf-spec--sw pf-spec--s1" data-pf-spec="s1" style="opacity:0"></div>
+    <div class="pf-spec pf-spec--sw pf-spec--s2" data-pf-spec="s2" style="opacity:0"></div>
+    <div class="pf-spec pf-spec--tile pf-spec--type" data-pf-spec="type" style="opacity:0">Aa</div>
+
+    <div class="pf-spec pf-spec--tile" data-pf-ghost="logo" style="opacity:0">
+      <svg class="pf-mark pf-mark--spec" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="15.5" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 23.5c3.8-2.4 7.7-2.4 11.5 0s7.7 2.4 11.5 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11.5 28c2.8-1.8 5.7-1.8 8.5 0s5.7 1.8 8.5 0" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+    </div>
+    <div class="pf-spec pf-spec--sw pf-spec--s0" data-pf-ghost="s0" style="opacity:0"></div>
+    <div class="pf-spec pf-spec--sw pf-spec--s1" data-pf-ghost="s1" style="opacity:0"></div>
+    <div class="pf-spec pf-spec--sw pf-spec--s2" data-pf-ghost="s2" style="opacity:0"></div>
+    <div class="pf-spec pf-spec--tile pf-spec--type" data-pf-ghost="type" style="opacity:0">Aa</div>
+
+    <!-- ── Status chip ────────────────────────────────────────────── -->
+    <div class="pf-chip" data-pf-chip style="transform:translate(470px,508px);opacity:1">
+      <span class="pf-chip__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.75l6 6 9-13.5"/></svg>
+      </span>
+      <span>Payment received · <b>£1,240.00</b></span>
+    </div>
+
+    <!-- ── Cursors ────────────────────────────────────────────────── -->
+    <svg class="pf-cursor" data-pf-cursor1 style="opacity:0" viewBox="0 0 24 24"><path d="M5 3 L5 19.2 L9.3 15.5 L12.1 21.8 L14.7 20.6 L11.9 14.5 L17.6 14 Z" fill="#0F172A" stroke="#FFFFFF" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <svg class="pf-cursor" data-pf-cursor2 style="opacity:0" viewBox="0 0 24 24"><path d="M5 3 L5 19.2 L9.3 15.5 L12.1 21.8 L14.7 20.6 L11.9 14.5 L17.6 14 Z" fill="#0F172A" stroke="#FFFFFF" stroke-width="1.4" stroke-linejoin="round"/></svg>
+
+    <!-- ── Caption ────────────────────────────────────────────────── -->
+    <p class="pf-cap" data-pf-cap style="opacity:0"></p>
+  </div>
+</div>
+
+<style>
+  .preview-film {
+    position: relative;
+    aspect-ratio: 1152 / 720;
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    background: radial-gradient(120% 90% at 50% 22%, #1e2b45 0%, #0f172a 62%);
+    --pf-hair: rgba(38, 35, 31, 0.14);
+    --pf-muted: rgba(38, 35, 31, 0.62);
+    --pf-serif: 'Playfair Display', Georgia, serif;
+    --pf-sans: 'Avenir Next', 'Helvetica Neue', Helvetica, system-ui, sans-serif;
+  }
+  /* Fixed 1152×720 design space, scaled to the container. The default matches
+     the panel's natural column width so a no-JS render still lands correctly;
+     the script sets the exact factor and keeps it right on resize. */
+  .pf-stage {
+    position: absolute;
+    inset: 0;
+    width: 1152px;
+    height: 720px;
+    transform-origin: 0 0;
+    transform: scale(var(--pf-scale, 0.48));
+    font-family: 'Satoshi', system-ui, sans-serif;
+  }
+
+  /* ── shared chrome ── */
+  .pf-chrome {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+  .pf-chrome--pay { padding: 9px 14px; }
+  .pf-dots { display: flex; gap: 6px; }
+  .pf-dots span { width: 10px; height: 10px; border-radius: 50%; background: rgba(15, 23, 42, 0.14); }
+  .pf-url {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    max-width: 230px;
+    margin: 0 auto;
+    padding: 5px 12px;
+    border-radius: 100px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: rgba(15, 23, 42, 0.5);
+  }
+  .pf-url--pay { max-width: 250px; font-size: 11px; background: #fff; white-space: nowrap; }
+  .pf-lock { width: 11px; height: 11px; flex: none; color: #10b981; }
+  .pf-lock--sm { width: 10px; height: 10px; }
+  .pf-mark { width: 32px; height: 32px; display: block; color: #c8a36a; }
+
+  /* ── the ordinary site ── */
+  .pf-site {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 600px;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(30, 58, 138, 0.05), 0 18px 50px rgba(30, 58, 138, 0.12);
+  }
+  .pf-site__body {
+    background: #faf7f1;
+    color: #26231f;
+    font-family: var(--pf-sans);
+    padding: 32px 44px 26px;
+    text-align: center;
+  }
+  .pf-site__mark { display: grid; justify-items: center; }
+  .pf-site__name {
+    margin: 8px 0 0;
+    font-family: var(--pf-serif);
+    font-size: 25px;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .pf-site__sub {
+    margin: 7px 0 0;
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: #7d5f2c;
+  }
+  .pf-site__nav {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 18px;
+    padding: 9px 0;
+    border-top: 1px solid var(--pf-hair);
+    border-bottom: 1px solid var(--pf-hair);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--pf-muted);
+  }
+  .pf-site__nav .is-on { color: #7d5f2c; border-bottom: 1px solid #c8a36a; padding-bottom: 2px; }
+  .pf-site__hero {
+    margin-top: 20px;
+    height: 178px;
+    position: relative;
+    border: 1px solid var(--pf-hair);
+    border-radius: 4px;
+    overflow: hidden;
+    background: #f2ecdf;
+  }
+  .pf-site__hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .pf-site__tag {
+    margin: 18px 0 0;
+    font-family: var(--pf-serif);
+    font-style: italic;
+    font-size: 16.5px;
+    font-weight: 500;
+  }
+  .pf-site__contact { margin: 10px 0 0; font-size: 11.5px; color: var(--pf-muted); }
+  .pf-site__foot {
+    margin: 16px 0 0;
+    padding-top: 10px;
+    border-top: 3px double var(--pf-hair);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(38, 35, 31, 0.4);
+  }
+
+  /* ── reading light ── */
+  .pf-light {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 660px;
+    height: 160px;
+    z-index: 10;
+    filter: blur(3px);
+    background: linear-gradient(
+      180deg,
+      rgba(59, 130, 246, 0) 0%,
+      rgba(59, 130, 246, 0.26) 38%,
+      rgba(147, 197, 253, 0.5) 50%,
+      rgba(59, 130, 246, 0.26) 62%,
+      rgba(59, 130, 246, 0) 100%
+    );
+  }
+
+  /* ── specimen tray ── */
+  .pf-tray {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 190px;
+    height: 312px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(30, 58, 138, 0.05), 0 18px 50px rgba(30, 58, 138, 0.12);
+  }
+  .pf-slot { position: absolute; left: 16px; width: 158px; height: 68px; }
+  .pf-slot i { position: absolute; inset: 0; border: 1.5px dashed rgba(15, 23, 42, 0.16); border-radius: 8px; }
+  .pf-slot span {
+    position: absolute;
+    left: 8px;
+    top: -7px;
+    padding: 0 5px;
+    background: #fff;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(15, 23, 42, 0.45);
+  }
+
+  /* ── specimens ── */
+  .pf-spec { position: absolute; top: 0; left: 0; z-index: 30; }
+  .pf-spec--tile {
+    width: 62px;
+    height: 62px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
+    display: grid;
+    place-items: center;
+  }
+  .pf-spec--type { font-family: var(--pf-serif); font-size: 24px; color: #26231f; }
+  .pf-mark--spec { width: 32px; height: 32px; }
+  .pf-spec--sw { width: 26px; height: 26px; border-radius: 50%; box-shadow: 0 8px 18px rgba(2, 6, 23, 0.25); }
+  .pf-spec--s0 { background: #26231f; border: 1px solid rgba(255, 255, 255, 0.35); }
+  .pf-spec--s1 { background: #c8a36a; border: 1px solid rgba(255, 255, 255, 0.35); }
+  .pf-spec--s2 { background: #faf7f1; border: 1px solid rgba(38, 35, 31, 0.2); }
+
+  /* ── payment window ── */
+  .pf-pay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 436px;
+    transform-origin: 50% 40%;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(30, 58, 138, 0.05), 0 28px 64px rgba(2, 6, 23, 0.4);
+    z-index: 20;
+  }
+  .pf-mast { position: relative; text-align: center; padding: 13px 16px 12px; height: 74px; box-sizing: border-box; }
+  .pf-mast__ph { position: absolute; inset: 0; display: grid; place-items: center; }
+  .pf-mast__ph > * { display: block; margin: 0 auto; }
+  .pf-mast__ph-dot { width: 22px; height: 22px; border-radius: 50%; background: rgba(15, 23, 42, 0.14); }
+  .pf-mast__ph-bar { width: 92px; height: 9px; margin-top: 6px !important; border-radius: 3px; background: rgba(15, 23, 42, 0.14); }
+  .pf-mast__brand { color: #faf7f1; }
+  .pf-mast__mark { display: grid; justify-items: center; }
+  .pf-mast__mark .pf-mark { width: 20px; height: 20px; }
+  .pf-mast__name {
+    margin: 4px 0 0;
+    font-family: var(--pf-serif);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .pf-mast__sub {
+    margin: 3px 0 0;
+    font-size: 6.5px;
+    font-weight: 600;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: #c8a36a;
+  }
+  .pf-body { position: relative; height: 360px; box-sizing: border-box; font-family: var(--pf-sans); }
+  .pf-form { position: absolute; inset: 0; padding: 18px 26px 0; }
+  .pf-ref { position: relative; height: 12px; }
+  .pf-ref__bar { position: absolute; top: 2px; width: 150px; height: 8px; border-radius: 3px; background: rgba(15, 23, 42, 0.1); }
+  .pf-ref__text {
+    position: absolute;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .pf-titlerow { position: relative; margin-top: 8px; }
+  .pf-title { position: absolute; }
+  .pf-title--sans { top: 2px; font-size: 15px; font-weight: 600; }
+  .pf-title--serif { top: 0; font-family: var(--pf-serif); font-size: 17px; font-weight: 500; }
+  .pf-due { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+  .pf-due__label { margin: 0; font-size: 14px; font-weight: 600; }
+  .pf-due__meta { margin: 3px 0 0; font-size: 11px; color: var(--pf-muted); }
+  .pf-due__amount { margin: 0; font-family: var(--pf-serif); font-size: 28px; font-weight: 500; line-height: 1; }
+  .pf-cardrow { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .pf-cardrow__label {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .pf-cardrow__rule { flex: 1; height: 1px; background: var(--pf-hair); }
+  .pf-cardrow__marks { display: flex; gap: 5px; align-items: center; }
+  .pf-cardrow__marks img { height: 14px; border-radius: 3px; }
+  .pf-fields { display: flex; flex-direction: column; gap: 9px; margin-top: 11px; }
+  .pf-fields__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .pf-field__label {
+    margin: 0 0 4px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .pf-field__box {
+    position: relative;
+    border: 1px solid var(--pf-hair);
+    border-radius: 5px;
+    padding: 9px 11px;
+    height: 17px;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+  }
+  .pf-field__ph { position: absolute; color: rgba(38, 35, 31, 0.32); }
+  .pf-field__val { position: absolute; }
+  .pf-btn {
+    position: relative;
+    margin-top: 13px;
+    height: 40px;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .pf-btn__face { position: absolute; inset: 0; display: grid; place-items: center; }
+  .pf-btn__face--proc { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .pf-spin {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid rgba(38, 35, 31, 0.25);
+    border-top-color: #26231f;
+  }
+  .pf-fca { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 11px 0 0; font-size: 9.5px; }
+  .pf-fca--done { margin: 8px 0 0; color: var(--pf-muted); }
+  .pf-done { position: absolute; inset: 0; padding: 20px 26px 0; text-align: center; pointer-events: none; }
+  .pf-done__tick {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: #c8a36a;
+    color: #26231f;
+  }
+  .pf-done__tick svg { width: 23px; height: 23px; }
+  .pf-done__title { margin: 11px 0 0; font-family: var(--pf-serif); font-size: 20px; font-weight: 500; color: #26231f; }
+  .pf-done__text { margin: 5px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--pf-muted); }
+  .pf-receipt {
+    margin-top: 12px;
+    padding: 9px 16px;
+    background: #f2ecdf;
+    border: 1px solid var(--pf-hair);
+    border-radius: 6px;
+    text-align: left;
+  }
+  .pf-receipt__row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 11.5px; color: var(--pf-muted); }
+  .pf-receipt__v { color: #26231f; font-weight: 600; }
+  .pf-done__note { margin: 10px 0 0; font-size: 10px; color: var(--pf-muted); }
+
+  /* ── status chip ── */
+  .pf-chip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 35;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 16px 8px 8px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(14px) saturate(1.8);
+    backdrop-filter: blur(14px) saturate(1.8);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1), 0 12px 32px rgba(2, 6, 23, 0.28);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+  }
+  .pf-chip b { font-weight: 700; letter-spacing: -0.01em; }
+  .pf-chip__icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: rgba(16, 185, 129, 0.14);
+    color: #0f8a63;
+    flex: none;
+  }
+  .pf-chip__icon svg { width: 16px; height: 16px; }
+
+  /* ── cursors & caption ── */
+  .pf-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 22px;
+    height: 22px;
+    z-index: 40;
+    transform-origin: 4px 3px;
+    filter: drop-shadow(0 2px 4px rgba(2, 6, 23, 0.45));
+  }
+  .pf-cap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 24px;
+    margin: 0;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 500;
+    color: rgba(226, 232, 240, 0.55);
+  }
+</style>
+
+<script>
+  /* "Your Page, Taking Shape" — 15s loop at 80 BPM, five 3s bars.
+     Every value is a pure function of (bar, beat); ported verbatim from the
+     Claude Design composition so the motion matches the approved film. */
+  const root = document.querySelector<HTMLElement>('[data-preview-film]');
+  if (root) {
+    const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector(sel) as T;
+    const $$ = (sel: string) => Array.from(root.querySelectorAll(sel)) as HTMLElement[];
+
+    /* ── math ── */
+    const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    const EIO = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+    const EOUT = (p: number) => 1 - Math.pow(1 - p, 3);
+    const EIN = (p: number) => p * p * p;
+    const SPRING = (p: number) => (p >= 1 ? 1 : p <= 0 ? 0 : 1 - Math.exp(-6 * p) * Math.cos(9.5 * p));
+    const SPRING_SOFT = (p: number) => (p >= 1 ? 1 : p <= 0 ? 0 : 1 - Math.exp(-5 * p) * Math.cos(6 * p));
+    const ev = (b: number, t0: number, t1: number, fn?: (q: number) => number) =>
+      (fn || EIO)(clamp01((b - t0) / (t1 - t0)));
+    const lin = (q: number) => q;
+    const hx = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const mix = (a: string, b: string, t: number) => {
+      const A = hx(a), B = hx(b);
+      return `rgb(${Math.round(lerp(A[0], B[0], t))},${Math.round(lerp(A[1], B[1], t))},${Math.round(lerp(A[2], B[2], t))})`;
+    };
+    const arc = (a: any, b: any, p: number, h: number) => ({
+      x: lerp(a.x, b.x, EIO(p)),
+      y: lerp(a.y, b.y, EIO(p)) - Math.sin(Math.PI * p) * h,
+    });
+
+    /* ── layout constants ── */
+    const SITE = { x: 210, y: 58 };
+    const SITE_BACK = { x: 104, y: 64, s: 0.82 };
+    const TRAY2 = { x: 850, y: 186 };
+    const TRAY3 = { x: 100, y: 200 };
+    const WIN = { x: 562, y: 66 };
+    const BTN = { x: 780, y: 470 };
+    const CHIP = { x: 470, y: 508 };
+    const URLPT = { x: 512, y: 86 };
+    const SRC: any = { logo: { x: 510, y: 178 }, s0: { x: 476, y: 184 }, s1: { x: 543, y: 208 }, s2: { x: 510, y: 336 }, type: { x: 510, y: 492 } };
+    const SLOT: any = { logo: { x: 95, y: 58 }, s0: { x: 57, y: 142 }, s1: { x: 95, y: 142 }, s2: { x: 133, y: 142 }, type: { x: 95, y: 226 } };
+    const TGT: any = { logo: { x: 780, y: 147 }, s0: { x: 764, y: 470 }, s1: { x: 780, y: 470 }, s2: { x: 796, y: 470 }, type: { x: 648, y: 240 } };
+    const FL2: any = { logo: [0.7, 1.15], s0: [1.2, 1.6], s1: [1.5, 1.9], s2: [1.8, 2.2], type: [2.2, 2.65] };
+    const FL3: any = { logo: [0.85, 1.3], s0: [1.75, 2.1], s1: [1.87, 2.22], s2: [1.99, 2.34], type: [2.4, 2.75] };
+    const KEYS = ['logo', 's0', 's1', 's2', 'type'];
+
+    /* ── refs ── */
+    const stage = $('[data-pf-stage]');
+    const site = $('[data-pf-site]'), url = $('[data-pf-url]'), light = $('[data-pf-light]');
+    const tray = $('[data-pf-tray]'), pay = $('[data-pf-pay]');
+    const mast = $('[data-pf-mast]'), mastPh = $('[data-pf-mast-ph]'), mastBrand = $('[data-pf-mast-brand]');
+    const body = $('[data-pf-body]'), form = $('[data-pf-form]');
+    const refbar = $('[data-pf-refbar]'), reftext = $('[data-pf-reftext]');
+    const titlerow = $('[data-pf-titlerow]'), tSans = $('[data-pf-title-sans]'), tSerif = $('[data-pf-title-serif]');
+    const details = $('[data-pf-details]'), marks = $('[data-pf-marks]');
+    const fLabels = $$('[data-pf-flabel]'), fBoxes = $$('[data-pf-fbox]'), fPhs = $$('[data-pf-fph]'), fVals = $$('[data-pf-fval]');
+    const btn = $('[data-pf-btn]'), btnPay = $('[data-pf-btn-pay]'), btnAmt = $('[data-pf-btn-amount]');
+    const btnProc = $('[data-pf-btn-proc]'), spin = $('[data-pf-spin]');
+    const fca = $('[data-pf-fca]'), fcaLock = $('[data-pf-fca-lock]');
+    const success = $('[data-pf-success]'), tickWrap = $('[data-pf-tickwrap]'), tickPath = $('[data-pf-tickpath]');
+    const chip = $('[data-pf-chip]'), cur1 = $('[data-pf-cursor1]'), cur2 = $('[data-pf-cursor2]'), cap = $('[data-pf-cap]');
+    const specs: any = {}, ghosts: any = {};
+    KEYS.forEach((k) => {
+      specs[k] = $(`[data-pf-spec="${k}"]`);
+      ghosts[k] = $(`[data-pf-ghost="${k}"]`);
+    });
+
+    const put = (el: HTMLElement, x: number, y: number, o: number, extra?: string) => {
+      el.style.opacity = String(o);
+      el.style.transform = `translate(${x}px,${y}px)${extra || ''}`;
+    };
+    const centre = (el: HTMLElement, st: any) => {
+      if (!st) { el.style.opacity = '0'; return; }
+      el.style.opacity = String(st.o);
+      el.style.transform = `translate(calc(${st.x}px - 50%),calc(${st.y}px - 50%)) scale(${st.s})`;
+    };
+
+    /* ── specimen state (bars 2–3) ── */
+    function specState(bar: number, beat: number, key: string, tr: any) {
+      const src = SRC[key], tgt = TGT[key];
+      const slot = tr ? { x: tr.x + SLOT[key].x, y: tr.y + SLOT[key].y } : null;
+      if (bar === 2 && slot) {
+        const f = FL2[key];
+        if (beat < f[0]) return null;
+        if (beat < f[1]) {
+          const p = ev(beat, f[0], f[1], lin);
+          const pos = arc(src, slot, p, 54);
+          return { x: pos.x, y: pos.y, o: Math.min(1, p * 3), s: 0.7 + 0.3 * p };
+        }
+        const q = clamp01((beat - f[1]) / 0.5);
+        return { x: slot.x, y: slot.y, o: 1, s: 1 + 0.12 * Math.exp(-5 * q) * Math.cos(9 * q) * (q > 0 ? 1 : 0) };
+      }
+      if (bar === 3 && slot) {
+        const f = FL3[key];
+        if (beat < f[0]) return { x: slot.x, y: slot.y, o: tr.o, s: 1 };
+        if (beat < f[1]) {
+          const p = ev(beat, f[0], f[1], lin);
+          const pos = arc(slot, tgt, p, 64);
+          return { x: pos.x, y: pos.y, o: 1, s: 1 - 0.15 * p };
+        }
+        const fade = 1 - ev(beat, f[1], f[1] + 0.18);
+        return fade <= 0 ? null : { x: tgt.x, y: tgt.y, o: fade, s: 0.85 };
+      }
+      return null;
+    }
+
+    /* ── one frame ── */
+    function render(bar: number, beat: number, lt: number) {
+      /* site window */
+      let sx = SITE.x, sy = SITE.y, ss = 1, dim = 0;
+      if (bar === 3) {
+        const p = ev(beat, 0.05, 0.85);
+        sx = lerp(SITE.x, SITE_BACK.x, p); sy = lerp(SITE.y, SITE_BACK.y, p);
+        ss = lerp(1, SITE_BACK.s, p); dim = p;
+      } else if (bar === 4) {
+        sx = SITE_BACK.x; sy = SITE_BACK.y; ss = SITE_BACK.s; dim = 1;
+      } else if (bar === 5) {
+        const p = SPRING_SOFT(ev(beat, 2.6, 3.6, lin));
+        sx = lerp(SITE_BACK.x, SITE.x, p); sy = lerp(SITE_BACK.y, SITE.y, p);
+        ss = lerp(SITE_BACK.s, 1, p); dim = 1 - p;
+      }
+      site.style.transform = `translate(${sx}px,${sy}px) scale(${ss})`;
+      site.style.filter = `brightness(${1 - 0.2 * dim}) saturate(${1 - 0.1 * dim})`;
+
+      /* url focus glow */
+      const glow = bar === 1 ? ev(beat, 2.0, 2.35) : bar === 2 ? 1 - ev(beat, 0.1, 0.6) : 0;
+      url.style.background = mix('#FFFFFF', '#F1F5F9', glow * 0.6);
+      url.style.boxShadow = glow ? `0 0 0 3px rgba(15,23,42,${0.1 * glow})` : 'none';
+
+      /* cursor 1 — arrives and clicks the url bar */
+      if (bar === 1) {
+        const p = ev(beat, 0.5, 2.0);
+        const press = Math.sin(clamp01((beat - 2.0) / 0.25) * Math.PI);
+        put(cur1, lerp(1010, URLPT.x, p), lerp(700, URLPT.y, p), ev(beat, 0.5, 0.8), ` scale(${1 - 0.1 * press})`);
+      } else if (bar === 2) {
+        const o = 1 - ev(beat, 0.15, 0.6);
+        if (o > 0) put(cur1, URLPT.x, URLPT.y + 8 * (1 - o), o);
+        else cur1.style.opacity = '0';
+      } else cur1.style.opacity = '0';
+
+      /* bar-2 reading light */
+      if (bar === 2) {
+        const p = ev(beat, 0, 1.6);
+        const o = Math.min(ev(beat, 0, 0.25), 1 - ev(beat, 1.35, 1.65));
+        if (o > 0) put(light, 180, lerp(SITE.y - 40, SITE.y + 560, p) - 80, o);
+        else light.style.opacity = '0';
+      } else light.style.opacity = '0';
+
+      /* tray */
+      let tr: any = null;
+      if (bar === 2) {
+        const p = ev(beat, 0.55, 0.95);
+        if (p > 0) tr = { x: TRAY2.x, y: TRAY2.y, o: p, rise: (1 - p) * 14 };
+      } else if (bar === 3) {
+        const m = ev(beat, 0.1, 0.8);
+        const o = 1 - ev(beat, 3.1, 3.7);
+        if (o > 0) tr = { x: lerp(TRAY2.x, TRAY3.x, m), y: lerp(TRAY2.y, TRAY3.y, m), o, rise: 0 };
+      }
+      if (tr) put(tray, tr.x, tr.y + tr.rise, tr.o);
+      else tray.style.opacity = '0';
+
+      /* payment window */
+      if (bar >= 3) {
+        let wx = WIN.x, wy = WIN.y, wo = 1, wsc = 1;
+        if (bar === 3) { const p = SPRING(clamp01(beat / 0.85)); wx = lerp(1240, WIN.x, p); wo = beat <= 0 ? 0 : 1; }
+        if (bar === 4) wy = WIN.y - 5 * ev(beat, 2.05, 2.6);
+        if (bar === 5) {
+          wy = WIN.y - 5;
+          const q = ev(beat, 2.3, 3.1);
+          wx = WIN.x + 90 * EIN(q); wsc = 1 - 0.04 * q; wo = 1 - ev(beat, 2.45, 3.05);
+        }
+        put(pay, wx, wy, wo, ` scale(${wsc})`);
+
+        const logoPop = bar > 3 ? 1 : SPRING(clamp01((beat - FL3.logo[1]) / 0.5));
+        const colorIn = bar > 3 ? 1 : ev(beat, 2.1, 2.7);
+        const typeIn = bar > 3 ? 1 : ev(beat, 2.7, 3.05);
+        const detailsIn = bar > 3 ? 1 : ev(beat, 3.0, 3.6);
+        const cardIn = bar > 3 ? 1 : ev(beat, 3.35, 3.85);
+        const proc = bar === 4 ? ev(beat, 0.22, 0.38) * (1 - ev(beat, 1.95, 2.15)) : 0;
+        const successIn = bar === 4 ? ev(beat, 2.05, 2.6) : bar === 5 ? 1 : 0;
+        const tick = bar === 4 ? ev(beat, 2.15, 2.8) : bar === 5 ? 1 : 0;
+        const dip = bar === 4 ? Math.sin(clamp01(beat / 0.3) * Math.PI) : 0;
+
+        const inkCol = mix('#475569', '#26231F', colorIn);
+        const labelCol = mix('#94A3B8', '#7D5F2C', colorIn);
+
+        mast.style.background = mix('#E7EBF0', '#26231F', colorIn);
+        mastPh.style.opacity = String(1 - Math.min(1, logoPop * 2));
+        mastBrand.style.opacity = String(Math.min(1, logoPop * 1.4));
+        mastBrand.style.transform = `scale(${0.8 + 0.2 * logoPop})`;
+
+        body.style.background = mix('#F3F5F7', '#FAF7F1', colorIn);
+        body.style.color = inkCol;
+        form.style.opacity = String(1 - successIn);
+
+        refbar.style.opacity = String(1 - detailsIn);
+        reftext.style.opacity = String(detailsIn);
+        reftext.style.color = labelCol;
+
+        titlerow.style.height = `${lerp(26, 54, detailsIn)}px`;
+        tSans.style.opacity = String((1 - typeIn) * (1 - detailsIn));
+        tSerif.style.opacity = String(typeIn * (1 - detailsIn));
+        details.style.opacity = String(detailsIn);
+        marks.style.opacity = String(detailsIn);
+
+        const fieldBg = mix('#FFFFFF', '#FFFDF9', colorIn);
+        fLabels.forEach((el) => (el.style.color = labelCol));
+        fBoxes.forEach((el) => (el.style.background = fieldBg));
+        fPhs.forEach((el) => (el.style.opacity = String(1 - cardIn)));
+        fVals.forEach((el) => { el.style.opacity = String(cardIn); el.style.color = inkCol; });
+
+        btn.style.background = mix('#CBD5E1', '#C8A36A', colorIn);
+        btn.style.color = inkCol;
+        btn.style.transform = `translateY(${dip * 1.5}px) scale(${1 - 0.02 * dip})`;
+        btn.style.boxShadow = `0 ${lerp(6, 2, dip)}px ${lerp(14, 6, dip)}px rgba(38,35,31,${0.18 * colorIn})`;
+        btnPay.style.opacity = String((1 - detailsIn) * (1 - proc));
+        btnAmt.style.opacity = String(detailsIn * (1 - proc));
+        btnProc.style.opacity = String(proc);
+        spin.style.transform = `rotate(${(lt * 540) % 360}deg)`;
+
+        fca.style.color = mix('#94A3B8', '#6B655C', colorIn);
+        fcaLock.style.color = labelCol;
+
+        success.style.opacity = String(successIn);
+        tickWrap.style.transform = `scale(${0.6 + 0.4 * SPRING(successIn)})`;
+        tickPath.setAttribute('stroke-dashoffset', String(30 * (1 - tick)));
+      } else {
+        pay.style.opacity = '0';
+      }
+
+      /* cursor 2 — the customer */
+      if (bar === 3 && beat > 3.2) {
+        const p = ev(beat, 3.25, 3.95);
+        put(cur2, lerp(1130, BTN.x + 2, p), lerp(740, BTN.y, p), ev(beat, 3.25, 3.5));
+      } else if (bar === 4) {
+        const o = 1 - ev(beat, 0.7, 1.5);
+        if (o > 0) {
+          const press = Math.sin(clamp01(beat / 0.3) * Math.PI);
+          put(cur2, BTN.x + 2 + 60 * ev(beat, 0.7, 1.7), BTN.y + 80 * ev(beat, 0.7, 1.7), o, ` scale(${1 - 0.1 * press})`);
+        } else cur2.style.opacity = '0';
+      } else cur2.style.opacity = '0';
+
+      /* chip */
+      if (bar === 4 && beat > 2.95) {
+        const p = SPRING(ev(beat, 3.0, 3.55, lin));
+        put(chip, CHIP.x, CHIP.y + 26 * (1 - p), ev(beat, 3.0, 3.2));
+      } else if (bar === 5) {
+        const q = ev(beat, 2.0, 2.35);
+        if (q < 1) put(chip, CHIP.x, CHIP.y + 18 * q, 1 - q);
+        else chip.style.opacity = '0';
+      } else chip.style.opacity = '0';
+
+      /* bar-5 ghosts — the brand lifting away, vocabulary reversed */
+      KEYS.forEach((k, i) => {
+        let st: any = null;
+        if (bar === 5) {
+          const q = ev(beat, 2.05 + i * 0.09, 2.6 + i * 0.09);
+          if (q > 0 && q < 1) st = { x: TGT[k].x, y: TGT[k].y - 64 * EOUT(q), o: Math.min(q * 6, 1) * (1 - q), s: 0.7 };
+        }
+        centre(ghosts[k], st);
+      });
+
+      /* specimens */
+      const trSpec = bar === 2 || bar === 3 ? tr || (bar === 3 ? { x: TRAY2.x, y: TRAY2.y, o: 1 } : null) : null;
+      KEYS.forEach((k) => centre(specs[k], specState(bar, beat, k, trSpec)));
+
+      /* caption */
+      const text = bar === 1 ? 'Reading your site…' : bar === 2 ? 'Capturing your homepage and brand…' : bar === 3 ? 'Applying your colours, logo and type…' : '';
+      if (cap.textContent !== text) cap.textContent = text;
+      cap.style.opacity = text ? String(ev(beat, 0.5, 1.0) * (1 - ev(beat, 3.4, 3.9))) : '0';
+    }
+
+    const frameAt = (t: number) => {
+      const idx = Math.min(4, Math.floor(t / 3));
+      const lt = t - idx * 3;
+      render(idx + 1, (lt / 3) * 4, lt);
+    };
+
+    /* ── scale the fixed design space to the container ── */
+    const fit = () => stage.style.setProperty('--pf-scale', String(root.clientWidth / 1152));
+    fit();
+    if ('ResizeObserver' in window) new ResizeObserver(fit).observe(root);
+    else window.addEventListener('resize', fit);
+
+    /* ── the loop: IO-gated, reduced-motion safe ── */
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let raf = 0, start = 0, inView = false;
+
+    const tick = (now: number) => {
+      if (!start) start = now;
+      frameAt(((now - start) / 1000) % 15);
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0; start = 0;
+      root.setAttribute('data-film-state', 'static');
+    };
+    const sync = () => {
+      const go = inView && document.visibilityState === 'visible' && !reduce.matches;
+      if (go && !raf) {
+        root.setAttribute('data-film-state', 'live');
+        raf = requestAnimationFrame(tick);
+      } else if (!go && raf) {
+        stop();
+        frameAt(12.75); // back to the finished "paid" rest frame
+      }
+    };
+
+    new IntersectionObserver(
+      (entries) => { for (const e of entries) inView = e.isIntersecting; sync(); },
+      { threshold: 0.35 }
+    ).observe(root);
+    document.addEventListener('visibilitychange', sync);
+    if (reduce.addEventListener) reduce.addEventListener('change', sync);
+  }
+</script>

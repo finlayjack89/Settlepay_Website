@@ -2000,7 +2000,7 @@ body { counter-reset: srcnote; }
 }
 .preview-teaser__inner {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1.2fr 0.8fr;
   align-items: center;
   gap: clamp(1.5rem, 3.5vw, 3rem);
   max-width: 1060px;
@@ -2009,21 +2009,27 @@ body { counter-reset: srcnote; }
     radial-gradient(120% 90% at 85% 20%, #1E2B45 0%, transparent 60%),
     var(--color-primary-brand);
   border-radius: var(--radius-card);
-  padding: 2.25rem clamp(1.5rem, 4vw, 3rem);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+}
+/* The film replaces the old copy block: it demonstrates what the tool builds,
+   and sits beside the form so the form keeps its place. */
+.preview-teaser__film-wrap { margin: 0; }
+.preview-teaser__filmcap {
+  margin-top: 0.6rem;
+  font-size: var(--text-micro);
+  letter-spacing: 0.01em;
+  color: var(--color-text-on-dark-muted);
 }
 .preview-teaser__title {
   font-size: clamp(1.3rem, 1.6vw + 0.7rem, 1.7rem);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-pure-white);
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
-.preview-teaser__text {
-  font-size: 0.95rem;
-  line-height: 1.65;
-  color: var(--color-text-on-dark-muted);
-  max-width: 46ch;
-}
+/* The film carries this explanation on desktop; the words return below 880px,
+   where the film is hidden until it is made adaptive. */
+.preview-teaser__text { display: none; }
 .preview-teaser__form {
   display: flex;
   gap: 0.6rem;
@@ -2068,6 +2074,16 @@ body { counter-reset: srcnote; }
 @media (max-width: 880px) {
   .preview-teaser__inner { grid-template-columns: 1fr; }
   .preview-teaser__form { flex-direction: column; }
+  /* The film is not adaptive yet — hide it and restore the written pitch. */
+  .preview-teaser__film-wrap { display: none; }
+  .preview-teaser__text {
+    display: block;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--color-text-on-dark-muted);
+    max-width: 46ch;
+    margin-bottom: 1.25rem;
+  }
 }
 
 /* Hero tertiary link to the preview tool — quiet, not a third button. */
