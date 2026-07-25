@@ -256,27 +256,57 @@ def recipient_mismatch(company_name: str, email: Optional[str]) -> bool:
     return name_matches_domain(company_name, domain) is False
 
 
-def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None) -> Optional[str]:
-    """Pick the best cold-B2B contact: a generic mailbox (info@/contact@…) on the
-    company's OWN domain. Free-mail / third-party addresses are rejected outright
-    (a page often leaks a font author's gmail or a registry address), and when the
-    company's domain is known we accept ONLY that domain — better no contact than a
-    wrong one. Returns None if nothing qualifies."""
+def pick_contact_email(emails: list[str], *, prefer_domain: Optional[str] = None,
+                       company_name: Optional[str] = None) -> Optional[str]:
+    """Pick the best cold-B2B contact: a generic mailbox (info@/contact@…) belonging to
+    the company itself. Returns None if nothing qualifies.
+
+    `prefer_domain` alone was too strict, and it was the single biggest source of lost
+    yield: of 267 leads discarded as "no email", 107 had candidates and every one was
+    rejected. Two failure shapes, both fixed by consulting the company NAME rather than
+    the resolved domain alone:
+
+      * a SIBLING DOMAIN of the same business — comfortelectrical.com resolved and
+        info@comfortelectrical.co.uk was binned; besaelectricalservices.com resolved and
+        …@besaelectricalservices.co.uk was binned. Worse, when the resolved "website" was
+        a booking platform (thestationmg.setmore.com) the business's real address
+        (info@thestationmg.co.uk) was rejected as off-domain.
+
+      * FREE MAIL that IS the business — 363electrical@gmail.com,
+        aandbelectricalservices@msn.com. Rejecting all free mail was a side effect, never
+        a decision. Accepted only when the local part carries the business name, so a
+        personal address that happened to be on the page (dedaergis7@gmail.com) is still
+        refused. Every lead reaching enrichment is already PECR-corporate — the backlog
+        selects `subscriber_class='corporate'` — so this cannot reach a sole trader.
+
+    Without `company_name` the old strict behaviour is unchanged.
+    """
     if not emails:
         return None
-    pool = [e for e in emails if e.partition("@")[2].lower() not in FREEMAIL_DOMAINS]
-    if prefer_domain:
-        pd = prefer_domain.lower()
-        pool = [e for e in pool if pd in e.partition("@")[2].lower()]
+    pd = (prefer_domain or "").lower()
+    pool: list[tuple[int, str]] = []
+    for e in emails:
+        domain = e.rpartition("@")[2].lower()
+        if domain in FREEMAIL_DOMAINS:
+            if company_name and stem_matches_name(e.partition("@")[0], company_name) is True:
+                pool.append((2, e))                      # last resort, but it is theirs
+            continue
+        if pd and pd in domain:
+            pool.append((0, e))                          # the resolved own domain
+        elif company_name and name_matches_domain(company_name, domain) is True:
+            pool.append((1, e))                          # a sibling domain of the same firm
+        elif not pd and not company_name:
+            pool.append((1, e))                          # no domain hint: old behaviour
     if not pool:
         return None
 
-    def score(e: str) -> tuple:
+    def score(item: tuple[int, str]) -> tuple:
+        rank, e = item
         local = e.partition("@")[0]
         generic = any(local == g or local.startswith(g) for g in GENERIC_PREFIXES)
-        return (0 if generic else 1, e)
+        return (rank, 0 if generic else 1, e)
 
-    return sorted(pool, key=score)[0]
+    return sorted(pool, key=score)[0][1]
 
 
 # Email verification now runs through a provider CHAIN (MillionVerifier -> Reoon ->
@@ -418,6 +448,18 @@ def name_matches_domain(business_name: str, url_or_domain: str) -> Optional[bool
     # ("candjelectricalservices.co.uk" -> "...servicescouk"), which broke every
     # whole-name comparison against a real company's own site.
     stem = re.sub(r"[^a-z0-9]", "", (normalise_domain(url_or_domain) or "").split(".")[0])
+    return stem_matches_name(stem, business_name)
+
+
+def stem_matches_name(stem: str, business_name: str) -> Optional[bool]:
+    """Does `stem` carry something identifying from `business_name`? None = cannot tell.
+
+    Split out of name_matches_domain so the same judgement can be applied to an email's
+    LOCAL PART. That is what tells `363electrical@gmail.com` (the business's own mailbox,
+    on free mail because it is a two-person firm) apart from `dedaergis7@gmail.com` (a
+    personal address that happened to be on the page).
+    """
+    stem = re.sub(r"[^a-z0-9]", "", (stem or "").lower())
     if not stem:
         return None
     raw_tokens = [w for w in re.split(r"[^a-z0-9]+", (business_name or "").lower()) if w]
@@ -677,7 +719,8 @@ def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[st
 
 
 def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
-            verifier=None, guess_generics: bool = True) -> dict:
+            verifier=None, guess_generics: bool = True,
+            company_name: Optional[str] = None) -> dict:
     """The SLOW, networked half of enrichment (guess/scrape + verify), with NO
     database handle held. Kept separate so a long Firecrawl/HTTP call never sits
     inside an open DB transaction (the pooler drops idle connections)."""
@@ -694,29 +737,45 @@ def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = Non
     #    costs a VERIFIER credit. This deliberately runs before any guessing.
     httpx_emails = scrape_emails(website, client=http_client) if website else []
     candidates = list(httpx_emails)
-    email = pick_contact_email(httpx_emails, prefer_domain=domain)
+    email = pick_contact_email(httpx_emails, prefer_domain=domain, company_name=company_name)
     if email:
         scrape_source = "httpx"
     elif website and config.FIRECRAWL_API_KEY:   # renders JS where free httpx found none
         fc_emails = firecrawl_scrape_emails(website)
         candidates = fc_emails
-        email = pick_contact_email(fc_emails, prefer_domain=domain)
+        email = pick_contact_email(fc_emails, prefer_domain=domain, company_name=company_name)
         if email:
             scrape_source = "firecrawl"
 
-    # 2. Blind generic guessing (info@, hello@, …) burns up to len(GUESS_PREFIXES)
-    #    verifier credits PER LEAD on addresses nobody has claimed exist, and buys at
-    #    best a role mailbox — the weakest contact tier we send to. Off by default: the
-    #    credit budget belongs to named decision-makers. Set ENRICH_GUESS_GENERICS=1 to
-    #    re-enable when credits are plentiful and coverage matters more than precision.
+    # 2. Generic guessing, made cheap enough to leave on.
+    #
+    #    It used to walk all four GUESS_PREFIXES, so the worst case was four verifier
+    #    credits per lead on addresses nobody had claimed exist — which is why it was
+    #    turned off, and why 113 leads whose site simply published no address were
+    #    discarded rather than probed. But the sum being protected was tiny: four
+    #    prefixes over 267 leads is about £3.20 at MV_COST_GBP_PER_VERIFY.
+    #
+    #    Two changes make the trade obviously worth it:
+    #      * an MX pre-gate — a domain with no mail exchanger cannot receive mail, so
+    #        `info@` there is not worth a credit. DNS is free and offline.
+    #      * ONE probe, not four. `info@` settles the common case AND catch-all
+    #        detection in a single credit; escalate only on a definite `invalid`, since
+    #        a domain that rejects info@ usually rejects hello@ too.
     if not email and guess_generics and domain and config.ENRICH_GUESS_GENERICS:
-        for prefix in GUESS_PREFIXES:
-            guess = f"{prefix}@{domain}"
-            ok, res = verifier(guess)
-            if ok:
-                email, verified, result = guess, True, res
-                scrape_source, candidates = "guess", [guess]
-                break
+        from .dns_auth import has_mx
+        if has_mx(domain):
+            for prefix in GUESS_PREFIXES:
+                guess = f"{prefix}@{domain}"
+                ok, res = verifier(guess)
+                if ok:
+                    email, verified, result = guess, True, res
+                    scrape_source, candidates = "guess", [guess]
+                    break
+                if res != "invalid":
+                    # catch-all, unknown, or the verifier not answering: another prefix
+                    # on the same domain tells us nothing new. Stop paying.
+                    result = res
+                    break
 
     if email and not verified:
         verified, result = verifier(email)
@@ -843,10 +902,14 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
 
 def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
                cur, http_client: Optional[httpx.Client] = None, verifier=None,
-               guess_generics: bool = True) -> dict:
+               guess_generics: bool = True, company_name: Optional[str] = None) -> dict:
     """Guess/scrape + verify a contact email for `website`, store enrichment, and
-    advance the lead to 'enriched' (verified) or 'discarded' (unverifiable)."""
-    g = _gather(website, http_client=http_client, verifier=verifier, guess_generics=guess_generics)
+    advance the lead to 'enriched' (verified), 'parked' (our search came up short) or
+    'discarded' (a verdict)."""
+    g = _gather(website, http_client=http_client, verifier=verifier,
+                guess_generics=guess_generics, company_name=company_name)
+    if company_name:
+        g["company_name"] = company_name     # lets _persist run the recipient guard
     return _persist(company_number, website, signal, g, cur=cur)
 
 
@@ -1052,7 +1115,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                 registered_postcode=postcode if source not in _TRADING_LOCALITY_SOURCES else None,
                 ch=ch, client=http)
             signal = factual_signal(name, hint, place.get("town"))
-            g = _gather(website, http_client=http)
+            g = _gather(website, http_client=http, company_name=name)
             if g["email"] and g["result"] in TRANSIENT_RESULTS:
                 consecutive_verify_failures += 1
             elif g["result"] not in TRANSIENT_RESULTS:
