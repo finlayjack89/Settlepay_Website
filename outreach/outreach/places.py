@@ -129,9 +129,21 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
     if own:
         conn = db.connect(); cur = conn.cursor()
     inserted = duplicates = skipped = 0
+    failed: list[str] = []
     try:
         for q in queries:
-            for b in text_search(q, max_results=max_results, cur=cur):
+            # Per-query isolation. text_search raises PlacesUnavailable on any API error,
+            # and one raise used to escape the whole function: every insert made earlier
+            # in the batch was rolled back AND discover_grid never reached its cursor
+            # write, so the next tick replayed the same failing query. A single malformed
+            # town or a quota blip wedged discovery indefinitely, looking alive the whole
+            # time. One bad query now costs one query.
+            try:
+                results = text_search(q, max_results=max_results, cur=cur)
+            except PlacesUnavailable as e:
+                failed.append(f"{q}: {str(e)[:80]}")
+                continue
+            for b in results:
                 pid, name = b.get("place_id"), b.get("name")
                 if not pid or not name:
                     skipped += 1
@@ -166,7 +178,12 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
                     duplicates += 1
         if own:
             conn.commit()
-        return {"inserted": inserted, "duplicates": duplicates, "skipped": skipped}
+        out = {"inserted": inserted, "duplicates": duplicates, "skipped": skipped}
+        if failed:
+            # surfaced, never silent: a run that quietly covered less than it was asked
+            # to reads as "nothing to find" when it means "we could not look"
+            out["failed_queries"] = failed
+        return out
     except Exception:
         if own and conn is not None:
             conn.rollback()
@@ -193,6 +210,10 @@ def discover_grid(*, count: int = 10, cur=None) -> dict:
         n = min(count, len(grid))
         batch = [grid[(start + i) % len(grid)] for i in range(n)]
         res = discover_to_leads(batch, cur=cur)
+        # The cursor advances by the number of queries ATTEMPTED, not the number that
+        # succeeded — discover_to_leads now absorbs a failing query rather than raising
+        # past this line, which is what used to leave the cursor frozen and replay the
+        # same broken query every tick for ever.
         new_cursor = (start + n) % len(grid)
         monitor.set_flag("places_grid_cursor", str(new_cursor),
                          reason="places discovery paging", cur=cur)

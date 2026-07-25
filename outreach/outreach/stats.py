@@ -85,6 +85,12 @@ def overview(cur) -> dict:
         cur, "select count(*) from outreach.enrichment where contact_tier='risky'")
     d["discarded"] = _scalar(
         cur, "select count(*) from outreach.leads where state='discarded'")
+    # Parked is NOT discarded, and conflating the two is what hid this for so long: these
+    # are leads OUR machinery failed on (verifier dry, scrape empty, wrong site resolved)
+    # and will retry — not leads we ruled out. A rising count here means the pipeline is
+    # its own bottleneck, which is worth being able to see.
+    d["parked"] = _scalar(
+        cur, "select count(*) from outreach.leads where state='parked'")
 
     cur.execute(
         "select count(*), "

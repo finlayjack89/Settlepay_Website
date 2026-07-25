@@ -117,11 +117,17 @@ def test_run_isolates_a_bad_draft_and_keeps_the_good_ones(db_rollback):
 
     res = draft.run(provider=provider, cur=cur)
 
-    # good lead drafted; bad lead discarded — batch not aborted
+    # good lead drafted; bad lead PARKED — batch not aborted, and the bad lead survives.
+    # An envelope violation is our writing failing, not a verdict about the business:
+    # three of the five real discards on the live database were a subject line 51
+    # characters long, and `discarded` is terminal, so each destroyed an enriched,
+    # verified, ICP-fit lead. Parking still keeps it out of the draft backlog (which
+    # reads state='enriched') while leaving it recoverable.
     cur.execute("select state::text from outreach.leads where company_number=%s", (good,))
     assert cur.fetchone()[0] == "drafted"
-    cur.execute("select state::text from outreach.leads where company_number=%s", (bad,))
-    assert cur.fetchone()[0] == "discarded"
+    cur.execute("select state::text, park_count from outreach.leads where company_number=%s",
+                (bad,))
+    assert cur.fetchone() == ("parked", 1)
     cur.execute("select count(*) from outreach.drafts where company_number=%s", (good,))
     assert cur.fetchone()[0] == 1
     cur.execute("select count(*) from outreach.drafts where company_number=%s", (bad,))
@@ -300,8 +306,16 @@ def test_a_lead_without_resolved_facts_is_not_drafted(db_rollback):
                 (cn,))
 
     class _MustNotRun:
-        def complete(self, *a, **k):
-            raise AssertionError("drafted a lead whose constants were never resolved")
+        """Fires only for THIS lead: the backlog is shared, so other rows legitimately
+        get drafted in the same batch and are not what this test is about."""
+
+        def complete(self, prompt, **k):
+            if "Nofacts Ltd" in prompt:
+                raise AssertionError("drafted a lead whose constants were never resolved")
+            return type("R", (), {"text": _payload(
+                "a subject", "Hi there, a note from SettlePay. Payments are handled by "
+                "FCA-regulated partners. Reply unsubscribe to opt out. "
+                "Kind regards, Finlay Salisbury SettlePay")})()
 
     draft.run(provider=_MustNotRun(), cur=cur, limit=50)
     cur.execute("select state::text from outreach.leads where company_number=%s", (cn,))
@@ -419,7 +433,10 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
 
     class _P:
         def complete(self, prompt, **k):
-            seen["prompt"] = prompt
+            # capture only THIS lead's prompt — the backlog is shared, so the batch may
+            # legitimately contain other rows before it
+            if "Acme Ltd" in prompt:
+                seen["prompt"] = prompt
             import json as _j
             return type("R", (), {"text": _j.dumps({
                 "subject": "payments at acme",
@@ -427,7 +444,46 @@ def test_draft_passes_the_contacts_first_name_into_the_prompt(db_rollback):
                          "FCA-regulated partners. Reply unsubscribe to opt out.\n\n"
                          "Kind regards,\nFinlay Salisbury\nSettlePay")})})()
 
-    draft.run(provider=_P(), cur=cur, limit=1)
+    draft.run(provider=_P(), cur=cur, limit=50)
     # the name reaches the model as a resolved CONSTANT plus the greeting instruction
     assert 'Dear John,' in seen["prompt"]
     assert "contact_name: SMITH, John" in seen["prompt"]
+
+
+def test_a_lead_parked_by_drafting_retries_drafting_not_enrichment(db_rollback):
+    """Its contact and constants are already good — it was our writing that failed.
+    Sending it back through enrichment would spend verifier credits to re-learn what we
+    already know."""
+    import uuid
+
+    from outreach import config, enrich
+
+    cur = db_rollback.cursor()
+    cn = f"DRAFTPARK_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,%s,'ltd','corporate','enriched')", (cn, cn))
+    cur.execute("insert into outreach.enrichment (company_number, website, contact_email, "
+                "email_verified, signal, facts) "
+                "values (%s,'https://x.co','info@x.co',true,'sig',%s::jsonb)",
+                (cn, facts.dumps(facts.build(company_name="Park Co Ltd"))))
+
+    overlong = _payload("payments at park co",
+                        "SettlePay FCA-regulated partners unsubscribe " + "word " * 130)
+    draft.run(provider=_ScriptedProvider({"Park Co Ltd": overlong}), cur=cur)
+    cur.execute("select state::text, parked_reason from outreach.leads where company_number=%s",
+                (cn,))
+    state, reason = cur.fetchone()
+    assert state == "parked" and reason.startswith("draft ")
+
+    cur.execute("update outreach.leads set parked_at = now() - interval '48 hours' "
+                "where company_number=%s", (cn,))
+    cur.execute(enrich._BACKLOG_SQL, (config.PARK_RETRY_HOURS, 5000))
+    assert cn not in {r[0] for r in cur.fetchall()}      # enrichment leaves it alone
+
+    compliant = _payload("payments at park co",
+                         "Hi Park Co, a note from SettlePay. Payments are handled by "
+                         "FCA-regulated partners. Reply unsubscribe to opt out. "
+                         "Kind regards, Finlay Salisbury SettlePay")
+    draft.run(provider=_ScriptedProvider({"Park Co Ltd": compliant}), cur=cur)
+    cur.execute("select state::text, parked_at from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone() == ("drafted", None)

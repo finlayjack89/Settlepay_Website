@@ -77,3 +77,76 @@ def test_run_updates_places_leads(db_rollback):
                 "where place_id=%s", (pid,))
     cls, matched = cur.fetchone()
     assert cls == "corporate" and matched == "09055451"
+
+
+def test_a_register_outage_leaves_the_row_untouched_for_a_retry(db_rollback):
+    """Fail-closed and fail-PERMANENT are not the same thing. A CH 429/timeout returned
+    UNKNOWN, and run() wrote it along with crossref_checked_at — but the backlog selects
+    on `subscriber_class is null`, so the row was never revisited. At 50 leads a tick,
+    one bad minute condemned thousands of perfectly good leads to research-only with
+    nothing surfaced anywhere."""
+    import uuid
+
+    from outreach import crossref
+
+    cur = db_rollback.cursor()
+    cn = f"PLACE:xref{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, source, state) "
+                "values (%s,'Acme Ltd','places','discovered')", (cn,))
+
+    class _DeadCH:
+        def search_companies(self, *a, **k):
+            raise RuntimeError("429 Too Many Requests")
+
+        def close(self):
+            pass
+
+    res = crossref.run(limit=5, cur=cur, ch=_DeadCH())
+    assert res["deferred"] >= 1 and res["unknown"] == 0
+
+    cur.execute("select subscriber_class, crossref_checked_at "
+                "from outreach.leads where company_number=%s", (cn,))
+    assert cur.fetchone() == (None, None)       # untouched, so the backlog retries it
+
+
+def test_only_a_lookup_failure_is_flagged_unavailable():
+    """The deferral must not become a way for genuinely unmatched leads to be re-checked
+    for ever — "we asked and found nothing" is a conclusion and stays recorded.
+
+    Asserted on match_company directly: run() draws from a shared backlog of ~10k rows,
+    so which leads it happens to pick is not this test's business."""
+    from outreach import crossref
+
+    class _DeadCH:
+        def search_companies(self, *a, **k):
+            raise RuntimeError("429 Too Many Requests")
+
+    class _EmptyCH:
+        def search_companies(self, *a, **k):
+            return []
+
+    dead_cls, _, dead = crossref.match_company(_DeadCH(), "Acme Ltd", "LS1 1AA")
+    empty_cls, _, empty = crossref.match_company(_EmptyCH(), "Acme Ltd", "LS1 1AA")
+
+    assert crossref.unavailable(dead) is True
+    assert crossref.unavailable(empty) is False
+    # both still classify UNKNOWN — fail-closed is correct for a PECR gate. The only
+    # difference is whether run() is allowed to make that verdict permanent.
+    assert dead_cls.value == "unknown" and empty_cls.value == "unknown"
+
+
+def test_run_records_a_genuine_no_match(db_rollback):
+    """Counts, not a specific row: the backlog is shared, but a batch of genuine
+    no-matches must still be written rather than deferred."""
+    from outreach import crossref
+
+    class _EmptyCH:
+        def search_companies(self, *a, **k):
+            return []
+
+        def close(self):
+            pass
+
+    res = crossref.run(limit=3, cur=db_rollback.cursor(), ch=_EmptyCH())
+    assert res["deferred"] == 0
+    assert res["unknown"] + res["corporate"] + res["individual"] >= 1

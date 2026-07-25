@@ -40,16 +40,31 @@ def _outward(pc: Optional[str]) -> str:
     return re.sub(r"\s+", "", (pc or "").upper())[:-3] if pc and len(re.sub(r"\s+", "", pc)) > 3 else ""
 
 
+# Marks "we could not ASK Companies House", as distinct from "we asked and found
+# nothing". Both used to come back as UNKNOWN and both got written to the row — but only
+# the second is a conclusion. run() checks this before persisting anything.
+UNAVAILABLE_PREFIX = "ch search failed:"
+
+
+def unavailable(reason: Optional[str]) -> bool:
+    """True when the reason means the register could not be consulted at all."""
+    return bool(reason) and reason.startswith(UNAVAILABLE_PREFIX)
+
+
 def match_company(ch: CompaniesHouseClient, name: str, postcode: Optional[str]
                   ) -> tuple[SubscriberClass, Optional[str], Optional[str]]:
     """Return (subscriber_class, matched_company_number, reason). Conservative: a
-    confident corporate match is required for 'corporate'; else research-only."""
+    confident corporate match is required for 'corporate'; else research-only.
+
+    A lookup FAILURE also returns UNKNOWN — fail-closed is right for a PECR gate — but
+    it is tagged with UNAVAILABLE_PREFIX so callers can tell it apart from a verdict and
+    decline to make it permanent."""
     want_name = _norm_name(name)
     want_out = _outward(postcode)
     try:
         results = ch.search_companies(name, items=5)
     except Exception as e:
-        return SubscriberClass.UNKNOWN, None, f"ch search failed: {str(e)[:80]}"
+        return SubscriberClass.UNKNOWN, None, f"{UNAVAILABLE_PREFIX} {str(e)[:80]}"
 
     best = None  # (ratio, item, postcode_match)
     for it in results:
@@ -81,7 +96,7 @@ def run(*, limit: int = 50, cur=None, ch: Optional[CompaniesHouseClient] = None)
     if own:
         conn = db.connect(); cur = conn.cursor()
     owns_ch = ch is None
-    counts = {"corporate": 0, "individual": 0, "unknown": 0}
+    counts = {"corporate": 0, "individual": 0, "unknown": 0, "deferred": 0}
     try:
         cur.execute(
             "select company_number, company_name, registered_address->>'postcode' "
@@ -92,6 +107,17 @@ def run(*, limit: int = 50, cur=None, ch: Optional[CompaniesHouseClient] = None)
             ch = CompaniesHouseClient()
         for company_number, name, postcode in rows:
             cls, matched, reason = match_company(ch, name, postcode)
+            if unavailable(reason):
+                # The register could not be consulted — a 429, a timeout, or the
+                # per-run request cap. Persisting 'unknown' + crossref_checked_at would
+                # make that permanent: the backlog selects on `subscriber_class is null`,
+                # so one bad minute inside a 50-lead batch used to condemn the rest to
+                # research-only for ever, with nothing surfaced anywhere. Write nothing
+                # and stop — if Companies House is unavailable for this lead it is
+                # unavailable for the next, and the untouched rows are the retry.
+                counts["deferred"] = len(rows) - sum(
+                    counts[k] for k in ("corporate", "individual", "unknown"))
+                break
             counts[cls.value] += 1
             cur.execute(
                 "update outreach.leads set subscriber_class=%s, matched_company_number=%s, "

@@ -18,7 +18,7 @@ import json
 
 from . import audit, config, db, draft, sequence
 from .firewall import check_suppression
-from .llm import draft_provider
+from .llm import LLMUnavailable, draft_provider
 
 
 def working_days_between(a, b) -> int:
@@ -148,8 +148,23 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
     results: list[dict] = []
     try:
         for cn, name, signal, _email, parent_id in eligible(cur, limit=limit):
-            results.append(followup_one(cn, name, signal, parent_id,
-                                        provider=provider, cur=cur, playbook=playbook))
+            # Per-lead savepoint, matching draft.run. Without it one unfixable follow-up
+            # raised straight out of the loop and the rollback below discarded EVERY good
+            # touch-2 written in the same batch — and the existing test asserted the raise,
+            # encoding the bug as intended behaviour.
+            cur.execute("savepoint followup_lead")
+            try:
+                results.append(followup_one(cn, name, signal, parent_id,
+                                            provider=provider, cur=cur, playbook=playbook))
+                cur.execute("release savepoint followup_lead")
+            except draft.EnvelopeViolation as e:
+                cur.execute("rollback to savepoint followup_lead")
+                results.append({"company_number": cn, "skipped": f"envelope: {e.violations}"})
+            except LLMUnavailable as e:
+                # brain down or spend cap hit: keep the follow-ups already written
+                cur.execute("rollback to savepoint followup_lead")
+                results.append({"halted": str(e)})
+                break
         if own:
             conn.commit()
         return results

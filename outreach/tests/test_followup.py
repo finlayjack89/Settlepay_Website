@@ -157,3 +157,28 @@ def test_envelope_enforced_on_followup(db_rollback):
         followup.followup_one(cn, cn, "sig", did, provider=bad, cur=cur)
     cur.execute("select count(*) from outreach.drafts where company_number=%s and touch=2", (cn,))
     assert cur.fetchone()[0] == 0                    # nothing stored on violation
+
+
+def test_run_isolates_a_bad_followup_and_keeps_the_good_ones(db_rollback):
+    """followup.run had no per-lead savepoint (draft.run does), so one unfixable
+    follow-up raised straight out of the loop and the rollback discarded EVERY good
+    touch-2 written in the same batch. The old test asserted that raise, encoding the
+    bug as intended behaviour."""
+    cur = db_rollback.cursor()
+    good_cn, _, _ = _seed_sent(cur, days_ago=7)
+    bad_cn, _, _ = _seed_sent(cur, days_ago=7)
+
+    def responder(prompt):
+        if bad_cn in prompt:
+            return json.dumps({"subject": "buy things", "body": "hi, please buy things"})
+        return followup.provisional_followup_responder(prompt)
+
+    results = followup.run(provider=InlineProvider(responder=responder), cur=cur)
+
+    cur.execute("select count(*) from outreach.drafts where company_number=%s and touch=2",
+                (good_cn,))
+    assert cur.fetchone()[0] == 1          # the good follow-up survived the bad one
+    cur.execute("select count(*) from outreach.drafts where company_number=%s and touch=2",
+                (bad_cn,))
+    assert cur.fetchone()[0] == 0          # the bad one stored nothing
+    assert any("envelope" in str(r.get("skipped", "")) for r in results)
