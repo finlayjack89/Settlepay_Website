@@ -29,6 +29,17 @@ import Button from './Button.astro';
 <div class="sticky-cta-skirt" data-sticky-skirt aria-hidden="true"></div>
 
 <style>
+  /* The panel and the skirt are two elements pretending to be one surface, so
+     they must slide as one: any difference in distance, duration or curve shows
+     up as the seam between them drifting apart mid-animation. One shared
+     distance, one shared transition, declared once here.
+     --sticky-slide is re-set from the panel's measured height in SiteScripts;
+     this value is only the pre-JS fallback. */
+  .sticky-cta,
+  .sticky-cta-skirt {
+    --sticky-slide: 240px;
+  }
+
   .sticky-cta {
     position: fixed;
     left: 0;
@@ -45,7 +56,7 @@ import Button from './Button.astro';
       0 -1px 0 rgba(15, 23, 42, 0.05),
       0 -18px 48px rgba(15, 23, 42, 0.16);
     /* Off-screen + non-focusable until shown; visibility flips after the slide. */
-    transform: translateY(110%);
+    transform: translateY(var(--sticky-slide));
     visibility: hidden;
     transition:
       transform 420ms var(--curve-spring),
@@ -70,12 +81,20 @@ import Button from './Button.astro';
     position: absolute;
     left: 0;
     right: 0;
+    /* Explicit top so it never falls back to its static position — last in the
+       body, i.e. past the footer — which would pad the document until the first
+       scroll placed it. SiteScripts overwrites this on init. */
+    top: 0;
     height: 160px;
     z-index: 89; /* directly beneath the panel */
     display: none;
     visibility: hidden;
     background: var(--color-pure-white);
     pointer-events: none;
+    transform: translateY(var(--sticky-slide));
+    transition:
+      transform 420ms var(--curve-spring),
+      visibility 0s linear 420ms;
   }
 
   @media (max-width: 768px) {
@@ -83,9 +102,8 @@ import Button from './Button.astro';
     .sticky-cta-skirt { display: block; }
   }
 
-  .sticky-cta-skirt.is-visible { visibility: visible; }
-
-  .sticky-cta.is-visible {
+  .sticky-cta.is-visible,
+  .sticky-cta-skirt.is-visible {
     transform: translateY(0);
     visibility: visible;
     transition:
@@ -115,6 +133,7 @@ import Button from './Button.astro';
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .sticky-cta { transition: visibility 0s; }
+    .sticky-cta,
+    .sticky-cta-skirt { transition: visibility 0s; }
   }
 </style>

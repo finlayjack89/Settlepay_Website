@@ -177,6 +177,7 @@
     const skirt = document.querySelector<HTMLElement>('[data-sticky-skirt]');
     const SKIRT_OVERLAP = 24;
     let naturalHeight = 0;
+    let skirtHeight = 0;
     let skirtQueued = false;
     const measureNatural = () => {
       if (!skirt) return;
@@ -184,12 +185,21 @@
       skirt.style.display = 'none';
       naturalHeight = document.documentElement.scrollHeight;
       skirt.style.display = prev;
+      skirtHeight = skirt.offsetHeight;
+      // Both layers slide exactly the same distance, derived from the panel so a
+      // taller panel (wrapped note at 360px) still clears the screen. Set on both
+      // elements: they are siblings, so neither inherits from the other.
+      const slide = `${stickyCta.getBoundingClientRect().height + 60}px`;
+      (stickyCta as HTMLElement).style.setProperty('--sticky-slide', slide);
+      skirt.style.setProperty('--sticky-slide', slide);
     };
+    // No is-visible guard: the skirt must keep tracking the viewport through the
+    // slide-out too, or scrolling mid-animation freezes it while the panel moves.
     const placeSkirt = () => {
       skirtQueued = false;
-      if (!skirt || !skirt.classList.contains('is-visible')) return;
+      if (!skirt) return;
       const wanted = window.scrollY + window.innerHeight - SKIRT_OVERLAP;
-      const limit = naturalHeight - skirt.offsetHeight;
+      const limit = naturalHeight - skirtHeight;
       skirt.style.top = `${Math.max(0, Math.min(wanted, limit))}px`;
     };
     const queueSkirt = () => {
@@ -220,6 +230,7 @@
       watched.forEach((el) => stickyIo.observe(el));
       if (skirt) {
         measureNatural();
+        placeSkirt();
         window.addEventListener('scroll', queueSkirt, { passive: true });
         window.addEventListener('resize', () => { measureNatural(); placeSkirt(); });
         window.visualViewport?.addEventListener('resize', queueSkirt);
