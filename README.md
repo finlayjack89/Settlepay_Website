@@ -102,10 +102,9 @@ public/
    Until the number is issued, the privacy, cookies, terms and FAQ pages state that ICO **registration
    is in progress** — update that wording (and any remaining `[ICO_REGISTRATION_NUMBER]` placeholders)
    once the number comes through.
-2. **Enquiry form delivery** — the form currently has no backend, so `formEndpoint` in
-   `src/data/site.mjs` is unset. Until it is set, the enquiry form falls back to an honest **"open your
-   mail app"** message (it no longer shows a false success). For production set `formEndpoint` to a form
-   handler (Formspree / Web3Forms / Netlify Forms / a serverless function).
+2. ~~**Enquiry form delivery**~~ — **DONE.** `SITE.formEndpoint` points at the Supabase `enquiry`
+   Edge Function, so submissions are delivered server-side. The honest "open your mail app" fallback
+   remains in place for the case where the endpoint is unreachable.
 3. **Business address** — `2b Rodney Street, London N1 9FS` is published on the legal pages (required
    so documents can be served) and the city is shown in the footer. If you'd rather not publish a
    residential address, switch to a correspondence/virtual address in `src/data/site.mjs` and the
@@ -118,10 +117,16 @@ public/
    After deploy, submit `https://settlepay.uk/sitemap-index.xml` in Google Search Console.
 6. **Social profiles** — add any social URLs to `SITE.social` in `src/data/site.mjs` (they feed the
    Organization `sameAs` for SEO).
-7. **Cookieless analytics** — add a privacy-friendly, cookieless analytics provider (e.g. Plausible /
-   Fathom / Cloudflare Web Analytics) so conversions and traffic can be measured without a cookie
-   banner. Once added, update the Cookie Policy wording (`src/pages/cookies.md` / its content copy) to
-   describe the analytics in use.
+7. ~~**Cookieless analytics**~~ — **DONE.** Two layers, both cookieless, both disclosed in the Cookie
+   Policy: our own first-party event measurement (`SITE.eventsEndpoint` → Supabase) and **Vercel Web
+   Analytics** for aggregate page views (`@vercel/analytics/astro`, rendered in `BaseLayout`). Verified
+   on production with a transmitting session — no cookies, no localStorage, no sessionStorage — so the
+   "no consent banner" position under PECR still holds.
+
+   Two gotchas if this is ever re-enabled or moved: Vercel injects the client config **at build time**,
+   so enabling Web Analytics needs a redeploy of the same commit before anything is collected; and the
+   script deliberately no-ops when `navigator.webdriver` is set, so **Playwright can never observe the
+   beacon** — absence of a beacon under automation is not evidence of a broken setup.
 
 ## Notes
 
