@@ -17,7 +17,7 @@ This policy should be read alongside our Privacy Policy, which explains how we h
 
 The SettlePay site is a simple static marketing website. By default it sets **only strictly-necessary cookies and equivalent local storage** to make the site work and keep it secure. It does **not** set any advertising, marketing, or third-party tracking cookies.
 
-We do measure how the site is used, but we do it **without cookies**: our own first-party measurement stores nothing on your device and reads nothing from it (see "Cookieless Site Measurement" below). Because nothing non-essential is stored on or read from your device, **you will not see a cookie consent banner** on the site. If that ever changes, we will update this policy and show a consent banner first.
+We do measure how the site is used, but we do it **without cookies**: both our own first-party measurement and the aggregate page-view statistics provided by our hosting provider store nothing on your device and read nothing from it (see "Cookieless Site Measurement" below). Because nothing non-essential is stored on or read from your device, **you will not see a cookie consent banner** on the site. If that ever changes, we will update this policy and show a consent banner first.
 
 ## Cookieless Site Measurement
 
@@ -28,7 +28,17 @@ What this measurement does and doesn't do:
 - **No cookies, no local storage** — nothing is saved on or read from your device.
 - **No IP address or browser fingerprint is stored.** Our server keeps only a one-way, scrambled code derived from connection details plus a secret that changes every day — so the code cannot identify you, cannot be reversed, and cannot link your visits from one day to the next.
 - **No cross-site tracking, no advertising, no profiles.** The data is aggregate counts: how many visits, which pages, which buttons — never who.
-- The data is processed by us alone (stored with our infrastructure provider, Supabase) and is not shared with or sold to anyone.
+- This first-party measurement is stored with our infrastructure provider, Supabase, and is not shared with or sold to anyone.
+
+### Aggregate Page-View Statistics (Vercel Web Analytics)
+
+Alongside the first-party measurement above, the site uses **Vercel Web Analytics**, provided by our hosting provider, to count page views. It is also **cookieless** — it sets no cookies and writes nothing to your device — and it records only aggregate, non-identifying information about each page view:
+
+- the page or route visited, and the site that referred you (if any);
+- your approximate country, device type, operating system and browser;
+- any campaign tags (UTM parameters) present in the link you followed.
+
+It does not store your IP address, does not build a profile, does not follow you to other websites, and is not used for advertising. The statistics are aggregate counts only. Vercel acts as our processor under a written data-processing agreement; Vercel Inc. is based in the United States, so this involves a transfer outside the UK made under appropriate safeguards (see the "International Transfers" section of our [Privacy Policy](/privacy/)).
 
 ## What Cookies and Similar Technologies Are
 
@@ -59,7 +69,7 @@ The table below describes the categories of cookies and similar technologies, an
 | --- | --- | --- | --- |
 | **Strictly necessary** | Yes (minimal) | No — exempt under PECR | Essential to deliver the site you have asked for: serving pages, basic security, and remembering technical state during your visit. The site cannot function properly without these. |
 | **Preferences** | Not currently | Yes, if added | Would remember choices you make to personalise your experience (for example, a remembered preference). We do not currently set any preference cookies. If we add any, we will list them here. |
-| **Analytics** | No | Yes | Would help us understand how visitors use the site (for example, which pages are viewed) so we can improve it. We do **not** run analytics today. **Analytics cookies will only ever be set with your consent, and only if and when analytics are later enabled.** |
+| **Analytics** | No cookies | Yes, for cookie-based analytics | We measure how the site is used — our own first-party measurement plus Vercel Web Analytics for aggregate page views — but **both are cookieless**: they set no cookies and store nothing on your device, so no consent is required for them under PECR (see "Cookieless Site Measurement" above). **Any cookie-based analytics would only ever be set with your consent, and we do not use any today.** |
 | **Advertising / third-party tracking** | No | Yes | Cookies used to build a profile of your interests, show targeted advertising, or track you across other websites. **We do not use any advertising or third-party tracking cookies, and we have no current plans to.** |
 
 ### Strictly-Necessary Cookies and Storage

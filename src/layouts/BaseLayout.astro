@@ -15,6 +15,11 @@ import Footer from '../components/Footer.astro';
 import EnquireModal from '../components/EnquireModal.astro';
 import StickyCta from '../components/StickyCta.astro';
 import SiteScripts from '../components/SiteScripts.astro';
+// Vercel Web Analytics — aggregate page views only, and only in production.
+// This sits ALONGSIDE the existing first-party event measurement (see
+// SITE.eventsEndpoint on <body>), it does not replace it. Both are disclosed in
+// the cookie policy; Vercel is named there as a processor.
+import Analytics from '@vercel/analytics/astro';
 
 // Mobile enquiry panel: homepage + the persuasion pages. Deliberately absent
 // from /book/ and /manage/ (they ARE the funnel), the legal pages, and the
@@ -65,5 +70,6 @@ const {
     <EnquireModal />
     {showStickyCta && <StickyCta />}
     <SiteScripts />
+    <Analytics />
   </body>
 </html>
