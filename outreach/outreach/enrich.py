@@ -31,6 +31,33 @@ FREEMAIL_DOMAINS = frozenset({
 JUNK_SUBSTR = ("example.com", "sentry", "@2x", ".png", ".jpg", ".gif", "wixpress",
                "godaddy", "domain.com", "yourdomain", "email@", "sentry.io")
 SCRAPE_PATHS = ("", "/contact", "/contact-us", "/about", "/about-us")
+
+# Team pages, fetched ONLY for verticals that actually have them. A firm that publishes
+# info@ on /contact often publishes sarah.jones@ on /team, and one visible PERSONAL address
+# both gives us a sourced contact and reveals the domain's email pattern (a visible info@
+# reveals nothing).
+#
+# Measured on this corpus before switching it on, because the cost is 5 extra GETs per lead
+# and slow sites are already the main enrichment latency:
+#   trades (electricians, plumbers)      1 of 10 sites had a team page, 0 gained an address
+#   professional services / clinics      9 of 10 had one, and ODIN FINANCE gave NINE named
+#                                        addresses (omer@, mehmet@, ali@ …), which also
+#                                        proves that domain's pattern
+# So it pays exactly where the research doc said it would, and nowhere else.
+TEAM_PATHS = ("/team", "/our-team", "/meet-the-team", "/people", "/staff")
+
+# Verticals whose sites are one person and a van. Matched as substrings of a lowercased
+# vertical/primary_type; anything not matching is treated as a firm with staff.
+_SOLO_TRADE_HINTS = ("electric", "plumb", "heating", "roof", "build", "joiner", "carpent",
+                     "plaster", "decorat", "landscap", "garden", "handyman", "locksmith",
+                     "glazi", "paving", "driveway", "fencing", "tiler", "scaffold")
+
+
+def scrape_paths_for(vertical: Optional[str]) -> tuple:
+    """Which pages to scrape for this kind of business."""
+    if vertical and any(h in vertical.lower() for h in _SOLO_TRADE_HINTS):
+        return SCRAPE_PATHS
+    return SCRAPE_PATHS + TEAM_PATHS
 USER_AGENT = "SettlePayOutreach/0.1 (+https://settlepay.uk; contact info@settlepay.uk)"
 # directories / portals / socials to skip when resolving a company's OWN website
 SKIP_DOMAINS = (
@@ -164,14 +191,15 @@ def get_website_resolver(name: Optional[str] = None, **kwargs) -> WebsiteResolve
 
 
 # ---- deterministic scrape / pick / verify ----
-def scrape_emails(url: str, *, client: Optional[httpx.Client] = None) -> list[str]:
+def scrape_emails(url: str, *, client: Optional[httpx.Client] = None,
+                  paths: Optional[tuple] = None) -> list[str]:
     owns = client is None
     client = client or httpx.Client(timeout=15, follow_redirects=True,
                                     headers={"User-Agent": USER_AGENT})
     found: list[str] = []
     try:
         base = url.rstrip("/")
-        for p in SCRAPE_PATHS:
+        for p in (paths or SCRAPE_PATHS):
             try:
                 r = client.get(base + p)
             except httpx.HTTPError:
@@ -720,7 +748,8 @@ def signal_and_fit(company_name: str, vertical: Optional[str], town: Optional[st
 
 def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = None,
             verifier=None, guess_generics: bool = True,
-            company_name: Optional[str] = None) -> dict:
+            company_name: Optional[str] = None,
+            vertical: Optional[str] = None) -> dict:
     """The SLOW, networked half of enrichment (guess/scrape + verify), with NO
     database handle held. Kept separate so a long Firecrawl/HTTP call never sits
     inside an open DB transaction (the pooler drops idle connections)."""
@@ -735,7 +764,9 @@ def _gather(website: Optional[str], *, http_client: Optional[httpx.Client] = Non
     #    verifier credit spent on it is spent on an address we already believe exists.
     #    httpx costs nothing; only the Firecrawl fallback costs anything, and neither
     #    costs a VERIFIER credit. This deliberately runs before any guessing.
-    httpx_emails = scrape_emails(website, client=http_client) if website else []
+    httpx_emails = (scrape_emails(website, client=http_client,
+                                  paths=scrape_paths_for(vertical))
+                    if website else [])
     candidates = list(httpx_emails)
     email = pick_contact_email(httpx_emails, prefer_domain=domain, company_name=company_name)
     if email:
@@ -902,12 +933,17 @@ def _persist(company_number: str, website: Optional[str], signal: Optional[str],
 
 def enrich_one(company_number: str, website: Optional[str], signal: Optional[str], *,
                cur, http_client: Optional[httpx.Client] = None, verifier=None,
-               guess_generics: bool = True, company_name: Optional[str] = None) -> dict:
+               guess_generics: bool = True, company_name: Optional[str] = None,
+               vertical: Optional[str] = None) -> dict:
     """Guess/scrape + verify a contact email for `website`, store enrichment, and
     advance the lead to 'enriched' (verified), 'parked' (our search came up short) or
-    'discarded' (a verdict)."""
+    'discarded' (a verdict).
+
+    `vertical` only decides WHICH pages are scraped — team pages are fetched for firms
+    with staff and skipped for one-person trades (see scrape_paths_for)."""
     g = _gather(website, http_client=http_client, verifier=verifier,
-                guess_generics=guess_generics, company_name=company_name)
+                guess_generics=guess_generics, company_name=company_name,
+                vertical=vertical)
     if company_name:
         g["company_name"] = company_name     # lets _persist run the recipient guard
     return _persist(company_number, website, signal, g, cur=cur)
@@ -926,7 +962,8 @@ def run(items: list[dict], *, cur=None) -> list[dict]:
     try:
         for it in items:
             results.append(enrich_one(it["company_number"], it.get("website"), it.get("signal"),
-                                      cur=cur, http_client=http))
+                                      cur=cur, http_client=http,
+                                      vertical=it.get("vertical")))
         if own:
             conn.commit()
         return results
@@ -1115,7 +1152,7 @@ def discover_and_run(*, limit: int = 10, resolver=None, cur=None) -> list[dict]:
                 registered_postcode=postcode if source not in _TRADING_LOCALITY_SOURCES else None,
                 ch=ch, client=http)
             signal = factual_signal(name, hint, place.get("town"))
-            g = _gather(website, http_client=http, company_name=name)
+            g = _gather(website, http_client=http, company_name=name, vertical=hint)
             if g["email"] and g["result"] in TRANSIENT_RESULTS:
                 consecutive_verify_failures += 1
             elif g["result"] not in TRANSIENT_RESULTS:

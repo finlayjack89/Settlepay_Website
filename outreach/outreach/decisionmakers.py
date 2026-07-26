@@ -1,26 +1,45 @@
-"""Decision-maker sourcing — Companies House officers, then infer + verify the
-named director's work email.
+"""Decision-maker sourcing — who runs this business, and the safest way to reach them.
 
-Two stages, deliberately decoupled by cost and by risk:
+The goal is NOT "a personal email address". It is **a named human to address, and the
+safest inbox that reaches them**. Those are different targets, and conflating them is what
+made the first version of this module throw away its cheapest asset.
 
-1. **Officers (free, low-risk).** Companies House `/officers` is public-register data.
-   We store the directors' names and roles, minimised — no DOB, no address. This alone
-   improves the CRM and the drafting ("I saw you and your co-director run…") even if we
-   never email a named person.
+The waterfall, cheapest and safest first:
 
-2. **Named email (paid, GDPR-loaded).** From the company's own domain we derive the
-   likely email pattern, permute the director's name across a small ranked set, and
-   verify each with MillionVerifier. ONLY a MillionVerifier-confirmed ('ok') address is
-   ever adopted — never an unverified guess, because sending to guesses bounces and
-   bouncing wrecks warm-up. On a catch-all domain nothing can be confirmed, so we skip
-   it rather than burn credits proving nothing.
+1. **Who (free).** Companies House `/officers` + `/persons-with-significant-control`.
+   Officers are stored minimised — name, role, occupation, and a BOOLEAN "is also a PSC".
+   Never a DOB, an address, a nationality or an ownership percentage. Ranked so the
+   owner-operator wins, because every cost downstream is spent on whoever ranks first.
+
+2. **SOURCED address.** An address for that person which the business PUBLISHED on its own
+   site (already captured in `enrichment.scraped.candidates` and, until now, never read
+   again). Verified before use, but it is the address they chose to make public.
+
+3. **DERIVED address, pattern-confirmed only.** If the site publishes a personal address
+   that matches a known officer, the domain's convention is proven — `sarah.jones@` shows
+   `{first}.{last}` — and applying a proven rule to a director named on the public register
+   costs ONE verifier call. With no such proof we derive NOTHING. Blind permutation of four
+   guesses per person was removed: it is speculative rather than necessary, and on a
+   20-lead sample of the live corpus it would have spent ~80 credits to confirm nothing.
+
+4. **FAO.** No personal address? Then the shared mailbox we already hold, addressed
+   "FAO John Smith, Director". Not a failure state — on that same sample it covered 18 of
+   20 leads at zero cost, and role inboxes addressed to a named person avoid the 2-4x
+   complaint rate of an anonymous blast.
+
+Only a verifier-confirmed address is ever adopted. A catch-all domain confirms nothing, so
+it is skipped rather than billed. A verifier that does not ANSWER defers the lead; it never
+reads as "this person has no email".
 
 Compliance posture (the price of targeting a named person, baked in, not optional):
-- Lawful basis is legitimate interests, recorded on every officer row via audit_log.
-- The art. 14 transparency duty — tell the person where we got their details — is
-  discharged at first contact by the named-send email footer (emailfmt.TEXT_FOOTER_NAMED).
-- The art. 21 right to object is the existing unsubscribe → suppression path; a named
-  email is just an email, so an opt-out suppresses it like any other.
+- Lawful basis is legitimate interests, assessed and recorded BEFORE processing in
+  `docs/LIA-decision-makers.md` — audit rows carry `detail.lia` pointing at it.
+- The art. 14 duty — tell the person where we got their details — is discharged at first
+  contact by the named-send footer (`emailfmt.NAMED_FOOTER_NOTE`), which links the privacy
+  notice section "Information We Collect From Public Sources".
+- The art. 21 right to object is the existing unsubscribe -> suppression path.
+- `contact_method` records `sourced` vs `derived` per address, because the two are not the
+  same act and only the second is the one a regulator asks about first.
 - OFF by default (config.DECISION_MAKER_ENABLED). Turning it on is the operator's
   explicit, knowing act — the same posture as never-persist-phones and capture-people.
 """
@@ -45,6 +64,10 @@ _PATTERNS = (
 )
 
 _NAME_CLEAN = re.compile(r"[^a-z]")
+# Everything from the first character that cannot be part of a name onwards. Hyphens and
+# apostrophes stay (Parry-Williams, O'Brien); stray commas and full stops from the register
+# do not.
+_DISPLAY_TRIM = re.compile(r"[^A-Za-z'\-].*$")
 
 # Occupations that say "this person runs the business" rather than "this person is on the
 # board". Matched as substrings of a lowercased occupation, so "Managing Director" and
@@ -114,8 +137,13 @@ def display_name(ch_name: str) -> Optional[str]:
     forenames = [t for t in rest.split() if t]
     if not forenames or not surname_raw.strip():
         return None
-    first = forenames[0]
-    if len(first) < 2:                       # an initial is not a name to greet
+    # Trim anything that is not part of a name. Real filings carry a SECOND comma —
+    # "THOMSON, James, Noble" — and partition() only splits the first, so the forename
+    # arrived as "James," and the FAO line read "FAO James, Thomson". A mangled name in
+    # the first line of a cold email is worse than no name at all.
+    first = _DISPLAY_TRIM.sub("", forenames[0])
+    surname_raw = _DISPLAY_TRIM.sub("", surname_raw.strip())
+    if len(first) < 2 or len(surname_raw) < 2:   # an initial is not a name to greet
         return None
     surname = surname_raw.strip()
     if surname.isupper() or surname.islower():
@@ -219,6 +247,50 @@ def parse_name(ch_name: str) -> Optional[tuple[str, str]]:
     if len(first) < 2 or len(last) < 2:
         return None
     return first, last
+
+
+def local_matches(local: str, first: str, last: str) -> bool:
+    """Does this email local part belong to this person?
+
+    Matched against the SAME pattern set we would derive from, so "does this address
+    belong to Sarah Jones" and "what would Sarah Jones's address be" can never disagree.
+    """
+    cleaned = _NAME_CLEAN.sub("", local.lower())
+    return any(cleaned == _NAME_CLEAN.sub("", pat.format(first=first, last=last,
+                                                         f=first[0]).lower())
+               for pat in _PATTERNS)
+
+
+def infer_pattern(published: list[str], officers: list[dict], domain: str) -> Optional[str]:
+    """The domain's email convention, learned from an address it PUBLISHED.
+
+    Seeing `sarah.jones@acme.co.uk` next to officer "JONES, Sarah" proves this domain uses
+    `{first}.{last}`. That turns a guess into an application of a known rule: one verifier
+    call instead of four, at a much higher confirm rate.
+
+    A GENERIC address reveals nothing — `info@` is true of every convention — so generic
+    local parts are excluded explicitly rather than incidentally (research doc §4).
+
+    Returns the pattern string, or None when nothing on this domain identifies a person we
+    can name.
+    """
+    from .enrich import GENERIC_PREFIXES
+    people = [(p, o) for o in officers if (p := parse_name(o.get("name") or ""))]
+    for addr in published:
+        addr_domain = addr.rpartition("@")[2].lower()
+        if not domain or addr_domain != domain.lower():
+            continue
+        local = addr.partition("@")[0].lower()
+        if any(local == g or local.startswith(g) for g in GENERIC_PREFIXES):
+            continue                      # a shared mailbox proves nothing about the rule
+        cleaned = _NAME_CLEAN.sub("", local)
+        for (first, last), _ in people:
+            for pat in _PATTERNS:
+                built = _NAME_CLEAN.sub(
+                    "", pat.format(first=first, last=last, f=first[0]).lower())
+                if cleaned == built:
+                    return pat
+    return None
 
 
 def email_permutations(first: str, last: str, domain: str) -> list[str]:
@@ -355,6 +427,7 @@ def _fetch_officers(company_number: str, *, cur, ch) -> Optional[list[dict]]:
     except Exception as e:
         audit.record(company_number, "officers_lookup_failed", source="decisionmakers",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     detail={"lia": audit.LIA_DECISION_MAKERS},
                      reason=f"CH officers/PSC unavailable: {str(e)[:80]}", cur=cur)
         return None
     cur.execute("select company_name from outreach.leads where company_number=%s",
@@ -365,6 +438,7 @@ def _fetch_officers(company_number: str, *, cur, ch) -> Optional[list[dict]]:
     if kept:
         audit.record(company_number, "officers", source="decisionmakers",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     detail={"lia": audit.LIA_DECISION_MAKERS},
                      reason=f"{kept} active officer(s) from Companies House; "
                             f"{len(psc)} individual PSC(s) matched for ranking", cur=cur)
     return get_officers(company_number, cur=cur)
@@ -422,35 +496,165 @@ def _resolve_named_email(company_number: str, domain: Optional[str], *, cur,
 
     from .enrich import TRANSIENT_RESULTS
     checked = 0
-    for off in officers:                                # longest-serving first
+
+    def attempt(addr: str, off: dict, method: str):
+        """Verify one candidate. Returns ('adopted'|'defer'|'no', result-updates)."""
+        nonlocal checked
+        parsed = parse_name(off.get("name") or "")
+        addr_domain = addr.rpartition("@")[2].lower()
+        if parsed:
+            cached = lookup_cached(*parsed, addr_domain, cur=cur)
+            if cached == "miss":
+                # asked before, no such mailbox — do not re-bill for the same answer
+                return "no", {}
+            if cached == "hit":
+                _adopt_named_contact(company_number, off["name"], addr, cur=cur,
+                                     method=method)
+                return "adopted", {"named_email": addr, "verified": True, "method": method,
+                                   "officer": off["name"], "role": off.get("role"),
+                                   "checked": checked, "cached": True}
+        ok, res = verifier(addr)
+        checked += 1
+        if parsed and res not in TRANSIENT_RESULTS:
+            # only a real ANSWER is cacheable: caching a non-answer would turn one outage
+            # into 90 days of skipped lookups, the same mistake TRANSIENT_RESULTS exists
+            # to prevent
+            remember_lookup(*parsed, addr_domain,
+                            "hit" if ok else ("catch_all" if res == "catch_all" else "miss"),
+                            cur=cur, address=addr)
+        if res in TRANSIENT_RESULTS:
+            # the verifier didn't answer (out of credits / rate-limited). Don't keep
+            # trying against a dead verifier, and don't read the non-answer as "this
+            # person has no email" — defer the whole lead (dm_attempted_at stays null,
+            # so it's retried next tick), officers already stored.
+            return "defer", {"checked": checked, "deferred": True,
+                             "skipped": f"verifier unavailable ({res})"}
+        if ok:
+            _adopt_named_contact(company_number, off["name"], addr, cur=cur, method=method)
+            return "adopted", {"named_email": addr, "verified": True, "method": method,
+                               "officer": off["name"], "role": off.get("role"),
+                               "checked": checked}
+        return "no", {}
+
+    # 1. SOURCED — an address the business published for this person. Preferred over
+    #    anything we could infer: they chose to make it public, so using it is not the
+    #    speculative act §7 warns about. Still verified before use — a published address
+    #    can be stale — but it is one call, and it is theirs.
+    for off in officers:                                # best-ranked first
+        addr = sourced_address(company_number, off, domain, cur=cur)
+        if not addr:
+            continue
+        state, upd = attempt(addr, off, "sourced")
+        result.update(upd)
+        if state in ("adopted", "defer"):
+            return result
+        break        # their published address does not verify; inventing another is worse
+
+    # 2. DERIVED, but only from a CONFIRMED pattern. Blind permutation is gone: it tried
+    #    up to four addresses per person, none of which anyone had published, and it is
+    #    exactly the derive-and-email practice the research doc (§7) says has drawn ICO
+    #    complaints. A personal address published on this domain proves the convention;
+    #    applying a proven rule to a director named on the public register is a different
+    #    act from guessing, and it costs ONE verifier call instead of four.
+    published = published_candidates(company_number, cur=cur)
+    pattern = infer_pattern(published, officers, domain or "")
+    if not pattern:
+        _mark_attempted(company_number, cur=cur)
+        result["checked"] = checked
+        result["skipped"] = "no confirmed email pattern for this domain"
+        return result
+    result["pattern"] = pattern
+    for off in officers:
+        if checked >= config.DM_MAX_VERIFY_PER_LEAD:
+            result["checked"] = checked
+            result["skipped"] = "per-lead verify cap reached"
+            return result
         parsed = parse_name(off["name"])
         if not parsed:
             continue
-        for addr in email_permutations(*parsed, domain):
-            if checked >= config.DM_MAX_VERIFY_PER_LEAD:
-                result["checked"] = checked
-                result["skipped"] = "per-lead verify cap reached"
-                return result
-            ok, res = verifier(addr)
-            checked += 1
-            if res in TRANSIENT_RESULTS:
-                # the verifier didn't answer (out of credits / rate-limited). Don't keep
-                # guessing against a dead verifier, and don't read the non-answer as "this
-                # person has no email" — defer the whole lead (dm_attempted_at stays null,
-                # so it's retried next tick), officers already stored.
-                result.update({"checked": checked, "deferred": True,
-                               "skipped": f"verifier unavailable ({res})"})
-                return result
-            if ok:
-                _adopt_named_contact(company_number, off["name"], addr, cur=cur)
-                result.update({"named_email": addr, "verified": True,
-                               "officer": off["name"], "role": off.get("role"),
-                               "checked": checked})
-                return result
-    # every permutation checked, none confirmed — a completed attempt, don't re-bill it
+        first, last = parsed
+        addr = f"{pattern.format(first=first, last=last, f=first[0])}@{domain}"
+        state, upd = attempt(addr, off, "derived")
+        result.update(upd)
+        if state in ("adopted", "defer"):
+            return result
+
+    # the pattern held for nobody we can name — a completed attempt, don't re-bill it
     _mark_attempted(company_number, cur=cur)
     result["checked"] = checked
     return result
+
+
+def published_candidates(company_number: str, *, cur) -> list[str]:
+    """Every address the scraper found on this company's site, including the ones the
+    contact picker passed over.
+
+    enrichment.scraped.candidates has been recorded all along and never read again. At
+    enrichment time preferring info@ over sarah@ is CORRECT — we have no idea whether
+    Sarah is the owner or the receptionist. Once the register has told us who runs the
+    firm that changes, and the answer is already on disk: no scrape, no credit, no call.
+    """
+    cur.execute("select scraped from outreach.enrichment where company_number=%s",
+                (company_number,))
+    row = cur.fetchone()
+    raw = (row[0] if row else None) or {}
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            return []
+    cands = raw.get("candidates") if isinstance(raw, dict) else None
+    return [c for c in (cands or []) if isinstance(c, str) and "@" in c]
+
+
+def sourced_address(company_number: str, officer: dict, domain: Optional[str], *,
+                    cur) -> Optional[str]:
+    """An address for THIS officer that the business itself published, or None.
+
+    Preferred over anything derived: they chose to publish it, so using it is not the
+    speculative act §7 of the research doc warns about, and it needs no inference at all.
+    """
+    parsed = parse_name(officer.get("name") or "")
+    if not parsed:
+        return None
+    first, last = parsed
+    for addr in published_candidates(company_number, cur=cur):
+        addr_domain = addr.rpartition("@")[2].lower()
+        if domain and addr_domain != domain.lower():
+            continue
+        if local_matches(addr.partition("@")[0], first, last):
+            return addr.lower()
+    return None
+
+
+def lookup_cached(first: str, last: str, domain: str, *, cur,
+                  provider: str = "chain") -> Optional[str]:
+    """A previous outcome for this exact question, or None if we have never asked.
+
+    The question is "does <first> <last> exist at <domain>", not "is this lead done" —
+    `dm_attempted_at` answers the latter and cannot stop a second lead on the same domain
+    re-billing for the first lead's answer.
+    """
+    cur.execute(
+        "select outcome from outreach.lookup_attempts "
+        "where provider=%s and first_name=%s and last_name=%s and domain=%s "
+        "  and created_at > now() - make_interval(days => %s)",
+        (provider, first, last, domain.lower(), config.DM_CACHE_DAYS))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def remember_lookup(first: str, last: str, domain: str, outcome: str, *, cur,
+                    address: Optional[str] = None, provider: str = "chain") -> None:
+    """Record what a paid lookup told us. Upserts, so a later re-check refreshes the age
+    rather than raising on the primary key."""
+    cur.execute(
+        "insert into outreach.lookup_attempts "
+        "  (provider, first_name, last_name, domain, outcome, address) "
+        "values (%s,%s,%s,%s,%s,%s) "
+        "on conflict (provider, first_name, last_name, domain) do update set "
+        "  outcome = excluded.outcome, address = excluded.address, created_at = now()",
+        (provider, first, last, domain.lower(), outcome, address))
 
 
 def _mark_attempted(company_number: str, *, cur) -> None:
@@ -458,7 +662,8 @@ def _mark_attempted(company_number: str, *, cur) -> None:
                 "where company_number = %s", (company_number,))
 
 
-def _adopt_named_contact(company_number: str, officer_name: str, email: str, *, cur) -> None:
+def _adopt_named_contact(company_number: str, officer_name: str, email: str, *, cur,
+                         method: str = "derived") -> None:
     """Promote a confirmed named address to the lead's contact. tier 'named' ranks above
     'verified' (role), so send.py prefers it; contact_name records who it is.
 
@@ -467,22 +672,25 @@ def _adopt_named_contact(company_number: str, officer_name: str, email: str, *, 
     FAO case, printed in the email itself.
     """
     shown = display_name(officer_name) or officer_name
+    src = ("ch_officer_published_email" if method == "sourced"
+           else "ch_officer_verified_email")
     cur.execute(
         "update outreach.enrichment set contact_email=%s, contact_name=%s, "
         "contact_tier='named', email_verified=true, email_verify_result='ok', "
+        "contact_method=%s, "
         # keep the drafting constants in step: a name the drafter may greet by is exactly
         # a name we have CONFIRMED (officer on the register + a verified work address).
         # Without this the facts block would still say contact_name UNKNOWN and the draft
         # would open "Dear <business>," despite our knowing who runs it.
         "facts = jsonb_set(coalesce(facts, '{}'::jsonb), '{contact_name}', %s::jsonb, true) "
         "where company_number=%s",
-        (email, shown,
-         json.dumps({"value": shown, "source": "ch_officer_verified_email",
-                     "verified": True}),
+        (email, shown, method,
+         json.dumps({"value": shown, "source": src, "verified": True}),
          company_number))
     audit.record(company_number, "decision_maker", source="decisionmakers",
                  lawful_basis=audit.LEGITIMATE_INTERESTS,
-                 reason=f"named contact {email} ({shown}) — verified, art.14 notice on send",
+                 reason=f"named contact {email} ({shown}) — {method}, verified, "
+                        f"art.14 notice on send",
                  cur=cur)
 
 
@@ -534,6 +742,7 @@ def adopt_fao_contact(company_number: str, officer: dict, *, cur) -> bool:
     if cur.rowcount:
         audit.record(company_number, "fao_contact", source="decisionmakers",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     detail={"lia": audit.LIA_DECISION_MAKERS},
                      reason=f"shared mailbox addressed FAO {shown}"
                             f"{' (' + role + ')' if role else ''} — officer on the public "
                             f"register; no personal address held or inferred",

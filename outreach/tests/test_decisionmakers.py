@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -91,6 +92,9 @@ def test_re_storing_officers_is_idempotent(db_rollback):
     # 'Mac' is deliberately NOT special-cased: Mackie and MacDonald are both real and
     # nothing in the string tells them apart, so we keep what the register filed
     ("MACKIE, David", "David Mackie"),
+    # REAL filing (1314 Electrical Services): a SECOND comma. partition() splits only the
+    # first, so the forename arrived as "James," and the line read "FAO James, Thomson".
+    ("THOMSON, James, Noble", "James Thomson"),
     ("SMITH, J", None),                            # an initial is not a name to greet
     ("ACME NOMINEES LIMITED", None),
     ("", None),
@@ -365,29 +369,172 @@ class _FakeCH:
 
 
 def _enriched(cur, cn, *, domain="acme.co.uk", tier="verified", result="ok",
-              email="info@acme.co.uk"):
+              email="info@acme.co.uk", candidates=None):
+    """`candidates` are the addresses the scraper found on the site. A PERSONAL one is
+    what proves the domain's email convention — without it there is no confirmed pattern
+    and, by design, no derivation at all."""
     cur.execute(
         "insert into outreach.enrichment (company_number, domain, contact_email, "
-        "contact_tier, email_verify_result) values (%s,%s,%s,%s,%s)",
-        (cn, domain, email, tier, result))
+        "contact_tier, email_verify_result, scraped) values (%s,%s,%s,%s,%s,%s)",
+        (cn, domain, email, tier, result,
+         json.dumps({"candidates": candidates}) if candidates is not None else None))
 
 
-def test_a_confirmed_permutation_is_adopted_as_the_named_contact(db_rollback):
+# a published personal address on the same domain: proves the pattern is {first}.{last}
+_PATTERN_PROOF = ["info@acme.co.uk", "mary.jones@acme.co.uk"]
+_PROOF_OFFICERS = [{"name": "SMITH, John", "officer_role": "director",
+                    "appointed_on": "2019-01-01"},
+                   {"name": "JONES, Mary", "officer_role": "director",
+                    "appointed_on": "2020-01-01"}]
+
+
+def test_a_pattern_confirmed_address_is_adopted_as_the_named_contact(db_rollback):
+    """mary.jones@ published next to officer JONES, Mary proves {first}.{last}, so
+    john.smith@ is an application of a known rule rather than a guess."""
     cur = db_rollback.cursor()
     cn = _lead(cur)
-    _enriched(cur, cn)
-    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"}])
-    # verifier says the second permutation (john@) is real
+    _enriched(cur, cn, candidates=_PATTERN_PROOF)
+    ch = _FakeCH(_PROOF_OFFICERS)
+    tried = []
+
     def verifier(addr):
-        return (addr == "john@acme.co.uk", "ok" if addr == "john@acme.co.uk" else "invalid")
+        tried.append(addr)
+        return (addr == "john.smith@acme.co.uk",
+                "ok" if addr == "john.smith@acme.co.uk" else "invalid")
 
     r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch, verifier=verifier)
-    assert r["verified"] and r["named_email"] == "john@acme.co.uk"
-    cur.execute("select contact_email, contact_name, contact_tier from outreach.enrichment "
-                "where company_number=%s", (cn,))
+    assert r["verified"] and r["named_email"] == "john.smith@acme.co.uk"
+    assert r["pattern"] == "{first}.{last}" and r["method"] == "derived"
+    cur.execute("select contact_email, contact_name, contact_tier, contact_method "
+                "from outreach.enrichment where company_number=%s", (cn,))
     # the name is stored as a human writes it, not as the register shouts it: it is read
     # by the drafter, shown in the console, and printed in the email in the FAO case
-    assert cur.fetchone() == ("john@acme.co.uk", "John Smith", "named")
+    assert cur.fetchone() == ("john.smith@acme.co.uk", "John Smith", "named", "derived")
+
+
+def test_no_pattern_means_no_derivation_and_no_spend(db_rollback):
+    """The policy change: with only info@ published, nothing proves the convention, so we
+    do not try four guesses — we try none, and fall to the FAO tier."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn, candidates=["info@acme.co.uk"])
+    ch = _FakeCH(_PROOF_OFFICERS)
+
+    def verifier(addr):
+        raise AssertionError(f"must not verify without a confirmed pattern: {addr}")
+
+    r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch, verifier=verifier)
+    assert r["checked"] == 0 and "no confirmed email pattern" in r["skipped"]
+    assert r["fao_applied"] is True          # not a failure — a different, safer outcome
+
+
+def test_a_published_personal_address_is_preferred_over_deriving_one(db_rollback):
+    """§7: an address they published is not the speculative act. It is still verified
+    before use, but it is theirs — so it is tried first and costs one call."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn, candidates=["info@acme.co.uk", "j.smith@acme.co.uk"])
+    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"}])
+    tried = []
+
+    def verifier(addr):
+        tried.append(addr)
+        return (True, "ok")
+
+    r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch, verifier=verifier)
+    assert r["method"] == "sourced" and r["named_email"] == "j.smith@acme.co.uk"
+    assert tried == ["j.smith@acme.co.uk"]           # one call, and never a guess
+    cur.execute("select contact_method from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "sourced"
+
+
+def test_a_second_lead_on_the_same_domain_is_not_re_billed(db_rollback):
+    """dm_attempted_at marks a LEAD done, but what we buy is 'does <name> exist at
+    <domain>'. Two leads can share a domain — a group, a franchise, the same business
+    found twice — and each would otherwise pay for the same answer."""
+    cur = db_rollback.cursor()
+    calls = []
+
+    def verifier(addr):
+        calls.append(addr)
+        return (False, "invalid")
+
+    for _ in range(2):
+        cn = _lead(cur)
+        _enriched(cur, cn, candidates=_PATTERN_PROOF)
+        dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=_FakeCH(_PROOF_OFFICERS),
+                       verifier=verifier)
+    # lead 1 asks two distinct questions (Mary's published address, then John by pattern);
+    # lead 2 asks none, because both answers are already on file
+    assert calls == ["mary.jones@acme.co.uk", "john.smith@acme.co.uk"]
+
+
+def test_a_cached_hit_is_adopted_without_paying_again(db_rollback):
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn, candidates=_PATTERN_PROOF)
+    # both answers already known: Mary's published address is dead, John's works
+    dm.remember_lookup("mary", "jones", "acme.co.uk", "miss", cur=cur)
+    dm.remember_lookup("john", "smith", "acme.co.uk", "hit", cur=cur,
+                       address="john.smith@acme.co.uk")
+
+    def verifier(addr):
+        raise AssertionError("must not re-verify a cached answer")
+
+    r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=_FakeCH(_PROOF_OFFICERS),
+                       verifier=verifier)
+    assert r["verified"] and r.get("cached") is True
+    cur.execute("select contact_email from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "john.smith@acme.co.uk"
+
+
+def test_a_verifier_outage_is_never_cached(db_rollback):
+    """Caching a non-answer would turn one outage into 90 days of skipped lookups — the
+    same mistake TRANSIENT_RESULTS exists to prevent."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn, candidates=_PATTERN_PROOF)
+    dm.resolve_one(cn, "acme.co.uk", cur=cur,
+                   ch=_FakeCH([{"name": "SMITH, John", "officer_role": "director"}]),
+                   verifier=lambda a: (False, "error"))
+    assert dm.lookup_cached("john", "smith", "acme.co.uk", cur=cur) is None
+
+
+def test_decision_maker_status_counts_a_shared_mailbox_as_addressed(db_rollback):
+    """addressed_rate is the metric that matters: can we name a human in the email. A
+    shared mailbox addressed to the named director counts; an anonymous one does not."""
+    from outreach import stats
+    cur = db_rollback.cursor()
+    before = stats.decision_maker_status(cur)
+    cn = _lead(cur)
+    _enriched(cur, cn)
+    dm.adopt_fao_contact(cn, {"name": "SMITH, John", "role": "director"}, cur=cur)
+    after = stats.decision_maker_status(cur)
+    assert after["fao"] == before["fao"] + 1
+    assert after["role_only"] == before["role_only"]        # reclassified, not added
+    assert after["named"] == before["named"]                # still not a personal mailbox
+
+
+def test_the_buy_thresholds_are_computed_not_asserted(db_rollback):
+    """The doc's thresholds only mean something against our own numbers."""
+    from outreach import stats
+    d = stats.decision_maker_status(db_rollback.cursor())
+    assert d["buy_catch_all_resolver"] is (d["catch_all_rate"] > 60)
+    assert 0 <= d["addressed_rate"] <= 100
+
+
+def test_a_generic_address_never_proves_a_pattern():
+    """info@ is true of every convention, so it must reveal nothing (research doc §4)."""
+    assert dm.infer_pattern(["info@acme.co.uk", "sales@acme.co.uk"],
+                            _PROOF_OFFICERS, "acme.co.uk") is None
+    assert dm.infer_pattern(["mary.jones@acme.co.uk"],
+                            _PROOF_OFFICERS, "acme.co.uk") == "{first}.{last}"
+
+
+def test_a_pattern_on_someone_elses_domain_is_ignored():
+    """A supplier's address on the page says nothing about THIS domain's convention."""
+    assert dm.infer_pattern(["mary.jones@supplier.co.uk"],
+                            _PROOF_OFFICERS, "acme.co.uk") is None
 
 
 def test_no_confirmation_leaves_the_role_ADDRESS_untouched_but_names_the_addressee(db_rollback):
@@ -430,9 +577,8 @@ def test_a_verifier_outage_defers_after_one_probe(db_rollback):
     not 'this person has no email'."""
     cur = db_rollback.cursor()
     cn = _lead(cur)
-    _enriched(cur, cn)
-    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"},
-                  {"name": "JONES, Mary", "officer_role": "director"}])
+    _enriched(cur, cn, candidates=_PATTERN_PROOF)
+    ch = _FakeCH(_PROOF_OFFICERS)
     calls = {"n": 0}
 
     def verifier(addr):
@@ -461,12 +607,18 @@ def test_officers_are_stored_even_when_the_email_cannot_be_confirmed(db_rollback
 
 
 def test_the_verify_cap_bounds_mv_spend(db_rollback, monkeypatch):
+    """One call per officer now, not one per permutation — but the cap is still the hard
+    ceiling on what a single lead can spend."""
     cur = db_rollback.cursor()
     cn = _lead(cur)
-    _enriched(cur, cn)
+    _enriched(cur, cn, candidates=_PATTERN_PROOF)
     monkeypatch.setattr(config, "DM_MAX_VERIFY_PER_LEAD", 3)
-    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"},
-                  {"name": "JONES, Mary", "officer_role": "director"}])
+    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director",
+                   "appointed_on": "2001-01-01"},
+                  {"name": "JONES, Mary", "officer_role": "director",
+                   "appointed_on": "2002-01-01"},
+                  {"name": "GREEN, Sam", "officer_role": "director",
+                   "appointed_on": "2003-01-01"}])
     calls = {"n": 0}
 
     def verifier(addr):
@@ -488,8 +640,8 @@ def test_a_deferred_lead_is_retried_next_tick(db_rollback):
     ever and its email is never resolved once the verifier recovers."""
     cur = db_rollback.cursor()
     cn = _lead(cur)
-    _enriched(cur, cn)
-    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"}])
+    _enriched(cur, cn, candidates=_PATTERN_PROOF)
+    ch = _FakeCH(_PROOF_OFFICERS)
     dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch, verifier=lambda a: (False, "error"))
     cur.execute("select dm_attempted_at from outreach.enrichment where company_number=%s", (cn,))
     assert cur.fetchone()[0] is None                 # deferred -> still eligible
