@@ -81,14 +81,204 @@ def test_re_storing_officers_is_idempotent(db_rollback):
 
 
 # --------------------------------------------------------------------------- #
+#  PSC + ranking — spending on the RIGHT person
+# --------------------------------------------------------------------------- #
+def test_psc_names_reads_only_active_individuals():
+    """A holding company is not someone to email, and ceased control is not control."""
+    items = [
+        {"kind": "individual-person-with-significant-control",
+         "name_elements": {"forename": "John", "surname": "Smith", "title": "Mr"},
+         "natures_of_control": ["ownership-of-shares-75-to-100-percent"]},
+        {"kind": "corporate-entity-person-with-significant-control",
+         "name": "ACME HOLDINGS LIMITED"},
+        {"kind": "individual-person-with-significant-control", "ceased_on": "2021-04-01",
+         "name_elements": {"forename": "Pat", "surname": "Old"}},
+        {"kind": "legal-person-person-with-significant-control", "name": "SOME TRUST"},
+    ]
+    assert dm.psc_names(items) == {("john", "smith")}
+
+
+def test_psc_names_falls_back_to_the_display_name_without_a_title():
+    """Not every filing carries name_elements; a title must not be read as a forename."""
+    items = [{"kind": "individual-person-with-significant-control",
+              "name": "Mr John Andrew Smith"}]
+    assert dm.psc_names(items) == {("john", "smith")}
+
+
+def test_the_psc_outranks_the_longest_serving_director(db_rollback):
+    """The old ordering was `appointed_on` alone, so the retired co-founder won. Every
+    downstream cost is spent on whoever ranks first, so this is the ordering that matters."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    items = [
+        {"name": "OLD, Pat", "officer_role": "director", "appointed_on": "2001-01-01"},
+        {"name": "SMITH, John", "officer_role": "director", "appointed_on": "2019-01-01"},
+    ]
+    dm.store_officers(cn, items, cur=cur, psc={("john", "smith")}, company_name="Acme Ltd")
+    officers = dm.get_officers(cn, cur=cur)
+    assert officers[0]["name"] == "SMITH, John"
+    assert officers[0]["is_psc"] is True
+    assert officers[1]["is_psc"] is False
+
+
+def test_an_eponymous_surname_outranks_a_plain_director(db_rollback):
+    """Family firms — 'J SMITH & SONS' — name their owner in the company name."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    items = [
+        {"name": "BLOGGS, Joe", "officer_role": "director", "appointed_on": "2005-01-01"},
+        {"name": "SMITH, John", "officer_role": "director", "appointed_on": "2019-01-01"},
+    ]
+    dm.store_officers(cn, items, cur=cur, company_name="J Smith & Sons Ltd")
+    assert dm.get_officers(cn, cur=cur)[0]["name"] == "SMITH, John"
+
+
+def test_occupation_breaks_a_tie_between_two_plain_directors(db_rollback):
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    items = [
+        {"name": "BLOGGS, Joe", "officer_role": "director", "appointed_on": "2005-01-01",
+         "occupation": "Electrician"},
+        {"name": "GREEN, Sam", "officer_role": "director", "appointed_on": "2019-01-01",
+         "occupation": "Managing Director"},
+    ]
+    dm.store_officers(cn, items, cur=cur, company_name="Acme Ltd")
+    assert dm.get_officers(cn, cur=cur)[0]["name"] == "GREEN, Sam"
+
+
+def test_a_corporate_officer_is_never_a_target(db_rollback):
+    """An accountancy firm acting as director is not a person to write to."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    items = [
+        {"name": "ACME NOMINEES LIMITED", "officer_role": "director",
+         "appointed_on": "2019-01-01", "is_corporate_officer": True},
+        {"name": "SMITH, John", "officer_role": "director", "appointed_on": "2020-01-01"},
+    ]
+    assert dm.store_officers(cn, items, cur=cur) == 1
+    assert dm.get_officers(cn, cur=cur)[0]["name"] == "SMITH, John"
+
+
+def test_re_storing_refreshes_the_rank(db_rollback):
+    """`on conflict do nothing` would freeze a rank computed before PSC was known."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    items = [{"name": "SMITH, John", "officer_role": "director", "appointed_on": "2019-01-01"}]
+    dm.store_officers(cn, items, cur=cur, company_name="Acme Ltd")
+    assert dm.get_officers(cn, cur=cur)[0]["is_psc"] is False
+    dm.store_officers(cn, items, cur=cur, psc={("john", "smith")}, company_name="Acme Ltd")
+    officers = dm.get_officers(cn, cur=cur)
+    assert len(officers) == 1 and officers[0]["is_psc"] is True
+
+
+def test_a_psc_outage_defers_instead_of_freezing_a_wrong_rank(db_rollback):
+    """P3 invariant: a stage that could not do its job writes nothing that removes the row
+    from its own backlog. Storing officers with is_psc=false during a PSC outage would be
+    permanent — _fetch_officers short-circuits on any stored row."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"}], psc_raises=True)
+    assert dm._fetch_officers(cn, cur=cur, ch=ch) is None
+    cur.execute("select count(*) from outreach.officers where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == 0
+
+
+def test_a_register_typo_still_matches_the_psc_when_unambiguous():
+    """Real case (ABM Electrical Services): director filed "BARNES, Danile", the same human
+    filed as PSC "Daniel Barnes"."""
+    assert dm.match_psc({("daniel", "barnes")}, ["BARNES, Danile"]) == {"BARNES, Danile"}
+
+
+def test_an_ambiguous_surname_never_guesses_which_sibling_is_the_psc():
+    """Same company also has BARNES, Emma. Two officers sharing a surname is the FAMILY
+    FIRM case — our commonest shape — so a surname-only match would routinely pick the
+    wrong person. Only a unique (surname, initial) is honoured."""
+    assert dm.match_psc({("daniel", "barnes")},
+                        ["BARNES, Danile", "BARNES, Dominic"]) == set()
+    # different initials — no ambiguity, so the typo fallback is still safe
+    assert dm.match_psc({("daniel", "barnes")},
+                        ["BARNES, Danile", "BARNES, Emma"]) == {"BARNES, Danile"}
+
+
+def test_an_exact_match_never_needs_the_fallback():
+    assert dm.match_psc({("john", "smith")}, ["SMITH, John", "SMITH, Jane"]) == {"SMITH, John"}
+
+
+def test_a_places_lead_is_looked_up_by_its_MATCHED_company_number(db_rollback):
+    """96% of our corporate leads are Places rows keyed 'PLACE:<place_id>', with the real
+    register number in matched_company_number. Calling Companies House with the synthetic
+    key 502s — silently, because the failure looks exactly like a CH outage."""
+    cur = db_rollback.cursor()
+    cn = f"PLACE:{uuid.uuid4().hex[:12]}"
+    cur.execute(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state, matched_company_number) "
+        "values (%s,'Acme Electrical','ltd','corporate','enriched','07795943')", (cn,))
+    assert dm.register_number(cn, cur=cur) == "07795943"
+
+    asked = []
+
+    class _Recording(_FakeCH):
+        def get_officers(self, company_number, items=35):
+            asked.append(company_number)
+            return self._officers
+
+        def get_psc(self, company_number, items=25):
+            asked.append(company_number)
+            return []
+
+    dm._fetch_officers(cn, cur=cur,
+                       ch=_Recording([{"name": "SMITH, John", "officer_role": "director"}]))
+    assert asked == ["07795943", "07795943"]      # never the PLACE: key
+    assert dm.get_officers(cn, cur=cur)[0]["name"] == "SMITH, John"
+
+
+def test_a_companies_house_lead_is_looked_up_by_its_own_number(db_rollback):
+    cur = db_rollback.cursor()
+    cn = _lead(cur)                                # a plain, non-synthetic key
+    assert dm.register_number(cn, cur=cur) == cn
+
+
+def test_a_lead_with_no_register_number_completes_rather_than_deferring(db_rollback):
+    """No number to ask about is a finished attempt, not an outage — [] not None, so it
+    does not spin round the backlog for ever."""
+    cur = db_rollback.cursor()
+    cn = f"PLACE:{uuid.uuid4().hex[:12]}"
+    cur.execute(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state) values (%s,'Acme','ltd','corporate','enriched')", (cn,))
+    assert dm.register_number(cn, cur=cur) is None
+    assert dm._fetch_officers(cn, cur=cur, ch=_FakeCH([])) == []
+
+
+def test_store_officers_does_not_persist_psc_ownership_detail(db_rollback):
+    """Minimisation: is_psc is a BOOLEAN. natures_of_control is ownership-band data we do
+    not need to answer 'is this the owner', so there is nowhere to put it."""
+    cur = db_rollback.cursor()
+    cur.execute("select column_name from information_schema.columns "
+                "where table_schema='outreach' and table_name='officers'")
+    have = {r[0] for r in cur.fetchall()}
+    assert not (have & {"natures_of_control", "nature_of_control", "nationality",
+                        "country_of_residence", "date_of_birth", "address"})
+    assert "is_psc" in have
+
+
+# --------------------------------------------------------------------------- #
 #  resolve_one — the confirm-or-nothing contract
 # --------------------------------------------------------------------------- #
 class _FakeCH:
-    def __init__(self, officers):
+    def __init__(self, officers, psc=None, *, psc_raises=False):
         self._officers = officers
+        self._psc = psc or []
+        self._psc_raises = psc_raises
 
     def get_officers(self, company_number, items=35):
         return self._officers
+
+    def get_psc(self, company_number, items=25):
+        if self._psc_raises:
+            raise RuntimeError("CH 502 on PSC")
+        return self._psc
 
 
 def _enriched(cur, cn, *, domain="acme.co.uk", tier="verified", result="ok",

@@ -5,6 +5,9 @@
 
 # Python
 .venv/
+# A parallel worktree commonly SYMLINKS .venv to the primary checkout's; `.venv/` matches
+# directories only, so without this the symlink shows up as an untracked file to commit.
+.venv
 __pycache__/
 *.pyc
 .pytest_cache/
