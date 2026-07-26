@@ -272,8 +272,9 @@ def test_a_psc_outage_defers_instead_of_freezing_a_wrong_rank(db_rollback):
 
 def test_a_register_typo_still_matches_the_psc_when_unambiguous():
     """Real case (ABM Electrical Services): director filed "BARNES, Danile", the same human
-    filed as PSC "Daniel Barnes"."""
-    assert dm.match_psc({("daniel", "barnes")}, ["BARNES, Danile"]) == {"BARNES, Danile"}
+    filed as PSC "Daniel Barnes". The PSC spelling comes back so it can be preferred."""
+    assert dm.match_psc({("daniel", "barnes")}, ["BARNES, Danile"]) == {
+        "BARNES, Danile": ("daniel", "barnes")}
 
 
 def test_an_ambiguous_surname_never_guesses_which_sibling_is_the_psc():
@@ -281,14 +282,38 @@ def test_an_ambiguous_surname_never_guesses_which_sibling_is_the_psc():
     FIRM case — our commonest shape — so a surname-only match would routinely pick the
     wrong person. Only a unique (surname, initial) is honoured."""
     assert dm.match_psc({("daniel", "barnes")},
-                        ["BARNES, Danile", "BARNES, Dominic"]) == set()
+                        ["BARNES, Danile", "BARNES, Dominic"]) == {}
     # different initials — no ambiguity, so the typo fallback is still safe
     assert dm.match_psc({("daniel", "barnes")},
-                        ["BARNES, Danile", "BARNES, Emma"]) == {"BARNES, Danile"}
+                        ["BARNES, Danile", "BARNES, Emma"]) == {
+        "BARNES, Danile": ("daniel", "barnes")}
 
 
 def test_an_exact_match_never_needs_the_fallback():
-    assert dm.match_psc({("john", "smith")}, ["SMITH, John", "SMITH, Jane"]) == {"SMITH, John"}
+    """An exact match maps to None — there is no better spelling to prefer."""
+    assert dm.match_psc({("john", "smith")}, ["SMITH, John", "SMITH, Jane"]) == {
+        "SMITH, John": None}
+
+
+def test_the_psc_spelling_wins_when_the_register_contradicts_itself(db_rollback):
+    """"Danile" is not a name and "Daniel" is, and this string is printed in the first
+    line of a cold email. Caught by running the real chain on ABM Electrical Services."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    dm.store_officers(cn, [{"name": "BARNES, Danile", "officer_role": "director"}],
+                      cur=cur, psc={("daniel", "barnes")}, company_name="ABM Electrical")
+    off = dm.get_officers(cn, cur=cur)[0]
+    assert off["name"] == "Barnes, Daniel" and off["is_psc"] is True
+    assert dm.display_name(off["name"]) == "Daniel Barnes"
+
+
+def test_an_officer_who_is_not_a_psc_keeps_the_register_spelling(db_rollback):
+    """We only overrule a filing when a SECOND filing about the same person disagrees."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    dm.store_officers(cn, [{"name": "SMYTHE, Jhon", "officer_role": "director"}],
+                      cur=cur, company_name="Acme")
+    assert dm.get_officers(cn, cur=cur)[0]["name"] == "SMYTHE, Jhon"
 
 
 def test_a_places_lead_is_looked_up_by_its_MATCHED_company_number(db_rollback):

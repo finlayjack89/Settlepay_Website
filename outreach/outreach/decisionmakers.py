@@ -175,9 +175,10 @@ def display_role(officer: dict) -> Optional[str]:
     return _ROLE_LABELS.get((officer.get("role") or "").lower())
 
 
-def match_psc(psc: set[tuple[str, str]], officer_names: list[str]) -> set[str]:
-    """Which of these officer names are also a PSC. Returns the raw names, so the caller
-    does not have to re-parse.
+def match_psc(psc: set[tuple[str, str]], officer_names: list[str]
+              ) -> dict[str, Optional[tuple[str, str]]]:
+    """Which officer names are also a PSC. Maps officer name -> the PSC name it matched,
+    but ONLY where the two filings disagree; an exact match maps to None.
 
     Exact (first, last) is the primary key. The guarded fallback exists because the
     register disagrees with ITSELF: ABM Electrical Services files its director as
@@ -188,19 +189,23 @@ def match_psc(psc: set[tuple[str, str]], officer_names: list[str]) -> set[str]:
     firms (our commonest shape) routinely have several officers sharing a surname. So the
     fallback key is (surname, first initial) and it is honoured ONLY when it picks out
     exactly one officer and one PSC — ambiguity means no match, never a guess.
+
+    The returned PSC name matters because it is the better SPELLING. The officers endpoint
+    files a name as one shouted string; the PSC endpoint files forename and surname as
+    separate structured fields, so it is less prone to a transposition. "Danile" is not a
+    name and "Daniel" is — and this string is printed in the first line of a cold email.
     """
     parsed = {n: parse_name(n) for n in officer_names}
-    hit = {n for n, p in parsed.items() if p and p in psc}
+    hit: dict[str, Optional[tuple[str, str]]] = {
+        n: None for n, p in parsed.items() if p and p in psc}
     unmatched_psc = {p for p in psc if p not in {parsed[n] for n in hit if parsed[n]}}
-    if not unmatched_psc:
-        return hit
     for want in unmatched_psc:
         key = (want[1], want[0][0])
         cands = [n for n, p in parsed.items()
                  if n not in hit and p and (p[1], p[0][0]) == key]
         rivals = [p for p in psc if (p[1], p[0][0]) == key]
         if len(cands) == 1 and len(rivals) == 1:
-            hit.add(cands[0])
+            hit[cands[0]] = want          # same human, better spelling
     return hit
 
 
@@ -343,6 +348,14 @@ def store_officers(company_number: str, items: list[dict], *, cur,
             continue
         occupation = it.get("occupation") or None
         is_psc = name in psc_hits
+        # Where the two filings disagree, keep the PSC's spelling. The officers endpoint
+        # gives one shouted string; the PSC endpoint files forename and surname as separate
+        # structured fields, so it is the less error-prone of the two. The live case is
+        # "BARNES, Danile" vs PSC "Daniel Barnes" — and this name goes in the first line of
+        # a real email, where "Danile" is worse than not naming them at all.
+        better = psc_hits.get(name)
+        if better:
+            name = f"{better[1].title()}, {better[0].title()}"
         rank = rank_officer(name=name, occupation=occupation, is_psc=is_psc,
                             company_name=company_name)
         cur.execute(
