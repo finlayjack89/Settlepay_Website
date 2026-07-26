@@ -31,6 +31,12 @@ CRAFT_FILES = ("cold-email-uk.md", "anti-patterns.md")
 MAX_WORDS = 125
 SUBJECT_MAX_CHARS = 50
 LINK_RE = re.compile(r"(https?://|www\.|!\[|\]\(|<img|<a\s|mailto:)", re.I)
+
+# "FAO John Smith, Director" — its own line ABOVE the greeting, used only when we know from
+# the public register who runs the firm but hold a shared mailbox rather than their personal
+# address. It is furniture like the greeting and the sign-off: stripped before every
+# word-count and prose check, and separately verified against the contact_name constant.
+FAO_LINE_RE = re.compile(r"\A\s*FAO\s+([^\n]{1,60})\n+", re.I)
 # the playbook must declare a version so the mechanism refuses an unmarked/garbage file
 VERSION_RE = re.compile(r"PLAYBOOK VERSION:\s*(\S+)", re.I)
 
@@ -92,7 +98,11 @@ def check_envelope(text: str) -> list[str]:
     """Structural/compliance checks (mirrors the floor). Empty list == compliant."""
     v: list[str] = []
     low = text.lower()
-    if len(text.split()) >= MAX_WORDS:
+    # The FAO line is addressing, not message. Counting it would give a role_fao lead ~4
+    # fewer words of actual content than an identical lead without one — a budget the
+    # writer cannot control — and push borderline drafts over a HARD cap that parks the
+    # lead. Every other envelope check below still sees the whole text.
+    if len(FAO_LINE_RE.sub("", text.lstrip(), count=1).split()) >= MAX_WORDS:
         v.append(f">={MAX_WORDS} words")
     if "unsubscribe" not in low:
         v.append("no unsubscribe line")
@@ -143,6 +153,7 @@ GREETING_RE = re.compile(r"^dear\s+[^\n]{1,60}[,:]\s*\n", re.I)
 # "Hello Sarah -". The captured token is the name the draft is greeting.
 _GREET_NAME_RE = re.compile(r"^\s*(?:dear|hi|hello|hey)\s+([A-Z][a-z]+)\b", re.I)
 _STOPWORD_GREETS = frozenset({"there", "team", "sir", "madam", "all", "sirs", "everyone"})
+
 
 
 def _grounding_tokens(*sources: str | None) -> set[str]:
@@ -233,6 +244,42 @@ def _looks_like_a_uk_place(phrase: str) -> bool:
                for part in re.split(r"[^a-z]+", lowered) if part)
 
 
+def _norm_person(name: str | None) -> str:
+    return " ".join((name or "").lower().replace(".", " ").split())
+
+
+def _check_fao_line(text: str, *, lead_facts: dict | None,
+                    contact_name: str | None) -> tuple[str, list[str]]:
+    """Validate and strip a leading 'FAO <name>[, <role>]' line.
+
+    Returns (text without the line, violations). Stripping matters as much as checking: the
+    greeting regex is anchored at the start of the string, so an unstripped FAO line would
+    hide the greeting from BOTH the grounding check and the style check — the draft would
+    silently stop being checked for the very thing this gate exists to catch.
+    """
+    m = FAO_LINE_RE.match(text)
+    if not m:
+        return text, []
+    rest = text[m.end():]
+    claimed = m.group(1).split(",")[0]
+    known = facts.value(lead_facts, "contact_name") if lead_facts else contact_name
+    if not known:
+        return rest, [f"addresses FAO {claimed.strip()!r} with no contact_name on file"]
+    if _norm_person(claimed) != _norm_person(known):
+        return rest, [f"addresses FAO {claimed.strip()!r}, not the contact ({known!r})"]
+    # the role, when given, must be the resolved constant too — "Managing Director" is a
+    # claim about them, and inventing a promotion is the same class of error as a name
+    role_part = m.group(1).split(",")[1:] if "," in m.group(1) else []
+    if role_part:
+        claimed_role = " ".join(",".join(role_part).split())
+        known_role = facts.value(lead_facts, "contact_role") if lead_facts else None
+        if not known_role or claimed_role.lower() != known_role.lower():
+            return rest, [f"states the role {claimed_role!r}"
+                          + (f", not the recorded {known_role!r}" if known_role
+                             else " with no contact_role on file")]
+    return rest, []
+
+
 def check_grounding(text: str, *, contact_name: str | None,
                     company_name: str | None,
                     lead_facts: dict | None = None) -> list[str]:
@@ -254,6 +301,12 @@ def check_grounding(text: str, *, contact_name: str | None,
     allowed = (facts.allowed_tokens(lead_facts) if lead_facts
                else _grounding_tokens(first_name(contact_name), company_name))
     v: list[str] = []
+
+    # The FAO line names a real human in the first line of a cold email, so it is the most
+    # damaging thing on the page to get wrong. It must match contact_name EXACTLY — not
+    # "is a permitted token", which would let any word from any fact through.
+    text, fao_v = _check_fao_line(text, lead_facts=lead_facts, contact_name=contact_name)
+    v.extend(fao_v)
 
     greeted = _GREET_NAME_RE.match(text.lstrip())
     if greeted:
@@ -342,9 +395,11 @@ BANNED_PHRASES = (
 
 
 def _sentences(text: str) -> list[str]:
-    """Prose sentences only. The greeting and sign-off are fixed furniture — counting
-    them would flatter the burstiness measure with lengths the model never chose."""
+    """Prose sentences only. The FAO line, the greeting and the sign-off are fixed
+    furniture — counting them would flatter the burstiness measure with lengths the model
+    never chose, and the FAO line is identical in shape on every draft that carries one."""
     body = re.split(r"\n\s*kind regards", text, flags=re.I)[0]
+    body = FAO_LINE_RE.sub("", body.lstrip(), count=1)
     body = GREETING_RE.sub("", body.lstrip(), count=1)
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", body) if len(s.strip().split()) > 1]
 
@@ -358,13 +413,17 @@ def check_style(text: str) -> list[str]:
     rewrite, not worth throwing away a qualified corporate prospect."""
     v: list[str] = []
     low = text.lower()
-    words = len(text.split())
+    # The FAO line is addressing, not prose: it sits above the greeting, so the greeting
+    # check must look past it, and its ~4 words must not eat into the word budget the
+    # playbook actually briefs.
+    addressed = FAO_LINE_RE.sub("", text.lstrip(), count=1)
+    words = len(addressed.split())
     if words > SOFT_MAX_WORDS:
         # without this the model drifts to the 125 hard cap and ignores the brief
         v.append(f"{words} words (tighten to under {SOFT_MAX_WORDS})")
     # every draft opens "Dear <business name or first name>,"; a UK owner-manager reads
     # a missing or clumsy greeting as brusque
-    if not GREETING_RE.match(text.lstrip()):
+    if not GREETING_RE.match(addressed):
         v.append("no 'Dear <name>,' greeting line")
     for phrase in BANNED_PHRASES:
         if phrase in low:
@@ -495,7 +554,11 @@ def provisional_responder(prompt: str) -> str:
 def draft_one(company_number: str, company_name: str, signal: str, *,
               provider, cur, playbook: str | None = None,
               contact_name: str | None = None,
-              lead_facts: dict | None = None) -> dict:
+              lead_facts: dict | None = None,
+              fao: bool = False) -> dict:
+    """`fao=True` means we know who runs the firm but hold only their SHARED mailbox, so
+    the draft is addressed to the business and marked for the director's attention rather
+    than opening as if we had written to them personally."""
     playbook = playbook or load_playbook()
     # Resolved constants are the drafter's ONLY vocabulary of named things. Falling back
     # to a block built from the arguments keeps every call path (tests, the manual
@@ -510,7 +573,19 @@ def draft_one(company_number: str, company_name: str, signal: str, *,
     prompt = (f"{playbook}\n\n{draft_angle(company_number)}"
               f"{facts.as_prompt_block(block)}\n"
               f"SIGNAL (context only — never a source of names or places): {signal or ''}\n")
-    if greet:
+    full_name = facts.value(block, "contact_name") or contact_name
+    role = facts.value(block, "contact_role")
+    if fao and full_name:
+        # A shared mailbox: address the BUSINESS, and mark it for the person's attention.
+        # Greeting them by first name here would imply we wrote to them personally, when
+        # whoever opens info@ may well be someone else.
+        line = f"FAO {full_name}" + (f", {role}" if role else "")
+        prompt += (f'Begin with "{line}" on its own line, then a blank line, then open '
+                   f'"Dear <business name>," — NOT their first name, because this is a '
+                   "shared inbox. Write the FAO line exactly as given. Do not mention "
+                   "where you found their name, and do not refer to them again in the "
+                   "body.\n")
+    elif greet:
         prompt += (f'Open with "Dear {greet}," on its own line. Use this first name '
                    "only — no surname, no title — and do not mention where you found "
                    "their name.\n")
@@ -665,7 +740,8 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
             # facts is not null == the constants have been RESOLVED. A lead enriched
             # before that step existed is not draftable on free text alone — it waits for
             # re-enrichment rather than being written about from a signal paragraph.
-            "select l.company_number, l.company_name, e.signal, e.contact_name, e.facts "
+            "select l.company_number, l.company_name, e.signal, e.contact_name, e.facts, "
+            "       e.contact_tier "
             "from outreach.leads l "
             "join outreach.enrichment e on e.company_number=l.company_number "
             # Leads parked BY DRAFTING come back here rather than to enrichment: their
@@ -685,7 +761,7 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
             ((config.RISKY_SEND_ENABLED, config.PARK_RETRY_HOURS, limit) if limit
              else (config.RISKY_SEND_ENABLED, config.PARK_RETRY_HOURS))
         )
-        for cn, name, sig, contact_name, raw_facts in cur.fetchall():
+        for cn, name, sig, contact_name, raw_facts, tier in cur.fetchall():
             # Per-lead savepoint: one lead's failure must never discard the whole
             # batch (a single overlong draft used to roll back every good one).
             cur.execute("savepoint draft_lead")
@@ -696,7 +772,7 @@ def run(*, provider=None, cur=None, limit=None) -> list[dict]:
                     continue          # constants incomplete: enrichment's job, not ours
                 results.append(draft_one(cn, name, sig, provider=provider, cur=cur,
                                          playbook=playbook, contact_name=contact_name,
-                                         lead_facts=block))
+                                         lead_facts=block, fao=(tier == "role_fao")))
                 cur.execute("release savepoint draft_lead")
             except EnvelopeViolation as e:
                 # Unfixable after one retry — PARK, don't discard. This is our writing

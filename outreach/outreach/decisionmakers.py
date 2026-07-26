@@ -95,6 +95,58 @@ def psc_names(items: list[dict]) -> set[tuple[str, str]]:
     return out
 
 
+def display_name(ch_name: str) -> Optional[str]:
+    """'SMITH, John Andrew' -> 'John Smith', as a human would write it.
+
+    Companies House shouts the surname and properly-cases the forenames, so only the
+    surname is re-cased — the forename is left exactly as filed. Getting someone's own
+    name wrong in the first line of a cold email is worse than not naming them at all,
+    which is why 'Mc' is special-cased (McDonald, McBride, McKenzie are always capitalised
+    after the prefix) while 'Mac' deliberately is NOT: Mackie and MacDonald are both real
+    and nothing in the string tells them apart, so we leave what the register gave us.
+
+    Middle names are dropped: nobody is addressed as "John Andrew Smith".
+    """
+    parsed_raw = ch_name.partition(",") if ch_name and "," in ch_name else None
+    if not parsed_raw:
+        return None
+    surname_raw, _, rest = parsed_raw
+    forenames = [t for t in rest.split() if t]
+    if not forenames or not surname_raw.strip():
+        return None
+    first = forenames[0]
+    if len(first) < 2:                       # an initial is not a name to greet
+        return None
+    surname = surname_raw.strip()
+    if surname.isupper() or surname.islower():
+        surname = surname.title()
+        if surname.startswith("Mc") and len(surname) > 2:
+            surname = "Mc" + surname[2:].capitalize()
+    if first.isupper():
+        first = first.title()
+    return f"{first} {surname}"
+
+
+_ROLE_LABELS = {
+    "director": "Director",
+    "llp-member": "Member",
+    "llp-designated-member": "Designated Member",
+    "member": "Member",
+    "managing-officer": "Managing Officer",
+    "partner": "Partner",
+}
+
+
+def display_role(officer: dict) -> Optional[str]:
+    """How to describe their position. The self-declared occupation wins when it is a real
+    job title ("Managing Director") because it is how they describe themselves; otherwise
+    fall back to the register's officer_role."""
+    occ = (officer.get("occupation") or "").strip()
+    if occ and 2 < len(occ) <= 40 and not occ.lower() in ("none", "n/a", "unknown"):
+        return occ if not occ.isupper() else occ.title()
+    return _ROLE_LABELS.get((officer.get("role") or "").lower())
+
+
 def match_psc(psc: set[tuple[str, str]], officer_names: list[str]) -> set[str]:
     """Which of these officer names are also a PSC. Returns the raw names, so the caller
     does not have to re-parse.
@@ -320,9 +372,34 @@ def _fetch_officers(company_number: str, *, cur, ch) -> Optional[list[dict]]:
 
 def resolve_one(company_number: str, domain: Optional[str], *, cur,
                 ch: CompaniesHouseClient, verifier=None) -> dict:
+    """Resolve the best contact we can justify for this lead, cheapest and safest first.
+
+    Two outcomes, and the SECOND is not a failure:
+
+      1. a personal work address for the top-ranked officer, adopted only on a verifier
+         'ok' — never invented, never sent to as a guess; or
+      2. the shared mailbox we already hold, now addressed FAO the named director.
+
+    Outcome 2 costs nothing, needs no address we had to infer, and per the research doc
+    (§6) frequently outperforms outcome 1 on both reply rate and risk for the smallest
+    firms. It applies on every path that does not reach outcome 1 — no officers usable for
+    an email, no domain, a catch-all domain, the verify cap, a verifier outage, or every
+    candidate coming back unconfirmed.
+    """
+    result = _resolve_named_email(company_number, domain, cur=cur, ch=ch, verifier=verifier)
+    if not result.get("verified") and result.get("officers"):
+        officers = get_officers(company_number, cur=cur)
+        if officers and adopt_fao_contact(company_number, officers[0], cur=cur):
+            result["fao"] = officers[0]["name"]
+            result["fao_applied"] = True
+    return result
+
+
+def _resolve_named_email(company_number: str, domain: Optional[str], *, cur,
+                         ch: CompaniesHouseClient, verifier=None) -> dict:
     """Fetch + store officers, then try to confirm ONE named work email for the
-    longest-serving director. Adopts it as the lead's contact (tier 'named') only on a
-    MillionVerifier 'ok'. Never invents an address; never sends to a guess."""
+    top-ranked officer. Adopts it as the lead's contact (tier 'named') only on a
+    verifier 'ok'. Never invents an address; never sends to a guess."""
     from .enrich import verify_email
     verifier = verifier or verify_email
 
@@ -383,7 +460,13 @@ def _mark_attempted(company_number: str, *, cur) -> None:
 
 def _adopt_named_contact(company_number: str, officer_name: str, email: str, *, cur) -> None:
     """Promote a confirmed named address to the lead's contact. tier 'named' ranks above
-    'verified' (role), so send.py prefers it; contact_name records who it is."""
+    'verified' (role), so send.py prefers it; contact_name records who it is.
+
+    The name is stored as a human writes it ("John Smith"), not as the register shouts it
+    ("SMITH, John Andrew") — it is read by the drafter, shown in the console and, in the
+    FAO case, printed in the email itself.
+    """
+    shown = display_name(officer_name) or officer_name
     cur.execute(
         "update outreach.enrichment set contact_email=%s, contact_name=%s, "
         "contact_tier='named', email_verified=true, email_verify_result='ok', "
@@ -393,21 +476,80 @@ def _adopt_named_contact(company_number: str, officer_name: str, email: str, *, 
         # would open "Dear <business>," despite our knowing who runs it.
         "facts = jsonb_set(coalesce(facts, '{}'::jsonb), '{contact_name}', %s::jsonb, true) "
         "where company_number=%s",
-        (email, officer_name,
-         json.dumps({"value": officer_name, "source": "ch_officer_verified_email",
+        (email, shown,
+         json.dumps({"value": shown, "source": "ch_officer_verified_email",
                      "verified": True}),
          company_number))
     audit.record(company_number, "decision_maker", source="decisionmakers",
                  lawful_basis=audit.LEGITIMATE_INTERESTS,
-                 reason=f"named contact {email} ({officer_name}) — verified, art.14 notice on send",
+                 reason=f"named contact {email} ({shown}) — verified, art.14 notice on send",
                  cur=cur)
+
+
+# Applied only to a mailbox that is BOTH deliverable and generic. 'risky' (catch-all) is
+# already gated out of drafting, and 'named' is a personal mailbox that needs no FAO line.
+_FAO_ELIGIBLE_TIERS = ("verified",)
+
+
+def adopt_fao_contact(company_number: str, officer: dict, *, cur) -> bool:
+    """Record WHO to address at a shared mailbox. Returns True if applied.
+
+    The register tells us who runs the firm for FREE. Until now that name was discarded
+    unless a paid, derived, verifier-confirmed personal address happened to land — so the
+    cheap, low-risk asset was thrown away precisely when the expensive, higher-risk one
+    failed. This is the inversion the research doc (§6) argues against: small personalised
+    sends reply at 5.8% vs 2.1%, and a role inbox addressed to a named director gets that
+    lift without ever emailing a personal address we had to guess.
+
+    Applied only where there is a deliverable GENERIC mailbox to address. A name with
+    nowhere to send it changes nothing, and overwriting a 'named' tier would replace a real
+    personal mailbox with a shared one.
+    """
+    shown = display_name(officer.get("name") or "")
+    if not shown:
+        return False
+    # Reused, not re-listed: GENERIC_PREFIXES is the pipeline's single definition of "a
+    # shared mailbox", and a second copy here would drift from it silently.
+    from .enrich import GENERIC_PREFIXES
+    cur.execute("select contact_email, contact_tier from outreach.enrichment "
+                "where company_number=%s", (company_number,))
+    row = cur.fetchone()
+    if not row or not row[0] or row[1] not in _FAO_ELIGIBLE_TIERS:
+        return False
+    local = row[0].partition("@")[0].lower()
+    if not any(local == g or local.startswith(g) for g in GENERIC_PREFIXES):
+        return False                       # a personal mailbox needs no FAO line
+    role = display_role(officer)
+    cur.execute(
+        "update outreach.enrichment set contact_name=%s, contact_tier='role_fao', "
+        "facts = jsonb_set("
+        "  jsonb_set(coalesce(facts, '{}'::jsonb), '{contact_name}', %s::jsonb, true), "
+        "  '{contact_role}', %s::jsonb, true) "
+        "where company_number=%s",
+        (shown,
+         json.dumps({"value": shown, "source": "companies_house_officer", "verified": True}),
+         json.dumps({"value": role, "source": "companies_house_officer", "verified": True}
+                    if role else {"value": None, "source": None, "verified": False}),
+         company_number))
+    if cur.rowcount:
+        audit.record(company_number, "fao_contact", source="decisionmakers",
+                     lawful_basis=audit.LEGITIMATE_INTERESTS,
+                     reason=f"shared mailbox addressed FAO {shown}"
+                            f"{' (' + role + ')' if role else ''} — officer on the public "
+                            f"register; no personal address held or inferred",
+                     cur=cur)
+        return True
+    return False
 
 
 _BACKLOG_SQL = (
     "select l.company_number, e.domain from outreach.leads l "
     "join outreach.enrichment e on e.company_number = l.company_number "
     "where l.subscriber_class = 'corporate' and l.state = 'enriched' "
-    "and e.domain is not null and e.contact_tier is distinct from 'named' "
+    # a domain is what an EMAIL is built on, but the FAO outcome needs only a mailbox we
+    # already hold — so a lead with a contact and no resolved domain still has work to do
+    "and (e.domain is not null or e.contact_email is not null) "
+    "and e.contact_tier is distinct from 'named' "
     # dm_attempted_at gates the retry, NOT the presence of officers: a lead whose officers
     # were fetched during a verifier outage has null dm_attempted_at and must be retried.
     "and e.dm_attempted_at is null "
@@ -425,7 +567,9 @@ def run(*, limit: int = 10, cur=None) -> dict:
     if own:
         conn = db.connect(); cur = conn.cursor()
     ch = None
-    out = {"resolved": 0, "officers_only": 0, "deferred": 0, "processed": 0}
+    # `fao` is a RESULT, not a consolation: a shared mailbox addressed to the named
+    # director. officers_only means we learned who runs it but had no mailbox to use.
+    out = {"resolved": 0, "fao": 0, "officers_only": 0, "deferred": 0, "processed": 0}
     try:
         cur.execute(_BACKLOG_SQL, (limit,))
         rows = cur.fetchall()
@@ -439,6 +583,8 @@ def run(*, limit: int = 10, cur=None) -> dict:
             out["processed"] += 1
             if r.get("verified"):
                 out["resolved"] += 1
+            elif r.get("fao_applied"):
+                out["fao"] += 1
             elif r.get("deferred"):
                 out["deferred"] += 1
             elif r.get("officers"):

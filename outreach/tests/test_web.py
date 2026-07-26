@@ -343,22 +343,29 @@ def test_queue_renders_for_every_filter_including_junk(qs):
 
 
 def test_queue_version_filter_is_a_subset_of_all():
-    """This asserted `len(current) < len(all)`, which quietly assumed the shared queue
-    always holds SOME stale drafts. It stopped holding any the moment the whole queue
-    was redrafted onto one playbook — so the assertion was really about the live data
-    rather than about the filter."""
+    """Twice now this test has really been an assertion about live data.
+
+    First it was `len(current) < len(all)`, which assumed the shared queue always holds
+    SOME stale drafts — false the moment the whole queue was redrafted onto one playbook.
+    Then it was `0 < cards(current)`, which assumed the opposite: that the queue holds
+    some draft written on whatever version the working tree currently declares. That one
+    breaks on every playbook bump until the queue is redrafted (v2.9 -> v3.0 did it).
+
+    The filter's actual contract does not depend on either: whatever 'current' returns is
+    a SUBSET of what 'all' returns. That holds for an empty queue, a fully-stale queue and
+    a fully-fresh one, which is why it is what the test name has always claimed."""
     import re
 
     from outreach import draft
     all_page = client.get("/outreach/queue?version=all")
     current = client.get("/outreach/queue?version=current")
     assert all_page.status_code == 200 and current.status_code == 200
-    # count CARDS, not page bytes: the two views differ by a few characters of tab
-    # label, so byte-length compares the chrome rather than the contents
-    cards = lambda r: len(re.findall(r'href="/outreach/draft/', r.text))
-    assert 0 < cards(current) <= cards(all_page)
-    # every card on the 'current' view is on the current playbook, so no stale badge
-    assert draft.PROMPT_VERSION in current.text
+    ids = lambda r: set(re.findall(r'href="/outreach/draft/([^"?]+)', r.text))
+    current_ids, all_ids = ids(current), ids(all_page)
+    assert current_ids <= all_ids
+    # and when the filter DOES return something, it is genuinely on the current playbook
+    if current_ids:
+        assert draft.PROMPT_VERSION in current.text
 
 
 def test_ago_renders_each_bucket():

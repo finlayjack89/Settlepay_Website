@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from outreach import config, decisionmakers as dm
+from outreach import config, decisionmakers as dm, facts
 
 pytestmark = pytest.mark.floor_d
 
@@ -78,6 +78,89 @@ def test_re_storing_officers_is_idempotent(db_rollback):
     dm.store_officers(cn, items, cur=cur)
     dm.store_officers(cn, items, cur=cur)
     assert len(dm.get_officers(cn, cur=cur)) == 1
+
+
+# --------------------------------------------------------------------------- #
+#  Display formatting — this name is printed in the email itself
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("raw,expected", [
+    ("SMITH, John Andrew", "John Smith"),          # middle names dropped
+    ("PARRY-WILLIAMS, Jamie", "Jamie Parry-Williams"),
+    ("O'BRIEN, Mary", "Mary O'Brien"),
+    ("MCDONALD, Ian", "Ian McDonald"),             # Mc is always capitalised after
+    # 'Mac' is deliberately NOT special-cased: Mackie and MacDonald are both real and
+    # nothing in the string tells them apart, so we keep what the register filed
+    ("MACKIE, David", "David Mackie"),
+    ("SMITH, J", None),                            # an initial is not a name to greet
+    ("ACME NOMINEES LIMITED", None),
+    ("", None),
+])
+def test_display_name(raw, expected):
+    assert dm.display_name(raw) == expected
+
+
+def test_display_role_prefers_how_they_describe_themselves():
+    assert dm.display_role({"occupation": "Managing Director", "role": "director"}) \
+        == "Managing Director"
+    assert dm.display_role({"occupation": None, "role": "director"}) == "Director"
+    assert dm.display_role({"occupation": "N/A", "role": "llp-member"}) == "Member"
+    assert dm.display_role({"occupation": None, "role": "unknown-role"}) is None
+
+
+# --------------------------------------------------------------------------- #
+#  The FAO tier — a shared mailbox is a RESULT, not a failure
+# --------------------------------------------------------------------------- #
+def test_fao_is_not_applied_to_a_personal_mailbox(db_rollback):
+    """Someone whose own address we hold needs no 'FAO' line."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn, email="sarah@acme.co.uk")
+    assert dm.adopt_fao_contact(cn, {"name": "SMITH, John", "role": "director"},
+                                cur=cur) is False
+
+
+def test_fao_is_not_applied_to_a_catch_all_mailbox(db_rollback):
+    """A 'risky' address is refused at send, so naming an addressee on it changes
+    nothing and would overstate what we have."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn, tier="risky", result="catch_all")
+    assert dm.adopt_fao_contact(cn, {"name": "SMITH, John", "role": "director"},
+                                cur=cur) is False
+
+
+def test_fao_records_the_name_and_role_as_verified_constants(db_rollback):
+    """The drafter may only name what the FACTS block resolved, so the FAO line is only
+    writable if it lands there with provenance."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn)
+    assert dm.adopt_fao_contact(
+        cn, {"name": "SMITH, John", "role": "director",
+             "occupation": "Managing Director"}, cur=cur) is True
+    cur.execute("select facts from outreach.enrichment where company_number=%s", (cn,))
+    block = facts.loads(cur.fetchone()[0])
+    assert block["contact_name"].value == "John Smith"
+    assert block["contact_name"].source == "companies_house_officer"
+    assert block["contact_name"].verified is True
+    assert block["contact_role"].value == "Managing Director"
+
+
+def test_fao_uses_the_top_ranked_officer(db_rollback):
+    """The owner, not whoever the register listed first."""
+    cur = db_rollback.cursor()
+    cn = _lead(cur)
+    _enriched(cur, cn)
+    ch = _FakeCH(
+        [{"name": "OLD, Pat", "officer_role": "director", "appointed_on": "2001-01-01"},
+         {"name": "SMITH, John", "officer_role": "director", "appointed_on": "2019-01-01"}],
+        psc=[{"kind": "individual-person-with-significant-control",
+              "name_elements": {"forename": "John", "surname": "Smith"}}])
+    r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch,
+                       verifier=lambda a: (False, "invalid"))
+    assert r["fao_applied"] is True
+    cur.execute("select contact_name from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone()[0] == "John Smith"
 
 
 # --------------------------------------------------------------------------- #
@@ -302,21 +385,29 @@ def test_a_confirmed_permutation_is_adopted_as_the_named_contact(db_rollback):
     assert r["verified"] and r["named_email"] == "john@acme.co.uk"
     cur.execute("select contact_email, contact_name, contact_tier from outreach.enrichment "
                 "where company_number=%s", (cn,))
-    assert cur.fetchone() == ("john@acme.co.uk", "SMITH, John", "named")
+    # the name is stored as a human writes it, not as the register shouts it: it is read
+    # by the drafter, shown in the console, and printed in the email in the FAO case
+    assert cur.fetchone() == ("john@acme.co.uk", "John Smith", "named")
 
 
-def test_no_confirmation_leaves_the_role_address_untouched(db_rollback):
-    """The whole safety rule: never send to a guess. If nothing verifies, the role
-    address stays exactly as it was."""
+def test_no_confirmation_leaves_the_role_ADDRESS_untouched_but_names_the_addressee(db_rollback):
+    """The whole safety rule: never send to a guess. If nothing verifies, the address we
+    send TO is byte-for-byte what it was.
+
+    What changes is only WHO it is addressed to. The register told us who runs the firm
+    for free, and discarding that because a paid inference failed is the inversion this
+    phase exists to correct — the mailbox is unchanged, the envelope is not a guess, and
+    the draft can now say FAO John Smith."""
     cur = db_rollback.cursor()
     cn = _lead(cur)
     _enriched(cur, cn)
     ch = _FakeCH([{"name": "SMITH, John", "officer_role": "director"}])
     r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch, verifier=lambda a: (False, "invalid"))
     assert not r["verified"] and r["named_email"] is None
+    assert r["fao_applied"] is True
     cur.execute("select contact_email, contact_tier, contact_name from outreach.enrichment "
                 "where company_number=%s", (cn,))
-    assert cur.fetchone() == ("info@acme.co.uk", "verified", None)
+    assert cur.fetchone() == ("info@acme.co.uk", "role_fao", "John Smith")
 
 
 def test_catch_all_domain_is_skipped_without_spending(db_rollback):
@@ -350,8 +441,13 @@ def test_a_verifier_outage_defers_after_one_probe(db_rollback):
 
     r = dm.resolve_one(cn, "acme.co.uk", cur=cur, ch=ch, verifier=verifier)
     assert r.get("deferred") and calls["n"] == 1     # stopped after the first non-answer
-    cur.execute("select contact_tier from outreach.enrichment where company_number=%s", (cn,))
-    assert cur.fetchone()[0] == "verified"           # role address preserved
+    cur.execute("select contact_email, contact_tier from outreach.enrichment "
+                "where company_number=%s", (cn,))
+    email, tier = cur.fetchone()
+    # The MAILBOX is preserved — nothing was adopted from a verifier that never answered.
+    # The FAO name is free register data, independent of the outage, so the lead still
+    # gains an addressee while it waits to be retried.
+    assert email == "info@acme.co.uk" and tier == "role_fao"
 
 
 def test_officers_are_stored_even_when_the_email_cannot_be_confirmed(db_rollback):

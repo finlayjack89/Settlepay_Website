@@ -43,7 +43,7 @@ from typing import Any, Iterable, Optional
 # The fields a draft may name. Adding one here makes it available to the playbook AND
 # admissible to the grounding check — those must never drift apart, which is why there is
 # a single list rather than a set per call site.
-FIELDS = ("company_name", "contact_name", "location", "region", "vertical",
+FIELDS = ("company_name", "contact_name", "contact_role", "location", "region", "vertical",
           "payment_method", "established")
 
 # Without this the lead is not draftable at all: you cannot write to a business you cannot
@@ -100,6 +100,7 @@ def _clean(value: Optional[str]) -> Optional[str]:
 
 def build(*, company_name: Optional[str], company_name_source: str = "companies_house",
           contact_name: Optional[str] = None, contact_name_source: Optional[str] = None,
+          contact_role: Optional[str] = None, contact_role_source: Optional[str] = None,
           location: Optional[str] = None, location_source: Optional[str] = None,
           region: Optional[str] = None, region_source: Optional[str] = None,
           vertical: Optional[str] = None, vertical_source: Optional[str] = None,
@@ -129,6 +130,7 @@ def build(*, company_name: Optional[str], company_name_source: str = "companies_
     return {
         "company_name": fact(company_name, company_name_source),
         "contact_name": fact(contact_name, contact_name_source),
+        "contact_role": fact(contact_role, contact_role_source),
         "location": fact(loc, location_source),
         "region": fact(region, region_source),
         "vertical": fact(vertical, vertical_source),
