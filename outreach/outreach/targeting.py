@@ -53,7 +53,35 @@ TARGET_SICS: list[str] = list({sic for v in ICP.values() for sic in v})
 # gate in run.py is the brake, so the grid must never run dry, and the tail simply never
 # gets reached. Both lists are therefore ordered best-first.
 PLACES_VERTICAL_QUERIES: list[str] = [
-    # core trades — mobile, job-priced, invoice-after-the-visit (the sharpest ICP)
+    # ---- 1. AUCTIONEERS -----------------------------------------------------
+    # The one vertical with a real client (Lockdales). It sat at position 37 of 46 while
+    # the cursor crawled through the trades: 6.6% of the grid swept in a fortnight, still
+    # on "roofer", which put auctioneers ~7 months away — long after the credit runs out.
+    # It was not de-prioritised on purpose; it was unreachable by construction.
+    # Three phrasings because one query found almost nothing: the trade calls itself
+    # auctioneers, salerooms and valuers roughly interchangeably.
+    "auctioneer near {town}", "auction house or saleroom in {town}",
+    "auctioneers and valuers in {town}",
+    # ---- 2. FIRMS WITH STAFF WHO PUBLISH NAMES ------------------------------
+    # Measured on our own corpus: these publish a named personal address 15.9% of the
+    # time against 1.4% for the trades, and average 1.16 addresses per site against 0.69.
+    # They are also the only segment where the team-page scrape pays (9 of 10 sites had
+    # one, vs 1 of 10 for trades) — so they are the segment that can be reached by NAME
+    # rather than through a shared inbox.
+    "chartered surveyor in {town}", "accountant in {town}", "bookkeeper in {town}",
+    "architect in {town}", "letting agent in {town}", "funeral director in {town}",
+    "IT support company in {town}", "marketing agency in {town}",
+    "recruitment agency in {town}",
+    # ---- 3. PRIVATE CLINICS -------------------------------------------------
+    # Treatment plans and course fees invoiced away from a till; a practice manager is a
+    # named, findable decision maker.
+    "private physiotherapy clinic in {town}", "private dental practice in {town}",
+    "veterinary practice in {town}", "chiropractor or osteopath in {town}",
+    "private GP clinic in {town}", "podiatry clinic in {town}",
+    # ---- 4. TRADES ----------------------------------------------------------
+    # Still the sharpest ICP — mobile, job-priced, invoice-after-the-visit — and still the
+    # largest pool. Moved BEHIND the others only because they are reachable at a shared
+    # inbox and almost never by name, so the earlier verticals buy more per query.
     "emergency electrician in {town}", "plumber and heating engineer in {town}",
     "builder in {town}", "roofer in {town}", "joiner or carpenter in {town}",
     "plasterer in {town}", "glazier and window fitter in {town}",
@@ -66,20 +94,12 @@ PLACES_VERTICAL_QUERIES: list[str] = [
     "locksmith in {town}", "pest control company in {town}",
     "security and alarm installer in {town}", "mobile mechanic in {town}",
     "commercial cleaning company in {town}",
-    # professional / advisory — invoice-based B2B, no till at all
-    "chartered surveyor in {town}", "accountant in {town}", "bookkeeper in {town}",
-    "architect in {town}", "letting agent in {town}", "IT support company in {town}",
-    "marketing agency in {town}", "recruitment agency in {town}",
-    # private clinics — appointment deposits + private-pay invoicing
-    "private physiotherapy clinic in {town}", "private dental practice in {town}",
-    "veterinary practice in {town}", "chiropractor or osteopath in {town}",
-    "private GP clinic in {town}", "podiatry clinic in {town}",
-    # events, logistics and specialist — deposits, hire fees, staged invoices
-    "auctioneer near {town}", "funeral director in {town}", "removals company in {town}",
-    "skip hire company in {town}", "haulage company in {town}",
-    "tool and plant hire in {town}", "event catering company in {town}",
-    "marquee and event hire in {town}", "printing company in {town}",
-    "sign maker in {town}",
+    # ---- 5. events, logistics and specialist --------------------------------
+    # Deposits, hire fees, staged invoices. The tail: reached only if the credit lasts.
+    "removals company in {town}", "skip hire company in {town}",
+    "haulage company in {town}", "tool and plant hire in {town}",
+    "event catering company in {town}", "marquee and event hire in {town}",
+    "printing company in {town}", "sign maker in {town}",
 ]
 PLACES_TOWNS: list[str] = [
     # home patch (Yorkshire) — the original grid, kept first

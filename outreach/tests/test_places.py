@@ -119,3 +119,38 @@ def test_the_grid_cursor_advances_past_a_failing_query(db_rollback, monkeypatch)
     res = places.discover_grid(count=3, cur=cur)
     assert res["grid_cursor"] == 3          # advanced by queries ATTEMPTED, not succeeded
     assert monitor.get_flag("places_grid_cursor", cur=cur) == "3"
+
+
+# --------------------------------------------------------------------------- #
+#  Grid ORDER is the targeting — the tail is never reached
+# --------------------------------------------------------------------------- #
+def test_auctioneers_are_swept_first():
+    """The grid is vertical-major and the credit runs out long before the grid does, so
+    the ORDER decides what is ever discovered. Auctioneers — the one vertical with a real
+    client — sat at position 37 of 46 while the cursor crawled through the trades: 6.6%
+    of the grid swept in a fortnight, still on 'roofer', which put them ~7 months out.
+    They were not de-prioritised; they were unreachable by construction."""
+    from outreach import targeting
+    q = targeting.PLACES_VERTICAL_QUERIES
+    assert "auction" in q[0].lower()
+    assert sum(1 for x in q[:3] if "auction" in x.lower()) == 3
+
+
+def test_named_contact_verticals_outrank_the_trades():
+    """Measured on our own corpus: professional services publish a named personal address
+    15.9% of the time vs 1.4% for the trades. The trades remain the sharpest ICP and stay
+    in the grid — they just buy less per query, so they come after."""
+    from outreach import targeting
+    q = [x.lower() for x in targeting.PLACES_VERTICAL_QUERIES]
+    first_trade = next(i for i, x in enumerate(q) if "electrician" in x)
+    for named in ("accountant", "chartered surveyor", "private dental practice"):
+        assert next(i for i, x in enumerate(q) if named in x) < first_trade, named
+
+
+def test_the_grid_has_no_duplicate_queries():
+    """A repeat is a query billed twice for the same result."""
+    from outreach import targeting
+    q = targeting.PLACES_VERTICAL_QUERIES
+    assert len(q) == len(set(q))
+    grid = targeting.places_queries()
+    assert len(grid) == len(set(grid))
