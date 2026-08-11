@@ -59,10 +59,16 @@ ALLOWED: dict[LeadState, set[LeadState]] = {
     # turned out to be wrong — most often a contact that belongs to another company.
     # The lead has to go back for re-enrichment, and its draft must be superseded in the
     # same breath so no orphan sits in the approval queue.
+    # DRAFTED/APPROVED -> ENRICHED is REWORK: the copy is fine but the facts under it
+    # came from an older enrichment, so the lead returns to the pool to be re-worked
+    # rather than being parked (which spends its retry budget for a failure that was
+    # ours, not the lead's) or rejected (which is a verdict about the lead). It moves
+    # AWAY from sending, so it cannot widen who gets contacted — and the caller must
+    # retire the draft in the same transaction or an orphan sits in the queue.
     LeadState.DRAFTED: {LeadState.APPROVED, LeadState.REJECTED, LeadState.DISCARDED,
-                        LeadState.PARKED},
+                        LeadState.PARKED, LeadState.ENRICHED},
     LeadState.AWAITING_APPROVAL: {LeadState.APPROVED, LeadState.REJECTED},
-    LeadState.APPROVED: {LeadState.SENDING, LeadState.REJECTED},
+    LeadState.APPROVED: {LeadState.SENDING, LeadState.REJECTED, LeadState.ENRICHED},
     LeadState.SENDING: {LeadState.SENT, LeadState.BOUNCED},
     LeadState.SENT: {LeadState.REPLIED, LeadState.BOUNCED},
     LeadState.REPLIED: set(),

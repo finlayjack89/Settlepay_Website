@@ -136,8 +136,14 @@ def test_only_a_lookup_failure_is_flagged_unavailable():
 
 
 def test_run_records_a_genuine_no_match(db_rollback):
-    """Counts, not a specific row: the backlog is shared, but a batch of genuine
-    no-matches must still be written rather than deferred."""
+    """A register that answers "no such company" is a VERDICT and must be persisted;
+    only an unavailable register defers.
+
+    Seeds its own lead and pins it oldest. It used to run against whatever the shared
+    backlog happened to hold, so it was really asserting on production data — and it
+    duly broke the day crossref finished the backlog and there was nothing left to
+    classify. A test about a code path has to supply its own input for that path.
+    """
     from outreach import crossref
 
     class _EmptyCH:
@@ -147,6 +153,17 @@ def test_run_records_a_genuine_no_match(db_rollback):
         def close(self):
             pass
 
-    res = crossref.run(limit=3, cur=db_rollback.cursor(), ch=_EmptyCH())
+    cur = db_rollback.cursor()
+    pid = uuid.uuid4().hex[:10]
+    cur.execute("insert into outreach.leads (company_number, company_name, registered_address, "
+                "state, source, place_id, created_at) values "
+                "(%s,%s,%s::jsonb,'discovered','places',%s,'1990-01-01')",
+                (f"PLACE:{pid}", "Nowhere Registered Ltd", '{"postcode":"LS21 1AA"}', pid))
+
+    res = crossref.run(limit=1, cur=cur, ch=_EmptyCH())
     assert res["deferred"] == 0
-    assert res["unknown"] + res["corporate"] + res["individual"] >= 1
+    assert res["unknown"] == 1
+    cur.execute("select subscriber_class::text, crossref_checked_at is not null "
+                "from outreach.leads where place_id=%s", (pid,))
+    cls, checked = cur.fetchone()
+    assert cls == "unknown" and checked      # the verdict is written, not left to retry

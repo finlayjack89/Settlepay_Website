@@ -14,7 +14,7 @@ from __future__ import annotations
 from . import config, crossref, decisionmakers, dns_auth, draft, firewall, followup
 from . import graduation, inbound
 from . import enrich as enrich_mod
-from . import find_leads, places, report, research
+from . import find_leads, places, report, research, rework as rework_mod
 from . import run as run_mod
 from . import send as send_mod
 from .jobs import Param, task
@@ -117,6 +117,25 @@ def refresh_facts_task(ctx, limit=25):
       params=(Param("limit", "How many", kind="int", default=10),))
 def draft_task(ctx, limit=10):
     return {"drafted": draft.run(limit=limit)}
+
+
+@task("rework", "Re-work stale leads",
+      "Return queue drafts whose FACTS predate the current enrichment to the enriched "
+      "pool, so the decision-maker waterfall and the facts refresh run on them before "
+      "they are re-drafted. Every rejection a human has written on this pipeline was a "
+      "facts error, so re-drafting alone reproduces it in fresher prose. Keeps the paid "
+      "contact; retires an approved draft as a recorded decision, never a silent rewrite. "
+      "DRY RUN by default — it reports what it would touch and writes nothing.",
+      params=(Param("limit", "How many", kind="int", default=25),
+              Param("dry_run", "Dry run", kind="bool", default=True)),
+      destructive=True)
+def rework_task(ctx, limit=25, dry_run=True):
+    out = rework_mod.run(limit=limit, dry_run=dry_run)
+    for lead in out["leads"][:20]:
+        ctx.log(f"  {lead['company_name']} — {lead['why']}")
+    ctx.log(f"{out['stale']} stale · {out['reworked']} reworked"
+            + (" (DRY RUN — nothing written)" if dry_run else ""))
+    return out
 
 
 @task("redraft", "Re-draft stale queue",
