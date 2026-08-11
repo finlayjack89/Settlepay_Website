@@ -9,6 +9,9 @@ dependencies = [
   "python-dotenv>=1.0",
   "anthropic>=0.40",
   "google-genai>=1.0",
+  # the critic only — it must not be the family that writes the drafts (see
+  # config.CRITIC_PROVIDER), so a second SDK is the price of a decorrelated judge
+  "openai>=1.60",
   "argon2-cffi>=23.1",
   "itsdangerous>=2.1",
   "google-auth>=2.29",

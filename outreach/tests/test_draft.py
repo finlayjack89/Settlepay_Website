@@ -16,9 +16,12 @@ def _payload(subject: str, body: str) -> str:
 
 # ---- playbook is versioned (the value itself changes with copy revisions) ----
 def test_playbook_loads_and_is_versioned():
-    text = draft.load_playbook()
-    m = draft.VERSION_RE.search(text)
-    assert m and m.group(1).lower().startswith("v")
+    """The version is read from the FILE, which is what stamps every draft and windows
+    the graduation metrics. It is not required to survive into the text the model sees —
+    the marker lives in a comment, and comments are stripped so the changelog cannot feed
+    the drafter the wording it documents as forbidden."""
+    assert draft.PROMPT_VERSION.startswith("playbook-v")
+    assert draft.load_playbook().strip()
     # the mechanism must refuse an unversioned / garbage file
     import tempfile, pathlib
     p = pathlib.Path(tempfile.mkdtemp()) / "x.md"
@@ -693,3 +696,70 @@ def test_similarity_report_measures_what_nothing_measured():
     r = draft.similarity_report([same, same, other])
     assert r["pairs"] == 3 and r["over_threshold"] == 1
     assert r["worst"][0]["score"] == 1.0
+
+
+# --------------------------------------------------------------------------- #
+#  The prompt must not hand the model the words it is forbidden to use
+# --------------------------------------------------------------------------- #
+def test_the_changelog_never_reaches_the_model():
+    """The version history at the top of the playbook is maintainer documentation, and
+    to be useful to a human it QUOTES the wording that failed. All of it was going to the
+    model — so the page saying "never state how they take money" also handed over
+    "matching payments to invoices by hand" and "you take bank transfer", three times
+    each, in the notes explaining why they were banned."""
+    from outreach import draft
+    assert "<!--" not in draft.load_playbook()
+
+
+def test_the_playbook_never_supplies_a_payment_mechanism():
+    """payment_method is resolved on almost no leads, so any mechanism the drafter names
+    is a guess — and the grounding gate refuses it. The gate held; the prompt was the
+    leak. 4 of 7 drafts in one batch were refused for words this file had supplied."""
+    from outreach import draft
+    visible = draft.load_playbook().lower()
+    for phrase in ("by hand", "bank transfer", "invoices by", "manual invoicing"):
+        assert phrase not in visible, f"playbook hands the model {phrase!r}"
+
+
+def test_the_version_marker_is_still_read_before_the_strip(tmp_path):
+    """The marker lives in a comment itself, so stripping comments first would make every
+    playbook look unversioned."""
+    from outreach import draft
+    p = tmp_path / "pb.md"
+    p.write_text("<!-- PLAYBOOK VERSION: v9.9 -->\nBody text.\n")
+    assert "Body text." in draft.load_playbook(p)
+
+    bad = tmp_path / "bad.md"
+    bad.write_text("Body with no marker.\n")
+    with pytest.raises(RuntimeError):
+        draft.load_playbook(bad)
+
+
+def test_redraft_addresses_a_shared_mailbox_the_same_way_the_drafter_does():
+    """Two drafting paths, and only one of them read contact_tier.
+
+    draft.run() passes fao=(tier == 'role_fao'); redraft_stale() did not pass fao at all,
+    so every re-drafted role_fao lead defaulted to False — the drafter got a contact_name
+    with no instruction to keep it out of the greeting and wrote "Dear Andrew," to a
+    shared info@ mailbox. That is precisely what the FAO doctrine exists to prevent:
+    whoever opens info@ may not be Andrew, and greeting him personally implies a mailbox
+    we do not have. A rule enforced on one path and not the other is not enforced.
+    """
+    import inspect
+
+    from outreach import draft
+
+    src = inspect.getsource(draft.redraft_stale)
+    assert "contact_tier" in src, "redraft_stale must read the tier"
+    assert 'fao=(tier == "role_fao")' in src, "redraft_stale must pass fao like run() does"
+
+
+def test_the_fao_prompt_forbids_a_first_name_greeting():
+    """The instruction has to say BOTH things — put the name on the FAO line, and keep it
+    out of the greeting — because the model has a contact_name in hand either way."""
+    import inspect
+
+    from outreach import draft
+
+    src = inspect.getsource(draft.draft_one)
+    assert "NOT their first name" in src and "shared inbox" in src

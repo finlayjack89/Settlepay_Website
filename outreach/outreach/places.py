@@ -117,6 +117,39 @@ def text_search(query: str, *, max_results: int = 20, cur=None, client=None) -> 
     return [_normalise(p) for p in r.json().get("places", [])]
 
 
+# Google's own category for a business, which is structured, maintained, and a far better
+# classifier than an LLM's read of the page text. The ICP gate in enrich.py is that LLM
+# read, and it let `7 Core Electrical Wholesale Ltd` through — a trade wholesaler whose
+# site is full of the word "electrical", scored as an electrician. Google had it filed
+# under `wholesaler` the whole time.
+#
+# Deliberately tiny, and it should stay that way: only categories that are structurally
+# never our customer belong here, because this refuses a lead outright with no appeal.
+# A wholesaler bills trade accounts on credit terms; the LLM gate still handles the
+# genuinely arguable cases (a shop with a till, a firm already selling online).
+NEVER_ICP_TYPES = frozenset({
+    "wholesaler",           # sells to trade on account, not to consumers with a card
+    "corporate_office",     # a head office, not a business that takes payments
+    "government_office",
+    "local_government_office",
+    "bank", "atm", "insurance_agency",   # regulated payments firms, not our customers
+})
+
+
+def never_icp(business: dict) -> bool:
+    """True when Google's own categories put this business structurally outside the ICP.
+
+    Checked at DISCOVERY, before a penny of Firecrawl, verifier or LLM credit is spent on
+    it — a lead refused here costs one row we never wrote, where the same lead refused at
+    enrichment has already cost a resolve, up to three scrapes and a model call.
+    """
+    types = {str(t).lower() for t in (business.get("types") or []) if t}
+    primary = str(business.get("primary_type") or "").lower()
+    if primary:
+        types.add(primary)
+    return bool(types & NEVER_ICP_TYPES)
+
+
 def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) -> dict:
     """Run each Text Search query and insert new businesses into outreach.leads as
     Places-sourced, UNCLASSIFIED leads (subscriber_class stays null → the corporate
@@ -146,6 +179,9 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
             for b in results:
                 pid, name = b.get("place_id"), b.get("name")
                 if not pid or not name:
+                    skipped += 1
+                    continue
+                if never_icp(b):
                     skipped += 1
                     continue
                 cur.execute("select 1 from outreach.leads where place_id=%s", (pid,))

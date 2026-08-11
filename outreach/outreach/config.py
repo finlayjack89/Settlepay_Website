@@ -76,6 +76,19 @@ GEMINI_LOCATION = os.environ.get("GEMINI_LOCATION", "global")    # global avoids
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")          # workhorse (draft)
 GEMINI_FAST_MODEL = os.environ.get("GEMINI_FAST_MODEL", "gemini-3.1-flash-lite")  # fast extraction (signal/ICP)
 
+# OpenAI — cash-billed, and here for ONE job: judging drafts the Gemini drafter wrote.
+# Model ids verified against ~/.claude/LLM_MODELS.md; do not "correct" from memory.
+# NB the bare `gpt-5.6` alias routes to Sol and costs 5x Luna — always name the tier.
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
+# none | low | medium | high | xhigh | max. 'low' is deliberate: the critic is checking
+# a 120-word email against a fact block, not solving anything — and reasoning tokens bill
+# at the output rate.
+OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "low")
+# Reasoning is spent from this budget BEFORE any output, so too small a number returns an
+# empty string rather than an error. OpenAIProvider.MIN_COMPLETION_TOKENS floors it.
+OPENAI_MAX_COMPLETION_TOKENS = _int("OPENAI_MAX_COMPLETION_TOKENS", 3000)
+
 # --- autonomy (unattended, scheduled operation) ---
 # Master gate for the FULL-CHAIN tick (discover -> enrich -> draft). Off by default:
 # a bare tick stays the safe classify+send only. Turn on for headless operation.
@@ -119,6 +132,24 @@ INBOUND_MAX_PER_RUN = _int("INBOUND_MAX_PER_RUN", 50)
 TARGET_SIC_CODES = os.environ.get("TARGET_SIC_CODES", "")
 # per-vertical graduation auto-approve (lights-out). Off until a vertical proves out.
 AUTO_APPROVE_ENABLED = _bool("AUTO_APPROVE_ENABLED", False)
+
+# --- the critic (an independent read of every draft before a human sees it) ---
+# Off by default, and its FIRST setting is shadow: it scores drafts and records verdicts
+# while changing nothing, so its agreement with real human decisions can be measured
+# before it is trusted with any of them. A critic that starts by acting is a critic
+# nobody ever checked.
+CRITIC_ENABLED = _bool("CRITIC_ENABLED", False)
+#   shadow — record a verdict, act on nothing (the only honest starting point)
+#   gate   — a failing verdict blocks auto-approval; a human still sees the draft
+CRITIC_MODE = os.environ.get("CRITIC_MODE", "shadow")
+# MUST NOT be the family that writes the drafts. A judge from the generator's own family
+# shares its blind spots — the drafting bench had to be re-run for exactly that reason.
+# Drafting is Gemini, so the critic is OpenAI.
+CRITIC_PROVIDER = os.environ.get("CRITIC_PROVIDER", "openai")
+CRITIC_PER_TICK = _int("CRITIC_PER_TICK", 10)
+# Below this score a draft is judged unsendable. Calibrated against human decisions
+# during shadow mode — the default is a placeholder until that measurement exists.
+CRITIC_PASS_SCORE = _int("CRITIC_PASS_SCORE", 70)
 
 # --- spend ceiling (hard stop across paid providers: MillionVerifier + Anthropic) ---
 def _float(name: str, default: float) -> float:

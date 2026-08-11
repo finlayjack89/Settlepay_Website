@@ -22,6 +22,7 @@ stays gated behind G-SEND regardless of --live.
 from __future__ import annotations
 
 from . import config, db, firewall
+from . import critic as critic_mod
 from . import decisionmakers, draft as draft_mod
 from . import enrich as enrich_mod
 from . import crossref, find_leads, followup, graduation, inbound, monitor, outbox, places
@@ -30,10 +31,10 @@ from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
 
 FULL_CHAIN = ("inbound", "classify", "monitor", "discover_places", "crossref",
-              "discover", "enrich", "decision_makers", "draft", "followup",
+              "discover", "enrich", "decision_makers", "draft", "critic", "followup",
               "auto_approve", "send", "digest")
 AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich",
-                     "decision_makers", "draft", "followup", "auto_approve")
+                     "decision_makers", "draft", "critic", "followup", "auto_approve")
 
 
 def _advance_sends(cur, *, dry_run: bool) -> list[dict]:
@@ -235,6 +236,13 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
                 cur=cur, limit=min(config.DRAFT_PER_TICK,
                                    config.DRAFT_BACKLOG_MAX - backlog)),
                paid=(config.LLM_PROVIDER == "api"))
+
+    if want("critic"):  # OpenAI, cash-billed — an independent read of each new draft
+        # Deliberately AFTER draft and BEFORE auto_approve: it judges what was just
+        # written, and in shadow mode auto_approve does not consult it. When it does
+        # graduate to 'gate', this ordering is what puts it in front of the approval.
+        do("critic", lambda: critic_mod.run(cur=cur, limit=config.CRITIC_PER_TICK),
+           paid=True)
 
     if want("followup"):
         do("followup", lambda: followup.run(cur=cur, limit=config.FOLLOWUP_PER_TICK),

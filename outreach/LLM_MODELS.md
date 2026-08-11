@@ -13,6 +13,7 @@
 | Enrichment signal + ICP-fit gate | fast extraction | `gemini-3.1-flash-lite` | thinking_budget=0, JSON schema | highest volume, mechanical, cheapest; billed to GCP credit |
 | Draft / follow-up | workhorse generation | **`gemini-3-flash-preview`** (LLM_PROVIDER=gemini) | thinking_budget=0 | won the Gemini bench 4–2 AND 3× cheaper than 3.5-flash; on the credit |
 | Draft — fallback | workhorse | `claude-sonnet-4-6` (LLM_PROVIDER=api) | max_tokens=1024 | one env var away if ever needed |
+| **Draft critic** | independent judge | **`gpt-5.6-luna`** (CRITIC_PROVIDER=openai) | reasoning_effort=low, max_completion_tokens>=2000 | MUST NOT be the drafter's family — see below |
 
 ### Drafting bench (2026-07-19, 6 frozen ICP leads, judge=claude-haiku-4-5, bench/draft_bench.py)
 Round 1 — Gemini vs the Claude incumbent (judge not told the word limit → length bias):
@@ -46,6 +47,29 @@ recovers it. LLM_PROVIDER=gemini promoted 2026-07-19.
   → use `location=global`. Cached prefixes discounted (playbook prefix candidate).
 - Quota/billing project = `settlepay-502417` (the GCP credit). Runtime SA
   `settlepay-ops-run@…` has `roles/aiplatform.user`.
+
+### OpenAI (the critic — cash-billed, NOT the GCP credit)
+| Model | API ID | $/1M in | $/1M out | Notes |
+|---|---|---|---|---|
+| GPT-5.6 Luna | `gpt-5.6-luna` | $1.00 | $6.00 | the draft critic; cheapest of the 5.6 tier |
+| GPT-5.6 Terra | `gpt-5.6-terra` | $2.50 | $15.00 | not bound |
+| GPT-5.6 Sol | `gpt-5.6-sol` | $5.00 | $30.00 | not bound |
+
+**Why OpenAI at all, when Gemini is on the credit:** the critic's entire value is being
+*decorrelated* from the drafter. A judge from the generator's own family shares its blind
+spots — round 1 of the drafting bench had to be thrown out for exactly that reason. Paying
+cash for a second opinion is the point; a free correlated one is worth less than nothing,
+because it produces confident agreement that looks like evidence. `config.CRITIC_PROVIDER`
+holds the split and `llm.critic_provider()` is deliberately separate from
+`llm.draft_provider()` so the two cannot quietly converge.
+
+- ⚠️ **`max_completion_tokens`, NOT `max_tokens`** — the reasoning family rejects the old name.
+- ⚠️ **Reasoning is spent from that budget BEFORE any output**, so too small a number returns
+  an EMPTY STRING rather than an error — i.e. a critic that silently passes everything.
+  `OpenAIProvider.MIN_COMPLETION_TOKENS = 2000` is the floor, not a preference.
+- ⚠️ **The bare `gpt-5.6` alias routes to Sol**, 5× Luna's price. Always name the tier.
+- A critic call is ~2k in / ~1k out ≈ £0.006. At 10/tick this is noise against the £50 cap,
+  but it is CASH — `spend.CASH_PROVIDERS` includes `openai` so the cap gate sees it.
 
 ### Anthropic (incumbent drafting champion)
 | Model | API ID | $/1M in | $/1M out | Notes |

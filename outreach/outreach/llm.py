@@ -169,6 +169,78 @@ class GeminiProvider(LLMProvider):
             raise LLMUnavailable(f"gemini client init failed (ADC/Vertex): {e}") from e
 
 
+class OpenAIProvider(LLMProvider):
+    """OpenAI GPT-5.6 (cash-billed). Exists for the CRITIC, whose whole value is being
+    decorrelated from the drafter — a judge from the same family as the generator shares
+    its blind spots, and the drafting bench already had to be re-run once for exactly
+    that reason (LLM_MODELS.md, round 1: same-family judge, inconclusive).
+
+    Two traps in this family, both load-bearing:
+    - it is `max_completion_tokens`, NOT `max_tokens` (the old name is rejected), and
+    - reasoning tokens are spent from that budget BEFORE any output, so a small budget
+      returns an empty string rather than an error. Hence the floor below.
+    Same LLMUnavailable degrade contract as every other provider."""
+    name = "openai"
+    # LLM_MODELS.md: "Luna: reasoning eats max_completion_tokens BEFORE output — budget
+    # >=2000 or content comes back empty". This is the floor, not a preference.
+    MIN_COMPLETION_TOKENS = 2000
+
+    def __init__(self, model: Optional[str] = None, client=None,
+                 reasoning_effort: Optional[str] = None):
+        # verified id from ~/.claude/LLM_MODELS.md; do not "correct" from memory. NB the
+        # bare `gpt-5.6` alias routes to Sol and silently costs 5x — always name the tier.
+        self.model = model or config.OPENAI_MODEL
+        self.reasoning_effort = reasoning_effort or config.OPENAI_REASONING_EFFORT
+        self._client = client
+
+    def complete(self, prompt, *, purpose, max_words=None, schema=None) -> LLMResult:
+        from . import spend
+
+        if self._client is None and not config.OPENAI_API_KEY:
+            raise LLMUnavailable("OPENAI_API_KEY not configured")
+        try:
+            spend.ensure_under_cap()
+        except spend.SpendCapExceeded as e:
+            raise LLMUnavailable(str(e)) from e
+        client = self._client or self._default_client()
+        kwargs: dict = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_completion_tokens": max(self.MIN_COMPLETION_TOKENS,
+                                         config.OPENAI_MAX_COMPLETION_TOKENS),
+            "reasoning_effort": self.reasoning_effort,
+        }
+        if schema is not None:
+            kwargs["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "result", "schema": schema, "strict": False},
+            }
+        try:
+            r = client.chat.completions.create(**kwargs)
+        except Exception as e:
+            raise LLMUnavailable(f"openai call failed: {e}") from e
+        text = (r.choices[0].message.content or "").strip() if r.choices else ""
+        u = getattr(r, "usage", None)
+        units_in = getattr(u, "prompt_tokens", 0) or 0
+        # completion_tokens already includes reasoning_tokens, and both bill at the
+        # output rate — so this is the whole output-side cost, not just the visible text
+        units_out = getattr(u, "completion_tokens", 0) or 0
+        try:
+            spend.record("openai", purpose=purpose, model=self.model,
+                         units_in=units_in, units_out=units_out,
+                         cost_gbp=spend.openai_cost_gbp(self.model, units_in, units_out))
+        except Exception:
+            pass  # metering must never fail the call that already succeeded
+        return LLMResult(text, self.name,
+                         {"purpose": purpose, "model": self.model,
+                          "units_in": units_in, "units_out": units_out})
+
+    def _default_client(self):
+        import openai  # lazy; only needed when the critic actually runs
+
+        return openai.OpenAI(api_key=config.OPENAI_API_KEY, timeout=60, max_retries=3)
+
+
 def get_provider(name: Optional[str] = None, **kwargs) -> LLMProvider:
     name = name or config.LLM_PROVIDER
     if name == "inline":
@@ -177,7 +249,18 @@ def get_provider(name: Optional[str] = None, **kwargs) -> LLMProvider:
         return ApiProvider(**kwargs)
     if name == "gemini":
         return GeminiProvider(**kwargs)
+    if name == "openai":
+        return OpenAIProvider(**kwargs)
     raise ValueError(f"unknown LLM provider: {name!r}")
+
+
+def critic_provider(**kwargs) -> LLMProvider:
+    """The provider for CRITICISM, which must not be the one that wrote the draft.
+
+    Kept deliberately separate from draft_provider: if the two ever resolve to the same
+    model the critic stops being evidence, and the failure is silent — it would still
+    return confident verdicts, just correlated ones."""
+    return get_provider(config.CRITIC_PROVIDER, **kwargs)
 
 
 def draft_provider(**inline_kwargs) -> LLMProvider:

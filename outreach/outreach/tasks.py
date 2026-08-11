@@ -11,8 +11,9 @@ mode='live' but nothing leaves an inbox unless a human has set G_SEND.
 """
 from __future__ import annotations
 
-from . import config, crossref, decisionmakers, dns_auth, draft, firewall, followup
-from . import graduation, inbound
+from . import config, crossref, db, decisionmakers, dns_auth, draft, firewall, followup
+from . import feedback, graduation, inbound
+from . import critic as critic_mod
 from . import enrich as enrich_mod
 from . import find_leads, places, report, research, rework as rework_mod
 from . import run as run_mod
@@ -147,6 +148,48 @@ def redraft_task(ctx, limit=25):
     out = draft.redraft_stale(limit=limit)
     ctx.log(f"{out['redrafted']} redrafted · {out['failed_kept_old']} kept older copy")
     return out
+
+
+@task("critic", "Critique drafts (shadow)",
+      "An independent model (OpenAI, decorrelated from the Gemini drafter) scores each "
+      "queued draft against its own facts block: grounding, recipient fit, ICP fit and "
+      "compliance are hard failures; prose is only a soft one — because every rejection "
+      "a human has written on this pipeline was a facts error, not a prose error. In "
+      "shadow mode it records a verdict and changes NOTHING, so its agreement with your "
+      "decisions can be measured before it is trusted with any of them.",
+      params=(Param("limit", "How many", kind="int", default=10),))
+def critic_task(ctx, limit=10):
+    out = critic_mod.run(limit=limit)
+    ctx.log(f"{out.get('judged', 0)} judged · {out.get('passed', 0)} pass · "
+            f"{out.get('failed', 0)} fail · mode={out.get('mode')}")
+    return out
+
+
+@task("critic_agreement", "Critic vs human agreement",
+      "How often the critic's verdict matched a REAL human decision (system/auto rows "
+      "excluded). Reports false-pass and false-fail separately: a false pass is a bad "
+      "email sent, a false fail is a good email held — only the first is a reason not "
+      "to hand over.")
+def critic_agreement_task(ctx):
+    with db.cursor(commit=False) as cur:
+        out = critic_mod.agreement(cur)
+    ctx.log(f"{out['compared']} compared · {out['agreement_rate']:.0%} agreement · "
+            f"{out['false_pass']} false pass · {out['false_fail']} false fail")
+    return out
+
+
+@task("review_feedback", "What your rejections are about",
+      "Classifies every reviewer note and routes it to the stage that caused it, then "
+      "reports which stage your rejections are really about. Backfills notes written "
+      "before the classifier existed; idempotent.")
+def review_feedback_task(ctx):
+    filled = feedback.backfill()
+    with db.cursor(commit=False) as cur:
+        out = feedback.summary(cur)
+    ctx.log(f"{filled['classified']} newly classified")
+    if out["worst_stage"]:
+        ctx.log(f"{out['worst_share']:.0%} of your rejections are about: {out['worst_stage']}")
+    return {**out, "backfilled": filled}
 
 
 @task("followup", "Generate follow-ups",

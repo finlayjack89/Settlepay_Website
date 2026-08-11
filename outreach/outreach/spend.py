@@ -23,7 +23,8 @@ class SpendCapExceeded(Exception):
 # Which providers hit the CARD (cash — gated by MONTHLY_SPEND_CAP_GBP) vs the GCP
 # CREDIT (tracked against the 90-day $300, not the cash cap). Gemini/Places/Geocoding
 # bill the credit; the verifiers, Firecrawl and the Anthropic API bill cash.
-CASH_PROVIDERS = ("millionverifier", "reoon", "zerobounce", "firecrawl", "anthropic")
+CASH_PROVIDERS = ("millionverifier", "reoon", "zerobounce", "firecrawl", "anthropic",
+                  "openai")
 CREDIT_PROVIDERS = ("gemini", "places", "geocoding")
 
 
@@ -145,6 +146,29 @@ def places_cost_gbp(sku: str, calls: int = 1) -> float:
         rate = max(_PLACES_USD_PER_1K.values())
         print(f"[spend] WARNING: unpriced Places SKU {sku!r} — using max rate {rate}")
     return calls / 1000.0 * rate * config.USD_TO_GBP
+
+
+# OpenAI GPT-5.6 list prices (USD per 1M tokens, in/out), standard tier, from
+# ~/.claude/LLM_MODELS.md. Reasoning tokens are billed at the OUTPUT rate, so callers
+# pass units_out = completion_tokens (which already includes reasoning_tokens).
+# Update in the same change as that file.
+_OPENAI_USD_PER_MTOK: dict[str, tuple[float, float]] = {
+    "gpt-5.6-luna": (1.00, 6.00),
+    "gpt-5.6-terra": (2.50, 15.00),
+    "gpt-5.6-sol": (5.00, 30.00),
+}
+
+
+def openai_cost_gbp(model: str, units_in: int, units_out: int) -> float:
+    """Convert OpenAI token counts to GBP. Same conservative fallback as Gemini: an
+    unpriced model is charged at the most expensive known rate and flagged, because a
+    silently under-priced provider is a cap gate that does not gate."""
+    rate = _OPENAI_USD_PER_MTOK.get(model)
+    if rate is None:
+        rate = max(_OPENAI_USD_PER_MTOK.values())
+        print(f"[spend] WARNING: unpriced OpenAI model {model!r} — using max known rate {rate}")
+    usd = units_in / 1_000_000 * rate[0] + units_out / 1_000_000 * rate[1]
+    return usd * config.USD_TO_GBP
 
 
 def gemini_cost_gbp(model: str, units_in: int, units_out: int) -> float:

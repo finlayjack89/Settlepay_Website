@@ -89,12 +89,20 @@ def _shape(sent: int, bounced: int, complaints: int) -> dict:
             "complaint_rate": (complaints / sent) if sent else 0.0}
 
 
+# The vertical a send is graded under: Companies House SIC first, then the Places
+# listing's own category. Keying on sic_codes[1] ALONE made this blind to 99.2% of the
+# corpus — sic_codes is null for every Places lead — so the per-vertical deliverability
+# buckets that gate auto-pause were all collapsing into one '?' pile. graduation.py was
+# fixed for exactly this; the monitor was not, and it is the half that stops sending.
+_VERTICAL = "coalesce(l.sic_codes[1], l.registered_address->>'primary_type')"
+
+
 def bounce_stats(cur, *, window_days: int = 14) -> dict:
-    """Live-send deliverability over the window: global + per-vertical
-    (leads.sic_codes[1]) sent/bounced/complaint counts and rates. A bounce is a
-    lead that transitioned to state 'bounced' in the window OR a replies row of
-    kind 'bounce' (deduplicated per company; an unattributable bounce reply
-    still counts — it is still a bounce of one of our sends)."""
+    """Live-send deliverability over the window: global + per-vertical sent/bounced/
+    complaint counts and rates. A bounce is a lead that transitioned to state 'bounced'
+    in the window OR a replies row of kind 'bounce' (deduplicated per company; an
+    unattributable bounce reply still counts — it is still a bounce of one of our
+    sends)."""
     cur.execute(
         "select count(*) from outreach.sends "
         "where mode='live' and created_at >= now() - make_interval(days => %s)",
@@ -123,7 +131,7 @@ def bounce_stats(cur, *, window_days: int = 14) -> dict:
         return counts.setdefault(sic, {"sent": 0, "bounced": 0, "complaints": 0})
 
     cur.execute(
-        "select coalesce(l.sic_codes[1], '?'), count(*) "
+        f"select coalesce({_VERTICAL}, '?'), count(*) "
         "from outreach.sends s "
         "left join outreach.leads l on l.company_number = s.company_number "
         "where s.mode='live' and s.created_at >= now() - make_interval(days => %s) "
@@ -132,7 +140,7 @@ def bounce_stats(cur, *, window_days: int = 14) -> dict:
         bucket(sic)["sent"] = n or 0
 
     cur.execute(
-        "select coalesce(l.sic_codes[1], '?'), count(distinct l.company_number) "
+        f"select coalesce({_VERTICAL}, '?'), count(distinct l.company_number) "
         "from outreach.leads l "
         "where (l.state='bounced' and l.updated_at >= now() - make_interval(days => %s)) "
         "   or exists (select 1 from outreach.replies r "
@@ -143,7 +151,7 @@ def bounce_stats(cur, *, window_days: int = 14) -> dict:
         bucket(sic)["bounced"] = n or 0
 
     cur.execute(
-        "select coalesce(l.sic_codes[1], '?'), count(*) "
+        f"select coalesce({_VERTICAL}, '?'), count(*) "
         "from outreach.replies r "
         "join outreach.leads l on l.company_number = r.company_number "
         "where r.kind='complaint' and r.received_at >= now() - make_interval(days => %s) "

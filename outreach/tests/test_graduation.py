@@ -197,3 +197,55 @@ def test_prompt_version_isolation(db_rollback, gates_on):
     assert _draft_row(cur, did_v1)[0] == "approved"
     v2_row = _draft_row(cur, did_v2)
     assert v2_row[0] == "awaiting_approval" and v2_row[3] is None
+
+
+# --------------------------------------------------------------------------- #
+#  A gate the machinery can open for itself is not a gate
+# --------------------------------------------------------------------------- #
+def test_a_bulk_migration_does_not_count_as_human_trust(db_rollback):
+    """`decided_by is not null` was the test for "a human reviewed this", and 352 of the
+    357 decided rows on the live database are ONE bulk migration (system:v2.0-migration).
+    Graduation was reading its own maintenance script as 352 acts of human trust, against
+    a threshold of 50 — so a vertical could graduate having never been reviewed at all."""
+    cur = db_rollback.cursor()
+    sic = _sic()
+    leads, drafts = [], []
+    for _ in range(60):
+        cn = _cn(held=False)
+        leads.append((cn, cn, "rejected", [sic]))
+        drafts.append((cn, BODY, BODY, draft.PROMPT_VERSION, "approved"))
+    cur.executemany(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state, sic_codes) values (%s,%s,'ltd','corporate',%s,%s)", leads)
+    cur.executemany(
+        "insert into outreach.drafts (company_number, subject, body_original, body_final, "
+        "prompt_version, status, decided_by, decided_at) "
+        "values (%s,'payments at test co',%s,%s,%s,%s,'system:v2.0-migration',now())",
+        drafts)
+
+    m = [x for x in graduation.vertical_metrics(cur) if x["vertical"] == sic]
+    assert not m or m[0]["reviewed"] == 0, "a system decision is not a human review"
+
+
+def test_auto_approvals_do_not_bootstrap_further_auto_approval(db_rollback):
+    """The subtler version of the same defect: graduation writes decided_by='auto:...',
+    so once a vertical graduated its own output would keep re-proving it. Trust has to
+    come from outside the loop or it is just a feedback oscillator."""
+    cur = db_rollback.cursor()
+    sic = _sic()
+    leads, drafts = [], []
+    for _ in range(60):
+        cn = _cn(held=False)
+        leads.append((cn, cn, "approved", [sic]))
+        drafts.append((cn, BODY, BODY, draft.PROMPT_VERSION, "approved"))
+    cur.executemany(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state, sic_codes) values (%s,%s,'ltd','corporate',%s,%s)", leads)
+    cur.executemany(
+        "insert into outreach.drafts (company_number, subject, body_original, body_final, "
+        "prompt_version, status, decided_by, decided_at) "
+        f"values (%s,'payments at test co',%s,%s,%s,%s,'{graduation.AUTO_REVIEWER}',now())",
+        drafts)
+
+    m = [x for x in graduation.vertical_metrics(cur) if x["vertical"] == sic]
+    assert not m or m[0]["reviewed"] == 0

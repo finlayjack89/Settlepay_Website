@@ -173,16 +173,46 @@ def resolve_location(*, site_postcode: Optional[str] = None,
     whose town is unusable can still be placed in "the North West" — broad, safe, and
     true, which beats saying nothing.
     """
-    for town, postcode, source in (
-        (site_town, site_postcode, "own_site"),
-        (listing_town, listing_postcode, "places_listing"),
-    ):
-        if town or postcode:
-            info = postcode_info(postcode, client=client) or {}
-            return {"town": town or info.get("town"),
-                    "region": info.get("region"),
-                    "postcode": normalise_postcode(postcode),
-                    "source": source if (town or info.get("town")) else None}
+    def _place(town, postcode, source):
+        info = postcode_info(postcode, client=client) or {}
+        return {"town": town or info.get("town"), "region": info.get("region"),
+                "postcode": normalise_postcode(postcode),
+                "source": source if (town or info.get("town")) else None}
+
+    site = _place(site_town, site_postcode, "own_site") \
+        if (site_town or site_postcode) else None
+    listing = _place(listing_town, listing_postcode, "places_listing") \
+        if (listing_town or listing_postcode) else None
+
+    # WHEN THE TWO DISAGREE, ASSERT NEITHER TOWN.
+    #
+    # own_site outranks the listing on the reasoning that a business's own site is its own
+    # account of itself — sound, until you remember the scraper takes whatever address is
+    # on the page. BS4 Electrical Services is a Bristol firm (listing: BS4 1TP, "172
+    # Novers…", and BS4 is literally a Bristol postcode district), and a Chesham postcode
+    # somewhere on its website won, so the facts block asserted Chesham.
+    #
+    # That is the exact error the reviewer rejected drafts for — "Not london based but
+    # email says london", "wrong location" — and it is not fixable by ranking, because
+    # the failure is that one source is silently unreliable, not that it is ranked wrong.
+    # A disagreement is itself the evidence: when the site and a maintained listing put
+    # the business in different towns, we do not know which is right, so we say nothing.
+    # An explicit unknown is what the facts block exists to carry, and the drafter writes
+    # around it. The REGION survives when both agree on it — "the South West" is broad
+    # enough to stay true and is still worth more than silence.
+    if site and listing and site["town"] and listing["town"] \
+            and site["town"].strip().lower() != listing["town"].strip().lower():
+        agreed = site["region"] if site["region"] == listing["region"] else None
+        return {"town": None, "region": agreed,
+                # keep the LISTING's postcode: it is structured, geocoded and maintained,
+                # where the site's was scraped out of page text
+                "postcode": listing["postcode"] or site["postcode"],
+                "source": "postcodes_io" if agreed else None,
+                "conflict": {"own_site": site["town"], "places_listing": listing["town"]}}
+
+    for resolved in (site, listing):
+        if resolved is not None:
+            return resolved
 
     # A registered office is admissible only once we have checked it is theirs.
     if registered_town or registered_postcode:

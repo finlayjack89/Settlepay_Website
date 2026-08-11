@@ -25,8 +25,8 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from . import config, db, draft, emailfmt, enquiries, graduation, jobs, monitor, outbox
-from . import research, review, stats, webauth
+from . import config, db, draft, emailfmt, enquiries, feedback, graduation, jobs, monitor
+from . import outbox, research, review, stats, webauth
 # aliased: this module defines a `schedule()` route that would shadow the import
 from . import schedule as send_queue
 from . import tasks as _tasks  # noqa: F401 — importing populates jobs.REGISTRY
@@ -538,6 +538,8 @@ def dashboard():
         inb = stats.inbound_summary(cur)
         feed = stats.recent_activity(cur)
         dmx = stats.decision_maker_status(cur)
+        run_way = stats.runway(cur)
+        fb = feedback.summary(cur)
     g = graduation_thresholds()
 
     tiles = [
@@ -623,6 +625,41 @@ def dashboard():
         + (f' · cache saved <b>{dmx["lookups_saved"]}</b> paid lookups'
            if dmx["lookups_saved"] else ''))
 
+    _STAGE_LABEL = {"crossref": "PECR cross-reference", "enrich": "Enrichment",
+                    "draft": "Drafting", "review": "Your review", "send": "Sending"}
+    runway_rows = "".join(
+        f'<tr{" class=\"clk\"" if name == run_way["bottleneck"] else ""}>'
+        f'<td>{_STAGE_LABEL.get(name, name)}'
+        + (' <b>&larr; bottleneck</b>' if name == run_way["bottleneck"] else '')
+        + f'</td><td class="num">{s["stock"]}</td>'
+          f'<td class="num">{"—" if s["days"] is None else f"{s['days']:.1f}d"}</td></tr>'
+        for name, s in run_way["stages"].items())
+    runway_html = (
+        f'<table><tr><th>Waiting for</th><th class="num">Leads</th>'
+        f'<th class="num">Days</th></tr>{runway_rows}</table>'
+        f'<div style="margin-top:.6rem;font-size:.8rem" class="muted">'
+        f'At <b>{run_way["rate_per_day"]}</b>/day ({run_way["rate_basis"]}) — '
+        f'{run_way["sent_in_window"]} live sends in the last {run_way["window_days"]} days.'
+        + ('  A <i>planned</i> rate means nothing has actually sent in the window, so these '
+           'are capacity figures, not observed ones.' if run_way["rate_basis"] == "planned"
+           else '')
+        + '</div>')
+
+    if fb["total"]:
+        fb_rows = "".join(
+            f'<tr><td>{html.escape(r["category"].replace("_", " "))}</td>'
+            f'<td>{html.escape(r["stage"])}</td><td class="num">{r["count"]}</td></tr>'
+            for r in fb["by_category"])
+        feedback_html = (
+            f'<table><tr><th>Reason</th><th>Owning stage</th><th class="num">Count</th></tr>'
+            f'{fb_rows}</table>'
+            f'<div style="margin-top:.6rem;font-size:.8rem" class="muted">'
+            f'<b>{fb["worst_share"]:.0%}</b> of your rejections are about '
+            f'<b>{html.escape(fb["worst_stage"] or "")}</b>.</div>')
+    else:
+        feedback_html = ('<div class="empty">No classified notes yet — add a reason when you '
+                         'reject a draft and it will be routed to the stage that caused it.</div>')
+
     body = f"""
 {'<div class="note">Live sending is OFF. The pipeline is in dry-run; nothing leaves an inbox until a human sets the G-SEND gate.</div>' if not _safety()['live'] else ''}
 <div class="kpis">{kpis}</div>
@@ -636,6 +673,19 @@ def dashboard():
     personal address. A shared mailbox addressed to the named director counts.</div>
   <div style="font-size:.83rem">{dm_line}</div>
   <div style="margin-top:.6rem;font-size:.8rem">{dm_verdict}</div>
+</div>
+<div class="two">
+  <div class="panel"><h2>Runway</h2>
+    <div class="hint">Days of sending each stage is holding, at the rate we actually send.
+      The stage that runs dry first is the one to fix — a huge raw backlog says nothing
+      about whether anything can go out tomorrow.</div>
+    {runway_html}
+  </div>
+  <div class="panel"><h2>What your rejections are about</h2>
+    <div class="hint">Every note you write on a decision is classified and routed back to
+      the stage that caused it. This is the list that should decide what gets fixed next.</div>
+    {feedback_html}
+  </div>
 </div>
 <div class="two">
   <div class="panel"><h2>Yield by vertical</h2>

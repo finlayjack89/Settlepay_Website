@@ -234,3 +234,24 @@ def test_send_daily_digest_sends_even_when_kill_switch_on(db_rollback, operator,
     out = report.send_daily_digest(cur=cur)
     assert "sent" in out
     assert len(sent_mail) == 1
+
+
+def test_a_places_lead_buckets_under_its_listing_category(db_rollback):
+    """Per-vertical deliverability keyed on sic_codes[1] ALONE was blind to 99.2% of the
+    corpus: sic_codes is null for every Places lead, so every one of them collapsed into
+    the '?' bucket and the per-vertical rates that gate auto-pause described nothing.
+    graduation.py was fixed for this; the monitor — the half that actually STOPS sending —
+    was not."""
+    cur = db_rollback.cursor()
+    cn = f"MON_{uuid.uuid4().hex[:8]}"
+    cur.execute(
+        "insert into outreach.leads (company_number, company_name, company_type, "
+        "subscriber_class, state, registered_address) "
+        "values (%s,%s,'ltd','corporate','sent',%s::jsonb)",
+        (cn, cn, '{"primary_type": "test_electrician"}'))
+    cur.execute("insert into outreach.sends (company_number, to_email, mode, status) "
+                "values (%s,'a@b.co.uk','live','sent')", (cn,))
+
+    stats = monitor.bounce_stats(cur, window_days=14)
+    assert "test_electrician" in stats["verticals"]
+    assert stats["verticals"]["test_electrician"]["sent"] == 1
