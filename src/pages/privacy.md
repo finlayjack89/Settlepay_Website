@@ -4,10 +4,10 @@ title: "Privacy Policy"
 seoTitle: "Privacy Policy | SettlePay"
 description: "How SettlePay (Finlay Salisbury) collects, uses and protects your personal data under UK GDPR, including your rights and how to contact us or the ICO."
 keywords: "SettlePay privacy policy, UK GDPR, data protection, personal data, ICO, data controller, your data rights"
-lastUpdated: "7 June 2026"
+lastUpdated: "26 July 2026"
 path: "/privacy/"
 ---
-This Privacy Policy explains how SettlePay collects, uses, shares and protects your personal data when you visit our website at [https://settlepay.uk](https://settlepay.uk), contact us, or engage us for our services. It also explains your rights under UK data protection law and how to exercise them.
+This Privacy Policy explains how SettlePay collects, uses, shares and protects your personal data when you visit our website at [https://settlepay.uk](https://settlepay.uk), contact us, or engage us for our services. It also covers the business contact information we collect from public sources when we approach a business directly to introduce our service — see "Information We Collect From Public Sources" below. It explains your rights under UK data protection law and how to exercise them.
 
 We have tried to write this policy in plain English. If anything is unclear, please get in touch using the details below and we will be happy to explain.
 
@@ -57,6 +57,33 @@ Our website may use cookies and similar technologies for essential functions. Fo
 
 We measure how the website is used with our own first-party system that does **not** use cookies and stores nothing on your device. When a page is viewed or a key action happens (such as opening the enquiry form or completing a booking step), the site sends an event to our server. We do not store your IP address or browser details; the server keeps only a one-way, scrambled code derived from connection details plus a secret that rotates daily, so the code cannot identify you and cannot link your visits across days. The result is aggregate counts (visits, pages, actions) used solely to improve the website.
 
+### Information We Collect From Public Sources (Business Contacts)
+
+We contact UK businesses directly to introduce our service. To do that, we collect a limited amount of business contact information from sources that are already public. We did not receive this information from you, so this section explains where it came from and what we do with it, as UK GDPR Article 14 requires.
+
+**Where we get it.** We use only publicly accessible sources:
+
+- the **Companies House public register** (company details and, where relevant, the names and roles of current directors, partners or LLP members);
+- **public business listings and mapping services** (for example, a business's own Google listing — its trading name, business address, sector and website); and
+- the **business's own public website** (for example, the contact or about page, and the business email address published on it).
+
+**What we collect.** The categories are deliberately narrow:
+
+- business name, trading name and business address;
+- business sector, and publicly published information about what the business does;
+- the business's website address;
+- a business email address published by the business, or, where we contact a named person, that person's name, their role at the company, and their work email address at the company's own domain.
+
+**What we deliberately do not collect.** We do **not** collect or store telephone numbers from these sources. We do **not** collect dates of birth, residential addresses, or any of the other personal details that may appear on the public register. We do not use special category data, and we do not buy or rent marketing lists.
+
+**How we confirm an email address is correct.** Where we contact a named person, we check that the work email address is valid using a specialist email-validation provider before we use it, so that we do not send messages to addresses that do not exist or that belong to someone else. We only use an address that this check confirms.
+
+**Who we contact.** We only send this kind of introductory message to **corporate subscribers** — companies, limited liability partnerships and similar bodies. We do **not** send unsolicited marketing email to sole traders, partnerships without legal personality, or individuals, in line with the Privacy and Electronic Communications Regulations (PECR).
+
+**Telling you we hold it.** If we contact a named individual, the first message we send says where we found their details, links to this policy, and explains how to stop hearing from us. If we hold information about a named individual but have not contacted them, we will provide this information on request.
+
+**Your right to object.** You can tell us to stop at any time, and we will. Reply "unsubscribe" to any message we send, or email [hello@settlepay.uk](mailto:hello@settlepay.uk). We will remove your details from our outreach records, add you to a suppression list so that you are not contacted again, and confirm this. You do not need to give a reason, and there is no cost. You also have all the other rights set out in the "Your Rights Under UK GDPR" section below.
+
 We do **not** collect or store cardholder data through this website. Where a payment is taken during a client engagement, it is handled by the client's chosen payment service provider (see "Who We Share Your Data With" and "What We Do" below).
 
 ## How and Why We Use Your Data, and Our Lawful Basis
@@ -68,6 +95,9 @@ Under UK GDPR Article 6, we must have a lawful basis for each way we use your pe
 | To respond to your enquiry, answer your questions and arrange a consultation | Name, business name, email address, message details, email correspondence | **Legitimate interests** — it is in our legitimate interest, and yours, to respond to people who contact us about our service. Where you have submitted an enquiry form, you may also have provided consent. |
 | To provide our services to you under an agreement, including designing and building your payment page, guiding the merchant-account setup, and configuring reconciliation | Name, business name, email address, project details, ongoing correspondence | **Performance of a contract** — processing is necessary to take steps at your request before entering a contract and to deliver the service we have agreed. |
 | To send you service-related communications about a project we are working on together (for example, updates, questions and deliverables) | Name, email address, project details | **Performance of a contract** and, where applicable, **legitimate interests** in managing the project effectively. |
+| To identify UK businesses that may benefit from our service, and to contact them once by email to introduce it | Business name and address, sector, website, business email address; where we contact a named person, their name, role and work email address, obtained from the Companies House public register, public business listings and the business's own website | **Legitimate interests** — it is in our legitimate interest to promote our service to businesses likely to find it useful, and we consider a single, relevant, clearly identified business message that is easy to stop to be proportionate and reasonably expected in a B2B context. You can object at any time (see "Your Rights"). |
+| To check that a business email address is valid before we use it, using a specialist email-validation provider | Business email address | **Legitimate interests** — it is in our legitimate interest, and in the recipient's, that we do not send messages to addresses that are wrong, inactive or belong to someone else. |
+| To keep a record of anyone who has asked not to be contacted, so that we do not contact them again | Email address, and the fact that an objection was made | **Legal obligation** (PECR and UK GDPR require us to honour an objection) and **legitimate interests** in making sure an opt-out is permanent. |
 | To keep the website secure, available and functioning correctly, and to prevent fraud and abuse | Server and log data, IP address, technical information | **Legitimate interests** — it is in our legitimate interest to protect and maintain our website and systems. |
 | To use essential cookies needed for the website to work | Cookie and device data | **Legitimate interests** — necessary to deliver the website you have requested. |
 | To understand how the website is used, through cookieless, aggregate first-party measurement (no cookies or device storage; no IP address stored; daily-rotating anonymous code) | Page and event counts; transient connection details used only to derive the anonymous code | **Legitimate interests** — it is in our legitimate interest to understand whether the website works well, in a way designed so that no one can be identified. You can object (see "Your Rights"). |
@@ -120,6 +150,8 @@ We keep personal data only for as long as we need it for the purposes set out in
 - **Client records** (records relating to a project we deliver for you, including correspondence and deliverables): kept for the duration of the engagement and for a reasonable period afterwards for support and reference.
 - **Legal, accounting and tax records:** kept for approximately **6 years** from the end of the relevant financial year (or longer where the law requires), to meet our legal and tax obligations and to defend potential legal claims.
 - **Server and log data:** kept for a short period by our hosting and security providers for operational and security purposes, in line with their standard retention.
+- **Business contact information collected from public sources** (see that section above): kept for up to **12 months** from when we collect it, or from our last meaningful contact, whichever is later, and then deleted. If we contact a business and hear nothing back, we delete the record at the end of that period rather than contacting them again indefinitely.
+- **Suppression records** (details of anyone who has asked not to be contacted): kept **indefinitely**, because the only reliable way to guarantee we never contact you again is to keep a record that you asked us not to. We keep the minimum needed to do that, and we use it for nothing else.
 
 If you ask us to delete your data, we will do so unless we are required or permitted by law to keep it (for example, for tax or accounting records).
 
