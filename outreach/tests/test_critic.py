@@ -239,3 +239,80 @@ def test_a_false_pass_is_reported_separately_from_a_false_fail(db_rollback):
     out = critic.agreement(cur)
     assert out["false_pass"] >= 1 and out["false_fail"] >= 1
     assert out["ready_to_gate"] is False      # any false pass blocks the handover
+
+
+# --------------------------------------------------------------------------- #
+#  Calibration: measure agreement NOW, against the answer key
+# --------------------------------------------------------------------------- #
+def test_calibrate_judges_decided_drafts_without_disturbing_the_decision(db_rollback, critic_on):
+    """Shadow mode otherwise measures agreement only against decisions made from now on —
+    weeks before there is anything to judge it by. These rows already carry the answer."""
+    cur = db_rollback.cursor()
+    _, did = _awaiting(cur)
+    cur.execute("update outreach.drafts set status='rejected', decided_by='Finlay Salisbury', "
+                "decided_at=now(), reviewer_note='wrong location' where id=%s", (did,))
+
+    provider = _FakeProvider({"score": 15, "verdict": "fail",
+                              "reasons": [{"dimension": "grounding", "severity": "hard",
+                                           "detail": "asserts a town not in FACTS"}]})
+    out = critic.run(limit=50, cur=cur, provider=provider, calibrate=True)
+    assert out["judged"] >= 1 and out["calibrate"] is True
+
+    cur.execute("select status, decided_by, reviewer_note, critic_verdict "
+                "from outreach.drafts where id=%s", (did,))
+    status, by, note, verdict = cur.fetchone()
+    assert (status, by, note) == ("rejected", "Finlay Salisbury", "wrong location")  # untouched
+    assert verdict == "fail"                                                          # judged
+    assert critic.agreement(cur)["compared"] >= 1
+
+
+def test_calibrate_ignores_the_bulk_migration(db_rollback, critic_on):
+    """352 of the 357 decided rows are one migration. Calibrating against a script
+    measures nothing, and would burn a paid call per row doing it."""
+    cur = db_rollback.cursor()
+    _, did = _awaiting(cur)
+    cur.execute("update outreach.drafts set status='rejected', "
+                "decided_by='system:v2.0-migration', decided_at=now() where id=%s", (did,))
+    critic.run(limit=50, cur=cur, calibrate=True,
+               provider=_FakeProvider({"score": 90, "verdict": "pass", "reasons": []}))
+    # asserts about THIS row only — the shared database holds real human decisions that
+    # calibration legitimately picks up, and a global count would be describing those
+    cur.execute("select critic_verdict from outreach.drafts where id=%s", (did,))
+    assert cur.fetchone()[0] is None
+
+
+def test_calibrate_does_not_touch_the_live_queue(db_rollback, critic_on):
+    """The two backlogs are disjoint: calibration must not consume the drafts you are
+    about to review, or shadow mode has nothing left to shadow."""
+    cur = db_rollback.cursor()
+    _, waiting = _awaiting(cur)
+    critic.run(limit=50, cur=cur, calibrate=True,
+               provider=_FakeProvider({"score": 90, "verdict": "pass", "reasons": []}))
+    cur.execute("select critic_verdict from outreach.drafts where id=%s", (waiting,))
+    assert cur.fetchone()[0] is None
+
+
+def test_a_sent_draft_counts_as_a_human_approval(db_rollback):
+    """Counting only status='approved' left 17 of this database's 21 human decisions
+    invisible, and every survivor was a rejection. An answer key of rejections alone
+    cannot detect the opposite failure: a critic that fails EVERYTHING scores 100%."""
+    cur = db_rollback.cursor()
+    _, did = _awaiting(cur)
+    cur.execute("update outreach.drafts set status='sent', decided_by='Finlay Salisbury', "
+                "decided_at=now(), critic_verdict='pass', critic_score=90 where id=%s", (did,))
+    out = critic.agreement(cur)
+    assert out["human_approvals"] >= 1
+
+
+def test_a_lopsided_answer_key_is_not_ready_to_gate(db_rollback):
+    """Enough comparisons and zero false passes is not sufficient — if they are all
+    rejections the critic has never been shown a draft it should let through."""
+    cur = db_rollback.cursor()
+    for _ in range(40):
+        _, did = _awaiting(cur)
+        cur.execute("update outreach.drafts set status='rejected', "
+                    "decided_by='Finlay Salisbury', decided_at=now(), "
+                    "critic_verdict='fail', critic_score=10 where id=%s", (did,))
+    out = critic.agreement(cur)
+    assert out["false_pass"] == 0 and out["compared"] >= 40
+    assert out["ready_to_gate"] is False, "a rejections-only sample proves nothing"

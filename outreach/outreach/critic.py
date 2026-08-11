@@ -161,18 +161,47 @@ def parse_verdict(text: str) -> dict:
     return {"score": score, "verdict": verdict, "reasons": reasons}
 
 
-_BACKLOG_SQL = """
+_SELECT = """
 select d.id, d.company_number, l.company_name, d.subject, d.subject_final,
        d.body_original, e.facts, e.contact_email, e.website,
        e.facts->'vertical'->>'value'
   from outreach.drafts d
   join outreach.leads l on l.company_number = d.company_number
   left join outreach.enrichment e on e.company_number = d.company_number
- where d.status = 'awaiting_approval'
-   and d.critic_at is null
- order by d.created_at
+ where d.critic_at is null
+"""
+
+_BACKLOG_SQL = _SELECT + "   and d.status = 'awaiting_approval' order by d.created_at limit %s"
+
+# Drafts a HUMAN has already decided — the answer key.
+#
+# Shadow mode measures agreement against decisions made AFTER the critic starts running,
+# which means weeks before there is anything to judge it on. These rows already carry the
+# answer. Judging them gives a reading immediately, and it is the only way to test the
+# critic against the failures that actually happened: all four real rejections are here,
+# and a critic that cannot catch "says London when they are not in London" should fail
+# that test now rather than after it has been trusted with anything.
+#
+# system:/auto: rows are excluded for the same reason agreement() excludes them — 352 of
+# the 357 decided rows on this database are one bulk migration, and calibrating against a
+# script measures nothing at all.
+#
+# 'sent' counts as an APPROVAL. An approved draft that went out is still a human saying
+# yes — it simply moved on afterwards. Excluding it left a calibration set of 4 rejections
+# and 0 approvals on this database, and a set with no approvals cannot detect the failure
+# mode that matters most in the other direction: a critic that fails EVERYTHING scores
+# 100% agreement against nothing but rejections.
+_CALIBRATE_SQL = _SELECT + """
+   and d.status in ('approved', 'rejected', 'sent')
+   and d.decided_by is not null
+   and d.decided_by not like 'system:%%'
+   and d.decided_by not like 'auto:%%'
+ order by d.decided_at desc
  limit %s
 """
+
+# What a human APPROVING looks like in the status column, wherever the draft ended up.
+HUMAN_APPROVED = ("approved", "sent")
 
 
 def judge_one(row: tuple, *, provider) -> dict:
@@ -212,12 +241,18 @@ def record(cur, verdict: dict) -> None:
                      cur=cur)
 
 
-def run(*, limit: Optional[int] = None, cur=None, provider=None) -> dict:
-    """Judge up to `limit` unjudged drafts in the approval queue.
+def run(*, limit: Optional[int] = None, cur=None, provider=None,
+        calibrate: bool = False) -> dict:
+    """Judge up to `limit` unjudged drafts.
 
     In shadow mode (the default) this writes verdicts and changes nothing else — no draft
     is approved, rejected or held because of what it says. Read the agreement report
     before changing that.
+
+    `calibrate=True` judges drafts a HUMAN has ALREADY decided instead of the live queue,
+    so agreement can be measured now rather than after weeks of new decisions. It writes
+    only to the critic_* columns, which nothing reads in shadow mode, so it cannot disturb
+    a decision that has already been made.
     """
     if not config.CRITIC_ENABLED:
         return {"skipped": "CRITIC_ENABLED off"}
@@ -228,9 +263,9 @@ def run(*, limit: Optional[int] = None, cur=None, provider=None) -> dict:
     if own:
         conn = db.connect(); cur = conn.cursor()
     out = {"judged": 0, "passed": 0, "failed": 0, "errored": 0,
-           "mode": config.CRITIC_MODE}
+           "mode": config.CRITIC_MODE, "calibrate": calibrate}
     try:
-        cur.execute(_BACKLOG_SQL, (limit,))
+        cur.execute(_CALIBRATE_SQL if calibrate else _BACKLOG_SQL, (limit,))
         for row in cur.fetchall():
             verdict = judge_one(row, provider=provider)
             record(cur, verdict)
@@ -266,20 +301,26 @@ def agreement(cur, *, prompt_version: Optional[str] = None) -> dict:
     """
     where = "and d.prompt_version = %s" if prompt_version else ""
     params = (prompt_version,) if prompt_version else ()
+    # 'sent' is an approval that went further — see HUMAN_APPROVED. Counting only
+    # 'approved' left 17 of this database's 21 human decisions invisible, and all four
+    # survivors were rejections.
+    approved = "d.status = any(%s)"
     cur.execute(
         "select count(*), "
-        "  count(*) filter (where d.status='approved' and d.critic_verdict='pass'), "
+        f"  count(*) filter (where {approved} and d.critic_verdict='pass'), "
         "  count(*) filter (where d.status='rejected' and d.critic_verdict='fail'), "
         "  count(*) filter (where d.status='rejected' and d.critic_verdict='pass'), "
-        "  count(*) filter (where d.status='approved' and d.critic_verdict='fail') "
+        f"  count(*) filter (where {approved} and d.critic_verdict='fail') "
         "from outreach.drafts d "
         "where d.critic_verdict in ('pass','fail') "
-        "  and d.status in ('approved','rejected') "
+        f"  and (d.status = 'rejected' or {approved}) "
         "  and d.decided_by is not null "
         "  and d.decided_by not like 'system:%%' and d.decided_by not like 'auto:%%' "
-        + where, params)
+        + where, (list(HUMAN_APPROVED),) * 3 + params)
     total, agree_pass, agree_fail, false_pass, false_fail = cur.fetchone()
     total = total or 0
+    approvals = (agree_pass or 0) + (false_fail or 0)
+    rejections = (agree_fail or 0) + (false_pass or 0)
     return {
         "compared": total,
         "agreed": (agree_pass or 0) + (agree_fail or 0),
@@ -289,5 +330,10 @@ def agreement(cur, *, prompt_version: Optional[str] = None) -> dict:
         "false_pass_rate": (false_pass or 0) / total if total else 0.0,
         # the critic failed something the human approved — costs reach, not safety
         "false_fail": false_fail or 0,
-        "ready_to_gate": total >= 30 and (false_pass or 0) == 0,
+        # both sides of the answer key, so a lopsided sample is visible rather than
+        # flattering: a critic that fails EVERYTHING scores 100% against rejections alone
+        "human_approvals": approvals,
+        "human_rejections": rejections,
+        "ready_to_gate": (total >= 30 and (false_pass or 0) == 0
+                          and approvals >= 10 and rejections >= 5),
     }

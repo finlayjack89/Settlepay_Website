@@ -165,6 +165,24 @@ def critic_task(ctx, limit=10):
     return out
 
 
+@task("critic_calibrate", "Calibrate the critic on your past decisions",
+      "Runs the critic over drafts YOU have already approved or rejected — the answer key. "
+      "Shadow mode otherwise measures agreement only against decisions made from now on, "
+      "which means weeks before there is anything to judge it by. All four of your real "
+      "rejections are in this set, so it also tests the critic against the failures that "
+      "actually happened. Writes only the critic_* columns; your decisions are untouched.",
+      params=(Param("limit", "How many", kind="int", default=25),))
+def critic_calibrate_task(ctx, limit=25):
+    out = critic_mod.run(limit=limit, calibrate=True)
+    ctx.log(f"{out.get('judged', 0)} judged · {out.get('passed', 0)} pass · "
+            f"{out.get('failed', 0)} fail")
+    with db.cursor(commit=False) as cur:
+        agree = critic_mod.agreement(cur)
+    ctx.log(f"agreement {agree['agreement_rate']:.0%} of {agree['compared']} · "
+            f"{agree['false_pass']} false pass · {agree['false_fail']} false fail")
+    return {**out, "agreement": agree}
+
+
 @task("critic_agreement", "Critic vs human agreement",
       "How often the critic's verdict matched a REAL human decision (system/auto rows "
       "excluded). Reports false-pass and false-fail separately: a false pass is a bad "
