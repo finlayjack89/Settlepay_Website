@@ -49,7 +49,12 @@ def _signal(lead: EnrichedLead) -> str:
 def to_pipeline(leads: list[EnrichedLead], *, cur) -> dict:
     inserted = skipped = 0
     for lead in leads:
-        cn = lead.company_number or f"URL:{lead.domain}" if lead.domain else None
+        # Operator precedence, not intent: `a or b if c else None` parses as
+        # `(a or b) if c else None`, so a lead with a REAL Companies House number but no
+        # website was silently dropped. That is the best-qualified auction house on the
+        # worst-served platform — a long-established regional saleroom that never built a
+        # modern site — thrown away for lacking the thing we least need.
+        cn = lead.company_number or (f"URL:{lead.domain}" if lead.domain else None)
         if not cn:
             skipped += 1
             continue
@@ -70,20 +75,32 @@ def to_pipeline(leads: list[EnrichedLead], *, cur) -> dict:
              lead.platform, lead.domain, lead.company_number))
         email = lead.decision_maker_email or lead.generic_email
         tier = "named" if lead.decision_maker_email else ("verified" if lead.generic_email else None)
+        # `email_verified` and the result used to be the literals true/'ok', asserting a
+        # verification this row had not necessarily had. Both enricher paths only ever
+        # return an address a verifier confirmed, so the literals were accurate by
+        # construction — but a hardcode that happens to be true is a claim nothing checks,
+        # and the send gate reads exactly these columns.
+        verified = bool(email)
+        method = getattr(lead, "decision_maker_method", None) if lead.decision_maker_email \
+            else ("sourced" if lead.generic_email else None)
         if email:
             cur.execute(
                 "insert into outreach.enrichment (company_number, website, domain, "
                 " contact_email, contact_name, contact_tier, email_verified, "
-                " email_verify_result, signal, scraped, facts) "
-                "values (%s,%s,%s,%s,%s,%s,true,'ok',%s,%s::jsonb,%s::jsonb) "
+                " email_verify_result, contact_method, signal, scraped, facts) "
+                "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb) "
                 "on conflict (company_number) do update set "
                 "contact_email=excluded.contact_email, contact_name=excluded.contact_name, "
-                "contact_tier=excluded.contact_tier, signal=excluded.signal, "
+                "contact_tier=excluded.contact_tier, email_verified=excluded.email_verified, "
+                "email_verify_result=excluded.email_verify_result, "
+                "contact_method=excluded.contact_method, signal=excluded.signal, "
                 "facts=excluded.facts",
                 (cn, lead.own_website, lead.domain, email,
-                 lead.decision_maker_name, tier, _signal(lead),
+                 lead.decision_maker_name, tier, verified, "ok" if verified else None,
+                 method, _signal(lead),
                  json.dumps({"source": lead.platform, "payment_methods": lead.payment_methods,
-                             "score": lead.score}),
+                             "score": lead.score,
+                             "candidates": list(getattr(lead, "scraped_emails", []) or [])}),
                  facts.dumps(_facts(lead))))
         audit.record(cn, "researched", source="auctions",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,

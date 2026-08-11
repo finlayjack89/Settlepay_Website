@@ -92,7 +92,7 @@ def test_enrich_one_verified_advances_to_enriched(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_OK_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: ["info@acme.co.uk"])
     res = enrich.enrich_one(cn, "https://acme.co.uk", "growing local agent",
                             cur=cur, verifier=lambda e: (True, "ok"), guess_generics=False)
     assert res["verified"] is True and res["email"] == "info@acme.co.uk"
@@ -107,7 +107,7 @@ def test_enrich_one_unverifiable_is_discarded(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_BAD_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: ["info@acme.co.uk"])
     res = enrich.enrich_one(cn, "https://acme.co.uk", "signal",
                             cur=cur, verifier=lambda e: (False, "invalid"), guess_generics=False)
     assert res["verified"] is False
@@ -119,7 +119,7 @@ def test_firecrawl_fallback_used_when_httpx_finds_nothing(db_rollback, monkeypat
     cur = db_rollback.cursor()
     cn = f"ENR_FC_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])      # httpx blank
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: [])      # httpx blank
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", "fc-test")
     monkeypatch.setattr(enrich, "firecrawl_scrape_emails", lambda url, **kw: ["info@acme.co.uk"])
     res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur, verifier=lambda e: (True, "ok"), guess_generics=False)
@@ -132,7 +132,7 @@ def test_firecrawl_fallback_skipped_without_key(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_NK_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: [])
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)                  # no key
     calls = []
     monkeypatch.setattr(enrich, "firecrawl_scrape_emails",
@@ -152,7 +152,7 @@ def test_enrich_one_no_email_is_parked_not_discarded(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_NONE_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: [])
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)  # keep offline (no fallback)
     res = enrich.enrich_one(cn, "https://acme.co.uk", "signal", cur=cur,
                             verifier=lambda e: (True, "ok"), guess_generics=False)
@@ -173,7 +173,7 @@ def test_guess_verify_finds_generic_when_the_site_publishes_nothing(db_rollback,
     cur = db_rollback.cursor()
     cn = f"ENR_GUESS_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: [])
     res = enrich.enrich_one(
         cn, "https://acme.co.uk", "sig", cur=cur,
         verifier=lambda e: (e == "info@acme.co.uk", "ok" if e == "info@acme.co.uk" else "invalid"))
@@ -186,7 +186,7 @@ def test_guess_falls_back_to_scrape_when_generics_fail(db_rollback, monkeypatch)
     cur = db_rollback.cursor()
     cn = f"ENR_GFB_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["team@acme.co.uk"])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: ["team@acme.co.uk"])
     # generic guesses all fail; only the scraped (non-generic) own-domain address verifies
     res = enrich.enrich_one(
         cn, "https://acme.co.uk", "sig", cur=cur,
@@ -209,7 +209,7 @@ def test_catch_all_accepted_as_risky_tier(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_CA_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: ["info@acme.co.uk"])
     monkeypatch.setattr(enrich.config, "ACCEPT_CATCH_ALL", True)
     res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
                             verifier=lambda e: (False, "catch_all"), guess_generics=False)
@@ -228,7 +228,7 @@ def test_catch_all_discarded_when_disabled(db_rollback, monkeypatch):
     cur = db_rollback.cursor()
     cn = f"ENR_CAX_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: ["info@acme.co.uk"])
     monkeypatch.setattr(enrich.config, "ACCEPT_CATCH_ALL", False)
     res = enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
                             verifier=lambda e: (False, "catch_all"), guess_generics=False)
@@ -566,7 +566,7 @@ def test_a_rescued_lead_rejoins_the_pipeline_and_its_park_marks_clear(db_rollbac
     cur = db_rollback.cursor()
     cn = f"RESCUE_{uuid.uuid4().hex[:8]}"
     _seed_lead(cur, cn)
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: [])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: [])
     monkeypatch.setattr(enrich.config, "FIRECRAWL_API_KEY", None)
     enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
                       verifier=lambda e: (True, "ok"), guess_generics=False)
@@ -574,7 +574,7 @@ def test_a_rescued_lead_rejoins_the_pipeline_and_its_park_marks_clear(db_rollbac
     assert cur.fetchone()[0] == "parked"
 
     # a later pass finds the address the first one missed
-    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None: ["info@acme.co.uk"])
+    monkeypatch.setattr(enrich, "scrape_emails", lambda url, client=None, paths=None: ["info@acme.co.uk"])
     enrich.enrich_one(cn, "https://acme.co.uk", "sig", cur=cur,
                       verifier=lambda e: (True, "ok"), guess_generics=False)
     cur.execute("select state::text, parked_reason, parked_at "
@@ -742,3 +742,34 @@ def test_mx_pregate_fails_open():
 
     dns_auth._MX_CACHE.clear()
     assert dns_auth.has_mx("no-such-domain-xyz.co.uk", client=_NxDomain()) is False
+
+
+# --- team pages: fetched where they pay, skipped where they do not ----------
+def test_team_pages_are_skipped_for_one_person_trades():
+    """Measured before switching this on: of 10 electricians/plumbers only ONE site even
+    had a team page and none yielded an address, so the 5 extra GETs were pure latency on
+    the commonest vertical in the corpus."""
+    for v in ("electricians", "plumbers", "Heating Engineers", "roofing contractor"):
+        assert enrich.scrape_paths_for(v) == enrich.SCRAPE_PATHS
+
+
+def test_team_pages_are_fetched_for_firms_with_staff():
+    """Same measurement on professional services: 9 of 10 had a team page, and one
+    (ODIN FINANCE) published NINE named addresses — a sourced contact for the decision
+    maker AND proof of the domain's email pattern."""
+    for v in ("accountants", "dental practices", "estate agents", "solicitors", None):
+        paths = enrich.scrape_paths_for(v)
+        assert "/team" in paths and "/meet-the-team" in paths
+        assert paths[:len(enrich.SCRAPE_PATHS)] == enrich.SCRAPE_PATHS
+
+
+def test_scrape_emails_honours_an_explicit_path_list():
+    seen = []
+
+    class _Client:
+        def get(self, url):
+            seen.append(url)
+            return type("R", (), {"status_code": 404, "text": ""})()
+
+    enrich.scrape_emails("https://acme.co.uk", client=_Client(), paths=("", "/team"))
+    assert seen == ["https://acme.co.uk", "https://acme.co.uk/team"]

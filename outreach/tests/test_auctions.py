@@ -222,3 +222,109 @@ def test_every_adapter_carries_its_terms_verdict():
     from outreach.auctions.sources import REGISTRY, get_source
     for key in REGISTRY:
         assert len(get_source(key).terms_note) > 20, key
+
+
+# --------------------------------------------------------------------------- #
+#  to_pipeline — the auction route must obey the SAME policy as the main one
+# --------------------------------------------------------------------------- #
+def test_a_company_number_without_a_website_is_still_ingested(db_rollback):
+    """Operator precedence, not intent: `a or b if c else None` parses as
+    `(a or b) if c else None`, so a lead with a REAL Companies House number but no site
+    was silently dropped — the long-established regional saleroom that never built a
+    modern website, which is the best-qualified lead on the worst-served platform."""
+    from outreach.auctions import ingest
+    cur = db_rollback.cursor()
+    lead = _lead(business_name="Old Hall Salerooms", company_number="07123456",
+                 domain=None, own_website=None)
+    out = ingest.to_pipeline([lead], cur=cur)
+    assert out == {"inserted": 1, "skipped": 0}
+    cur.execute("select company_name from outreach.leads where company_number=%s",
+                ("07123456",))
+    assert cur.fetchone()[0] == "Old Hall Salerooms"
+
+
+def test_a_lead_with_neither_number_nor_domain_is_still_skipped(db_rollback):
+    from outreach.auctions import ingest
+    cur = db_rollback.cursor()
+    assert ingest.to_pipeline([_lead(company_number=None, domain=None)],
+                              cur=cur) == {"inserted": 0, "skipped": 1}
+
+
+def test_verification_is_recorded_not_asserted(db_rollback):
+    """email_verified/'ok' were literals in the INSERT, claiming a verification the row
+    had not necessarily had — and the send gate reads exactly those columns."""
+    from outreach.auctions import ingest
+    cur = db_rollback.cursor()
+    cn = "07999001"
+    ingest.to_pipeline([_lead(company_number=cn, domain="oldhall.co.uk",
+                              generic_email="info@oldhall.co.uk")], cur=cur)
+    cur.execute("select email_verified, email_verify_result, contact_tier "
+                "from outreach.enrichment where company_number=%s", (cn,))
+    assert cur.fetchone() == (True, "ok", "verified")
+    # no contact at all -> no enrichment row asserting one
+    cn2 = "07999002"
+    ingest.to_pipeline([_lead(company_number=cn2, domain="nocontact.co.uk")], cur=cur)
+    cur.execute("select count(*) from outreach.enrichment where company_number=%s", (cn2,))
+    assert cur.fetchone()[0] == 0
+
+
+def test_the_auction_route_honours_the_decision_maker_gate(monkeypatch):
+    """It used to source named individuals regardless of DECISION_MAKER_ENABLED — the flag
+    the LIA's whole assessment rests on. A second route around a compliance gate is not a
+    quality inconsistency, it is a hole."""
+    from outreach.auctions import config as acfg, enrich as aenrich
+    monkeypatch.setattr(acfg._oc, "DM_ENABLED", False)
+
+    class _CH:
+        def get_officers(self, *a, **k):
+            raise AssertionError("must not touch the register while the gate is off")
+
+    out = aenrich._decision_maker("07123456", "oldhall.co.uk", _CH(), lambda a: (True, "ok"))
+    assert out["email"] is None and "DECISION_MAKER_ENABLED off" in out["note"]
+
+
+def test_the_auction_route_never_blind_permutes(monkeypatch):
+    """Same policy as the main path: with only info@ published, nothing proves the
+    domain's convention, so we try NOTHING rather than four guesses."""
+    from outreach.auctions import config as acfg, enrich as aenrich
+    monkeypatch.setattr(acfg._oc, "DM_ENABLED", True)
+
+    class _CH:
+        def get_officers(self, *a, **k):
+            return [{"name": "SMITH, John", "officer_role": "director"}]
+
+        def get_psc(self, *a, **k):
+            return []
+
+    def verifier(addr):
+        raise AssertionError(f"must not verify without a confirmed pattern: {addr}")
+
+    out = aenrich._decision_maker("07123456", "oldhall.co.uk", _CH(), verifier,
+                                  scraped_emails=["info@oldhall.co.uk"])
+    assert out["email"] is None
+    assert out["directors"] == ["SMITH, John"]        # the free half still happened
+    assert "no confirmed email pattern" in out["note"]
+
+
+def test_the_auction_route_prefers_a_published_address(monkeypatch):
+    from outreach.auctions import config as acfg, enrich as aenrich
+    monkeypatch.setattr(acfg._oc, "DM_ENABLED", True)
+
+    class _CH:
+        def get_officers(self, *a, **k):
+            return [{"name": "SMITH, John", "officer_role": "director"}]
+
+        def get_psc(self, *a, **k):
+            return []
+
+    tried = []
+
+    def verifier(addr):
+        tried.append(addr)
+        return (True, "ok")
+
+    out = aenrich._decision_maker(
+        "07123456", "oldhall.co.uk", _CH(), verifier,
+        scraped_emails=["info@oldhall.co.uk", "j.smith@oldhall.co.uk"])
+    assert out["email"] == "j.smith@oldhall.co.uk" and out["method"] == "sourced"
+    assert tried == ["j.smith@oldhall.co.uk"]         # one call, never a guess

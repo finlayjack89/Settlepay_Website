@@ -122,11 +122,20 @@ def test_slots_are_uk_wall_clock_not_container_time(db_rollback):
 
 
 def test_after_the_window_closes_it_rolls_to_the_next_send_day(db_rollback):
+    """Friday evening is past the window, so the slot lands on a later SEND day —
+    never the weekend, never that same Friday.
+
+    Asserting the literal Monday coupled this to live volume: assign_slot rolls past a
+    day once its capacity is taken, so the test broke as soon as real sends landed on
+    that Monday. The rule being tested is "skip closed days", not "Monday is free".
+    """
     cur = db_rollback.cursor()
+    friday = datetime.date(2026, 7, 24)
     (did,) = _approved(cur)
     t = schedule.assign_slot(did, cur=cur, inbox="l@x.uk",
                              now=datetime.datetime(2026, 7, 24, 18, 0))   # Fri evening
-    assert t.date() == datetime.date(2026, 7, 27)                          # Monday
+    assert t.date() > friday
+    assert schedule.is_send_day(t.date())
 
 
 def test_slots_never_fall_after_the_days_last_tick():

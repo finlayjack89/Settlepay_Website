@@ -66,8 +66,15 @@ class EnrichedLead:
     decision_maker_name: Optional[str] = None
     decision_maker_email: Optional[str] = None
     decision_maker_confidence: float = 0.0
+    # 'sourced' (they published it) or 'derived' (a pattern this domain proved, then
+    # verified). Not the same act, and only the second is the one a regulator asks about
+    # first — mirrors enrichment.contact_method on the main path.
+    decision_maker_method: Optional[str] = None
     generic_email: Optional[str] = None                          # info@ fallback
     generic_confidence: float = 0.0
+    # every address harvested from their own site: what makes a contact SOURCED, and what
+    # proves the domain's email pattern
+    scraped_emails: list = field(default_factory=list)
 
     # --- score + brief ---
     score: int = 0

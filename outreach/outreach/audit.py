@@ -11,6 +11,12 @@ from . import config, db
 
 LEGITIMATE_INTERESTS = "legitimate interests"
 
+# UK GDPR art. 6(1)(f) requires the balancing test to be carried out and RECORDED before
+# the processing starts. Stamping `lawful_basis` on a row is not that record — it is a
+# claim that the record exists. This names the assessment the claim points at, written
+# into `detail` so an audit row can be traced to the document that justifies it.
+LIA_DECISION_MAKERS = "LIA-decision-makers v1.0 (outreach/docs/LIA-decision-makers.md)"
+
 
 def record(
     company_number: Optional[str],

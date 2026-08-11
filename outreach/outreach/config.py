@@ -160,9 +160,15 @@ RESEARCH_CAPTURE_PEOPLE = _bool("RESEARCH_CAPTURE_PEOPLE", False)
 # fetches directors from Companies House (free) and tries to CONFIRM one work email per
 # lead via MillionVerifier — never a guess, only an 'ok'.
 DM_ENABLED = _bool("DECISION_MAKER_ENABLED", False)
-DM_MAX_PATTERNS = _int("DM_MAX_PATTERNS", 4)          # email patterns tried per person
+# Retained for the pattern list itself; derivation now applies ONE domain-confirmed pattern
+# rather than working down this many guesses (see decisionmakers.infer_pattern).
+DM_MAX_PATTERNS = _int("DM_MAX_PATTERNS", 4)
 DM_MAX_VERIFY_PER_LEAD = _int("DM_MAX_VERIFY_PER_LEAD", 6)  # hard MV-spend cap per lead
 DM_PER_TICK = _int("DM_PER_TICK", 10)
+# How long a paid lookup's answer is trusted. Long on purpose: a mailbox that did not exist
+# 90 days ago is very unlikely to have appeared under the same inferred pattern, and the
+# cost of re-asking is real money. Only real ANSWERS are cached — never a verifier outage.
+DM_CACHE_DAYS = _int("DM_CACHE_DAYS", 90)
 
 # Verifier credits are finite and worth spending on a NAMED decision-maker, not on
 # guessing whether info@ exists. When off, enrichment verifies only addresses actually

@@ -135,6 +135,27 @@ class CompaniesHouseClient:
         r.raise_for_status()
         return r.json().get("items", [])
 
+    def get_psc(self, company_number: str, *, items: int = 25) -> list[dict]:
+        """Persons with significant control. Free, counts against the per-run cap.
+
+        This is the best "who actually owns and runs this" signal on the register: for an
+        owner-managed SME the PSC and an active director are usually the same person, and
+        that person is the buyer. Returns raw items; the caller reads only the name elements
+        to match a PSC to an officer and keeps a BOOLEAN — natures_of_control, the
+        correspondence address, DOB and nationality are never stored (see migration 0016).
+
+        A company with no PSC filing answers 404, not an empty list — returned here as []
+        so "no PSC on record" is data rather than an error. Small firms legitimately have
+        none (control can sit with a corporate parent, which is not a person to email).
+        """
+        self.limiter.acquire()
+        r = self._client.get(f"/company/{company_number}/persons-with-significant-control",
+                             params={"items_per_page": items})
+        if r.status_code == 404:
+            return []
+        r.raise_for_status()
+        return r.json().get("items", [])
+
     def search_companies(self, q: str, *, items: int = 5) -> list[dict]:
         """Search the register by name (used by the Places corporate cross-reference).
         Returns up to `items` matches, each with title, company_number, company_type,

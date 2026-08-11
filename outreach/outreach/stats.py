@@ -139,6 +139,65 @@ def scrape_effort(cur) -> dict:
             "emails_found_total": emails or 0, "tracked": tracked or 0}
 
 
+def decision_maker_status(cur) -> dict:
+    """How well we reach the person who decides — and the numbers that decide whether to
+    BUY anything to improve it.
+
+    The research doc gives thresholds, but they only mean something against our own data,
+    and both of ours currently point AWAY from spending:
+
+      * named_rate  < 35%  -> stop hunting personal addresses; the FAO tier is the play
+      * catch_all   > 60%  -> a catch-all-resolving verifier (ZeroBounce/Bouncer) would pay
+                              for itself. Measured around 20%, so it would not.
+
+    `addressed_rate` is the one that actually matters: the share of contactable leads where
+    we can name a human in the email, whether or not we hold their personal address.
+    """
+    cur.execute(
+        "select count(*) filter (where contact_email is not null), "
+        "       count(*) filter (where contact_tier = 'named'), "
+        "       count(*) filter (where contact_tier = 'role_fao'), "
+        "       count(*) filter (where contact_tier = 'verified'), "
+        "       count(*) filter (where contact_tier = 'risky'), "
+        "       count(*) filter (where contact_method = 'sourced'), "
+        "       count(*) filter (where contact_method = 'derived') "
+        "from outreach.enrichment")
+    have, named, fao, role, risky, sourced, derived = cur.fetchone()
+    have, named, fao = have or 0, named or 0, fao or 0
+    role, risky = role or 0, risky or 0
+    tiered = named + fao + role + risky
+    addressed = named + fao
+    cur.execute("select count(*), count(distinct company_number) from outreach.officers")
+    officer_rows, officer_companies = cur.fetchone()
+    cur.execute("select count(*) filter (where outcome='miss'), count(*) "
+                "from outreach.lookup_attempts")
+    cached_miss, cached_total = cur.fetchone()
+
+    def pct(n, d):
+        return round(100.0 * n / d, 1) if d else 0.0
+
+    return {
+        "with_contact": have,
+        "named": named,                        # a personal mailbox we hold
+        "fao": fao,                            # shared mailbox, named addressee
+        "role_only": role,                     # shared mailbox, nobody named
+        "risky": risky,
+        "sourced": sourced or 0,               # they published it
+        "derived": derived or 0,               # inferred from a CONFIRMED pattern
+        "officers_stored": officer_rows or 0,
+        "companies_with_officers": officer_companies or 0,
+        "lookups_cached": cached_total or 0,
+        "lookups_saved": cached_miss or 0,     # paid calls the cache has prevented
+        # --- the rates the doc's thresholds are about ---
+        "named_rate": pct(named, have),
+        "addressed_rate": pct(addressed, have),
+        "catch_all_rate": pct(risky, tiered),
+        "buy_catch_all_resolver": pct(risky, tiered) > 60,
+        # only meaningful once there is a sample worth judging on
+        "stop_hunting_personal": have >= 100 and pct(named, have) < 35,
+    }
+
+
 def by_vertical(cur) -> list[dict]:
     """Funnel split by lead source vertical (first SIC code) — shows which
     targeting actually yields contactable companies."""

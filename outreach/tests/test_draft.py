@@ -211,6 +211,88 @@ def test_grounding_accepts_greeting_the_business_by_a_word_of_its_own_name():
                                  company_name="Adam Partridge Auctioneers & Valuers") == []
 
 
+# --- the FAO line ----------------------------------------------------------
+def _fao_facts(name="John Smith", role="Director"):
+    return facts.build(company_name="Acme Electrical Ltd",
+                       company_name_source="companies_house",
+                       contact_name=name, contact_name_source="companies_house_officer",
+                       contact_role=role, contact_role_source="companies_house_officer")
+
+
+_FAO_BODY = ("FAO John Smith, Director\n\nDear Acme Electrical,\n\n"
+             "Your invoices take a while to settle. Kind regards, Finlay")
+
+
+def test_fao_line_is_accepted_when_it_matches_the_resolved_contact():
+    assert draft.check_grounding(_FAO_BODY, contact_name=None,
+                                 company_name="Acme Electrical Ltd",
+                                 lead_facts=_fao_facts()) == []
+
+
+def test_fao_line_naming_someone_else_is_rejected():
+    """This name is printed in the first line of a cold email to a real business — the
+    most damaging thing on the page to get wrong."""
+    body = _FAO_BODY.replace("John Smith", "Robert Jones")
+    v = draft.check_grounding(body, contact_name=None,
+                              company_name="Acme Electrical Ltd", lead_facts=_fao_facts())
+    assert v and "not the contact" in v[0]
+
+
+def test_fao_line_with_no_contact_on_file_is_rejected():
+    v = draft.check_grounding(_FAO_BODY, contact_name=None,
+                              company_name="Acme Electrical Ltd",
+                              lead_facts=_fao_facts(name=None, role=None))
+    assert v and "no contact_name on file" in v[0]
+
+
+def test_fao_line_may_not_invent_a_promotion():
+    """Inventing 'Managing Director' is the same class of error as inventing a name."""
+    body = _FAO_BODY.replace(", Director", ", Managing Director")
+    v = draft.check_grounding(body, contact_name=None,
+                              company_name="Acme Electrical Ltd", lead_facts=_fao_facts())
+    assert v and "Managing Director" in v[0]
+
+
+def test_the_greeting_is_still_checked_underneath_an_fao_line():
+    """The greeting regex is anchored at the start of the string, so an unstripped FAO
+    line would hide the greeting from the check entirely — the draft would silently stop
+    being examined for the exact thing this gate exists to catch."""
+    body = ("FAO John Smith, Director\n\nDear Rebecca,\n\n"
+            "Your invoices take a while. Kind regards, Finlay")
+    v = draft.check_grounding(body, contact_name=None,
+                              company_name="Acme Electrical Ltd", lead_facts=_fao_facts())
+    assert v and any("greeting names" in x for x in v)
+
+
+def test_the_fao_line_is_furniture_not_prose():
+    """It must not eat the word budget or count toward sentence rhythm — it is identical
+    in shape on every draft that carries one."""
+    assert "no 'Dear <name>,' greeting line" not in draft.check_style(_FAO_BODY)
+
+
+def test_the_fao_line_does_not_eat_the_hard_word_budget():
+    """Caught by drafting real leads: the FAO line's ~4 words counted toward the 125-word
+    HARD cap, so a role_fao lead got less actual message than an identical lead without
+    one — a budget the writer cannot control — and a borderline draft was PARKED for it."""
+    # sits exactly on the boundary: 3 (greeting) + 112 + 6 (footer) = 121 words, and the
+    # FAO line is 4 more — so counting it would tip this draft to 125 and park the lead
+    prose = ("Dear Acme Electrical,\n\n" + "word " * 112
+             + "\n\nunsubscribe · settlepay · fca-regulated partners")
+    assert len(prose.split()) == 121
+    assert ">=125 words" not in draft.check_envelope(prose)
+    withfao = "FAO John Smith, Director\n\n" + prose
+    assert len(withfao.split()) == 125            # would trip the cap if counted
+    assert ">=125 words" not in draft.check_envelope(withfao)
+
+
+def test_the_other_envelope_checks_still_see_the_whole_text():
+    """Only the word count skips the FAO line; compliance must never be strippable."""
+    v = draft.check_envelope("FAO John Smith, Director\n\nDear Acme,\n\nWe are FCA "
+                             "authorised.\n\nunsubscribe · settlepay · "
+                             "fca-regulated partners")
+    assert any("fca authorised" in x for x in v)
+
+
 def test_grounding_accepts_the_business_greeting_and_generic_openers():
     assert draft.check_grounding("Dear Acme Joinery,\n\nYou... Kind regards, Finlay",
                                  contact_name=None, company_name="ACME JOINERY LTD") == []

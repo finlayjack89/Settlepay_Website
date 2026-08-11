@@ -537,6 +537,7 @@ def dashboard():
         effort = stats.scrape_effort(cur)
         inb = stats.inbound_summary(cur)
         feed = stats.recent_activity(cur)
+        dmx = stats.decision_maker_status(cur)
     g = graduation_thresholds()
 
     tiles = [
@@ -604,6 +605,24 @@ def dashboard():
                    f'<b>{o["websites"]}</b> sites fetched (info@ guess-and-verify, then httpx, then Firecrawl). '
                    f'<span class="muted">Source split tracked from this build onward.</span>')
 
+    # The two thresholds that decide whether to BUY anything. Shown with the measurement
+    # beside them so the answer is legible rather than asserted.
+    dm_verdict = (
+        f'<span class="muted">Named personal addresses are {dmx["named_rate"]:.0f}% of '
+        f'contacts — below the 35% at which hunting them stops paying, so the FAO tier is '
+        f'the play.</span>' if dmx["stop_hunting_personal"] else
+        f'<span class="muted">Catch-all domains are {dmx["catch_all_rate"]:.0f}% — a '
+        f'catch-all-resolving verifier only pays above 60%.</span>')
+    dm_line = (
+        f'<b>{dmx["addressed_rate"]:.0f}%</b> of contacts can name a human '
+        f'(<b>{dmx["named"]}</b> personal mailbox · <b>{dmx["fao"]}</b> shared mailbox '
+        f'addressed FAO · <b>{dmx["role_only"]}</b> nobody named) · '
+        f'provenance: <b>{dmx["sourced"]}</b> published by them, '
+        f'<b>{dmx["derived"]}</b> pattern-derived · '
+        f'<b>{dmx["companies_with_officers"]}</b> companies with directors on file'
+        + (f' · cache saved <b>{dmx["lookups_saved"]}</b> paid lookups'
+           if dmx["lookups_saved"] else ''))
+
     body = f"""
 {'<div class="note">Live sending is OFF. The pipeline is in dry-run; nothing leaves an inbox until a human sets the G-SEND gate.</div>' if not _safety()['live'] else ''}
 <div class="kpis">{kpis}</div>
@@ -611,6 +630,12 @@ def dashboard():
   <div class="hint">Every stage as a share of companies discovered. This is where the system wins and leaks.</div>
   <div class="funnel">{funnel}</div>
   <div style="margin-top:1.1rem;font-size:.83rem" class="muted">{effort_line}</div>
+</div>
+<div class="panel"><h2>Reaching the decision maker</h2>
+  <div class="hint">Whether we can name a human in the email — not whether we hold their
+    personal address. A shared mailbox addressed to the named director counts.</div>
+  <div style="font-size:.83rem">{dm_line}</div>
+  <div style="margin-top:.6rem;font-size:.8rem">{dm_verdict}</div>
 </div>
 <div class="two">
   <div class="panel"><h2>Yield by vertical</h2>

@@ -1,4 +1,13 @@
-<!-- PLAYBOOK VERSION: v2.9 -->
+<!-- PLAYBOOK VERSION: v3.0 -->
+<!-- v3.0: the FAO line. Companies House tells us who runs almost every corporate lead, -->
+<!-- for free — but that name used to be discarded unless a paid, inferred, verifier- -->
+<!-- confirmed personal address happened to land, so the cheap low-risk asset was thrown -->
+<!-- away exactly when the expensive higher-risk one failed. A shared mailbox addressed -->
+<!-- "FAO John Smith, Director" is now a FIRST-CLASS outcome, not a failure state: it -->
+<!-- earns the personalisation lift without ever emailing an address we had to guess. -->
+<!-- The greeting deliberately stays "Dear <business>," — whoever opens info@ may not be -->
+<!-- John, and greeting him personally would imply a mailbox we do not have. Enforced by -->
+<!-- draft._check_fao_line: the name must equal contact_name and the role contact_role. -->
 <!-- v2.9: stop asserting how they take money. The playbook told the model the gap WAS -->
 <!-- "bank transfer / manual invoicing" while the FACTS block told it "payment_method: -->
 <!-- UNKNOWN — do not state one", and nothing adjudicated: 107 of 137 queued drafts made -->
@@ -31,7 +40,7 @@
 <!-- which targeting and the ICP-fit gate now disqualify. -->
 <!-- v1.1: branded name casing (never Companies House caps) + natural sign-off. -->
 
-# SettlePay cold-email drafting playbook — v2.9
+# SettlePay cold-email drafting playbook — v3.0
 
 Everything above this line is general craft guidance. Everything below is the
 SettlePay brief, and **where the two conflict, this playbook wins.** The conflicts
@@ -142,6 +151,10 @@ entire vocabulary of named things.** A company, a person, or a place that is not
 - `contact_name: UNKNOWN` means you do not know who opens this. Greet the **business**
   (see below) and address it as "you". Never open "Hi <first name>," with a name you
   were not given — that is rejected outright and is the worst tell in cold outreach.
+- `contact_role` is that person's position, as they or the register describe it
+  ("Director", "Managing Director"). It exists so an `FAO` line can be precise. It is
+  **not** a compliment to pay and never appears in the body — do not write "as the
+  Managing Director, you'll know…". Use it in the FAO line or not at all.
 - `SIGNAL` is **context only**. It may contain a name, a town, or a number that is not
   in `FACTS` — it was written by a model reading a scraped page and is not verified.
   Use it to understand the business; never to source a name, place or figure from.
@@ -193,13 +206,30 @@ Return **JSON only**, exactly these two keys, nothing else:
 Plain text, **under 110 words**, in this shape — but written as a note from one
 person to another, not as a filled-in template:
 
-0. **Greeting**, on its own line, always beginning `Dear `:
-   - when `FACTS.contact_name` is known → `Dear <first name>,` (that person's FIRST
-     name only — no surname, no title).
-   - when it is `UNKNOWN` → `Dear <business name>,`, where `<business name>` is
-     `FACTS.company_name` written naturally: drop any `Ltd`/`Limited`/`LLP`/`plc`
-     suffix, and if it is in capitals use ordinary capitalisation (e.g.
-     `ACME JOINERY LTD` → `Dear Acme Joinery,`).
+0. **Addressing.** One of three shapes, decided for you by a directive after the FACTS
+   block — follow whichever you are given, and never mention how we know their name.
+
+   **(a) An `FAO …` directive.** We know who runs the business but we are writing to a
+   SHARED mailbox, not to them. Put the line you are given first, exactly as given, then
+   a blank line, then greet the **business**:
+
+   ```
+   FAO John Smith, Director
+
+   Dear Acme Electrical,
+   ```
+
+   Do **not** greet them by first name here and do not mention them again in the body —
+   the person opening `info@` may be an office manager, and writing as though we had
+   their personal address is the exact false familiarity this shape exists to avoid.
+
+   **(b) A `Dear <first name>,` directive** — we hold that person's own work address.
+   FIRST name only, no surname, no title, and **no FAO line**.
+
+   **(c) No directive** → `Dear <business name>,`, where `<business name>` is
+   `FACTS.company_name` written naturally: drop any `Ltd`/`Limited`/`LLP`/`plc`
+   suffix, and if it is in capitals use ordinary capitalisation (e.g.
+   `ACME JOINERY LTD` → `Dear Acme Joinery,`).
    Never `Dear Sir/Madam`, never `Hi there,`, never a `{merge tag}`, never the
    registered suffix. A UK owner-manager reads a missing or clumsy greeting as
    brusque; this is not the place to be clever.

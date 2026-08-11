@@ -143,44 +143,93 @@ def _payment_scan(website: str, http: httpx.Client) -> dict:
 
 
 def _decision_maker(company_number: Optional[str], domain: Optional[str],
-                    ch: Optional[CompaniesHouseClient], verifier) -> dict:
-    """Directors (names only), then try to CONFIRM one named work email. Never a guess:
-    only a MillionVerifier 'ok' is adopted. Returns names + best email + confidence +
-    a note if the verifier was unavailable."""
+                    ch: Optional[CompaniesHouseClient], verifier,
+                    scraped_emails: Optional[list] = None) -> dict:
+    """Directors (ranked), then try to CONFIRM one named work email — SOURCED first, then
+    derived only from a pattern the domain has proven. Never a guess, and never a blind
+    permutation. Returns names + best email + confidence + a note when we stopped early.
+
+    `scraped_emails` are the addresses already harvested from the company's own site; they
+    are what makes an address sourced, and what proves the pattern."""
     out = {"directors": [], "name": None, "email": None, "confidence": 0.0, "note": None}
     if not company_number or ch is None:
         return out
+    # Same gate as the main path. This used to run regardless, so the auction route could
+    # process a named individual while the flag the LIA rests on was off — a compliance
+    # divergence, not just an inconsistency.
+    if not config._oc.DM_ENABLED:
+        out["note"] = "DECISION_MAKER_ENABLED off"
+        return out
     try:
         officers = ch.get_officers(company_number)
+        psc = decisionmakers.psc_names(ch.get_psc(company_number))
     except Exception as e:
         out["note"] = f"officers lookup failed: {str(e)[:60]}"
         return out
-    for o in officers:
-        if o.get("resigned_on") or (o.get("officer_role") or "").lower() not in \
-                decisionmakers._DECISION_ROLES:
-            continue
-        nm = o.get("name")
-        if nm:
-            out["directors"].append(nm)
+    eligible = [o for o in officers
+                if not o.get("resigned_on") and not o.get("is_corporate_officer")
+                and (o.get("officer_role") or "").lower() in decisionmakers._DECISION_ROLES
+                and o.get("name")]
+    hits = decisionmakers.match_psc(psc, [o["name"] for o in eligible])
+    # Ranked, so the paid check is spent on the owner rather than whoever the register
+    # happened to list first.
+    eligible.sort(key=lambda o: (
+        -decisionmakers.rank_officer(name=o["name"], occupation=o.get("occupation"),
+                                     is_psc=o["name"] in hits, company_name=None),
+        o.get("appointed_on") or "9999"))
+    out["directors"] = [o["name"] for o in eligible]
 
     if not domain or not out["directors"]:
         return out
-    checked = 0
-    for nm in out["directors"]:
-        parsed = decisionmakers.parse_name(nm)
+
+    def _try(addr: str, nm: str, method: str) -> Optional[bool]:
+        """True adopted · False no · None verifier did not answer (defer)."""
+        ok, res = verifier(addr)
+        if res in _enrich.TRANSIENT_RESULTS:
+            out["note"] = f"email verifier unavailable ({res}) — not attempted"
+            return None
+        if ok:
+            out.update({"name": nm, "email": addr, "confidence": 0.9, "method": method})
+            return True
+        return False
+
+    # 1. SOURCED — an address this business published for this person.
+    published = [e for e in (scraped_emails or []) if "@" in e]
+    for o in eligible:
+        parsed = decisionmakers.parse_name(o["name"])
         if not parsed:
             continue
-        for addr in decisionmakers.email_permutations(*parsed, domain):
-            if checked >= config._oc.DM_MAX_VERIFY_PER_LEAD:
-                return out
-            ok, res = verifier(addr)
-            checked += 1
-            if res in _enrich.TRANSIENT_RESULTS:
-                out["note"] = f"email verifier unavailable ({res}) — not attempted"
-                return out
-            if ok:
-                out.update({"name": nm, "email": addr, "confidence": 0.9})
-                return out
+        for addr in published:
+            if addr.rpartition("@")[2].lower() != domain.lower():
+                continue
+            if decisionmakers.local_matches(addr.partition("@")[0], *parsed):
+                got = _try(addr.lower(), o["name"], "sourced")
+                if got or got is None:
+                    return out
+                break
+
+    # 2. DERIVED — only from a pattern this domain has PROVEN. Blind permutation is gone
+    #    here for the same reason it went from the main path: the LIA assesses guessing an
+    #    address and emailing it as failing the necessity test, and it is the practice §7
+    #    of the research doc says has drawn ICO complaints. One route, one policy.
+    pattern = decisionmakers.infer_pattern(
+        published, [{"name": o["name"]} for o in eligible], domain)
+    if not pattern:
+        out["note"] = out["note"] or "no confirmed email pattern for this domain"
+        return out
+    checked = 0
+    for o in eligible:
+        if checked >= config._oc.DM_MAX_VERIFY_PER_LEAD:
+            return out
+        parsed = decisionmakers.parse_name(o["name"])
+        if not parsed:
+            continue
+        first, last = parsed
+        addr = f"{pattern.format(first=first, last=last, f=first[0])}@{domain}"
+        checked += 1
+        got = _try(addr, o["name"], "derived")
+        if got or got is None:
+            return out
     return out
 
 
@@ -225,7 +274,17 @@ def enrich_lead(raw: AuctionLead, *, http: Optional[httpx.Client] = None,
             lead.notes.append(note)
         lead.own_website = website
         lead.domain = _enrich.normalise_domain(website) if website else None
+        scraped_emails: list = []
         if website:
+            # The auction path fetched the site for a payment scan and an ICP signal but
+            # never harvested the ADDRESSES on it. Without them there is no sourced contact
+            # and nothing to prove the domain's email pattern — the two things that decide
+            # whether we can reach a named person at all. An auction house is a firm with
+            # staff, so the team pages are worth the extra GETs (see enrich.scrape_paths_for).
+            scraped_emails = _enrich.scrape_emails(
+                website, client=http,
+                paths=_enrich.scrape_paths_for("auctioneers"))
+            lead.scraped_emails = list(scraped_emails)
             pay = _payment_scan(website, http)
             lead.payment_methods = pay["methods"]
             lead.payment_quote = pay["quote"]
@@ -270,11 +329,13 @@ def enrich_lead(raw: AuctionLead, *, http: Optional[httpx.Client] = None,
         # 3. decision-maker (only for a confirmed corporate lead — never email a
         #    sole trader, and never a lead we couldn't identify)
         if lead.pecr_class == "corporate" and lead.company_number:
-            dm = _decision_maker(lead.company_number, lead.domain, ch, verifier)
+            dm = _decision_maker(lead.company_number, lead.domain, ch, verifier,
+                                 scraped_emails=scraped_emails)
             lead.directors = dm["directors"]
             lead.decision_maker_name = dm["name"]
             lead.decision_maker_email = dm["email"]
             lead.decision_maker_confidence = dm["confidence"]
+            lead.decision_maker_method = dm.get("method")
             if dm["note"]:
                 lead.notes.append(dm["note"])
             g_email, g_conf = _generic_email(lead.domain, verifier)
