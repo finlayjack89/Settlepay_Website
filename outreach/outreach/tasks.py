@@ -165,10 +165,15 @@ _REGIONS = ("all",) + tuple(sorted(targeting.PLACES_REGIONS))
       params=(Param("vertical", "Vertical", kind="choice", default="all", choices=_VERTICALS),
               Param("region", "Region", kind="choice", default="all", choices=_REGIONS),
               Param("target", "New corporate leads", kind="int", default=50),
-              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=5)))
-def agent_gather(ctx, vertical="all", region="all", target=50, max_spend_gbp=5):
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=5),
+              # set by the Campaigns page, not typed here: with one, the run takes its
+              # slice, cursor and target from the campaign and attributes what it finds
+              Param("campaign_id", "Campaign id (optional)", kind="int", default=0)))
+def agent_gather(ctx, vertical="all", region="all", target=50, max_spend_gbp=5,
+                 campaign_id=0):
     return agents.gather(ctx, vertical=vertical, region=region, target=target,
-                         max_spend_gbp=max_spend_gbp)
+                         max_spend_gbp=max_spend_gbp,
+                         campaign_id=campaign_id or None)
 
 
 @task("agent_enrich", "Agent · research and enrich",

@@ -219,3 +219,148 @@ def test_a_choice_param_renders_as_a_select():
 
     rendered = web._param_input(jobs.REGISTRY["agent_gather"].params[0])
     assert "<select" in rendered and 'value="auctioneers"' in rendered
+
+
+# --------------------------------------------------------------------------- #
+#  Campaigns — aimed, attributed, and counted rather than tallied
+# --------------------------------------------------------------------------- #
+def test_a_campaign_gets_its_own_cursor(db_rollback):
+    import uuid
+
+    from outreach import campaigns, places
+
+    cur = db_rollback.cursor()
+    c = campaigns.create(name=f"Test {uuid.uuid4().hex[:6]}", vertical="auctioneers",
+                         region="Yorkshire", target=10, by="test", cur=cur)
+    assert c["cursor_key"].startswith("places_grid_cursor:campaign:")
+    assert c["cursor_key"] != places.GRID_CURSOR
+
+
+def test_a_campaign_refuses_a_slice_that_does_not_exist(db_rollback):
+    """A typo must surface here, not as a campaign that quietly sweeps the whole grid
+    under a name saying otherwise."""
+    from outreach import campaigns
+
+    cur = db_rollback.cursor()
+    with pytest.raises(ValueError):
+        campaigns.create(name="bad", vertical="spaceships", cur=cur)
+    with pytest.raises(ValueError):
+        campaigns.create(name="bad", region="Atlantis", cur=cur)
+    with pytest.raises(ValueError):
+        campaigns.create(name="", cur=cur)
+
+
+def test_campaign_progress_counts_corporate_leads_only(db_rollback):
+    """A Places result is not yet someone we may write to. A campaign that discovered 500
+    sole traders has found nothing, and its progress bar must say so."""
+    import uuid
+
+    from outreach import campaigns
+
+    cur = db_rollback.cursor()
+    c = campaigns.create(name=f"Test {uuid.uuid4().hex[:6]}", target=5, by="test", cur=cur)
+    for cls in ("corporate", "individual", None):
+        cn = f"CMP_{uuid.uuid4().hex[:8]}"
+        cur.execute("insert into outreach.leads (company_number, company_name, source, "
+                    "state, subscriber_class, campaign_id) "
+                    "values (%s,%s,'places','discovered',%s,%s)",
+                    (cn, cn, cls, c["id"]))
+    assert campaigns.progress(cur, c["id"]) == 1
+
+
+def test_tagging_claims_only_what_this_run_created(db_rollback):
+    """By id, not by "everything since a timestamp": Postgres freezes now() at transaction
+    start, so every lead a tick inserts shares one created_at and no time comparison can
+    separate this run's rows from the ones already there."""
+    import uuid
+
+    from outreach import campaigns
+
+    cur = db_rollback.cursor()
+    c = campaigns.create(name=f"Test {uuid.uuid4().hex[:6]}", target=5, by="test", cur=cur)
+
+    mine, theirs = (f"CMP_{uuid.uuid4().hex[:8]}" for _ in range(2))
+    for cn in (mine, theirs):
+        cur.execute("insert into outreach.leads (company_number, company_name, source, "
+                    "state) values (%s,%s,'places','discovered')", (cn, cn))
+
+    assert campaigns.tag(cur, c["id"], [mine]) == 1
+    cur.execute("select campaign_id from outreach.leads where company_number=%s", (mine,))
+    assert cur.fetchone()[0] == c["id"]
+    cur.execute("select campaign_id from outreach.leads where company_number=%s", (theirs,))
+    assert cur.fetchone()[0] is None
+
+
+def test_discovery_reports_exactly_what_it_created(db_rollback, monkeypatch):
+    """The list a campaign attributes from. A count alone cannot say WHICH."""
+    import uuid
+
+    from outreach import places
+
+    pid = f"pid-{uuid.uuid4().hex[:10]}"
+    monkeypatch.setattr(places, "text_search", lambda q, **k: [
+        {"place_id": pid, "name": "Test Auctioneers", "address": "1 High St, York YO1 1AA",
+         "postcode": "YO1 1AA", "website": "https://t.example",
+         "primary_type": "auction_house", "types": ["auction_house"],
+         "business_status": "OPERATIONAL"}])
+    res = places.discover_to_leads(["auctioneer near York"], cur=db_rollback.cursor())
+    assert res["created"] == [f"PLACE:{pid}"]
+
+    # a duplicate on the next pass is NOT reported as created — it was not
+    again = places.discover_to_leads(["auctioneer near York"], cur=db_rollback.cursor())
+    assert again["created"] == [] and again["duplicates"] == 1
+
+
+# --------------------------------------------------------------------------- #
+#  Schedules — they ride the existing tick
+# --------------------------------------------------------------------------- #
+def test_a_destructive_task_cannot_be_scheduled(db_rollback):
+    """A destructive task needs a human confirming THIS run, which a timer cannot do."""
+    from outreach import schedules
+
+    cur = db_rollback.cursor()
+    for kind in ("send_batch", "migrate"):
+        with pytest.raises(ValueError):
+            schedules.create(kind=kind, every_minutes=1440, cur=cur)
+
+
+def test_a_schedule_cannot_promise_a_cadence_the_tick_cannot_deliver(db_rollback):
+    from outreach import schedules
+
+    cur = db_rollback.cursor()
+    with pytest.raises(ValueError):
+        schedules.create(kind="critic_agreement", every_minutes=1, cur=cur)
+
+
+def test_bad_params_are_refused_when_the_schedule_is_created(db_rollback):
+    """Otherwise the schedule sits there failing every interval because of a typo made
+    once, and nothing says why."""
+    from outreach import schedules
+
+    cur = db_rollback.cursor()
+    with pytest.raises(ValueError):
+        schedules.create(kind="agent_gather", every_minutes=60,
+                         params={"vertical": "spaceships"}, cur=cur)
+
+
+def test_a_due_schedule_enqueues_and_advances(db_rollback):
+    from outreach import schedules
+
+    cur = db_rollback.cursor()
+    sid = schedules.create(kind="critic_agreement", every_minutes=60, cur=cur)
+    res = schedules.run_due(cur=cur)
+    assert any(d["schedule"] == sid for d in res["detail"])
+
+    # next_run_at advanced, so a second sweep in the same minute does nothing
+    again = schedules.run_due(cur=cur)
+    assert not any(d["schedule"] == sid for d in again["detail"])
+
+
+def test_a_paused_schedule_is_left_alone(db_rollback):
+    from outreach import schedules
+
+    cur = db_rollback.cursor()
+    sid = schedules.create(kind="critic_agreement", every_minutes=60, cur=cur)
+    schedules.set_enabled(sid, False, cur=cur)
+    res = schedules.run_due(cur=cur)
+    assert not any(d["schedule"] == sid for d in res["detail"])

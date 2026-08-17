@@ -163,6 +163,11 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
         conn = db.connect(); cur = conn.cursor()
     inserted = duplicates = skipped = 0
     failed: list[str] = []
+    # Exactly which leads THIS call created. A campaign attributes what its own run found,
+    # and a timestamp watermark cannot do that job: Postgres freezes now() at transaction
+    # start, so every row a tick inserts shares one created_at and no comparison can tell
+    # them apart. The ids are the only honest answer.
+    created: list[str] = []
     try:
         for q in queries:
             # Per-query isolation. text_search raises PlacesUnavailable on any API error,
@@ -207,6 +212,7 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
                      normalise_domain(b.get("website"))))
                 if cur.fetchone():
                     inserted += 1
+                    created.append(f"PLACE:{pid}")
                     audit.record(f"PLACE:{pid}", "discovered", source="places",
                                  lawful_basis=audit.LEGITIMATE_INTERESTS,
                                  reason=f"places: {q}", cur=cur)
@@ -214,7 +220,8 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
                     duplicates += 1
         if own:
             conn.commit()
-        out = {"inserted": inserted, "duplicates": duplicates, "skipped": skipped}
+        out = {"inserted": inserted, "duplicates": duplicates, "skipped": skipped,
+               "created": created}
         if failed:
             # surfaced, never silent: a run that quietly covered less than it was asked
             # to reads as "nothing to find" when it means "we could not look"

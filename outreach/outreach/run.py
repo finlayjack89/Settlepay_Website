@@ -28,11 +28,11 @@ from . import critic as critic_mod
 from . import decisionmakers, draft as draft_mod
 from . import enrich as enrich_mod
 from . import crossref, find_leads, followup, graduation, inbound, monitor, outbox, places
-from . import report, spend, stats
+from . import report, schedules, spend, stats
 from . import send as send_mod
 from .sequence import in_send_window, load_sequence_config
 
-FULL_CHAIN = ("inbound", "classify", "monitor", "discover_places", "crossref",
+FULL_CHAIN = ("inbound", "classify", "monitor", "scheduled", "discover_places", "crossref",
               "discover", "enrich", "decision_makers", "draft", "critic", "followup",
               "auto_approve", "send", "digest")
 AUTONOMOUS_STAGES = ("discover_places", "crossref", "discover", "enrich",
@@ -185,6 +185,13 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
         if send_mod._kill_switch_on(cur):
             summary["halted"] = "kill switch tripped by monitor"
             return summary
+
+    if want("scheduled"):
+        # Always on, and deliberately BEFORE the expensive stages: a schedule that
+        # enqueues work should get it into the queue this tick, not next. It only ever
+        # enqueues — the JobRunner does the work — so a slow scheduled task cannot delay
+        # the rest of the chain.
+        do("scheduled", lambda: schedules.run_due(cur=cur))
 
     # Every limit and target below comes from `control`, not `config`, so the operator can
     # retune the pipeline from the dashboard without a Cloud Run revision. The values are

@@ -161,35 +161,61 @@ def _count(cur_factory, sql: str, params: tuple = ()) -> Callable[[], int]:
 
 
 def gather(ctx, *, vertical: str = "all", region: str = "all", target: int = 50,
-           max_spend_gbp: float = 5.0) -> Outcome:
+           max_spend_gbp: float = 5.0, campaign_id: Optional[int] = None) -> Outcome:
     """Find new corporate leads in a named slice of the market.
 
     Discovery alone is not the goal — a Places result is not a lead we may write to until
     the PECR cross-reference has said it is a company rather than a sole trader. So the
     plan is discover -> crossref, and the measure counts leads that have CLEARED that gate.
-    """
-    from . import crossref, places
 
+    With a `campaign_id` the run reads its slice, cursor and target from the campaign and
+    attributes what it finds to it, so progress is a count of reality rather than a tally.
+    """
+    from . import campaigns, crossref, places
+
+    camp = campaigns.get(campaign_id) if campaign_id else None
+    if camp:
+        vertical, region, target = camp["vertical"], camp["region"], camp["target"]
+        key = camp["cursor_key"]
     group = None if vertical in ("", "all") else vertical
     area = None if region in ("", "all") else region
-    key = f"places_grid_cursor:{group or 'all'}:{area or 'all'}"
+    if not camp:
+        key = f"places_grid_cursor:{group or 'all'}:{area or 'all'}"
+
+    def discover() -> dict:
+        with db.cursor() as c:
+            res = places.discover_grid(count=BATCH, cur=c, group=group, region=area,
+                                       cursor_key=key)
+            if camp:
+                res["tagged"] = campaigns.tag(c, camp["id"], res.get("created") or [])
+            return res
 
     plan = [
-        Step("discover_places",
-             lambda: places.discover_grid(count=BATCH, group=group, region=area,
-                                          cursor_key=key),
-             lambda r: int(r.get("inserted") or 0)),
-        Step("crossref",
-             lambda: crossref.run(limit=BATCH * 3),
+        Step("discover_places", discover, lambda r: int(r.get("inserted") or 0)),
+        Step("crossref", lambda: crossref.run(limit=BATCH * 3),
              lambda r: int(r.get("corporate") or 0)),
     ]
-    measure = _count(lambda: db.cursor(commit=False),
-                     "select count(*) from outreach.leads "
-                     "where subscriber_class='corporate'")
+    if camp:
+        # measured against the CAMPAIGN's own leads, so two campaigns running the same
+        # week cannot read each other's progress as their own
+        measure = _count(lambda: db.cursor(commit=False),
+                         "select count(*) from outreach.leads "
+                         "where campaign_id = %s and subscriber_class = 'corporate'",
+                         (camp["id"],))
+        goal = f"campaign {camp['name']}"
+    else:
+        measure = _count(lambda: db.cursor(commit=False),
+                         "select count(*) from outreach.leads "
+                         "where subscriber_class='corporate'")
+        goal = f"gather {group or 'all'}/{area or 'all'}"
     ctx.log(f"gathering {target} corporate leads · {group or 'every vertical'}"
             f" · {area or 'all regions'} · ceiling £{max_spend_gbp}")
-    return pursue(ctx, goal=f"gather {group or 'all'}/{area or 'all'}", target=target,
-                  plan=plan, measure=measure, budget=Budget(max_spend_gbp))
+    out = pursue(ctx, goal=goal, target=target, plan=plan, measure=measure,
+                 budget=Budget(max_spend_gbp))
+    if camp and out["done"] >= target:
+        campaigns.set_status(camp["id"], campaigns.DONE, by="agent")
+        ctx.log(f"campaign {camp['name']} reached its target and is marked done")
+    return out
 
 
 def enrich(ctx, *, scope: str = "unenriched", target: int = 50,
