@@ -5,8 +5,21 @@ audit_log. Pure reads — never writes. Every number here is derived from the li
 Supabase `outreach` schema, so the dashboard reflects real pipeline performance.
 """
 from __future__ import annotations
+import json
 
 from .targeting import SIC_LABELS  # single source of truth for SIC -> label
+
+# How the control room labels each stage. Kept here rather than in web.py so the digest
+# and the console cannot drift into calling the same stage two different things.
+STAGE_LABELS = {
+    "inbound": "Read the inbox", "classify": "PECR firewall", "monitor": "Deliverability monitor",
+    "discover_places": "Discover (Places)", "crossref": "PECR cross-reference",
+    "discover": "Discover (register)", "enrich": "Enrich", "decision_makers": "Decision makers",
+    "draft": "Draft", "critic": "Critic", "followup": "Follow-ups",
+    "auto_approve": "Auto-approve", "send": "Send", "digest": "Daily digest",
+    # runway() names one stock the tick has no stage for — the human gate
+    "review": "Your review",
+}
 
 
 def sic_label(sic: str | None) -> str:
@@ -304,6 +317,54 @@ def inbound_summary(cur) -> dict:
     return {"reply": by.get("reply", 0), "bounce": by.get("bounce", 0),
             "unsubscribe": by.get("unsubscribe", 0), "complaint": by.get("complaint", 0),
             "suppressions": _scalar(cur, "select count(*) from outreach.suppressions")}
+
+
+def stage_status(cur) -> dict:
+    """What each stage did last tick, and — when it did nothing — why.
+
+    Every stage already writes its own reason for standing down ("reservoir full",
+    "outside send window", "credit budget floor reached", "review backlog full"). That
+    reasoning went into a job row nobody opens and was then lost, so the honest answer to
+    "why is nothing happening" took a database session to reconstruct. run._remember_tick
+    caches the last summary; this reads it back.
+    """
+    from . import control, monitor
+
+    raw = None
+    try:
+        raw = monitor.get_flag("last_tick_summary", cur=cur)
+    except Exception:
+        pass
+    try:
+        summary = json.loads(raw) if raw else {}
+    except ValueError:
+        summary = {}
+
+    from .run import AUTONOMOUS_STAGES as gateable, FULL_CHAIN
+
+    steps = summary.get("steps") or {}
+    out = {"at": summary.get("at"), "stages": {}}
+    for name in FULL_CHAIN:
+        step = steps.get(name)
+        if step is None:
+            state, detail = "not run", ""
+        elif isinstance(step, dict) and "skipped" in step:
+            state, detail = "idle", str(step["skipped"])
+        elif isinstance(step, dict) and "error" in step:
+            state, detail = "error", str(step["error"])[:160]
+        else:
+            state = "ran"
+            # the stage's own result dict is the most honest summary there is
+            detail = ", ".join(f"{k} {v}" for k, v in (step or {}).items()
+                               if isinstance(v, (int, float, str)))[:160]
+        out["stages"][name] = {
+            "label": STAGE_LABELS.get(name, name),
+            "state": state, "detail": detail,
+            # None means "always runs" — the stage has no switch, and showing an OFF
+            # toggle next to a stage that cannot be turned off would be a lie
+            "auto": control.stage_enabled(name, cur=cur) if name in gateable else None,
+        }
+    return out
 
 
 def recent_activity(cur, limit: int = 18) -> list[tuple]:

@@ -148,8 +148,44 @@ def test_decision_makers_stage_is_skipped_when_disabled(db_rollback, monkeypatch
     monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
     monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
     res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=db_rollback.cursor())
-    assert res["steps"]["decision_makers"] == {"skipped": "DECISION_MAKER_ENABLED off"}
+    assert "skipped" in res["steps"]["decision_makers"]
     assert "decision_makers" not in order
+
+
+def test_a_dashboard_switch_turns_a_stage_on_without_a_redeploy(db_rollback, monkeypatch):
+    """The whole point of the control plane. The deploy has the decision-maker stage off;
+    switching it on from the console must change what the very next tick does, with no
+    revision and no shell."""
+    from outreach import control
+
+    order = []
+    cur = db_rollback.cursor()
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    monkeypatch.setattr(run_mod.config, "DM_ENABLED", False)
+
+    control.set("DM_ENABLED", True, by="finlay", reason="turning it on", cur=cur)
+    res = run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=cur)
+    assert "skipped" not in res["steps"].get("decision_makers", {})
+    assert "decision_makers" in order
+
+
+def test_the_tick_records_why_each_stage_stood_down(db_rollback, monkeypatch):
+    """The reason a stage did nothing was written to a job row nobody opens and then
+    lost, so "why is nothing happening" took a database session to answer. The control
+    room reads it from here."""
+    from outreach import monitor
+
+    order = []
+    cur = db_rollback.cursor()
+    _stub_stages(monkeypatch, order)
+    monkeypatch.setattr(run_mod.config, "PIPELINE_AUTONOMOUS", True)
+    run_mod.run(stage="all", dry_run=True, now=IN_WINDOW, cur=cur)
+
+    cached = monitor.get_flag("last_tick_summary", cur=cur)
+    assert cached and "steps" in cached
+    from outreach import stats
+    assert stats.stage_status(cur)["stages"]["crossref"]["state"] in ("ran", "idle")
 
 
 def test_single_stage_runs_without_autonomy_gate(db_rollback, monkeypatch):

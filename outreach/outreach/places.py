@@ -229,20 +229,31 @@ def discover_to_leads(queries: list[str], *, max_results: int = 20, cur=None) ->
             conn.close()
 
 
-def discover_grid(*, count: int = 10, cur=None) -> dict:
+GRID_CURSOR = "places_grid_cursor"
+
+
+def discover_grid(*, count: int = 10, cur=None, group: str | None = None,
+                  region: str | None = None, cursor_key: str | None = None) -> dict:
     """Run the next `count` queries from the town×vertical grid, paged by a cursor in
     ops_flags — so successive runs sweep the grid rather than re-hitting the same
-    queries. The pacing lever for the Places credit spend."""
+    queries. The pacing lever for the Places credit spend.
+
+    `group`/`region` narrow the grid to an aimed slice (auctioneers in Yorkshire), and
+    `cursor_key` gives that slice its OWN cursor. Both matter: a targeted run sharing the
+    global cursor would either skip most of its own slice or drag the scheduled sweep off
+    course, and the operator would see neither happen.
+    """
     from . import monitor, targeting
-    grid = targeting.places_queries()
+    grid = targeting.places_queries(group=group, region=region)
     if not grid:
         return {"inserted": 0, "note": "empty grid"}
+    key = cursor_key or GRID_CURSOR
     own = cur is None
     conn = None
     if own:
         conn = db.connect(); cur = conn.cursor()
     try:
-        start = int(monitor.get_flag("places_grid_cursor", cur=cur) or 0) % len(grid)
+        start = int(monitor.get_flag(key, cur=cur) or 0) % len(grid)
         n = min(count, len(grid))
         batch = [grid[(start + i) % len(grid)] for i in range(n)]
         res = discover_to_leads(batch, cur=cur)
@@ -251,9 +262,10 @@ def discover_grid(*, count: int = 10, cur=None) -> dict:
         # past this line, which is what used to leave the cursor frozen and replay the
         # same broken query every tick for ever.
         new_cursor = (start + n) % len(grid)
-        monitor.set_flag("places_grid_cursor", str(new_cursor),
+        monitor.set_flag(key, str(new_cursor),
                          reason="places discovery paging", cur=cur)
-        res.update({"queries_run": n, "grid_cursor": new_cursor, "grid_size": len(grid)})
+        res.update({"queries_run": n, "grid_cursor": new_cursor, "grid_size": len(grid),
+                    "cursor_key": key})
         if own:
             conn.commit()
         return res

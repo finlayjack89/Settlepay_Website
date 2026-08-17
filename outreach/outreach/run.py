@@ -20,8 +20,10 @@ spend cap is hit; classify/inbound/send are never spend-blocked. Live sending
 stays gated behind G-SEND regardless of --live.
 """
 from __future__ import annotations
+import datetime
+import json
 
-from . import config, db, firewall
+from . import config, control, db, firewall
 from . import critic as critic_mod
 from . import decisionmakers, draft as draft_mod
 from . import enrich as enrich_mod
@@ -102,11 +104,14 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
 
     seq = load_sequence_config()
     summary: dict = {"stage": stage, "dry_run": dry_run, "steps": {}}
+    # The allowlist is read ONCE per tick, not per stage: a control change landing halfway
+    # through would otherwise produce a tick that half-honoured it, which is the kind of
+    # result nobody can reproduce afterwards.
+    enabled_stages = control.autonomous_stages(cur=cur)
     # Recorded on every tick: 27 days of identical, silent results were only readable
     # in hindsight because nothing in the output said which stages were even eligible.
     summary["autonomous"] = (
-        "all" if config.PIPELINE_AUTONOMOUS
-        else (list(config.AUTONOMOUS_STAGES_ENABLED) or "none"))
+        "all" if config.PIPELINE_AUTONOMOUS else (list(enabled_stages) or "none"))
 
     def want(name: str) -> bool:
         """Which stages this tick runs.
@@ -119,13 +124,17 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
         expensive stages on together, which is the one change whose effects cannot be
         attributed: if spend or volume moves, you cannot tell which stage moved it. With
         an allowlist a stage is enabled, watched for a day, and the next one added.
+
+        The list now comes from `control`, so it is settable from the dashboard rather
+        than only by a Cloud Run revision — which is what left this pipeline idle for a
+        fortnight with no way to restart it from the console.
         """
         if stage != "all":
             return stage == name
         if name not in AUTONOMOUS_STAGES:
             return True
-        enabled = config.AUTONOMOUS_STAGES_ENABLED
-        return bool(config.PIPELINE_AUTONOMOUS or "all" in enabled or name in enabled)
+        return bool(config.PIPELINE_AUTONOMOUS or "all" in enabled_stages
+                    or name in enabled_stages)
 
     def do(name: str, fn, *, paid: bool = False) -> None:
         if paid:
@@ -177,33 +186,43 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
             summary["halted"] = "kill switch tripped by monitor"
             return summary
 
+    # Every limit and target below comes from `control`, not `config`, so the operator can
+    # retune the pipeline from the dashboard without a Cloud Run revision. The values are
+    # read once here for the same reason the allowlist is: a tick that half-honoured a
+    # mid-flight change would be unreproducible.
+    knob = {name: control.get(name, cur=cur) for name in (
+        "READY_POOL_TARGET", "PLACES_PER_TICK", "CROSSREF_PER_TICK", "DISCOVER_PER_TICK",
+        "ENRICH_PER_TICK", "DM_PER_TICK", "DRAFT_PER_TICK", "CRITIC_PER_TICK",
+        "FOLLOWUP_PER_TICK", "DRAFT_BACKLOG_MAX", "CREDIT_FLOOR_GBP", "DM_ENABLED")}
+    summary["controls"] = {k: v for k, v in knob.items()}
+
     # Demand-pull reservoir: discover/enrich run only to refill the ready pool
     # toward READY_POOL_TARGET, then idle (£0) when it's full — this is what
     # amortises the expensive stages. Deficit is computed once per tick.
-    pool = _read(lambda c: stats.reservoir_status(c, config.READY_POOL_TARGET))
+    pool = _read(lambda c: stats.reservoir_status(c, knob["READY_POOL_TARGET"]))
 
     if want("discover_places"):  # Google Places (GCP credit) — credit-gated, NOT enriched-pool-gated
         # Discovery is cheap on credit and should build a big classified reservoir, so it
         # is gated by the CREDIT budget + a backlog cap, not the (cash-bound) enriched pool.
         credit = _read(stats.credit_status)
-        if credit and credit["remaining"] <= config.CREDIT_FLOOR_GBP:
+        if credit and credit["remaining"] <= knob["CREDIT_FLOOR_GBP"]:
             summary["steps"]["discover_places"] = {"skipped": "credit budget floor reached", **credit}
         elif pool and pool["backlog"] >= config.CLASSIFIED_BACKLOG_MAX:
             summary["steps"]["discover_places"] = {"skipped": "classified backlog full", **pool}
         else:  # credit-billed, not cash — the credit gate above is the control
             do("discover_places",
-               lambda: places.discover_grid(count=config.PLACES_PER_TICK, cur=cur))
+               lambda: places.discover_grid(count=knob["PLACES_PER_TICK"], cur=cur))
 
     if want("crossref"):  # PECR gate for Places leads — classify corporate vs research-only
-        do("crossref", lambda: crossref.run(limit=config.CROSSREF_PER_TICK, cur=cur))
+        do("crossref", lambda: crossref.run(limit=knob["CROSSREF_PER_TICK"], cur=cur))
 
     if want("discover"):
         if pool and pool["deficit"] <= 0:
             summary["steps"]["discover"] = {"skipped": "reservoir full", **pool}
         else:
             # only fetch raw leads if the discovered backlog can't cover the deficit
-            need = min(config.DISCOVER_PER_TICK,
-                       max(0, pool["deficit"] - pool["backlog"])) if pool else config.DISCOVER_PER_TICK
+            need = min(knob["DISCOVER_PER_TICK"],
+                       max(0, pool["deficit"] - pool["backlog"])) if pool else knob["DISCOVER_PER_TICK"]
             if need <= 0:
                 summary["steps"]["discover"] = {"skipped": "backlog covers deficit", **(pool or {})}
             else:
@@ -214,38 +233,38 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
         if pool and pool["deficit"] <= 0:
             summary["steps"]["enrich"] = {"skipped": "reservoir full", **pool}
         else:
-            limit = min(config.ENRICH_PER_TICK, pool["deficit"]) if pool else config.ENRICH_PER_TICK
+            limit = min(knob["ENRICH_PER_TICK"], pool["deficit"]) if pool else knob["ENRICH_PER_TICK"]
             do("enrich", lambda: enrich_mod.discover_and_run(limit=limit, cur=cur), paid=True)
 
     if want("decision_makers"):  # Companies House officers -> inferred named email (MV, paid)
-        if not config.DM_ENABLED:
-            summary["steps"]["decision_makers"] = {"skipped": "DECISION_MAKER_ENABLED off"}
+        if not knob["DM_ENABLED"]:
+            summary["steps"]["decision_makers"] = {"skipped": "decision-maker lookup switched off"}
         else:
             do("decision_makers",
-               lambda: decisionmakers.run(cur=cur, limit=config.DM_PER_TICK), paid=True)
+               lambda: decisionmakers.run(cur=cur, limit=knob["DM_PER_TICK"]), paid=True)
 
     if want("draft"):
         backlog = _read(stats.review_backlog)
-        if backlog >= config.DRAFT_BACKLOG_MAX:
+        if backlog >= knob["DRAFT_BACKLOG_MAX"]:
             # the human gate is the bottleneck; drafting past it just spends credit
             summary["steps"]["draft"] = {"skipped": "review backlog full",
                                          "awaiting_approval": backlog,
-                                         "max": config.DRAFT_BACKLOG_MAX}
+                                         "max": knob["DRAFT_BACKLOG_MAX"]}
         else:
             do("draft", lambda: draft_mod.run(
-                cur=cur, limit=min(config.DRAFT_PER_TICK,
-                                   config.DRAFT_BACKLOG_MAX - backlog)),
+                cur=cur, limit=min(knob["DRAFT_PER_TICK"],
+                                   knob["DRAFT_BACKLOG_MAX"] - backlog)),
                paid=(config.LLM_PROVIDER == "api"))
 
     if want("critic"):  # OpenAI, cash-billed — an independent read of each new draft
         # Deliberately AFTER draft and BEFORE auto_approve: it judges what was just
         # written, and in shadow mode auto_approve does not consult it. When it does
         # graduate to 'gate', this ordering is what puts it in front of the approval.
-        do("critic", lambda: critic_mod.run(cur=cur, limit=config.CRITIC_PER_TICK),
+        do("critic", lambda: critic_mod.run(cur=cur, limit=knob["CRITIC_PER_TICK"]),
            paid=True)
 
     if want("followup"):
-        do("followup", lambda: followup.run(cur=cur, limit=config.FOLLOWUP_PER_TICK),
+        do("followup", lambda: followup.run(cur=cur, limit=knob["FOLLOWUP_PER_TICK"]),
            paid=(config.LLM_PROVIDER == "api"))
 
     if want("auto_approve"):
@@ -261,4 +280,27 @@ def run(*, stage: str = "all", dry_run: bool = True, now=None, cur=None) -> dict
     if want("digest"):
         do("digest", lambda: report.send_daily_digest(cur=cur))
 
+    # Keep the last summary where the console can read it. Every stage already records
+    # WHY it did nothing ("reservoir full", "outside send window", "credit budget floor
+    # reached") — that reasoning was written to a job row nobody opens and then lost. It
+    # is the single most useful thing the control room can show, so it is persisted here
+    # rather than reconstructed from counters that cannot explain themselves.
+    if stage == "all":
+        _remember_tick(summary, cur=cur)
     return summary
+
+
+def _remember_tick(summary: dict, *, cur=None) -> None:
+    """Best-effort. A tick that did real work must never fail because the console's
+    status cache could not be written."""
+    from . import monitor
+
+    try:
+        payload = json.dumps({"at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                              "autonomous": summary.get("autonomous"),
+                              "controls": summary.get("controls", {}),
+                              "steps": summary.get("steps", {})}, default=str)[:20000]
+        monitor.set_flag("last_tick_summary", payload,
+                         reason="tick status cache", updated_by="tick", cur=cur)
+    except Exception:
+        pass

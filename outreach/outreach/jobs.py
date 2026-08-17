@@ -27,9 +27,12 @@ from . import config, db
 class Param:
     name: str
     label: str
-    kind: str = "str"  # 'str' | 'int' | 'bool'
+    kind: str = "str"  # 'str' | 'int' | 'bool' | 'choice'
     default: Any = None
     required: bool = False
+    # 'choice' only: the permitted values, rendered as a <select>. A free-text box for
+    # something with five valid answers is a typo waiting to reach the pipeline.
+    choices: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,12 @@ def coerce_params(spec: TaskSpec, raw: dict) -> dict:
             out[p.name] = int(value)
         elif p.kind == "bool":
             out[p.name] = value if isinstance(value, bool) else str(value).strip().lower() in _TRUTHY
+        elif p.kind == "choice":
+            # validated here rather than in the handler, so a hand-rolled POST cannot
+            # smuggle a value the form would never have offered
+            if p.choices and str(value) not in p.choices:
+                raise ValueError(f"{p.name} must be one of {', '.join(p.choices)}")
+            out[p.name] = str(value)
         else:
             out[p.name] = str(value)
     return out

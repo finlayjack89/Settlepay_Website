@@ -35,7 +35,7 @@ import json
 import re
 from typing import Optional
 
-from . import audit, config, db, facts, llm
+from . import audit, config, control, db, facts, llm
 
 # Hard dimensions can fail a draft on their own; a soft one only moves the score. The
 # split is the rubric's opinion about this corpus: a wrong town is fatal, a clumsy
@@ -237,7 +237,7 @@ def record(cur, verdict: dict) -> None:
         audit.record(verdict["company_number"], "critic_failed", source="critic",
                      lawful_basis=audit.LEGITIMATE_INTERESTS,
                      reason=f"{worst.get('dimension')}: {worst.get('detail')}"[:400],
-                     detail={"score": verdict["score"], "mode": config.CRITIC_MODE},
+                     detail={"score": verdict["score"], "mode": control.get("CRITIC_MODE", cur=cur)},
                      cur=cur)
 
 
@@ -254,16 +254,21 @@ def run(*, limit: Optional[int] = None, cur=None, provider=None,
     only to the critic_* columns, which nothing reads in shadow mode, so it cannot disturb
     a decision that has already been made.
     """
-    if not config.CRITIC_ENABLED:
-        return {"skipped": "CRITIC_ENABLED off"}
-    limit = limit or config.CRITIC_PER_TICK
-    provider = provider or llm.critic_provider()
     own = cur is None
     conn = None
     if own:
         conn = db.connect(); cur = conn.cursor()
+    # Read the switches on the CALLER's cursor — see the same note in decisionmakers.run:
+    # a control.get with no cursor opens its own connection and reads outside the caller's
+    # transaction, so a switch set moments earlier is invisible.
+    if not control.get("CRITIC_ENABLED", cur=cur):
+        if own and conn is not None:
+            conn.close()
+        return {"skipped": "critic switched off"}
+    limit = limit or control.get("CRITIC_PER_TICK", cur=cur)
+    provider = provider or llm.critic_provider()
     out = {"judged": 0, "passed": 0, "failed": 0, "errored": 0,
-           "mode": config.CRITIC_MODE, "calibrate": calibrate}
+           "mode": control.get("CRITIC_MODE", cur=cur), "calibrate": calibrate}
     try:
         cur.execute(_CALIBRATE_SQL if calibrate else _BACKLOG_SQL, (limit,))
         for row in cur.fetchall():

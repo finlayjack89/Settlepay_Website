@@ -13,7 +13,7 @@ CLI:  python -m outreach.report        # print today's digest without sending
 from __future__ import annotations
 import datetime
 
-from . import config, db, monitor
+from . import config, control, db, monitor
 
 DIGEST_FLAG = "last_daily_digest"
 
@@ -114,10 +114,10 @@ def daily_digest_text(cur) -> str:
 
     def critic_lines():
         from . import critic
-        if not config.CRITIC_ENABLED:
+        if not control.get("CRITIC_ENABLED"):
             return ["off"]
         a = critic.agreement(cur)
-        return [f"mode: {config.CRITIC_MODE}",
+        return [f"mode: {control.get('CRITIC_MODE')}",
                 f"agreement with your decisions: {a['agreement_rate']:.0%} of {a['compared']}",
                 f"false pass: {a['false_pass']} · false fail: {a['false_fail']}",
                 f"ready to gate: {'yes' if a['ready_to_gate'] else 'no'}"]

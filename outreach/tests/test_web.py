@@ -406,3 +406,53 @@ def test_bool_param_can_be_switched_off_from_the_console():
 
     assert launched([("dry_run", "0")]) == {"dry_run": False}                  # unticked
     assert launched([("dry_run", "0"), ("dry_run", "1")]) == {"dry_run": True}  # ticked
+
+
+# --------------------------------------------------------------------------- #
+#  Destructive tasks: the checkbox is the affordance, not the check
+# --------------------------------------------------------------------------- #
+def test_a_destructive_task_needs_confirmation_the_server_can_see():
+    """`required` on a checkbox is a hint to a browser and nothing at all to a POST, and
+    the box had no `name`, so it was never submitted even when ticked. send_batch and
+    migrate were one hand-rolled request away from running unconfirmed."""
+    from outreach import jobs, web
+
+    for kind in ("send_batch", "migrate", "rework"):
+        assert jobs.REGISTRY[kind].destructive, kind
+
+    # the checkbox must carry a name, or it is never submitted even when ticked
+    assert 'name="confirm"' in web._param_input(
+        jobs.Param("confirm", "I understand", kind="bool"))
+
+    c = TestClient(app)
+    r = c.post("/tasks/launch", data={"kind": "send_batch", "mode": "dry_run"},
+               follow_redirects=False)
+    assert r.status_code == 400
+    assert "confirmation" in r.text.lower()
+
+
+def test_a_destructive_task_launches_once_confirmed():
+    c = TestClient(app)
+    r = c.post("/tasks/launch",
+               data={"kind": "rework", "limit": "1", "dry_run": "1", "confirm": "1"},
+               follow_redirects=False)
+    assert r.status_code == 303 and "/jobs/" in r.headers["location"]
+
+
+def test_a_harmless_task_still_needs_no_confirmation():
+    c = TestClient(app)
+    r = c.post("/tasks/launch", data={"kind": "critic_agreement"}, follow_redirects=False)
+    assert r.status_code == 303
+
+
+def test_the_confirm_flag_is_not_passed_through_as_a_task_param():
+    """coerce_params would reject an unexpected key, and 'confirm' is console furniture,
+    not something the handler should ever see."""
+    from outreach import db as _db
+
+    with _db.dict_cursor(commit=False) as cur:
+        cur.execute("select params from outreach.jobs where kind='rework' "
+                    "order by id desc limit 1")
+        row = cur.fetchone()
+    if row:
+        assert "confirm" not in (row["params"] or {})

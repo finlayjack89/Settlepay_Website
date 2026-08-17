@@ -25,7 +25,7 @@ from __future__ import annotations
 import hashlib
 import json
 
-from . import audit, config, db, review, sequence
+from . import audit, config, control, db, review, sequence
 from .draft import PROMPT_VERSION
 
 AUTO_REVIEWER = "auto:graduation"
@@ -158,6 +158,9 @@ def run(*, cur=None, limit=None) -> list[dict]:
         cur = conn.cursor()
     try:
         actions: list[dict] = []
+        # read once, on the caller's cursor: a mode change mid-batch would make
+        # half the drafts obey one rule and half another
+        critic_mode = control.get("CRITIC_MODE", cur=cur)
         metrics = {m["vertical"]: m for m in vertical_metrics(cur) if _meets(m, thresholds)}
         if metrics:
             sql = (
@@ -179,7 +182,7 @@ def run(*, cur=None, limit=None) -> list[dict]:
                 # second reader. In shadow mode this is inert by construction: the critic
                 # writes verdicts and nothing consults them, so its agreement with real
                 # human decisions can be measured before it is allowed to matter.
-                if config.CRITIC_MODE == "gate" and critic_verdict == "fail":
+                if critic_mode == "gate" and critic_verdict == "fail":
                     audit.record(company_number, "critic_held", source="graduation",
                                  lawful_basis=audit.LEGITIMATE_INTERESTS,
                                  reason=f"critic failed this draft ({vertical}, "

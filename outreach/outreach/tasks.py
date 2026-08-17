@@ -11,8 +11,8 @@ mode='live' but nothing leaves an inbox unless a human has set G_SEND.
 """
 from __future__ import annotations
 
-from . import config, crossref, db, decisionmakers, dns_auth, draft, firewall, followup
-from . import feedback, graduation, inbound
+from . import agents, config, crossref, db, decisionmakers, dns_auth, draft, firewall
+from . import feedback, followup, graduation, inbound, targeting
 from . import critic as critic_mod
 from . import enrich as enrich_mod
 from . import find_leads, places, report, research, rework as rework_mod
@@ -148,6 +148,50 @@ def redraft_task(ctx, limit=25):
     out = draft.redraft_stale(limit=limit)
     ctx.log(f"{out['redrafted']} redrafted · {out['failed_kept_old']} kept older copy")
     return out
+
+
+# --- agents: a goal, a plan, a budget, and a brake ------------------------------------
+_VERTICALS = ("all",) + tuple(sorted(targeting.PLACES_VERTICAL_GROUPS))
+_REGIONS = ("all",) + tuple(sorted(targeting.PLACES_REGIONS))
+
+
+@task("agent_gather", "Agent · gather leads",
+      "Send an agent to find new corporate leads in a slice of the market. It sweeps that "
+      "slice of the discovery grid (with its own cursor, so it neither skips its own "
+      "ground nor drags the scheduled sweep off course), cross-references each result "
+      "against Companies House, and stops at the target, the spend ceiling, or when the "
+      "slice is exhausted. The target counts leads that have CLEARED the PECR gate — a "
+      "Places result is not yet someone we may write to.",
+      params=(Param("vertical", "Vertical", kind="choice", default="all", choices=_VERTICALS),
+              Param("region", "Region", kind="choice", default="all", choices=_REGIONS),
+              Param("target", "New corporate leads", kind="int", default=50),
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=5)))
+def agent_gather(ctx, vertical="all", region="all", target=50, max_spend_gbp=5):
+    return agents.gather(ctx, vertical=vertical, region=region, target=target,
+                         max_spend_gbp=max_spend_gbp)
+
+
+@task("agent_enrich", "Agent · research and enrich",
+      "Send an agent to work leads up to the point where they can be written to: find the "
+      "site and a contact, ask the register who runs the firm, and resolve the trading "
+      "constants a truthful draft needs. The target counts DRAFT-READY leads, because a "
+      "lead with an address but no trading town still cannot be written to honestly.",
+      params=(Param("scope", "Scope", kind="choice", default="unenriched",
+                    choices=("unenriched", "everything")),
+              Param("target", "Draft-ready leads", kind="int", default=50),
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=5)))
+def agent_enrich(ctx, scope="unenriched", target=50, max_spend_gbp=5):
+    return agents.enrich(ctx, scope=scope, target=target, max_spend_gbp=max_spend_gbp)
+
+
+@task("agent_draft", "Agent · draft emails",
+      "Send an agent to fill the approval queue: draft for ready leads and have the critic "
+      "read each one, so a run that produces drafts also produces the verdicts on them. "
+      "Nothing is sent — every draft still lands in the queue.",
+      params=(Param("target", "Drafts in the queue", kind="int", default=25),
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=3)))
+def agent_draft(ctx, target=25, max_spend_gbp=3):
+    return agents.write(ctx, target=target, max_spend_gbp=max_spend_gbp)
 
 
 @task("critic", "Critique drafts (shadow)",

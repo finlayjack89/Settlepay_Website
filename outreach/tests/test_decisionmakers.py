@@ -655,8 +655,21 @@ def test_the_verify_cap_bounds_mv_spend(db_rollback, monkeypatch):
 
 
 def test_run_is_off_by_default(db_rollback, monkeypatch):
+    """Targeting named individuals is a posture the operator opts into knowingly, so the
+    stage stays inert until someone turns it on."""
     monkeypatch.setattr(config, "DM_ENABLED", False)
-    assert dm.run(cur=db_rollback.cursor()) == {"skipped": "DECISION_MAKER_ENABLED off"}
+    assert "skipped" in dm.run(cur=db_rollback.cursor())
+
+
+def test_run_can_be_switched_on_from_the_console(db_rollback, monkeypatch):
+    """The gate reads `control` now, so it is settable at runtime without a redeploy —
+    but only deliberately, and the change is recorded with who made it and why."""
+    from outreach import control
+
+    cur = db_rollback.cursor()
+    monkeypatch.setattr(config, "DM_ENABLED", False)
+    control.set("DM_ENABLED", True, by="finlay", reason="test", cur=cur)
+    assert "skipped" not in dm.run(cur=cur, limit=0)
 
 
 def test_a_deferred_lead_is_retried_next_tick(db_rollback):

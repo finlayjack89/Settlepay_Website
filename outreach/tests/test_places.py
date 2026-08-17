@@ -109,7 +109,8 @@ def test_the_grid_cursor_advances_past_a_failing_query(db_rollback, monkeypatch)
 
     grid = [f"q{i}" for i in range(10)]
     grid[1] = "bad-q1"
-    monkeypatch.setattr(targeting, "places_queries", lambda: grid)
+    # **kw because places_queries now takes group/region for an aimed run
+    monkeypatch.setattr(targeting, "places_queries", lambda **kw: grid)
     monkeypatch.setattr(places, "text_search",
                         lambda q, **k: (_ for _ in ()).throw(places.PlacesUnavailable("boom"))
                         if "bad" in q else [])
