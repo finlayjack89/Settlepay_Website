@@ -128,9 +128,31 @@ case "$cmd" in
           --no-cpu-throttling           # JobRunner keeps CPU while warm
           --memory 512Mi --cpu 1 --timeout 300
           --update-env-vars "$ENV_VARS")   # MERGE — never blank a running service's config
+    # Attach only the secrets that actually EXIST. An optional integration that has not
+    # been provisioned yet must not break the deploy of everything else: adding
+    # OPENAI_API_KEY to the list above (for the draft critic) failed the whole revision
+    # with "Permission denied on secret", which reads like a broken IAM grant rather than
+    # "you have not created that key yet". The code already degrades cleanly when a key is
+    # absent — the deploy should too.
+    missing=()
     for s in "${SECRETS[@]}"; do
-      args+=(--update-secrets "$s=$s:latest")
+      if gcloud secrets describe "$s" --project "$PROJECT" >/dev/null 2>&1; then
+        args+=(--update-secrets "$s=$s:latest")
+      else
+        missing+=("$s")
+      fi
     done
+    if [ ${#missing[@]} -gt 0 ]; then
+      # --update-secrets is a MERGE, so simply omitting one leaves any reference the
+      # service already carries in place — including one left behind by an earlier failed
+      # attempt, which then fails every subsequent deploy with the same misleading
+      # "Permission denied" until it is explicitly removed.
+      for s in "${missing[@]}"; do
+        args+=(--remove-secrets "$s")
+      done
+      echo "NOTE: not configured, skipped: ${missing[*]}"
+      echo "      set one with: ops/deploy-cloudrun.sh secret <NAME>   # value on stdin"
+    fi
     gcloud run deploy "$SERVICE" "${args[@]}"
     url="$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" --format 'value(status.url)')"
     echo ""
