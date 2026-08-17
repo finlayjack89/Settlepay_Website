@@ -13,7 +13,7 @@ CLI:  python -m outreach.report        # print today's digest without sending
 from __future__ import annotations
 import datetime
 
-from . import config, db, monitor
+from . import config, control, db, monitor
 
 DIGEST_FLAG = "last_daily_digest"
 
@@ -86,12 +86,51 @@ def daily_digest_text(cur) -> str:
             "and coalesce(finished_at, created_at) >= now() - interval '24 hours'")
         return [f"failed (24h): {cur.fetchone()[0] or 0}"]
 
+    def runway_lines():
+        """Which stage runs dry first — the question the funnel counts never answered.
+        A 7,416-lead backlog reads as abundance right up until you notice the only
+        send-ready stock is a single draft."""
+        from . import stats
+        r = stats.runway(cur)
+        lines = [f"send rate: {r['rate_per_day']}/day ({r['rate_basis']}), "
+                 f"{r['sent_in_window']} live sends in {r['window_days']}d"]
+        lines += [f"{name}: {s['stock']} waiting"
+                  + (f" ~ {s['days']}d" if s["days"] is not None else "")
+                  for name, s in r["stages"].items()]
+        if r["bottleneck"]:
+            lines.append(f"BOTTLENECK: {r['bottleneck']} ({r['days_of_runway']}d of stock)")
+        return lines
+
+    def review_signal():
+        """What the reviewer's rejections are actually ABOUT. Every substantive note ever
+        written on this pipeline named a facts error, and nothing read them."""
+        from . import feedback
+        f = feedback.summary(cur)
+        if not f["total"]:
+            return ["no classified review notes yet"]
+        lines = [f"{r['count']}x {r['category']} -> {r['stage']}" for r in f["by_category"]]
+        lines.append(f"most rejections are about: {f['worst_stage']} ({f['worst_share']:.0%})")
+        return lines
+
+    def critic_lines():
+        from . import critic
+        if not control.get("CRITIC_ENABLED"):
+            return ["off"]
+        a = critic.agreement(cur)
+        return [f"mode: {control.get('CRITIC_MODE')}",
+                f"agreement with your decisions: {a['agreement_rate']:.0%} of {a['compared']}",
+                f"false pass: {a['false_pass']} · false fail: {a['false_fail']}",
+                f"ready to gate: {'yes' if a['ready_to_gate'] else 'no'}"]
+
     today = datetime.date.today().isoformat()
     return "\n".join([
         f"SettlePay outreach — daily digest {today}", "",
         _section(cur, "SENT", sent), "",
+        _section(cur, "RUNWAY", runway_lines), "",
         _section(cur, "REPLIES / BOUNCES / OPT-OUTS (7d)", inbound), "",
         _section(cur, "NEW LEADS / DRAFTS", leads_drafts), "",
+        _section(cur, "WHAT YOUR REJECTIONS ARE ABOUT (90d)", review_signal), "",
+        _section(cur, "CRITIC", critic_lines), "",
         _section(cur, "SPEND", spend_line), "",
         _section(cur, "FLAGS", flags), "",
         _section(cur, "FAILED JOBS", failed_jobs),

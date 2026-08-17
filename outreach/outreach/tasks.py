@@ -11,8 +11,9 @@ mode='live' but nothing leaves an inbox unless a human has set G_SEND.
 """
 from __future__ import annotations
 
-from . import config, crossref, decisionmakers, dns_auth, draft, firewall, followup
-from . import graduation, inbound
+from . import agents, config, crossref, db, decisionmakers, dns_auth, draft, firewall
+from . import feedback, followup, graduation, inbound, targeting
+from . import critic as critic_mod
 from . import enrich as enrich_mod
 from . import find_leads, places, report, research, rework as rework_mod
 from . import run as run_mod
@@ -147,6 +148,115 @@ def redraft_task(ctx, limit=25):
     out = draft.redraft_stale(limit=limit)
     ctx.log(f"{out['redrafted']} redrafted · {out['failed_kept_old']} kept older copy")
     return out
+
+
+# --- agents: a goal, a plan, a budget, and a brake ------------------------------------
+_VERTICALS = ("all",) + tuple(sorted(targeting.PLACES_VERTICAL_GROUPS))
+_REGIONS = ("all",) + tuple(sorted(targeting.PLACES_REGIONS))
+
+
+@task("agent_gather", "Agent · gather leads",
+      "Send an agent to find new corporate leads in a slice of the market. It sweeps that "
+      "slice of the discovery grid (with its own cursor, so it neither skips its own "
+      "ground nor drags the scheduled sweep off course), cross-references each result "
+      "against Companies House, and stops at the target, the spend ceiling, or when the "
+      "slice is exhausted. The target counts leads that have CLEARED the PECR gate — a "
+      "Places result is not yet someone we may write to.",
+      params=(Param("vertical", "Vertical", kind="choice", default="all", choices=_VERTICALS),
+              Param("region", "Region", kind="choice", default="all", choices=_REGIONS),
+              Param("target", "New corporate leads", kind="int", default=50),
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=5),
+              # set by the Campaigns page, not typed here: with one, the run takes its
+              # slice, cursor and target from the campaign and attributes what it finds
+              Param("campaign_id", "Campaign id (optional)", kind="int", default=0)))
+def agent_gather(ctx, vertical="all", region="all", target=50, max_spend_gbp=5,
+                 campaign_id=0):
+    return agents.gather(ctx, vertical=vertical, region=region, target=target,
+                         max_spend_gbp=max_spend_gbp,
+                         campaign_id=campaign_id or None)
+
+
+@task("agent_enrich", "Agent · research and enrich",
+      "Send an agent to work leads up to the point where they can be written to: find the "
+      "site and a contact, ask the register who runs the firm, and resolve the trading "
+      "constants a truthful draft needs. The target counts DRAFT-READY leads, because a "
+      "lead with an address but no trading town still cannot be written to honestly.",
+      params=(Param("scope", "Scope", kind="choice", default="unenriched",
+                    choices=("unenriched", "everything")),
+              Param("target", "Draft-ready leads", kind="int", default=50),
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=5)))
+def agent_enrich(ctx, scope="unenriched", target=50, max_spend_gbp=5):
+    return agents.enrich(ctx, scope=scope, target=target, max_spend_gbp=max_spend_gbp)
+
+
+@task("agent_draft", "Agent · draft emails",
+      "Send an agent to fill the approval queue: draft for ready leads and have the critic "
+      "read each one, so a run that produces drafts also produces the verdicts on them. "
+      "Nothing is sent — every draft still lands in the queue.",
+      params=(Param("target", "Drafts in the queue", kind="int", default=25),
+              Param("max_spend_gbp", "Spend ceiling (£)", kind="int", default=3)))
+def agent_draft(ctx, target=25, max_spend_gbp=3):
+    return agents.write(ctx, target=target, max_spend_gbp=max_spend_gbp)
+
+
+@task("critic", "Critique drafts (shadow)",
+      "An independent model (OpenAI, decorrelated from the Gemini drafter) scores each "
+      "queued draft against its own facts block: grounding, recipient fit, ICP fit and "
+      "compliance are hard failures; prose is only a soft one — because every rejection "
+      "a human has written on this pipeline was a facts error, not a prose error. In "
+      "shadow mode it records a verdict and changes NOTHING, so its agreement with your "
+      "decisions can be measured before it is trusted with any of them.",
+      params=(Param("limit", "How many", kind="int", default=10),))
+def critic_task(ctx, limit=10):
+    out = critic_mod.run(limit=limit)
+    ctx.log(f"{out.get('judged', 0)} judged · {out.get('passed', 0)} pass · "
+            f"{out.get('failed', 0)} fail · mode={out.get('mode')}")
+    return out
+
+
+@task("critic_calibrate", "Calibrate the critic on your past decisions",
+      "Runs the critic over drafts YOU have already approved or rejected — the answer key. "
+      "Shadow mode otherwise measures agreement only against decisions made from now on, "
+      "which means weeks before there is anything to judge it by. All four of your real "
+      "rejections are in this set, so it also tests the critic against the failures that "
+      "actually happened. Writes only the critic_* columns; your decisions are untouched.",
+      params=(Param("limit", "How many", kind="int", default=25),))
+def critic_calibrate_task(ctx, limit=25):
+    out = critic_mod.run(limit=limit, calibrate=True)
+    ctx.log(f"{out.get('judged', 0)} judged · {out.get('passed', 0)} pass · "
+            f"{out.get('failed', 0)} fail")
+    with db.cursor(commit=False) as cur:
+        agree = critic_mod.agreement(cur)
+    ctx.log(f"agreement {agree['agreement_rate']:.0%} of {agree['compared']} · "
+            f"{agree['false_pass']} false pass · {agree['false_fail']} false fail")
+    return {**out, "agreement": agree}
+
+
+@task("critic_agreement", "Critic vs human agreement",
+      "How often the critic's verdict matched a REAL human decision (system/auto rows "
+      "excluded). Reports false-pass and false-fail separately: a false pass is a bad "
+      "email sent, a false fail is a good email held — only the first is a reason not "
+      "to hand over.")
+def critic_agreement_task(ctx):
+    with db.cursor(commit=False) as cur:
+        out = critic_mod.agreement(cur)
+    ctx.log(f"{out['compared']} compared · {out['agreement_rate']:.0%} agreement · "
+            f"{out['false_pass']} false pass · {out['false_fail']} false fail")
+    return out
+
+
+@task("review_feedback", "What your rejections are about",
+      "Classifies every reviewer note and routes it to the stage that caused it, then "
+      "reports which stage your rejections are really about. Backfills notes written "
+      "before the classifier existed; idempotent.")
+def review_feedback_task(ctx):
+    filled = feedback.backfill()
+    with db.cursor(commit=False) as cur:
+        out = feedback.summary(cur)
+    ctx.log(f"{filled['classified']} newly classified")
+    if out["worst_stage"]:
+        ctx.log(f"{out['worst_share']:.0%} of your rejections are about: {out['worst_stage']}")
+    return {**out, "backfilled": filled}
 
 
 @task("followup", "Generate follow-ups",

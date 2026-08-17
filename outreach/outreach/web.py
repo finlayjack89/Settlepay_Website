@@ -17,6 +17,7 @@ behind G-SEND. Run:
     # then open http://localhost:8787/
 """
 from __future__ import annotations
+import datetime
 import html
 import json
 from datetime import datetime, timezone
@@ -25,8 +26,9 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from . import config, db, draft, emailfmt, enquiries, graduation, jobs, monitor, outbox
-from . import research, review, stats, webauth
+from . import campaigns, config, control, db, draft, emailfmt, enquiries, feedback
+from . import graduation, jobs, monitor, outbox, research, review, schedules
+from . import stats, targeting, webauth
 # aliased: this module defines a `schedule()` route that would shadow the import
 from . import schedule as send_queue
 from . import tasks as _tasks  # noqa: F401 — importing populates jobs.REGISTRY
@@ -147,6 +149,8 @@ NAV_GROUPS = [
         ("/intelligence", "Intelligence", "chart"),
     ]),
     ("Operate", [
+        ("/control", "Control", "sliders"),
+        ("/campaigns", "Campaigns", "target"),
         ("/tasks", "Launch", "play"),
         ("/jobs", "Jobs", "list"),
     ]),
@@ -165,6 +169,8 @@ ICONS = {
     "list": "M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zM3.75 12h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z",
     "send": "M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5",
     "search": "M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z",
+    "target": "M12 21a9 9 0 100-18 9 9 0 000 18zm0-4a5 5 0 100-10 5 5 0 000 10zm0-3a2 2 0 100-4 2 2 0 000 4z",
+    "sliders": "M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75",
     "gavel": "M12 3v3.75m0 0l3.75 3.75M12 6.75L8.25 10.5m-3 3l6-6m-6 6l3 3m-3-3l-1.5 1.5a2.121 2.121 0 003 3L8.25 16.5m9-9l1.5-1.5a2.121 2.121 0 00-3-3L14.25 4.5M4.5 20.25h9",
     "cog": "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
 }
@@ -538,6 +544,8 @@ def dashboard():
         inb = stats.inbound_summary(cur)
         feed = stats.recent_activity(cur)
         dmx = stats.decision_maker_status(cur)
+        run_way = stats.runway(cur)
+        fb = feedback.summary(cur)
     g = graduation_thresholds()
 
     tiles = [
@@ -623,6 +631,41 @@ def dashboard():
         + (f' · cache saved <b>{dmx["lookups_saved"]}</b> paid lookups'
            if dmx["lookups_saved"] else ''))
 
+    _STAGE_LABEL = {"crossref": "PECR cross-reference", "enrich": "Enrichment",
+                    "draft": "Drafting", "review": "Your review", "send": "Sending"}
+    runway_rows = "".join(
+        f'<tr{" class=\"clk\"" if name == run_way["bottleneck"] else ""}>'
+        f'<td>{_STAGE_LABEL.get(name, name)}'
+        + (' <b>&larr; bottleneck</b>' if name == run_way["bottleneck"] else '')
+        + f'</td><td class="num">{s["stock"]}</td>'
+          f'<td class="num">{"—" if s["days"] is None else f"{s['days']:.1f}d"}</td></tr>'
+        for name, s in run_way["stages"].items())
+    runway_html = (
+        f'<table><tr><th>Waiting for</th><th class="num">Leads</th>'
+        f'<th class="num">Days</th></tr>{runway_rows}</table>'
+        f'<div style="margin-top:.6rem;font-size:.8rem" class="muted">'
+        f'At <b>{run_way["rate_per_day"]}</b>/day ({run_way["rate_basis"]}) — '
+        f'{run_way["sent_in_window"]} live sends in the last {run_way["window_days"]} days.'
+        + ('  A <i>planned</i> rate means nothing has actually sent in the window, so these '
+           'are capacity figures, not observed ones.' if run_way["rate_basis"] == "planned"
+           else '')
+        + '</div>')
+
+    if fb["total"]:
+        fb_rows = "".join(
+            f'<tr><td>{html.escape(r["category"].replace("_", " "))}</td>'
+            f'<td>{html.escape(r["stage"])}</td><td class="num">{r["count"]}</td></tr>'
+            for r in fb["by_category"])
+        feedback_html = (
+            f'<table><tr><th>Reason</th><th>Owning stage</th><th class="num">Count</th></tr>'
+            f'{fb_rows}</table>'
+            f'<div style="margin-top:.6rem;font-size:.8rem" class="muted">'
+            f'<b>{fb["worst_share"]:.0%}</b> of your rejections are about '
+            f'<b>{html.escape(fb["worst_stage"] or "")}</b>.</div>')
+    else:
+        feedback_html = ('<div class="empty">No classified notes yet — add a reason when you '
+                         'reject a draft and it will be routed to the stage that caused it.</div>')
+
     body = f"""
 {'<div class="note">Live sending is OFF. The pipeline is in dry-run; nothing leaves an inbox until a human sets the G-SEND gate.</div>' if not _safety()['live'] else ''}
 <div class="kpis">{kpis}</div>
@@ -636,6 +679,19 @@ def dashboard():
     personal address. A shared mailbox addressed to the named director counts.</div>
   <div style="font-size:.83rem">{dm_line}</div>
   <div style="margin-top:.6rem;font-size:.8rem">{dm_verdict}</div>
+</div>
+<div class="two">
+  <div class="panel"><h2>Runway</h2>
+    <div class="hint">Days of sending each stage is holding, at the rate we actually send.
+      The stage that runs dry first is the one to fix — a huge raw backlog says nothing
+      about whether anything can go out tomorrow.</div>
+    {runway_html}
+  </div>
+  <div class="panel"><h2>What your rejections are about</h2>
+    <div class="hint">Every note you write on a decision is classified and routed back to
+      the stage that caused it. This is the list that should decide what gets fixed next.</div>
+    {feedback_html}
+  </div>
 </div>
 <div class="two">
   <div class="panel"><h2>Yield by vertical</h2>
@@ -1895,6 +1951,13 @@ def _param_input(p) -> str:
         return (f'<label class="fld" style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0">'
                 f'<input type="hidden" name="{p.name}" value="0">'
                 f'<input type="checkbox" name="{p.name}" value="1"{checked} style="min-width:0"> {html.escape(p.label)}</label>')
+    if p.kind == "choice" and p.choices:
+        opts = "".join(
+            f'<option value="{html.escape(c)}"'
+            f'{" selected" if c == p.default else ""}>{html.escape(c)}</option>'
+            for c in p.choices)
+        return (f'<label class="fld">{html.escape(p.label)}</label>'
+                f'<select name="{p.name}" style="min-width:140px;width:100%">{opts}</select>')
     itype = "number" if p.kind == "int" else "text"
     dflt = "" if p.default is None else html.escape(str(p.default))
     req = " required" if p.required else ""
@@ -1912,8 +1975,12 @@ def tasks_page(request: Request):
         cards = ""
         for spec in sorted(groups[group], key=lambda s: s.title):
             fields = "".join(_param_input(p) for p in spec.params)
+            # name="confirm" so the SERVER can check it — see tasks_launch. Without a name
+            # the box was never submitted at all, which is why the check could only ever
+            # have been client-side.
             confirm = ('<label class="fld" style="display:flex;align-items:center;gap:.5rem">'
-                       '<input type="checkbox" required style="min-width:0"> I understand this acts on real data</label>'
+                       '<input type="checkbox" name="confirm" value="1" required '
+                       'style="min-width:0"> I understand this acts on real data</label>'
                        if spec.destructive else "")
             cards += f"""<div class="panel" style="margin-bottom:1rem">
   <h2>{html.escape(spec.title)}</h2><div class="hint">{html.escape(spec.description)}</div>
@@ -1936,8 +2003,20 @@ async def tasks_launch(request: Request):
     kind = str(form.get("kind", ""))
     if kind not in jobs.REGISTRY:
         return HTMLResponse("<h3>Unknown task.</h3>", status_code=404)
-    params = {k: str(v) for k, v in form.items() if k not in ("kind", "csrf")}
-    job_id = jobs.enqueue(kind, params, requested_by="operator")
+    # A destructive task's confirmation was enforced ONLY by an HTML `required` checkbox,
+    # which is a hint to a browser and nothing at all to a POST. `send_batch` and `migrate`
+    # were both one hand-rolled request away from running unconfirmed. The checkbox is the
+    # affordance; this is the check.
+    if jobs.REGISTRY[kind].destructive and str(form.get("confirm", "")) != "1":
+        return HTMLResponse(_shell("/tasks", "Not launched", "", f"""
+<div class="panel"><h2>{html.escape(jobs.REGISTRY[kind].title)} needs confirmation</h2>
+  <div class="alert">This task acts on real data and was submitted without the
+    confirmation box ticked.</div>
+  <p class="muted" style="font-size:.8rem"><a href="/tasks">&larr; Back to Launch</a></p>
+</div>"""), status_code=400)
+    params = {k: str(v) for k, v in form.items()
+              if k not in ("kind", "csrf", "confirm")}
+    job_id = jobs.enqueue(kind, params, requested_by=_who())
     return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
 
 
@@ -2059,6 +2138,380 @@ def kill_switch_update(request: Request, action: str = Form(...),
     monitor.set_kill_switch(action == "on", reason=reason or "set from console",
                             updated_by="operator")
     return RedirectResponse(u("/settings"), status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Control room — what is switched on, what happened last tick, and why not
+# --------------------------------------------------------------------------- #
+# Stages an operator can run on demand. `send` is deliberately absent: it has its own
+# page, its own gates and its own undo window, and a one-click "send now" next to a row
+# of toggles is exactly the button nobody should be able to press by accident.
+_RUN_NOW = {
+    "inbound": "inbound_poll", "classify": "classify", "discover_places": "discover_places",
+    "crossref": "crossref", "discover": "discover", "enrich": "enrich",
+    "decision_makers": "decision_makers", "draft": "draft", "critic": "critic",
+    "followup": "followup", "auto_approve": "auto_approve", "digest": "digest_daily",
+}
+
+
+def _who(_request: Request | None = None) -> str:
+    """Who is making this change, recorded on every control write and every job.
+
+    This console authenticates with ONE shared password and issues an anonymous session
+    (`webauth.create_session()` takes no identity), so there is no per-user name to
+    record and returning a plausible-looking one would be a fiction in an audit trail.
+    What "operator" does carry is the distinction that matters today: a human at the
+    console, as against `scheduler`, `monitor` or `system`. Per-person attribution needs
+    real accounts first.
+    """
+    return "operator"
+
+
+@router.get("/control", response_class=HTMLResponse)
+def control_room(request: Request):
+    with db.cursor(commit=False) as cur:
+        status = stats.stage_status(cur)
+        way = stats.runway(cur)
+        knobs = control.snapshot(cur=cur)
+    s = _safety()
+
+    rows = ""
+    for name, st in status["stages"].items():
+        if st["auto"] is None:
+            toggle = '<span class="muted" style="font-size:.76rem">always</span>'
+        else:
+            on = st["auto"]
+            toggle = (f'<form method="post" action="/control/stage" style="display:inline">'
+                      f'{_csrf_field(request)}<input type="hidden" name="stage" value="{name}">'
+                      f'<input type="hidden" name="on" value="{"0" if on else "1"}">'
+                      f'<button class="btn btn-ghost" type="submit" style="padding:.25rem .7rem;'
+                      f'font-size:.74rem">{"ON" if on else "off"}</button></form>')
+        run_now = ""
+        if name in _RUN_NOW:
+            run_now = (f'<form method="post" action="/control/run" style="display:inline">'
+                       f'{_csrf_field(request)}<input type="hidden" name="stage" value="{name}">'
+                       f'<button class="btn btn-ghost" type="submit" style="padding:.25rem .7rem;'
+                       f'font-size:.74rem">Run now</button></form>')
+        badge = {"ran": "b-success", "idle": "b-muted",
+                 "error": "b-error", "not run": "b-muted"}[st["state"]]
+        rows += (f'<tr><td><b>{html.escape(st["label"])}</b></td>'
+                 f'<td>{toggle}</td>'
+                 f'<td><span class="badge {badge}">{st["state"]}</span></td>'
+                 f'<td class="muted" style="font-size:.78rem">{html.escape(st["detail"]) or "—"}</td>'
+                 f'<td style="text-align:right">{run_now}</td></tr>')
+
+    seen = (f'last tick {_ago(datetime.datetime.fromisoformat(status["at"]))}'
+            if status.get("at") else
+            'no tick recorded yet — the status column fills in after the next one')
+
+    way_rows = "".join(
+        f'<tr><td>{html.escape(stats.STAGE_LABELS.get(k, k))}'
+        + (' <b>&larr; bottleneck</b>' if k == way["bottleneck"] else '')
+        + f'</td><td class="num">{v["stock"]}</td>'
+          f'<td class="num">{"—" if v["days"] is None else f"{v['days']:.1f}d"}</td></tr>'
+        for k, v in way["stages"].items())
+
+    def knob_row(k) -> str:
+        if k["class"] == control.ENV_ONLY:
+            state = ('<span class="badge b-error">ON</span>' if k["value"]
+                     else '<span class="badge b-success">off</span>')
+            return (f'<tr><td>{html.escape(k["label"])}</td><td>{state}</td>'
+                    f'<td class="muted" style="font-size:.76rem">set at deploy time only</td></tr>')
+        if k["kind"] == "bool":
+            field = (f'<input type="hidden" name="value" value="{"0" if k["value"] else "1"}">'
+                     f'<button class="btn btn-ghost" type="submit" style="padding:.25rem .7rem;'
+                     f'font-size:.74rem">{"ON" if k["value"] else "off"}</button>')
+        elif k["choices"]:
+            opts = "".join(f'<option{" selected" if c == k["value"] else ""}>{c}</option>'
+                           for c in k["choices"])
+            field = (f'<select name="value" style="min-width:110px">{opts}</select> '
+                     f'<button class="btn btn-ghost" type="submit" '
+                     f'style="padding:.25rem .7rem;font-size:.74rem">Set</button>')
+        elif k["kind"] == "csv":
+            return ""      # the stage table above IS this control
+        else:
+            field = (f'<input name="value" value="{html.escape(str(k["value"]))}" '
+                     f'style="width:96px"> <button class="btn btn-ghost" type="submit" '
+                     f'style="padding:.25rem .7rem;font-size:.74rem">Set</button>')
+        revert = ""
+        if k["overridden"]:
+            revert = (f'<form method="post" action="/control/clear" style="display:inline;'
+                      f'margin-left:.4rem">{_csrf_field(request)}'
+                      f'<input type="hidden" name="name" value="{k["name"]}">'
+                      f'<button class="btn btn-ghost" type="submit" style="padding:.25rem .6rem;'
+                      f'font-size:.72rem">revert</button></form>')
+        note = (f'<span class="muted" style="font-size:.72rem">deploy default '
+                f'{html.escape(str(k["default"]))}</span>' if k["overridden"] else
+                f'<span class="muted" style="font-size:.72rem">{html.escape(k["help"][:90])}</span>')
+        ratchet = (' <span class="badge b-info" style="font-size:.66rem">tighten only</span>'
+                   if k["class"] == control.RATCHET else "")
+        return (f'<tr><td>{html.escape(k["label"])}{ratchet}</td>'
+                f'<td><form method="post" action="/control/set" style="display:inline">'
+                f'{_csrf_field(request)}<input type="hidden" name="name" value="{k["name"]}">'
+                f'{field}</form>{revert}</td><td>{note}</td></tr>')
+
+    runtime_rows = "".join(knob_row(k) for k in knobs if k["class"] == control.RUNTIME)
+    bound_rows = "".join(knob_row(k) for k in knobs if k["class"] == control.RATCHET)
+    protected_rows = "".join(knob_row(k) for k in knobs if k["class"] == control.ENV_ONLY)
+
+    body = f"""
+<div class="panel"><h2>Pipeline stages</h2>
+  <div class="hint">Each switch takes effect on the next scheduled tick — no redeploy.
+    The status column is what the stage itself reported, including its reason for standing
+    down. <span class="muted">{html.escape(seen)}</span></div>
+  <table><tr><th>Stage</th><th>Self-driving</th><th>Last tick</th><th>Detail</th><th></th></tr>
+  {rows}</table>
+</div>
+<div class="two">
+  <div class="panel"><h2>Runway</h2>
+    <div class="hint">Days of stock at {way['rate_per_day']}/day ({way['rate_basis']}).
+      The stage that runs dry first is the one to fix.</div>
+    <table><tr><th>Waiting for</th><th class="num">Leads</th><th class="num">Days</th></tr>
+    {way_rows}</table>
+  </div>
+  <div class="panel"><h2>Safety</h2>
+    <div class="hint">Set at deploy time and shown here as state. These are never
+      clickable from a browser.</div>
+    <table><tr><th>Gate</th><th>State</th><th></th></tr>{protected_rows}</table>
+    <dl class="kv" style="margin-top:.8rem">
+      <dt>Kill switch</dt><dd>{'<span class="badge b-error">ON</span>' if s['kill'] else '<span class="badge b-success">off</span>'}
+        <a href="/settings" class="muted" style="font-size:.76rem">manage</a></dd>
+      <dt>Sending</dt><dd>{'<span class="badge b-error">LIVE</span>' if s['live'] else '<span class="badge b-success">dry-run</span>'}</dd>
+    </dl>
+  </div>
+</div>
+<div class="panel"><h2>Rates and targets</h2>
+  <div class="hint">How much each stage does per tick, and what the reservoir aims for.</div>
+  <table><tr><th>Control</th><th>Value</th><th></th></tr>{runtime_rows}</table>
+</div>
+<div class="panel"><h2>Spend bounds</h2>
+  <div class="hint">These can only be tightened from here. The deployed value is the outer
+    bound, so no amount of clicking can spend more than the deploy allowed — loosening one
+    is a deploy decision.</div>
+  <table><tr><th>Control</th><th>Value</th><th></th></tr>{bound_rows}</table>
+</div>"""
+    return _shell("/control", "Control", "What is switched on, and what it did last tick", body)
+
+
+@router.post("/control/stage")
+def control_stage(request: Request, stage: str = Form(...), on: str = Form("1"),
+                  csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    from .run import AUTONOMOUS_STAGES
+    if stage not in AUTONOMOUS_STAGES:
+        return HTMLResponse("<h3>That stage has no switch.</h3>", status_code=400)
+    control.set_stage(stage, on == "1", by=_who(), reason="set from the control room")
+    return RedirectResponse(u("/control"), status_code=303)
+
+
+@router.post("/control/set")
+def control_set(request: Request, name: str = Form(...), value: str = Form(...),
+                csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    try:
+        control.set(name, value, by=_who(), reason="set from the control room")
+    except (control.NotSettable, ValueError, KeyError) as e:
+        return HTMLResponse(_shell("/control", "Refused", "", f"""
+<div class="panel"><h2>Not changed</h2><div class="alert">{html.escape(str(e))}</div>
+<p class="muted" style="font-size:.8rem"><a href="/control">&larr; Back</a></p></div>"""),
+                            status_code=400)
+    return RedirectResponse(u("/control"), status_code=303)
+
+
+@router.post("/control/clear")
+def control_clear(request: Request, name: str = Form(...), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    try:
+        control.clear(name, by=_who(), reason="reverted from the control room")
+    except (control.NotSettable, KeyError) as e:
+        return HTMLResponse(f"<h3>{html.escape(str(e))}</h3>", status_code=400)
+    return RedirectResponse(u("/control"), status_code=303)
+
+
+@router.post("/control/run")
+def control_run_now(request: Request, stage: str = Form(...), csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    kind = _RUN_NOW.get(stage)
+    if not kind:
+        return HTMLResponse("<h3>That stage cannot be run on demand.</h3>", status_code=400)
+    job_id = jobs.enqueue(kind, {}, requested_by=_who())
+    return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Campaigns — aimed slices of the grid, and what they produced
+# --------------------------------------------------------------------------- #
+@router.get("/campaigns", response_class=HTMLResponse)
+def campaigns_page(request: Request):
+    with db.cursor(commit=False) as cur:
+        rows = campaigns.listing(cur)
+        sched = schedules.listing(cur)
+
+    cards = ""
+    for c in rows:
+        badge = {"active": "b-success", "paused": "b-warning", "done": "b-info"}[c["status"]]
+        act = "paused" if c["status"] == "active" else "active"
+        toggle = (f'<form method="post" action="/campaigns/{c["id"]}/status" style="display:inline">'
+                  f'{_csrf_field(request)}<input type="hidden" name="status" value="{act}">'
+                  f'<button class="btn btn-ghost" type="submit" style="padding:.25rem .7rem;'
+                  f'font-size:.74rem">{"Pause" if c["status"] == "active" else "Resume"}</button></form>')
+        send = (f'<form method="post" action="/campaigns/{c["id"]}/run" style="display:inline">'
+                f'{_csrf_field(request)}<button class="btn btn-ghost" type="submit" '
+                f'style="padding:.25rem .7rem;font-size:.74rem">Send an agent</button></form>')
+        cards += f"""<tr>
+  <td><b>{html.escape(c["name"])}</b><br>
+      <span class="muted" style="font-size:.74rem">{html.escape(c["vertical"])} ·
+      {html.escape(c["region"])}</span></td>
+  <td><span class="badge {badge}">{c["status"]}</span></td>
+  <td style="min-width:150px">
+    <div class="ftrack"><div class="ffill" style="width:{max(c["pct"], 1)}%"></div></div>
+    <span class="muted" style="font-size:.74rem">{c["found"]} / {c["target"]} corporate
+    · {c["discovered"]} seen</span></td>
+  <td style="text-align:right">{send} {toggle}</td></tr>"""
+    cards = cards or ('<tr><td colspan=4 class="empty">No campaigns yet — name a slice '
+                      'below and send an agent at it.</td></tr>')
+
+    vopts = "".join(f'<option>{html.escape(v)}</option>'
+                    for v in ("all",) + tuple(sorted(targeting.PLACES_VERTICAL_GROUPS)))
+    ropts = "".join(f'<option>{html.escape(r)}</option>'
+                    for r in ("all",) + tuple(sorted(targeting.PLACES_REGIONS)))
+
+    srows = ""
+    for s in sched:
+        srows += (f'<tr><td><b>{html.escape(s["kind"])}</b>'
+                  f'<br><span class="muted" style="font-size:.72rem">'
+                  f'{html.escape(json.dumps(s["params"] or {}))}</span></td>'
+                  f'<td class="num">every {s["every_minutes"]}m</td>'
+                  f'<td>{"<span class=\"badge b-success\">on</span>" if s["enabled"] else "<span class=\"badge b-muted\">paused</span>"}</td>'
+                  f'<td class="num muted">{_ago(s["last_run_at"]) if s["last_run_at"] else "never"}</td>'
+                  f'<td style="text-align:right">'
+                  f'<form method="post" action="/schedules/{s["id"]}/toggle" style="display:inline">'
+                  f'{_csrf_field(request)}<input type="hidden" name="on" value="{"0" if s["enabled"] else "1"}">'
+                  f'<button class="btn btn-ghost" type="submit" style="padding:.25rem .7rem;font-size:.74rem">'
+                  f'{"Pause" if s["enabled"] else "Resume"}</button></form> '
+                  f'<form method="post" action="/schedules/{s["id"]}/delete" style="display:inline">'
+                  f'{_csrf_field(request)}<button class="btn btn-ghost" type="submit" '
+                  f'style="padding:.25rem .7rem;font-size:.74rem">Delete</button></form></td></tr>')
+    srows = srows or '<tr><td colspan=5 class="empty">Nothing scheduled.</td></tr>'
+
+    # only non-destructive tasks: a schedule cannot confirm a destructive run on your behalf
+    kopts = "".join(f'<option>{html.escape(k)}</option>'
+                    for k, spec in sorted(jobs.REGISTRY.items()) if not spec.destructive)
+
+    body = f"""
+<div class="panel"><h2>Campaigns</h2>
+  <div class="hint">The discovery grid is ~14,700 queries swept by one cursor, and the
+    credit runs out long before the grid does — so without aiming, the cursor's position
+    decides what gets found. A campaign is a named slice with its own cursor and target;
+    the scheduled sweep carries on untouched.</div>
+  <table><tr><th>Campaign</th><th>Status</th><th>Progress</th><th></th></tr>{cards}</table>
+</div>
+<div class="two">
+  <div class="panel"><h2>New campaign</h2>
+    <form method="post" action="/campaigns">{_csrf_field(request)}
+      <label class="fld">Name</label>
+      <input name="name" required placeholder="Auctioneers — Yorkshire" style="width:100%">
+      <label class="fld">Vertical</label><select name="vertical" style="width:100%">{vopts}</select>
+      <label class="fld">Region</label><select name="region" style="width:100%">{ropts}</select>
+      <label class="fld">Target (corporate leads)</label>
+      <input type="number" name="target" value="100" style="width:100%">
+      <div class="row" style="margin-top:.9rem">
+        <button class="btn btn-ghost" type="submit">Create</button></div>
+    </form>
+  </div>
+  <div class="panel"><h2>New schedule</h2>
+    <div class="hint">Rides the existing 10-minute tick, so the cadence lives in the
+      database where you can change it — not in a second cron nobody remembers.
+      Destructive tasks are deliberately absent: a schedule cannot confirm one for you.</div>
+    <form method="post" action="/schedules">{_csrf_field(request)}
+      <label class="fld">Task</label><select name="kind" style="width:100%">{kopts}</select>
+      <label class="fld">Every (minutes, min {schedules.MIN_MINUTES})</label>
+      <input type="number" name="every_minutes" value="1440" min="{schedules.MIN_MINUTES}"
+             style="width:100%">
+      <div class="row" style="margin-top:.9rem">
+        <button class="btn btn-ghost" type="submit">Schedule</button></div>
+    </form>
+  </div>
+</div>
+<div class="panel"><h2>Scheduled tasks</h2>
+  <table><tr><th>Task</th><th class="num">Cadence</th><th>State</th>
+  <th class="num">Last run</th><th></th></tr>{srows}</table>
+</div>"""
+    return _shell("/campaigns", "Campaigns", "Aim the pipeline, and put it on a timer", body)
+
+
+@router.post("/campaigns")
+async def campaigns_create(request: Request):
+    form = await request.form()
+    if not _csrf_ok(request, str(form.get("csrf", ""))):
+        return _CSRF_DENIED
+    try:
+        campaigns.create(name=str(form.get("name", "")),
+                         vertical=str(form.get("vertical", "all")),
+                         region=str(form.get("region", "all")),
+                         target=int(str(form.get("target", "100")) or 100), by=_who())
+    except (ValueError, Exception) as e:  # duplicate name raises from the unique index
+        return HTMLResponse(_shell("/campaigns", "Not created", "", f"""
+<div class="panel"><h2>Not created</h2><div class="alert">{html.escape(str(e)[:300])}</div>
+<p class="muted" style="font-size:.8rem"><a href="/campaigns">&larr; Back</a></p></div>"""),
+                            status_code=400)
+    return RedirectResponse(u("/campaigns"), status_code=303)
+
+
+@router.post("/campaigns/{campaign_id}/status")
+def campaigns_status(request: Request, campaign_id: int, status: str = Form(...),
+                     csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    campaigns.set_status(campaign_id, status, by=_who())
+    return RedirectResponse(u("/campaigns"), status_code=303)
+
+
+@router.post("/campaigns/{campaign_id}/run")
+def campaigns_run(request: Request, campaign_id: int, csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    job_id = jobs.enqueue("agent_gather", {"campaign_id": str(campaign_id)},
+                          requested_by=_who())
+    return RedirectResponse(u(f"/jobs/{job_id}"), status_code=303)
+
+
+@router.post("/schedules")
+async def schedules_create(request: Request):
+    form = await request.form()
+    if not _csrf_ok(request, str(form.get("csrf", ""))):
+        return _CSRF_DENIED
+    try:
+        schedules.create(kind=str(form.get("kind", "")),
+                         every_minutes=int(str(form.get("every_minutes", "1440")) or 1440),
+                         by=_who())
+    except ValueError as e:
+        return HTMLResponse(_shell("/campaigns", "Not scheduled", "", f"""
+<div class="panel"><h2>Not scheduled</h2><div class="alert">{html.escape(str(e))}</div>
+<p class="muted" style="font-size:.8rem"><a href="/campaigns">&larr; Back</a></p></div>"""),
+                            status_code=400)
+    return RedirectResponse(u("/campaigns"), status_code=303)
+
+
+@router.post("/schedules/{schedule_id}/toggle")
+def schedules_toggle(request: Request, schedule_id: int, on: str = Form("1"),
+                     csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    schedules.set_enabled(schedule_id, on == "1", by=_who())
+    return RedirectResponse(u("/campaigns"), status_code=303)
+
+
+@router.post("/schedules/{schedule_id}/delete")
+def schedules_delete(request: Request, schedule_id: int, csrf: str = Form("")):
+    if not _csrf_ok(request, csrf):
+        return _CSRF_DENIED
+    schedules.delete(schedule_id, by=_who())
+    return RedirectResponse(u("/campaigns"), status_code=303)
 
 
 app.include_router(router, prefix=config.BASE_PATH)

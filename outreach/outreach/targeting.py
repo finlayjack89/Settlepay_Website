@@ -172,8 +172,65 @@ PLACES_TOWNS: list[str] = [
 ]
 
 
-def places_queries() -> list[str]:
-    """The full vertical × town discovery grid (stable order → a cursor can page it).
+# Named slices of the grid, so a run can be AIMED at "auctioneers" instead of advancing a
+# global cursor and hoping. Each value is matched as a substring against the query
+# TEMPLATES above, which keeps this map honest: a group that matches nothing comes back
+# visibly empty rather than silently wrong.
+PLACES_VERTICAL_GROUPS: dict[str, tuple[str, ...]] = {
+    "auctioneers": ("auctioneer", "auction house", "saleroom", "valuers"),
+    "professional services": ("surveyor", "accountant", "bookkeeper", "architect",
+                              "letting agent", "funeral director", "solicitor",
+                              "estate agent", "consultant"),
+    "clinics and practices": ("clinic", "dental", "physio", "veterinary", "osteopath",
+                              "chiropract", "podiat", "optician", "practice"),
+    "trades": ("electrician", "plumb", "heating", "roofer", "builder", "joiner",
+               "plasterer", "landscap", "glazing", "flooring", "kitchen", "bathroom",
+               "damp", "drainage", "pest", "locksmith", "alarm", "mechanic", "cleaning"),
+    "events and logistics": ("removals", "skip hire", "haulage", "plant hire",
+                             "catering", "marquee", "printing", "sign maker"),
+}
+
+# Region -> its towns. The list above groups towns by region in COMMENTS only, which no
+# program can read; this is the machine-readable half. places_towns_in() intersects with
+# PLACES_TOWNS so a typo here can never invent a query that bills.
+PLACES_REGIONS: dict[str, tuple[str, ...]] = {
+    "Yorkshire": ("Harrogate", "York", "Leeds", "Otley", "Ilkley", "Skipton", "Wetherby",
+                  "Ripon", "Wakefield", "Bradford", "Halifax", "Huddersfield", "Selby",
+                  "Knaresborough", "Pontefract", "Castleford", "Keighley", "Northallerton",
+                  "Thirsk", "Boroughbridge"),
+    "London": ("Croydon", "Bromley", "Ealing", "Richmond upon Thames",
+               "Kingston upon Thames", "Wimbledon", "Islington", "Camden", "Hackney",
+               "Greenwich", "Barnet", "Harrow", "Enfield", "Romford", "Uxbridge",
+               "Sutton", "Hounslow", "Wandsworth", "Lewisham"),
+}
+
+ALL = "all"
+
+
+def verticals_matching(group: str | None) -> list[str]:
+    """The query templates in a named group, or every template for 'all'/unknown.
+
+    Unknown falls back to EVERYTHING rather than nothing: an agent that quietly searched
+    for zero things would report success having done nothing at all.
+    """
+    keys = PLACES_VERTICAL_GROUPS.get((group or "").strip().lower())
+    if not keys:
+        return list(PLACES_VERTICAL_QUERIES)
+    return [q for q in PLACES_VERTICAL_QUERIES if any(k in q.lower() for k in keys)]
+
+
+def places_towns_in(region: str | None) -> list[str]:
+    """The towns in a named region, or all of them."""
+    towns = list(dict.fromkeys(PLACES_TOWNS))
+    named = PLACES_REGIONS.get((region or "").strip().title())
+    if not named:
+        return towns
+    known = set(towns)
+    return [t for t in named if t in known]
+
+
+def places_queries(*, group: str | None = None, region: str | None = None) -> list[str]:
+    """The vertical × town discovery grid (stable order → a cursor can page it).
 
     VERTICAL-major, deliberately: the credit runs out long before the grid does, so
     truncation must drop the weakest VERTICALS rather than whole regions. SettlePay
@@ -181,9 +238,12 @@ def places_queries() -> list[str]:
     lot — so sweeping the whole country for electricians before spending a penny on
     sign makers is the right trade. Towns are de-duplicated (order-preserving) so an
     accidental repeat in the list above can never bill twice.
+
+    `group`/`region` narrow it for a targeted run. Both default to the whole grid, so the
+    scheduled sweep is unchanged and keeps its own cursor.
     """
-    towns = list(dict.fromkeys(PLACES_TOWNS))
-    return [tpl.format(town=t) for tpl in PLACES_VERTICAL_QUERIES for t in towns]
+    towns = places_towns_in(region)
+    return [tpl.format(town=t) for tpl in verticals_matching(group) for t in towns]
 
 # names that signal a non-trading shell / SPV / holding entity — skip pre-spend
 EXCLUDE_NAME_RE = re.compile(

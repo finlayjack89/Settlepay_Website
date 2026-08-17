@@ -1,4 +1,12 @@
-<!-- PLAYBOOK VERSION: v3.0 -->
+<!-- PLAYBOOK VERSION: v3.1 -->
+<!-- v3.1: stop HANDING the model the phrases it is forbidden to use. v2.9 removed the -->
+<!-- instruction to assert a payment mechanism but left the vivid wording in place as -->
+<!-- "background" — "matching payments to invoices by hand", "you take bank transfer" — -->
+<!-- and the drafter simply lifted it: 4 of 7 drafts in one batch were refused by the -->
+<!-- grounding gate for exactly those words. A prohibition that ships a quotable example -->
+<!-- of the thing prohibited is a prompt for it. The mechanism is now nowhere on the page; -->
+<!-- the gap is described only as the CONSEQUENCE (waiting, chasing), which is observable -->
+<!-- and asserts nothing. -->
 <!-- v3.0: the FAO line. Companies House tells us who runs almost every corporate lead, -->
 <!-- for free — but that name used to be discarded unless a paid, inferred, verifier- -->
 <!-- confirmed personal address happened to land, so the cheap low-risk asset was thrown -->
@@ -62,13 +70,17 @@ appointment- or job-based, invoice-driven. Mobile trades (electricians, plumbers
 builders, roofers), private clinics, auctioneers, surveyors, accountants and
 bookkeepers, commercial cleaners, removals and haulage.
 
-**They already take money somehow.** The problem is not that they can't get paid;
-it's that getting paid is *slow and manual*: chasing, waiting, matching payments to
-invoices by hand.
+**They already take money somehow.** The problem is not that they can't get paid; it's
+that getting paid is slow and manual, and the waiting is the part they feel.
 
 That is background for YOU, so you understand the market. It is **not** something to
 tell the reader. How any particular business takes money is a fact you either have in
 FACTS or do not have at all — and 0 of the first 460 leads had it.
+
+The mechanism is deliberately not spelled out anywhere on this page. Describing it, even
+to forbid it, hands you the wording — and that is measurably what happens. Write about
+the **waiting** and the **chasing**, which are consequences anyone can observe; never
+about the instrument.
 
 **NOT fixed-till retail** — shops, cafés, salons, barbers. They already take card
 in person at a counter, so an online payment page is redundant to them. If the
@@ -117,15 +129,14 @@ open alike. Follow it. These illustrate the range (use the logic, never the word
 
 Notice what none of those does: **tell the reader how they currently take money.**
 You do not know that unless `payment_method` is a resolved constant in FACTS, and it
-almost never is. Write about the *consequence* — chasing, waiting, matching by hand at
-month end — which is true of any manual billing process. Asserting the mechanism is a
-guess about their business, and it is the guess most likely to be flatly wrong to the
-one person reading it.
+almost never is. Write about the *consequence* — the chasing, the waiting, the time
+month-end takes — which is true of any manual billing process. Asserting the mechanism
+is a guess about their business, and it is the guess most likely to be flatly wrong to
+the one person reading it.
 
-Only when `payment_method` IS resolved may you name it, in the words FACTS gives you:
-
-> Since you take payment by bank transfer after the sale, month-end matching is
-> somebody's afternoon.
+Only when `payment_method` IS resolved may you name it, and then only in the exact words
+FACTS gives you, in a clause like "Since you take payment by «the FACTS value», …". If
+FACTS does not carry it, there is no sentence of that shape to write.
 
 The observation must be real. If `SIGNAL` is thin or says no website was found,
 open on **trade only** — never invent a detail, a client, a job, or a
@@ -234,10 +245,11 @@ person to another, not as a filled-in template:
    registered suffix. A UK owner-manager reads a missing or clumsy greeting as
    brusque; this is not the place to be clever.
 1. **Opener** — observation → implication (above), starting on the next line.
-2. **The gap** — the COST of manual billing: chasing, waiting, matching payments to
-   invoices by hand. Name the consequence, not the mechanism. Say "getting paid takes
-   a fortnight and somebody has to chase it", not "you take bank transfer" — unless
-   `payment_method` is resolved in FACTS, in which case use exactly that value.
+2. **The gap** — the COST of manual billing, named as a consequence and never as a
+   mechanism. "Getting paid takes a fortnight and somebody has to chase it" is the
+   register: it describes what happens to them, and asserts nothing about the
+   instrument they use. Naming the instrument requires `payment_method` resolved in
+   FACTS, and then only in the exact words FACTS gives you.
    This is a hard gate, not a style note: a draft that states how they take money
    without the fact behind it is rejected and rewritten.
 3. **The offer** — a branded card-payment page on their own domain, plus invoicing

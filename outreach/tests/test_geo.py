@@ -70,9 +70,48 @@ def _no_lookup(monkeypatch, info=None):
 def test_their_own_website_wins(monkeypatch):
     _no_lookup(monkeypatch, {"town": "Ignored", "region": "North West"})
     out = geo.resolve_location(site_town="Macclesfield", site_postcode="SK11 9DU",
-                               listing_town="Somewhere Else",
                                registered_town="Chester", ch=_FakeCH({}))
     assert out["town"] == "Macclesfield" and out["source"] == "own_site"
+
+
+def test_a_site_and_listing_that_disagree_assert_no_town(monkeypatch):
+    """own_site outranked the listing on the reasoning that a business's own site is its
+    own account of itself — sound, until you remember the scraper takes whatever address
+    happens to be on the page.
+
+    BS4 Electrical Services is a Bristol firm (listing: BS4 1TP, "172 Novers…", and BS4
+    is literally a Bristol postcode district) and a Chesham postcode somewhere on its
+    website won, so the facts block asserted Chesham. That is the exact error the reviewer
+    rejected drafts for. It is not fixable by re-ranking — the failure is that one source
+    is silently unreliable, not that it sits in the wrong order — so a disagreement is
+    treated as the evidence it is and no town is asserted at all.
+    """
+    _no_lookup(monkeypatch, {"town": None, "region": "South West"})
+    out = geo.resolve_location(site_town="Chesham", site_postcode="HP5 1AA",
+                               listing_town="Bristol", listing_postcode="BS4 1TP",
+                               ch=_FakeCH({}))
+    assert out["town"] is None
+    assert out["conflict"] == {"own_site": "Chesham", "places_listing": "Bristol"}
+    # the region survives when both agree on it — broad, and still true
+    assert out["region"] == "South West"
+
+
+def test_a_conflict_that_also_disagrees_on_region_asserts_nothing(monkeypatch):
+    regions = iter([{"town": None, "region": "South East"},
+                    {"town": None, "region": "South West"}])
+    monkeypatch.setattr(geo, "postcode_info", lambda pc, **k: next(regions))
+    out = geo.resolve_location(site_town="Chesham", site_postcode="HP5 1AA",
+                               listing_town="Bristol", listing_postcode="BS4 1TP",
+                               ch=_FakeCH({}))
+    assert out["town"] is None and out["region"] is None and out["source"] is None
+
+
+def test_case_and_whitespace_are_not_a_disagreement(monkeypatch):
+    _no_lookup(monkeypatch, {"town": None, "region": "North West"})
+    out = geo.resolve_location(site_town=" macclesfield ", site_postcode="SK11 9DU",
+                               listing_town="Macclesfield", listing_postcode="SK11 9DU",
+                               ch=_FakeCH({}))
+    assert out["source"] == "own_site" and "conflict" not in out
 
 
 def test_a_listing_beats_a_registered_office(monkeypatch):

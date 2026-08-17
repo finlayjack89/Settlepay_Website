@@ -981,7 +981,7 @@ def run(items: list[dict], *, cur=None) -> list[dict]:
 # constants existed (or whose block is missing a location we can now resolve). Picking
 # them by facts state rather than by date means the query stays correct as the block
 # gains fields — a lead is stale when its constants are, not when it is old.
-_REFRESH_SQL = (
+_REFRESH_SELECT = (
     "select l.company_number, l.company_name, l.registered_address->>'locality', "
     "       l.sic_codes[1], coalesce(e.website, l.registered_address->>'website'), l.source, "
     "       l.registered_address->>'formatted', "
@@ -989,7 +989,10 @@ _REFRESH_SQL = (
     "                l.registered_address->>'postal_code'), "
     "       l.registered_address->>'primary_type', e.facts "
     "from outreach.leads l join outreach.enrichment e using (company_number) "
-    "where l.state in ('enriched','drafted','parked') "
+    "where l.state in ('enriched','drafted','parked') ")
+
+_REFRESH_SQL = (
+    _REFRESH_SELECT +
     "  and (e.facts is null "
     "       or e.facts->'location'->>'value' is null "
     "       or e.facts->'region' is null) "
@@ -1003,8 +1006,17 @@ _REFRESH_SQL = (
     "       or e.facts_refreshed_at < now() - make_interval(days => %s)) "
     "order by e.facts_refreshed_at nulls first, l.updated_at limit %s")
 
+# The same projection, selected by NAME instead of by staleness — no cooldown, because
+# the caller has named these rows deliberately. Used to re-apply a changed resolution rule
+# to the rows it was written for, which the predicate above cannot reach: a row holding a
+# WRONG constant looks identical to a healthy one.
+_REFRESH_FORCED_SQL = (
+    _REFRESH_SELECT +
+    "  and l.company_number = any(%s) "
+    "order by l.updated_at limit %s")
 
-def refresh_facts(*, limit: int = 25, cur=None) -> dict:
+
+def refresh_facts(*, limit: int = 25, cur=None, only: Optional[list[str]] = None) -> dict:
     """Recompute the drafting CONSTANTS for leads already enriched, and nothing else.
 
     Deliberately NOT `discover_and_run` over the same rows. That path re-gathers and
@@ -1012,6 +1024,16 @@ def refresh_facts(*, limit: int = 25, cur=None) -> dict:
     it over a healthy backlog during a verifier outage (all three providers are currently
     dry) would delete good, already-contacted leads. Nothing here touches contact_email,
     contact_tier or lead state; the worst case is a lead whose constants are unchanged.
+
+    `only` names company numbers to re-resolve REGARDLESS of the staleness predicate.
+
+    That predicate selects rows whose constants are MISSING, so this function could fill
+    a gap but never correct a mistake — and a wrong fact is worse than an absent one. BS4
+    Electrical was resolved to Chesham (a postcode scraped off its own site) when its
+    listing says BS4 1TP, Bristol; once geo.resolve_location learned to refuse that
+    conflict, nothing could re-apply the new rule to the row it was written for, because
+    the row HAD a location and therefore looked healthy. A rule change needs a way to
+    reach the data it was written for.
     """
     own = cur is None
     conn = None
@@ -1023,7 +1045,10 @@ def refresh_facts(*, limit: int = 25, cur=None) -> dict:
         if config.COMPANIES_HOUSE_API_KEY else None
     updated = placed = unchanged = 0
     try:
-        cur.execute(_REFRESH_SQL, (config.FACTS_REFRESH_DAYS, limit))
+        if only:
+            cur.execute(_REFRESH_FORCED_SQL, (list(only), limit))
+        else:
+            cur.execute(_REFRESH_SQL, (config.FACTS_REFRESH_DAYS, limit))
         rows = cur.fetchall()
         for (cn, name, town, sic, website, source, formatted, postcode,
              primary_type, raw_facts) in rows:

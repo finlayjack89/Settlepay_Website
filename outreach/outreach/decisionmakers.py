@@ -49,7 +49,7 @@ import json
 import re
 from typing import Optional
 
-from . import audit, config, db
+from . import audit, config, control, db
 from .companies_house import CompaniesHouseClient
 
 # Roles that actually decide. Secretaries and nominee/corporate officers are neither the
@@ -599,25 +599,38 @@ def _resolve_named_email(company_number: str, domain: Optional[str], *, cur,
 
 
 def published_candidates(company_number: str, *, cur) -> list[str]:
-    """Every address the scraper found on this company's site, including the ones the
-    contact picker passed over.
+    """Every address the business itself published that we hold — the chosen contact AND
+    the ones the contact picker passed over.
 
     enrichment.scraped.candidates has been recorded all along and never read again. At
     enrichment time preferring info@ over sarah@ is CORRECT — we have no idea whether
     Sarah is the owner or the receptionist. Once the register has told us who runs the
     firm that changes, and the answer is already on disk: no scrape, no credit, no call.
+
+    contact_email is included, and that is not a technicality. `candidates` only exists on
+    rows enriched after it was added, so on every older row this returned [] and no
+    officer could ever be matched — while the chosen address sat right there, published,
+    plainly theirs. BURNAP + ABEL is the case in point: contact damianabel@…, register
+    says ABEL, Damian Nicholas, and the lead still came out with no name on it. That is
+    the best outcome the waterfall can reach — a real personal mailbox nobody had to
+    infer — missed for want of reading a column we already had.
     """
-    cur.execute("select scraped from outreach.enrichment where company_number=%s",
-                (company_number,))
+    cur.execute("select scraped, contact_email from outreach.enrichment "
+                "where company_number=%s", (company_number,))
     row = cur.fetchone()
-    raw = (row[0] if row else None) or {}
+    if not row:
+        return []
+    raw, chosen = (row[0] or {}), row[1]
     if isinstance(raw, str):
         try:
             raw = json.loads(raw)
         except ValueError:
-            return []
-    cands = raw.get("candidates") if isinstance(raw, dict) else None
-    return [c for c in (cands or []) if isinstance(c, str) and "@" in c]
+            raw = {}
+    cands = (raw.get("candidates") if isinstance(raw, dict) else None) or []
+    out = [c for c in cands if isinstance(c, str) and "@" in c]
+    if chosen and "@" in chosen and chosen.lower() not in {c.lower() for c in out}:
+        out.append(chosen)
+    return out
 
 
 def sourced_address(company_number: str, officer: dict, domain: Optional[str], *,
@@ -782,12 +795,17 @@ def run(*, limit: int = 10, cur=None) -> dict:
     """Resolve decision-makers for up to `limit` enriched corporate leads that don't yet
     have a named contact. Paid (MillionVerifier); gated by DECISION_MAKER_ENABLED in the
     tick. A verifier outage defers cleanly — nothing is confirmed, so nothing changes."""
-    if not config.DM_ENABLED:
-        return {"skipped": "DECISION_MAKER_ENABLED off"}
     own = cur is None
     conn = None
     if own:
         conn = db.connect(); cur = conn.cursor()
+    # Read the switch on the CALLER's cursor. Letting control.get open its own connection
+    # would both waste one per call and — worse — read outside the caller's transaction,
+    # so a switch set moments earlier in the same unit of work would be invisible.
+    if not control.get("DM_ENABLED", cur=cur):
+        if own and conn is not None:
+            conn.close()
+        return {"skipped": "decision-maker lookup switched off"}
     ch = None
     # `fao` is a RESULT, not a consolation: a shared mailbox addressed to the named
     # director. officers_only means we learned who runs it but had no mailbox to use.

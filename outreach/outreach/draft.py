@@ -86,12 +86,29 @@ def _craft_modules() -> str:
     return "\n\n---\n\n".join(parts)
 
 
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+
+
 def load_playbook(path=None) -> str:
+    """The playbook as the MODEL sees it: HTML comments stripped.
+
+    The version-history block at the top of the playbook is maintainer documentation —
+    every entry describes a past failure, and to be useful to a human it quotes the exact
+    wording that failed. All of it was going straight to the model. So the page carrying
+    "never state how they take money" also handed over "matching payments to invoices by
+    hand" and "you take bank transfer", three times each, in the changelog explaining why
+    they were banned. The drafter used them, and the grounding gate refused 4 of 7 drafts
+    in one batch for words the prompt had supplied.
+
+    Comments are non-content by convention everywhere else; making that true here costs
+    nothing and lets the changelog stay candid. The version marker is read BEFORE the
+    strip, because it lives in a comment itself.
+    """
     p = Path(path) if path else PLAYBOOK_PATH
     text = p.read_text()
     if not VERSION_RE.search(text):
         raise RuntimeError(f"{p} has no 'PLAYBOOK VERSION:' marker — refusing an unversioned playbook")
-    return f"{_craft_modules()}\n\n---\n\n{text}"
+    return f"{_craft_modules()}\n\n---\n\n{HTML_COMMENT_RE.sub('', text).strip()}"
 
 
 def check_envelope(text: str) -> list[str]:
@@ -676,14 +693,21 @@ def redraft_stale(*, limit: int = 25, cur=None, provider=None,
     redrawn, skipped, failed = 0, 0, 0
     try:
         cur.execute(
-            "select d.id, d.company_number, l.company_name, e.signal, e.contact_name, e.facts "
+            # contact_tier decides the FAO line, exactly as in run(). Omitting it here
+            # meant every re-drafted role_fao lead defaulted to fao=False: the drafter
+            # was handed a contact_name with no instruction to keep it out of the
+            # greeting, and duly wrote "Dear Andrew," to a shared info@ mailbox — the one
+            # thing the v3.0 doctrine exists to prevent, since whoever opens that inbox
+            # may not be Andrew. Two drafting paths, one of them quietly wrong.
+            "select d.id, d.company_number, l.company_name, e.signal, e.contact_name, "
+            "       e.facts, e.contact_tier "
             "from outreach.drafts d "
             "join outreach.leads l on l.company_number = d.company_number "
             "join outreach.enrichment e on e.company_number = d.company_number "
             "where d.status = 'awaiting_approval' and d.prompt_version is distinct from %s "
             "  and e.facts is not null "
             "order by d.created_at limit %s", (keep_version, limit))
-        for draft_id, cn, name, sig, contact_name, raw_facts in cur.fetchall():
+        for draft_id, cn, name, sig, contact_name, raw_facts, tier in cur.fetchall():
             cur.execute("savepoint redraft_lead")
             try:
                 block = facts.loads(raw_facts)
@@ -699,7 +723,8 @@ def redraft_stale(*, limit: int = 25, cur=None, provider=None,
                             "where company_number=%s and state='drafted'", (cn,))
                 draft_one(cn, name, sig, provider=provider or draft_provider(
                     responder=provisional_responder), cur=cur, playbook=playbook,
-                    contact_name=contact_name, lead_facts=block)
+                    contact_name=contact_name, lead_facts=block,
+                    fao=(tier == "role_fao"))
                 redrawn += 1
                 cur.execute("release savepoint redraft_lead")
             except EnvelopeViolation as e:

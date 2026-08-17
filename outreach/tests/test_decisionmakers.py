@@ -655,8 +655,21 @@ def test_the_verify_cap_bounds_mv_spend(db_rollback, monkeypatch):
 
 
 def test_run_is_off_by_default(db_rollback, monkeypatch):
+    """Targeting named individuals is a posture the operator opts into knowingly, so the
+    stage stays inert until someone turns it on."""
     monkeypatch.setattr(config, "DM_ENABLED", False)
-    assert dm.run(cur=db_rollback.cursor()) == {"skipped": "DECISION_MAKER_ENABLED off"}
+    assert "skipped" in dm.run(cur=db_rollback.cursor())
+
+
+def test_run_can_be_switched_on_from_the_console(db_rollback, monkeypatch):
+    """The gate reads `control` now, so it is settable at runtime without a redeploy —
+    but only deliberately, and the change is recorded with who made it and why."""
+    from outreach import control
+
+    cur = db_rollback.cursor()
+    monkeypatch.setattr(config, "DM_ENABLED", False)
+    control.set("DM_ENABLED", True, by="finlay", reason="test", cur=cur)
+    assert "skipped" not in dm.run(cur=cur, limit=0)
 
 
 def test_a_deferred_lead_is_retried_next_tick(db_rollback):
@@ -717,3 +730,47 @@ def test_genuinely_no_officers_is_a_completed_attempt(db_rollback):
     assert not r.get("deferred") and r["officers"] == 0
     cur.execute("select dm_attempted_at from outreach.enrichment where company_number=%s", (cn,))
     assert cur.fetchone()[0] is not None
+
+
+def test_the_chosen_contact_counts_as_a_published_address(db_rollback):
+    """`candidates` only exists on rows enriched after it was added, so on every older row
+    published_candidates returned [] and no officer could be matched — while the address
+    we had already chosen sat there, published, plainly theirs. Live case: contact
+    damianabel@burnapandabel.co.uk, register says ABEL, Damian Nicholas, lead came out
+    with no name on it."""
+    import uuid
+
+    from outreach import decisionmakers
+
+    cur = db_rollback.cursor()
+    cn = f"PUB_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,'Burnap Test Ltd','ltd','corporate',"
+                "'enriched')", (cn,))
+    cur.execute("insert into outreach.enrichment (company_number, domain, contact_email, "
+                "contact_tier, scraped) values (%s,'burnaptest.co.uk',"
+                "'damianabel@burnaptest.co.uk','verified',%s::jsonb)",
+                (cn, '{"candidates": null}'))
+
+    assert decisionmakers.published_candidates(cn, cur=cur) == ["damianabel@burnaptest.co.uk"]
+    officer = {"name": "ABEL, Damian Nicholas"}
+    assert decisionmakers.sourced_address(cn, officer, "burnaptest.co.uk", cur=cur) == \
+        "damianabel@burnaptest.co.uk"
+
+
+def test_the_chosen_contact_is_not_duplicated_when_already_a_candidate(db_rollback):
+    import uuid
+
+    from outreach import decisionmakers
+
+    cur = db_rollback.cursor()
+    cn = f"PUB_{uuid.uuid4().hex[:8]}"
+    cur.execute("insert into outreach.leads (company_number, company_name, company_type, "
+                "subscriber_class, state) values (%s,'Dup Test Ltd','ltd','corporate',"
+                "'enriched')", (cn,))
+    cur.execute("insert into outreach.enrichment (company_number, domain, contact_email, "
+                "contact_tier, scraped) values (%s,'dup.co.uk','info@dup.co.uk','verified',"
+                "%s::jsonb)", (cn, '{"candidates": ["info@dup.co.uk", "sam@dup.co.uk"]}'))
+
+    got = decisionmakers.published_candidates(cn, cur=cur)
+    assert sorted(got) == ["info@dup.co.uk", "sam@dup.co.uk"]

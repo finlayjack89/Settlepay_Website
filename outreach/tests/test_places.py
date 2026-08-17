@@ -109,7 +109,8 @@ def test_the_grid_cursor_advances_past_a_failing_query(db_rollback, monkeypatch)
 
     grid = [f"q{i}" for i in range(10)]
     grid[1] = "bad-q1"
-    monkeypatch.setattr(targeting, "places_queries", lambda: grid)
+    # **kw because places_queries now takes group/region for an aimed run
+    monkeypatch.setattr(targeting, "places_queries", lambda **kw: grid)
     monkeypatch.setattr(places, "text_search",
                         lambda q, **k: (_ for _ in ()).throw(places.PlacesUnavailable("boom"))
                         if "bad" in q else [])
@@ -154,3 +155,46 @@ def test_the_grid_has_no_duplicate_queries():
     assert len(q) == len(set(q))
     grid = targeting.places_queries()
     assert len(grid) == len(set(grid))
+
+
+# --------------------------------------------------------------------------- #
+#  Google's own category beats an LLM's read of the page text
+# --------------------------------------------------------------------------- #
+def test_a_wholesaler_is_refused_at_discovery():
+    """The ICP gate is an LLM reading scraped page text, and it let `7 Core Electrical
+    Wholesale Ltd` through — a trade wholesaler whose site is full of the word
+    "electrical", scored as an electrician. Google had it filed under `wholesaler` the
+    whole time. Refusing it HERE costs one row we never wrote; refusing it at enrichment
+    costs a resolve, up to three scrapes and a model call first."""
+    from outreach import places
+    assert places.never_icp({"primary_type": "wholesaler", "types": ["wholesaler"]})
+    assert places.never_icp({"primary_type": "electrician",
+                             "types": ["electrician", "wholesaler"]})
+    assert not places.never_icp({"primary_type": "electrician", "types": ["electrician"]})
+    assert not places.never_icp({})
+
+
+def test_the_never_icp_list_stays_small(db_rollback, monkeypatch):
+    """It refuses a lead outright with no appeal, so only categories that are
+    STRUCTURALLY never our customer belong in it. The arguable cases — a shop with a
+    till, a firm already selling online — stay with the LLM gate, which can weigh them."""
+    from outreach import places
+    assert len(places.NEVER_ICP_TYPES) <= 10
+    for allowed in ("electrician", "plumber", "auction_house", "dentist", "accounting"):
+        assert allowed not in places.NEVER_ICP_TYPES
+
+
+def test_a_never_icp_business_is_never_inserted(db_rollback, monkeypatch):
+    import uuid
+
+    from outreach import places
+
+    def fake_search(q, *, max_results=20, cur=None):
+        return [{"place_id": f"pid-{uuid.uuid4().hex[:10]}", "name": "Trade Supplies Ltd",
+                 "address": "1 Depot Rd, Skegness PE25 3TB, UK", "postcode": "PE25 3TB",
+                 "website": "https://supplies.example", "primary_type": "wholesaler",
+                 "types": ["wholesaler"], "business_status": "OPERATIONAL"}]
+
+    monkeypatch.setattr(places, "text_search", fake_search)
+    res = places.discover_to_leads(["trade supplies"], cur=db_rollback.cursor())
+    assert res["inserted"] == 0 and res["skipped"] == 1

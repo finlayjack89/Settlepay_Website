@@ -5,8 +5,21 @@ audit_log. Pure reads — never writes. Every number here is derived from the li
 Supabase `outreach` schema, so the dashboard reflects real pipeline performance.
 """
 from __future__ import annotations
+import json
 
 from .targeting import SIC_LABELS  # single source of truth for SIC -> label
+
+# How the control room labels each stage. Kept here rather than in web.py so the digest
+# and the console cannot drift into calling the same stage two different things.
+STAGE_LABELS = {
+    "inbound": "Read the inbox", "classify": "PECR firewall", "monitor": "Deliverability monitor",
+    "discover_places": "Discover (Places)", "crossref": "PECR cross-reference",
+    "discover": "Discover (register)", "enrich": "Enrich", "decision_makers": "Decision makers",
+    "draft": "Draft", "critic": "Critic", "followup": "Follow-ups",
+    "auto_approve": "Auto-approve", "send": "Send", "digest": "Daily digest",
+    # runway() names one stock the tick has no stage for — the human gate
+    "review": "Your review",
+}
 
 
 def sic_label(sic: str | None) -> str:
@@ -54,6 +67,81 @@ def review_backlog(cur) -> int:
     drafts for ever and pays to write email nobody has read yet."""
     return _scalar(cur, "select count(*) from outreach.drafts "
                         "where status = 'awaiting_approval'")
+
+
+def runway(cur, *, window_days: int = 14) -> dict:
+    """How many days of sending each stage is holding, at the rate we actually send.
+
+    The funnel counts alone cannot answer the only question that matters day to day —
+    "will this keep running, and if not, which stage runs dry first?" A 14,000-lead
+    backlog looks like abundance right up until you notice only 136 of them are enriched
+    and the drafter is what's starving.
+
+    Rate: measured live sends per day over the window, falling back to today's PLANNED
+    capacity when nothing has sent. That fallback is deliberate. Dividing by a measured
+    rate of zero yields infinite runway, which is precisely the reading this pipeline
+    would have given while it sat idle for a fortnight — every stage "fine", nothing
+    moving. `rate_basis` says which number was used, so the answer is never silently
+    hypothetical.
+    """
+    from . import config, schedule, sequence
+
+    sent = _scalar(cur, "select count(*) from outreach.sends where mode='live' "
+                        "and created_at >= now() - make_interval(days => %s)",
+                   (window_days,))
+    measured = sent / window_days if sent else 0.0
+    if measured > 0:
+        rate, basis = measured, "measured"
+    else:
+        seq = sequence.load_sequence_config()
+        try:
+            rate = float(schedule.daily_capacity(
+                sequence.local_now(seq).date(), cur=cur,
+                inbox=config.GMAIL_SENDER or "unset", seq=seq))
+        except Exception:
+            rate = 0.0
+        basis = "planned"
+
+    # pipeline order matters below — the bottleneck rule reads it
+    stages = [
+        # each is stock WAITING for the named stage to act on it
+        ("crossref", "select count(*) from outreach.leads "
+                     "where source='places' and subscriber_class is null "
+                     "and state='discovered'"),
+        ("enrich", "select count(*) from outreach.leads "
+                   "where subscriber_class='corporate' and state='discovered'"),
+        ("draft", "select count(*) from outreach.leads where state='enriched'"),
+        ("review", "select count(*) from outreach.drafts where status='awaiting_approval'"),
+        ("send", "select count(*) from outreach.drafts "
+                 "where status='approved' and not exists ("
+                 "  select 1 from outreach.sends s "
+                 "  where s.draft_id = outreach.drafts.id and s.mode='live')"),
+    ]
+    out = {"rate_per_day": round(rate, 2), "rate_basis": basis,
+           "window_days": window_days, "sent_in_window": sent, "stages": {}}
+    order = [name for name, _ in stages]
+    for name, sql in stages:
+        stock = _scalar(cur, sql)
+        out["stages"][name] = {"stock": stock,
+                               "days": round(stock / rate, 1) if rate > 0 else None}
+
+    # An empty stage is either CAUGHT UP or STARVING, and the difference is everything.
+    # crossref sitting at zero with 7,416 leads queued behind it means it has finished its
+    # work, not that the pipeline is dry — so calling it the bottleneck sends you to fix
+    # the one stage that is keeping up. A stage counts as starving only if nothing
+    # downstream of it is holding stock either.
+    def starving(i: int) -> bool:
+        name = order[i]
+        if out["stages"][name]["stock"] > 0:
+            return False
+        return all(out["stages"][n]["stock"] == 0 for n in order[i + 1:])
+
+    live = {n: out["stages"][n]["days"] for i, n in enumerate(order)
+            if out["stages"][n]["days"] is not None
+            and (out["stages"][n]["stock"] > 0 or starving(i))}
+    out["bottleneck"] = min(live, key=live.get) if live else None
+    out["days_of_runway"] = live.get(out["bottleneck"]) if out["bottleneck"] else None
+    return out
 
 
 def reservoir_status(cur, target: int) -> dict:
@@ -229,6 +317,54 @@ def inbound_summary(cur) -> dict:
     return {"reply": by.get("reply", 0), "bounce": by.get("bounce", 0),
             "unsubscribe": by.get("unsubscribe", 0), "complaint": by.get("complaint", 0),
             "suppressions": _scalar(cur, "select count(*) from outreach.suppressions")}
+
+
+def stage_status(cur) -> dict:
+    """What each stage did last tick, and — when it did nothing — why.
+
+    Every stage already writes its own reason for standing down ("reservoir full",
+    "outside send window", "credit budget floor reached", "review backlog full"). That
+    reasoning went into a job row nobody opens and was then lost, so the honest answer to
+    "why is nothing happening" took a database session to reconstruct. run._remember_tick
+    caches the last summary; this reads it back.
+    """
+    from . import control, monitor
+
+    raw = None
+    try:
+        raw = monitor.get_flag("last_tick_summary", cur=cur)
+    except Exception:
+        pass
+    try:
+        summary = json.loads(raw) if raw else {}
+    except ValueError:
+        summary = {}
+
+    from .run import AUTONOMOUS_STAGES as gateable, FULL_CHAIN
+
+    steps = summary.get("steps") or {}
+    out = {"at": summary.get("at"), "stages": {}}
+    for name in FULL_CHAIN:
+        step = steps.get(name)
+        if step is None:
+            state, detail = "not run", ""
+        elif isinstance(step, dict) and "skipped" in step:
+            state, detail = "idle", str(step["skipped"])
+        elif isinstance(step, dict) and "error" in step:
+            state, detail = "error", str(step["error"])[:160]
+        else:
+            state = "ran"
+            # the stage's own result dict is the most honest summary there is
+            detail = ", ".join(f"{k} {v}" for k, v in (step or {}).items()
+                               if isinstance(v, (int, float, str)))[:160]
+        out["stages"][name] = {
+            "label": STAGE_LABELS.get(name, name),
+            "state": state, "detail": detail,
+            # None means "always runs" — the stage has no switch, and showing an OFF
+            # toggle next to a stage that cannot be turned off would be a lie
+            "auto": control.stage_enabled(name, cur=cur) if name in gateable else None,
+        }
+    return out
 
 
 def recent_activity(cur, limit: int = 18) -> list[tuple]:

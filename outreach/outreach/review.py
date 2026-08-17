@@ -112,6 +112,11 @@ def _decide(draft_id, *, new_status, lead_target, event, reviewer, body_final, n
     audit.record(company_number, event, source="approval",
                  lawful_basis=audit.LEGITIMATE_INTERESTS,
                  reason=f"{event} by {reviewer}" + (f"; note: {note}" if note else ""), cur=cur)
+    # The note is the most valuable output of a review and until now nothing read it.
+    # Classifying it here — at the moment of the decision — is what turns "the reviewer
+    # rejected this" into "enrichment resolved the wrong town, again".
+    from . import feedback
+    feedback.record_note(cur, draft_id, company_number, note)
     return company_number
 
 

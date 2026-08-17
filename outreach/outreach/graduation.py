@@ -25,7 +25,7 @@ from __future__ import annotations
 import hashlib
 import json
 
-from . import audit, config, db, review, sequence
+from . import audit, config, control, db, review, sequence
 from .draft import PROMPT_VERSION
 
 AUTO_REVIEWER = "auto:graduation"
@@ -41,18 +41,30 @@ EVIDENCE_MAX_CHARS = 400
 # 460 enrichment rows.
 _VERTICAL = "coalesce(l.sic_codes[1], l.registered_address->>'primary_type')"
 
+# What counts as a HUMAN having reviewed a draft. `decided_by is not null` was doing this
+# job and is not up to it: 352 of the 357 decided rows on this database are a single bulk
+# migration (`system:v2.0-migration`), and graduation was reading them as 352 acts of human
+# trust. The real number of human decisions ever made is 24. A gate that can be opened by
+# its own maintenance script is not a gate.
+_HUMAN_DECISION = ("d.decided_by is not null "
+                   "and d.decided_by not like 'system:%%' "
+                   "and d.decided_by not like 'auto:%%'")
+
 _METRICS_SQL = f"""
 with vertical_drafts as (
-  select {_VERTICAL} as vertical, d.status, d.decided_by, d.body_original, d.body_final
+  select {_VERTICAL} as vertical, d.status, d.body_original, d.body_final,
+         ({_HUMAN_DECISION}) as human_decided
   from outreach.drafts d
   join outreach.leads l on l.company_number = d.company_number
   where d.prompt_version = %s and {_VERTICAL} is not null
 ),
 reviewed as (
   select vertical,
-         count(*) filter (where status in ('approved','rejected') and decided_by is not null) as reviewed,
-         count(*) filter (where status = 'approved') as approved,
-         count(*) filter (where status = 'approved'
+         count(*) filter (where status in ('approved','rejected') and human_decided) as reviewed,
+         -- approvals are counted on the same footing as the reviews they are drawn from,
+         -- or the rate is a fraction of two different populations
+         count(*) filter (where status = 'approved' and human_decided) as approved,
+         count(*) filter (where status = 'approved' and human_decided
                           and (body_final is null or body_final = body_original)) as approved_unedited
   from vertical_drafts group by vertical
 ),
@@ -146,10 +158,13 @@ def run(*, cur=None, limit=None) -> list[dict]:
         cur = conn.cursor()
     try:
         actions: list[dict] = []
+        # read once, on the caller's cursor: a mode change mid-batch would make
+        # half the drafts obey one rule and half another
+        critic_mode = control.get("CRITIC_MODE", cur=cur)
         metrics = {m["vertical"]: m for m in vertical_metrics(cur) if _meets(m, thresholds)}
         if metrics:
             sql = (
-                f"select d.id, d.company_number, {_VERTICAL} "
+                f"select d.id, d.company_number, {_VERTICAL}, d.critic_verdict "
                 "from outreach.drafts d join outreach.leads l on l.company_number = d.company_number "
                 "where d.status = 'awaiting_approval' and d.touch = 1 "
                 f"and d.prompt_version = %s and {_VERTICAL} = any(%s) "
@@ -161,7 +176,20 @@ def run(*, cur=None, limit=None) -> list[dict]:
                 sql += " limit %s"
                 params += (limit,)
             cur.execute(sql, params)
-            for draft_id, company_number, vertical in cur.fetchall():
+            for draft_id, company_number, vertical, critic_verdict in cur.fetchall():
+                # In 'gate' mode a draft the critic failed is never auto-approved — it
+                # falls through to the human queue, which is the whole point of having a
+                # second reader. In shadow mode this is inert by construction: the critic
+                # writes verdicts and nothing consults them, so its agreement with real
+                # human decisions can be measured before it is allowed to matter.
+                if critic_mode == "gate" and critic_verdict == "fail":
+                    audit.record(company_number, "critic_held", source="graduation",
+                                 lawful_basis=audit.LEGITIMATE_INTERESTS,
+                                 reason=f"critic failed this draft ({vertical}, "
+                                        f"{PROMPT_VERSION}) — held for a human", cur=cur)
+                    actions.append({"draft_id": str(draft_id), "company_number": company_number,
+                                    "vertical": vertical, "action": "critic_held"})
+                    continue
                 if held_for_spot_check(company_number, modulus):
                     audit.record(company_number, "spot_check_held", source="graduation",
                                  lawful_basis=audit.LEGITIMATE_INTERESTS,
